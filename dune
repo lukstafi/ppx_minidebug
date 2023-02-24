@@ -1,0 +1,7 @@
+(library
+ (public_name ppx_minidebug)
+ (name ppx_minidebug)
+ (kind ppx_rewriter)
+ (modules ppx_minidebug)
+ (libraries ppxlib)
+ (preprocess (pps ppxlib.metaquot)))
