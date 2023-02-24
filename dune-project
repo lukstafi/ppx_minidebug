@@ -11,7 +11,7 @@
 
 (maintainers "Lukasz Stafiniak")
 
-(license LICENSE)
+(license "LGPL-2.1-or-later")
 
 (documentation https://github.com/lukstafi/ppx_minidebug/blob/main/README.md)
 
