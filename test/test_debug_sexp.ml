@@ -14,9 +14,13 @@ module Debug_runtime = struct
   let pp_printf () (type a): (a, Caml.Format.formatter, unit) format -> a =
     Caml.Format.fprintf ppf
   let open_box() = Caml.Format.pp_open_hovbox ppf 2
-  let close_box() = Caml.Format.pp_close_box ppf ()
+  let close_box ~toplevel () =
+    Caml.Format.pp_close_box ppf ();
+    (if toplevel then Caml.Format.pp_print_newline ppf ())
 end
 
 type nonrec int = int [@@deriving sexp]
+
 let%debug_sexp foo (x: int): int = let y: int = x + 1 in 2 * y
-let () = ignore foo
+
+let () = Stdio.Out_channel.print_endline @@ Int.to_string @@ foo 7

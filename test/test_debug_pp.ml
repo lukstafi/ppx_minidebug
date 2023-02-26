@@ -1,5 +1,3 @@
-(* open Base *)
-
 module Debug_runtime = struct
   let debug_ch =
     let debug_ch =
@@ -14,10 +12,13 @@ module Debug_runtime = struct
   let pp_printf () (type a): (a, Caml.Format.formatter, unit) format -> a =
     Caml.Format.fprintf ppf
   let open_box() = Caml.Format.pp_open_hovbox ppf 2
-  let close_box() = Caml.Format.pp_close_box ppf ()
+  let close_box ~toplevel () =
+    Caml.Format.pp_close_box ppf ();
+    (if toplevel then Caml.Format.pp_print_newline ppf ())
 end
 
 type t = {first: int; second: int} [@@deriving show]
 type num = int [@@deriving show]
-let%debug_pp foo (x: t): num = let y: num = x.first + 1 in x.second * y
-let () = ignore foo
+let%debug_pp bar (x: t): num = let y: num = x.first + 1 in x.second * y
+
+let () = print_endline @@ Int.to_string @@ bar {first=7; second=42}
