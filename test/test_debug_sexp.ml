@@ -21,6 +21,8 @@ end
 
 type nonrec int = int [@@deriving sexp]
 
-let%debug_sexp foo (x: int): int = let y: int = x + 1 in 2 * y
+let%debug_sexp foo (x: int): int =
+  let y: int = x + 1 in
+  2 * y
 
 let () = Stdio.Out_channel.print_endline @@ Int.to_string @@ foo 7
