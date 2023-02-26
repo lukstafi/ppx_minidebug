@@ -4,7 +4,7 @@ module Debug_runtime =
     let debug_ch =
       let debug_ch =
         Stdio.Out_channel.create ~binary:false ~append:true
-          "/home/lukstafi/ocannl/debugger.log" in
+          "../../../debugger.log" in
       Stdio.Out_channel.fprintf debug_ch
         "\nBEGIN DEBUG SESSION at time UTC %s\n%!"
         (Core.Time_ns.to_string_utc @@ (Core.Time_ns.now ()));
