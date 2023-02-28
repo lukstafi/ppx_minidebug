@@ -19,26 +19,26 @@ module Debug_runtime =
       Caml.Format.pp_close_box ppf ();
       if toplevel then Caml.Format.pp_print_newline ppf ()
   end
-type nonrec int = int[@@deriving sexp]
 let foo (x : int) =
   (Debug_runtime.open_box ();
    (Debug_runtime.pp_printf ()
-      "@[\"%s\":%d:%d-%d:%d@ at time UTC@ %s: %s@]@ " "test_debug_sexp.ml" 24
-      19 24 62 (Core.Time_ns.to_string_utc @@ (Core.Time_ns.now ())) "foo";
-    Debug_runtime.pp_printf () "%s = %a@ @ " "x" Sexp.pp_hum (sexp_of_int x));
+      "@[\"%s\":%d:%d-%d:%d@ at time UTC@ %s: %s@]@ " "test_debug_sexp.ml" 22
+      19 24 7 (Core.Time_ns.to_string_utc @@ (Core.Time_ns.now ())) "foo";
+    Debug_runtime.pp_printf () "%s = %a@ @ " "x" Sexp.pp_hum
+      (([%sexp_of : int]) x));
    (let foo__res =
       let y : int =
         Debug_runtime.open_box ();
-        Debug_runtime.pp_printf () "\"%s\":%d:%d:%s" "test_debug_sexp.ml" 24
-          39 " ";
+        Debug_runtime.pp_printf () "\"%s\":%d:%d:%s" "test_debug_sexp.ml" 23
+          6 " ";
         (let y__res = (x + 1 : int) in
          Debug_runtime.pp_printf () "%s = %a@ @ " "y" Sexp.pp_hum
-           (sexp_of_int y__res);
+           (([%sexp_of : int]) y__res);
          Debug_runtime.close_box ~toplevel:false ();
          y__res) in
       2 * y in
     Debug_runtime.pp_printf () "%s = %a@ @ " "foo" Sexp.pp_hum
-      (sexp_of_int foo__res);
+      (([%sexp_of : int]) foo__res);
     Debug_runtime.close_box ~toplevel:true ();
     foo__res) : int)
 let () = Stdio.Out_channel.print_endline @@ (Int.to_string @@ (foo 7))

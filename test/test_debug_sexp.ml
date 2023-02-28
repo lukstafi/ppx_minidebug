@@ -19,8 +19,6 @@ module Debug_runtime = struct
     (if toplevel then Caml.Format.pp_print_newline ppf ())
 end
 
-type nonrec int = int [@@deriving sexp]
-
 let%debug_sexp foo (x: int): int =
   let y: int = x + 1 in
   2 * y

@@ -44,15 +44,15 @@ let log_preamble ?(brief=false) ?(message="") ~loc () =
         (Core.Time_ns.to_string_utc @@ Core.Time_ns.now())
         [%e A.estring ~loc message]]
 
+exception Not_transforming
+
 let log_value ~loc ~typ ~descr_loc exp =
+  (* [%sexp_of: typ] does not work with `Ptyp_poly`. Misleading error "Let with no bindings". *)
+  let typ = match typ with {ptyp_desc=Ptyp_poly (_, ctyp); _} -> ctyp | ctyp -> ctyp in
   [%expr
     Debug_runtime.pp_printf () "%s = %a@ @ "
       [%e A.estring ~loc:descr_loc.loc descr_loc.txt] Sexp.pp_hum
-      [%sexp_of: [%t typ]]
-      (* [%e A.pexp_extension ~loc ({txt="sexp_of"; loc=descr_loc.loc}, Parsetree.PTyp typ)] *)
-      [%e exp]]
-
-exception Not_transforming
+      ([%sexp_of: [%t typ]] [%e exp])]
 
 let rec collect_fun accu = function
   | [%expr fun [%p? arg] -> [%e? body]] as exp -> collect_fun ((arg, exp.pexp_loc)::accu) body
@@ -72,6 +72,7 @@ let debug_fun ~toplevel callback bind descr_loc typ_opt1 exp =
     | Some typ, _ | None, Some typ -> typ
     | None, None -> raise Not_transforming in
   let arg_logs = List.filter_map (function
+      (* TODO: include [as] aliases, also in `ppx_minidebug_pp` *)
       | [%pat? ([%p? {ppat_desc=Ppat_var descr_loc; _} as pat ] :
                   [%t? typ ] ) ], loc ->
         Some (log_value ~loc ~typ ~descr_loc (pat2expr pat))
@@ -97,11 +98,10 @@ let debug_binding ~toplevel callback vb =
   let loc = vb.pvb_loc in
   let descr_loc, typ_opt =
     match vb.pvb_pat, vb.pvb_expr with
-    | [%pat? ([%p? {ppat_desc=Ppat_var descr_loc; _} ] :
-                [%t? typ ] ) ], _ ->
+    (* TODO: include [as] aliases, also in `ppx_minidebug_pp` *)
+    | [%pat? ([%p? {ppat_desc=Ppat_var descr_loc; _} ] : [%t? typ ] ) ], _ ->
       descr_loc, Some typ
-    | {ppat_desc=Ppat_var descr_loc; _}, 
-      [%expr ([%e? _exp] : [%t? typ ])] ->
+    | {ppat_desc=Ppat_var descr_loc; _}, [%expr ([%e? _exp] : [%t? typ ])] ->
         descr_loc, Some typ
     | {ppat_desc=Ppat_var descr_loc; _}, _ ->
         descr_loc, None
