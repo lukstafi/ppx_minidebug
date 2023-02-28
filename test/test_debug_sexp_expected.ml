@@ -52,3 +52,27 @@ let bar (x : t) =
 let () =
   Stdio.Out_channel.print_endline @@
     (Int.to_string @@ (bar { first = 7; second = 42 }))
+let baz (x : t) =
+  (Debug_runtime.open_box ();
+   (Debug_runtime.pp_printf () "@[\"%s\":%d:%d-%d:%d@ at time@ %s: %s@]@ "
+      "test_debug_sexp.ml" 14 19 15 67 (Debug_runtime.timestamp_now ()) "baz";
+    Debug_runtime.pp_printf () "%s = %a@ @ " "x" Sexp.pp_hum
+      (([%sexp_of : t]) x));
+   (let baz__res =
+      let (((y, z) as _yz) : (int * int)) =
+        Debug_runtime.open_box ();
+        Debug_runtime.pp_printf () "\"%s\":%d:%d:%s" "test_debug_sexp.ml" 15
+          15 " ";
+        (let _yz__res = ((x.first + 1), 3) in
+         Debug_runtime.pp_printf () "%s = %a@ @ " "_yz" Sexp.pp_hum
+           (([%sexp_of : (int * int)]) _yz__res);
+         Debug_runtime.close_box ~toplevel:false ();
+         _yz__res) in
+      (x.second * y) + z in
+    Debug_runtime.pp_printf () "%s = %a@ @ " "baz" Sexp.pp_hum
+      (([%sexp_of : int]) baz__res);
+    Debug_runtime.close_box ~toplevel:true ();
+    baz__res) : int)
+let () =
+  Stdio.Out_channel.print_endline @@
+    (Int.to_string @@ (baz { first = 7; second = 42 }))

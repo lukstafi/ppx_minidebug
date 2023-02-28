@@ -9,3 +9,7 @@ let () = print_endline @@ Int.to_string @@ List.hd @@ foo 7
 type t = {first: int; second: int} [@@deriving show]
 let%debug_show bar (x: t): int = let y: int = x.first + 1 in x.second * y
 let () = print_endline @@ Int.to_string @@ bar {first=7; second=42}
+
+let%debug_show baz (x: t): int =
+  let (y, z as _yz): int * int = x.first + 1, 3 in x.second * y + z
+let () = print_endline @@ Int.to_string @@ baz {first=7; second=42}

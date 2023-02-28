@@ -106,8 +106,7 @@ let debug_fun ~toplevel callback bind descr_loc typ_opt1 exp =
     | Some typ, _ | None, Some typ -> typ
     | None, None -> raise Not_transforming in
   let arg_logs = List.filter_map (function
-      (* TODO: include [as] aliases, also in `ppx_minidebug_pp` *)
-      | [%pat? ([%p? {ppat_desc=Ppat_var descr_loc; _} as pat ] :
+      | [%pat? ([%p? {ppat_desc=(Ppat_var descr_loc | Ppat_alias (_, descr_loc)); _} as pat ] :
                   [%t? typ ] ) ], loc ->
         Some (!log_value ~loc ~typ ~descr_loc (pat2expr pat))
       | _ -> None
@@ -132,8 +131,7 @@ let debug_binding ~toplevel callback vb =
   let loc = vb.pvb_loc in
   let descr_loc, typ_opt =
     match vb.pvb_pat, vb.pvb_expr with
-    (* TODO: include [as] aliases, also in `ppx_minidebug_pp` *)
-    | [%pat? ([%p? {ppat_desc=Ppat_var descr_loc; _} ] : [%t? typ ] ) ], _ ->
+    | [%pat? ([%p? {ppat_desc=(Ppat_var descr_loc | Ppat_alias (_, descr_loc)); _} ] : [%t? typ ] ) ], _ ->
       descr_loc, Some typ
     | {ppat_desc=Ppat_var descr_loc; _}, [%expr ([%e? _exp] : [%t? typ ])] ->
         descr_loc, Some typ

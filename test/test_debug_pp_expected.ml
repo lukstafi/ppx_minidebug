@@ -23,3 +23,22 @@ let bar (x : t) =
     Debug_runtime.close_box ~toplevel:true ();
     bar__res) : num)
 let () = print_endline @@ (Int.to_string @@ (bar { first = 7; second = 42 }))
+let baz (x : t) =
+  (Debug_runtime.open_box ();
+   (Debug_runtime.pp_printf () "@[\"%s\":%d:%d-%d:%d@ at time@ %s: %s@]@ "
+      "test_debug_pp.ml" 8 17 9 89 (Debug_runtime.timestamp_now ()) "baz";
+    Debug_runtime.pp_printf () "%s = %a@ @ " "x" pp x);
+   (let baz__res =
+      let (({ first = y; second = z } as _yz) : t) =
+        Debug_runtime.open_box ();
+        Debug_runtime.pp_printf () "\"%s\":%d:%d:%s" "test_debug_pp.ml" 9 30
+          " ";
+        (let _yz__res = { first = (x.first + 1); second = 3 } in
+         Debug_runtime.pp_printf () "%s = %a@ @ " "_yz" pp _yz__res;
+         Debug_runtime.close_box ~toplevel:false ();
+         _yz__res) in
+      (x.second * y) + z in
+    Debug_runtime.pp_printf () "%s = %a@ @ " "baz" pp_num baz__res;
+    Debug_runtime.close_box ~toplevel:true ();
+    baz__res) : num)
+let () = print_endline @@ (Int.to_string @@ (baz { first = 7; second = 42 }))
