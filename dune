@@ -11,3 +11,9 @@
  (name debug_runtime_jane)
  (modules debug_runtime_jane)
  (libraries base core stdio))
+
+(library
+ (public_name debug_runtime_unix)
+ (name debug_runtime_unix)
+ (modules debug_runtime_unix)
+ (libraries unix))

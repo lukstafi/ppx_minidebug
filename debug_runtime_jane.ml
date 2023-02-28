@@ -17,4 +17,5 @@ module Printf(File_name: sig val v : string end) = struct
   let close_box ~toplevel () =
     Caml.Format.pp_close_box ppf ();
     (if toplevel then Caml.Format.pp_print_newline ppf ())
+  let timestamp_now() = "UTC "^Core.Time_ns.to_string_utc @@ Core.Time_ns.now()
 end

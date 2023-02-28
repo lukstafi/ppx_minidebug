@@ -30,3 +30,11 @@
  (depends ocaml dune core)
  (tags
   (logger debugger "printf debugging")))
+
+(package
+ (name debug_runtime_unix)
+ (synopsis "Non-JaneStreet backend for `ppx_minidebug` style loggers")
+ (description "Uses `Unix` for getting timestamps (local time).")
+ (depends ocaml dune)
+ (tags
+  (logger debugger "printf debugging")))

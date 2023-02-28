@@ -35,13 +35,13 @@ let log_preamble ?(brief=false) ?(message="") ~loc () =
   else
     [%expr
       Debug_runtime.pp_printf ()
-        "@[\"%s\":%d:%d-%d:%d@ at time UTC@ %s: %s@]@ "
+        "@[\"%s\":%d:%d-%d:%d@ at time@ %s: %s@]@ "
         [%e A.estring ~loc loc.loc_start.pos_fname]
         [%e A.eint ~loc loc.loc_start.pos_lnum]
         [%e A.eint ~loc (loc.loc_start.pos_cnum - loc.loc_start.pos_bol)]
         [%e A.eint ~loc loc.loc_end.pos_lnum]
         [%e A.eint ~loc (loc.loc_end.pos_cnum - loc.loc_end.pos_bol)]
-        (Core.Time_ns.to_string_utc @@ Core.Time_ns.now())
+        (Debug_runtime.timestamp_now())
         [%e A.estring ~loc message]]
 
 exception Not_transforming
