@@ -5,3 +5,9 @@
  (modules ppx_minidebug)
  (libraries ppxlib)
  (preprocess (pps ppxlib.metaquot)))
+
+(library
+ (public_name debug_runtime_jane)
+ (name debug_runtime_jane)
+ (modules debug_runtime_jane)
+ (libraries base core stdio))

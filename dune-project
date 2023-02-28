@@ -22,3 +22,11 @@
  (depends ocaml dune)
  (tags
   (logger debugger "printf debugging")))
+
+(package
+ (name debug_runtime_jane)
+ (synopsis "JaneStreet libraries-based backend for `ppx_minidebug` style loggers")
+ (description "Uses `Core.Time_ns` for getting timestamps (UTC time).")
+ (depends ocaml dune core)
+ (tags
+  (logger debugger "printf debugging")))

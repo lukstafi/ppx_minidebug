@@ -124,7 +124,7 @@ let debug_binding ~toplevel callback vb =
   
 let traverse =
   object (self)
-    inherit Ast_traverse.map (* _with_expansion_context *) as super
+    inherit Ast_traverse.map as super
 
     method! expression e =
       let callback e = super#expression e in

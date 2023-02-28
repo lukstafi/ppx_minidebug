@@ -20,20 +20,13 @@
 (test
  (name test_debug_sexp)
  (modules test_debug_sexp)
- (libraries base core stdio)
+ (libraries base core stdio debug_runtime_jane)
  (preprocess
   (pps ppx_minidebug ppx_jane)))
 
 (test
  (name test_debug_sexp_expected)
  (modules test_debug_sexp_expected)
- (libraries base core stdio)
- (preprocess
-  (pps ppx_jane)))
-
-(test
- (name test_jsexp)
- (modules test_jsexp)
- (libraries base core stdio)
+ (libraries base core stdio debug_runtime_jane)
  (preprocess
   (pps ppx_jane)))
