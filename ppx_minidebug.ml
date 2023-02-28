@@ -46,7 +46,8 @@ let log_preamble ?(brief=false) ?(message="") ~loc () =
 
 exception Not_transforming
 
-let log_value ~loc ~typ ~descr_loc exp =
+(* *** The sexplib-based variant. *** *)
+let log_value_sexp ~loc ~typ ~descr_loc exp =
   (* [%sexp_of: typ] does not work with `Ptyp_poly`. Misleading error "Let with no bindings". *)
   let typ = match typ with {ptyp_desc=Ptyp_poly (_, ctyp); _} -> ctyp | ctyp -> ctyp in
   [%expr
@@ -54,6 +55,39 @@ let log_value ~loc ~typ ~descr_loc exp =
       [%e A.estring ~loc:descr_loc.loc descr_loc.txt] Sexp.pp_hum
       ([%sexp_of: [%t typ]] [%e exp])]
 
+(* *** The deriving.show pp-based variant. *** *)
+let rec splice_lident ~id_prefix ident =
+  let splice id =
+    if String.equal id_prefix "pp_" && String.equal id "t" then "pp" else id_prefix ^ id in
+  match ident with
+  | Lident id -> Lident (splice id)
+  | Ldot (path, id) -> Ldot (path, splice id)
+  | Lapply (f, a) -> Lapply (splice_lident ~id_prefix f, a)
+
+let log_value_pp ~loc ~typ ~descr_loc exp =
+  let t_lident_loc =
+  match typ with
+    | {ptyp_desc=(Ptyp_constr (t_lident_loc, [])
+                 | Ptyp_poly (_, {ptyp_desc=Ptyp_constr (t_lident_loc, []); _})
+                 ); _} -> t_lident_loc
+    | _ -> raise Not_transforming in
+  let converter = A.pexp_ident ~loc 
+      {t_lident_loc with txt = splice_lident ~id_prefix:"pp_" t_lident_loc.txt} in
+  [%expr
+    Debug_runtime.pp_printf () "%s = %a@ @ "
+      [%e A.estring ~loc:descr_loc.loc descr_loc.txt] [%e converter] [%e exp]]
+
+(* *** The deriving.show string-based variant. *** *)
+let log_value_show ~loc ~typ ~descr_loc exp =
+  (* Defensive (TODO: check it doesn't work with Ptyp_poly). *)
+  let typ = match typ with {ptyp_desc=Ptyp_poly (_, ctyp); _} -> ctyp | ctyp -> ctyp in
+  [%expr
+    Debug_runtime.pp_printf () "%s = %s@ @ "
+      [%e A.estring ~loc:descr_loc.loc descr_loc.txt]
+      ([%show: [%t typ]] [%e exp])]
+
+let log_value = ref log_value_sexp
+      
 let rec collect_fun accu = function
   | [%expr fun [%p? arg] -> [%e? body]] as exp -> collect_fun ((arg, exp.pexp_loc)::accu) body
   | [%expr ([%e? body] : [%t? typ ] ) ] ->
@@ -75,7 +109,7 @@ let debug_fun ~toplevel callback bind descr_loc typ_opt1 exp =
       (* TODO: include [as] aliases, also in `ppx_minidebug_pp` *)
       | [%pat? ([%p? {ppat_desc=Ppat_var descr_loc; _} as pat ] :
                   [%t? typ ] ) ], loc ->
-        Some (log_value ~loc ~typ ~descr_loc (pat2expr pat))
+        Some (!log_value ~loc ~typ ~descr_loc (pat2expr pat))
       | _ -> None
   ) args in
   let init = log_preamble ~message:descr_loc.txt ~loc () in
@@ -86,7 +120,7 @@ let debug_fun ~toplevel callback bind descr_loc typ_opt1 exp =
       Debug_runtime.open_box ();
       [%e arg_logs];
       let [%p result] = [%e callback body] in
-      [%e log_value ~loc ~typ ~descr_loc (pat2expr result)];
+      [%e !log_value ~loc ~typ ~descr_loc (pat2expr result)];
       Debug_runtime.close_box ~toplevel:[%e A.ebool ~loc toplevel] ();
       [%e pat2expr result]] in
   let body =
@@ -116,12 +150,12 @@ let debug_binding ~toplevel callback vb =
         Debug_runtime.open_box ();
         [%e log_preamble ~brief:true ~message:" " ~loc:descr_loc.loc ()];
         let [%p result] = [%e callback vb.pvb_expr] in
-        [%e log_value ~loc ~typ ~descr_loc (pat2expr result)];
+        [%e !log_value ~loc ~typ ~descr_loc (pat2expr result)];
         Debug_runtime.close_box ~toplevel:[%e A.ebool ~loc toplevel] ();
         [%e pat2expr result]] in
     {vb with pvb_expr = exp}
   | _ -> raise Not_transforming
-  
+
 let traverse =
   object (self)
     inherit Ast_traverse.map as super
@@ -175,7 +209,7 @@ let traverse =
         | _ -> super#structure_item si
     end
   
-let debug_this_expander ~ctxt:_ payload =
+let debug_this_expander payload =
   let callback e = (traverse)#expression e in
   match payload with
   | { pexp_desc = Pexp_let (recflag, bindings, body); _ } ->
@@ -184,9 +218,9 @@ let debug_this_expander ~ctxt:_ payload =
      {payload with pexp_desc=Pexp_let (recflag, bindings, body)}
   | expr -> expr
 
-let debug_expander ~ctxt:_ payload = (traverse_toplevel)#expression payload
+let debug_expander payload = (traverse_toplevel)#expression payload
 
-let str_expander ~loc ~path:_ payload =
+let str_expander ~loc payload =
   match List.map (fun si -> (traverse_toplevel)#structure_item si) payload with
   | [item] -> item
   | items ->
@@ -195,16 +229,70 @@ let str_expander ~loc ~path:_ payload =
       pincl_loc = loc;
       pincl_attributes = [] }
 
+let debug_this_expander_sexp ~ctxt:_ payload =
+  log_value := log_value_sexp;
+  debug_this_expander payload
+
+let debug_expander_sexp ~ctxt:_ payload =
+  log_value := log_value_sexp;
+  debug_expander payload
+
+let str_expander_sexp ~loc ~path:_ payload =
+  log_value := log_value_sexp;
+  str_expander ~loc payload
+
+let debug_this_expander_pp ~ctxt:_ payload =
+  log_value := log_value_pp;
+  debug_this_expander payload
+
+let debug_expander_pp ~ctxt:_ payload =
+  log_value := log_value_pp;
+  debug_expander payload
+
+let str_expander_pp ~loc ~path:_ payload =
+  log_value := log_value_pp;
+  str_expander ~loc payload
+
+let debug_this_expander_show ~ctxt:_ payload =
+  log_value := log_value_show;
+  debug_this_expander payload
+
+let debug_expander_show ~ctxt:_ payload =
+  log_value := log_value_show;
+  debug_expander payload
+
+let str_expander_show ~loc ~path:_ payload =
+  log_value := log_value_show;
+  str_expander ~loc payload
+
 let rules = [
   Ppxlib.Context_free.Rule.extension  @@
   Extension.V3.declare "debug_sexp" Extension.Context.expression Ast_pattern.(single_expr_payload __)
-    debug_expander;
+    debug_expander_sexp;
   Ppxlib.Context_free.Rule.extension  @@
   Extension.V3.declare "debug_this_sexp" Extension.Context.expression Ast_pattern.(single_expr_payload __) 
-    debug_this_expander;
+    debug_this_expander_sexp;
   Ppxlib.Context_free.Rule.extension  @@
   Extension.declare "debug_sexp" Extension.Context.structure_item Ast_pattern.(pstr __)
-    str_expander;
+    str_expander_sexp;
+  Ppxlib.Context_free.Rule.extension  @@
+  Extension.V3.declare "debug_pp" Extension.Context.expression Ast_pattern.(single_expr_payload __)
+    debug_expander_pp;
+  Ppxlib.Context_free.Rule.extension  @@
+  Extension.V3.declare "debug_this_pp" Extension.Context.expression Ast_pattern.(single_expr_payload __) 
+    debug_this_expander_pp;
+  Ppxlib.Context_free.Rule.extension  @@
+  Extension.declare "debug_pp" Extension.Context.structure_item Ast_pattern.(pstr __)
+    str_expander_pp;
+  Ppxlib.Context_free.Rule.extension  @@
+  Extension.V3.declare "debug_show" Extension.Context.expression Ast_pattern.(single_expr_payload __)
+    debug_expander_show;
+  Ppxlib.Context_free.Rule.extension  @@
+  Extension.V3.declare "debug_this_show" Extension.Context.expression Ast_pattern.(single_expr_payload __) 
+    debug_this_expander_show;
+  Ppxlib.Context_free.Rule.extension  @@
+  Extension.declare "debug_show" Extension.Context.structure_item Ast_pattern.(pstr __)
+    str_expander_show;
 ]
 
 let () =
