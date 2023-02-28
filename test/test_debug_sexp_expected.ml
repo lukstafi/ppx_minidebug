@@ -1,11 +1,10 @@
 open Base
 module Debug_runtime =
-  (Debug_runtime_jane.Printf)(struct let v = "../../../debugger.log" end)
+  (Debug_runtime_jane.Printf)(struct let v = "../../../debugger_sexp.log" end)
 let foo (x : int) =
   (Debug_runtime.open_box ();
-   (Debug_runtime.pp_printf ()
-      "@[\"%s\":%d:%d-%d:%d@ at time UTC@ %s: %s@]@ " "test_debug_sexp.ml" 4
-      19 6 15 (Core.Time_ns.to_string_utc @@ (Core.Time_ns.now ())) "foo";
+   (Debug_runtime.pp_printf () "@[\"%s\":%d:%d-%d:%d@ at time@ %s: %s@]@ "
+      "test_debug_sexp.ml" 4 19 6 15 (Debug_runtime.timestamp_now ()) "foo";
     Debug_runtime.pp_printf () "%s = %a@ @ " "x" Sexp.pp_hum
       (([%sexp_of : int]) x));
    (let foo__res =
@@ -31,9 +30,8 @@ type t = {
   second: int }[@@deriving sexp]
 let bar (x : t) =
   (Debug_runtime.open_box ();
-   (Debug_runtime.pp_printf ()
-      "@[\"%s\":%d:%d-%d:%d@ at time UTC@ %s: %s@]@ " "test_debug_sexp.ml" 11
-      19 11 73 (Core.Time_ns.to_string_utc @@ (Core.Time_ns.now ())) "bar";
+   (Debug_runtime.pp_printf () "@[\"%s\":%d:%d-%d:%d@ at time@ %s: %s@]@ "
+      "test_debug_sexp.ml" 11 19 11 73 (Debug_runtime.timestamp_now ()) "bar";
     Debug_runtime.pp_printf () "%s = %a@ @ " "x" Sexp.pp_hum
       (([%sexp_of : t]) x));
    (let bar__res =

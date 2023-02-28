@@ -1,5 +1,5 @@
 open Base
-module Debug_runtime = Debug_runtime_jane.Printf(struct let v = "../../../debugger.log" end)
+module Debug_runtime = Debug_runtime_jane.Printf(struct let v = "../../../debugger_sexp.log" end)
 
 let%debug_sexp foo (x: int): int list =
   let y: int = x + 1 in
