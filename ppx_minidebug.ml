@@ -111,11 +111,15 @@ let debug_fun ~toplevel callback bind descr_loc typ_opt1 exp =
         Some (!log_value ~loc ~typ ~descr_loc (pat2expr pat))
       | _ -> None
   ) args in
-  let init = log_preamble ~message:descr_loc.txt ~loc () in
-  let arg_logs = List.fold_left (fun e1 e2 -> [%expr [%e e1]; [%e e2]]) init arg_logs in
+  let preamble = log_preamble ~message:descr_loc.txt ~loc () in
+  let arg_logs = match arg_logs with
+  | [] -> [%expr ()]
+  | [hd] -> hd
+  | hd::tl -> List.fold_left (fun e1 e2 -> [%expr [%e e1]; [%e e2]]) hd tl in
   let result = pat2pat_res bind in
   let body =
     [%expr
+      [%e preamble];
       Debug_runtime.open_box ();
       [%e arg_logs];
       let [%p result] = [%e callback body] in
