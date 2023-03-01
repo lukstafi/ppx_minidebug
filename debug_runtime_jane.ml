@@ -17,5 +17,14 @@ module Printf(File_name: sig val v : string end) = struct
   let close_box ~toplevel () =
     Caml.Format.pp_close_box ppf ();
     (if toplevel then Caml.Format.pp_print_newline ppf ())
-  let timestamp_now() = "UTC "^Core.Time_ns.to_string_utc @@ Core.Time_ns.now()
+  let log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
+    Caml.Format.fprintf ppf
+        "\"%s\":%d:%d:%s" fname pos_lnum pos_colnum message
+  let log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message =
+    Caml.Format.fprintf ppf
+        "@[\"%s\":%d:%d-%d:%d@ at time@ %a: %s@]@ "
+        fname start_lnum start_colnum  end_lnum end_colnum
+        pp_timestamp (Ptime_clock.now ()) message
+  let log_value_sexp ~descr ~sexp =
+    Caml.Format.fprintf ppf "%s = %a@ @ " descr Sexp.pp_hum sexp
 end

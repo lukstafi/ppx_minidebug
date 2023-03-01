@@ -27,22 +27,20 @@ let rec pat2pat_res pat =
 let log_preamble ?(brief=false) ?(message="") ~loc () =
   if brief then
     [%expr
-      Debug_runtime.pp_printf ()
-        "\"%s\":%d:%d:%s" [%e A.estring ~loc loc.loc_start.pos_fname]
-        [%e A.eint ~loc loc.loc_start.pos_lnum]
-        [%e A.eint ~loc (loc.loc_start.pos_cnum - loc.loc_start.pos_bol)]
-        [%e A.estring ~loc message]]
+      Debug_runtime.log_preamble_brief
+        ~fname:[%e A.estring ~loc loc.loc_start.pos_fname]
+        ~pos_lnum:[%e A.eint ~loc loc.loc_start.pos_lnum]
+        ~pos_colnum:[%e A.eint ~loc (loc.loc_start.pos_cnum - loc.loc_start.pos_bol)]
+        ~message:[%e A.estring ~loc message]]
   else
     [%expr
-      Debug_runtime.pp_printf ()
-        "@[\"%s\":%d:%d-%d:%d@ at time@ %s: %s@]@ "
-        [%e A.estring ~loc loc.loc_start.pos_fname]
-        [%e A.eint ~loc loc.loc_start.pos_lnum]
-        [%e A.eint ~loc (loc.loc_start.pos_cnum - loc.loc_start.pos_bol)]
-        [%e A.eint ~loc loc.loc_end.pos_lnum]
-        [%e A.eint ~loc (loc.loc_end.pos_cnum - loc.loc_end.pos_bol)]
-        (Debug_runtime.timestamp_now())
-        [%e A.estring ~loc message]]
+      Debug_runtime.log_preamble_full
+        ~fname:[%e A.estring ~loc loc.loc_start.pos_fname]
+        ~start_lnum:[%e A.eint ~loc loc.loc_start.pos_lnum]
+        ~start_colnum:[%e A.eint ~loc (loc.loc_start.pos_cnum - loc.loc_start.pos_bol)]
+        ~end_lnum:[%e A.eint ~loc loc.loc_end.pos_lnum]
+        ~end_colnum:[%e A.eint ~loc (loc.loc_end.pos_cnum - loc.loc_end.pos_bol)]
+        ~message:[%e A.estring ~loc message]]
 
 exception Not_transforming
 
@@ -51,9 +49,9 @@ let log_value_sexp ~loc ~typ ~descr_loc exp =
   (* [%sexp_of: typ] does not work with `Ptyp_poly`. Misleading error "Let with no bindings". *)
   let typ = match typ with {ptyp_desc=Ptyp_poly (_, ctyp); _} -> ctyp | ctyp -> ctyp in
   [%expr
-    Debug_runtime.pp_printf () "%s = %a@ @ "
-      [%e A.estring ~loc:descr_loc.loc descr_loc.txt] Sexp.pp_hum
-      ([%sexp_of: [%t typ]] [%e exp])]
+    Debug_runtime.log_value_sexp
+      ~descr:[%e A.estring ~loc:descr_loc.loc descr_loc.txt]
+      ~sexp:([%sexp_of: [%t typ]] [%e exp])]
 
 (* *** The deriving.show pp-based variant. *** *)
 let rec splice_lident ~id_prefix ident =
@@ -74,17 +72,17 @@ let log_value_pp ~loc ~typ ~descr_loc exp =
   let converter = A.pexp_ident ~loc 
       {t_lident_loc with txt = splice_lident ~id_prefix:"pp_" t_lident_loc.txt} in
   [%expr
-    Debug_runtime.pp_printf () "%s = %a@ @ "
-      [%e A.estring ~loc:descr_loc.loc descr_loc.txt] [%e converter] [%e exp]]
+    Debug_runtime.log_value_pp
+      ~descr:[%e A.estring ~loc:descr_loc.loc descr_loc.txt] ~pp:[%e converter] ~v:[%e exp]]
 
 (* *** The deriving.show string-based variant. *** *)
 let log_value_show ~loc ~typ ~descr_loc exp =
   (* Defensive (TODO: check it doesn't work with Ptyp_poly). *)
   let typ = match typ with {ptyp_desc=Ptyp_poly (_, ctyp); _} -> ctyp | ctyp -> ctyp in
   [%expr
-    Debug_runtime.pp_printf () "%s = %s@ @ "
-      [%e A.estring ~loc:descr_loc.loc descr_loc.txt]
-      ([%show: [%t typ]] [%e exp])]
+    Debug_runtime.log_value_show
+      ~descr:[%e A.estring ~loc:descr_loc.loc descr_loc.txt]
+      ~v:([%show: [%t typ]] [%e exp])]
 
 let log_value = ref log_value_sexp
       
