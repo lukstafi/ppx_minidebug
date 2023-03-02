@@ -13,6 +13,9 @@ bug-reports: "https://github.com/lukstafi/ppx_minidebug/issues"
 depends: [
   "ocaml"
   "dune" {>= "3.7"}
+  "printbox"
+  "printbox-text"
+  "ptime"
   "odoc" {with-doc}
 ]
 build: [

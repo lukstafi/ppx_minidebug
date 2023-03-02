@@ -24,9 +24,9 @@
   (logger debugger "printf debugging")))
 
 (package
- (name ppx_minidebug.runtime)
+ (name minidebug_runtime)
  (synopsis "Backends for `ppx_minidebug` style loggers")
  (description "You can use `let module Debug_runtime = Minidebug_runtime.F(...) in ...` to localize the debug file.")
- (depends ocaml dune)
+ (depends ocaml dune printbox printbox-text ptime)
  (tags
   (logger debugger "printf debugging")))

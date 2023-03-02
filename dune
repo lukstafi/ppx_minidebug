@@ -7,12 +7,13 @@
  (preprocess (pps ppxlib.metaquot)))
 
 (library
- (public_name ppx_minidebug.runtime)
+ (public_name minidebug_runtime)
  (name minidebug_runtime)
  (modules minidebug_runtime)
- (libraries ptime.clock.os printbox printbox-text
+ (libraries printbox printbox-text printbox-html ptime.clock.os
  (select
   minidebug_runtime.ml
   from
   (base -> minidebug_runtime.base.ml)
-  (-> minidebug_runtime.nosexp.ml))))
+  (-> minidebug_runtime.nosexp.ml))
+  ))
