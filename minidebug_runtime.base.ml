@@ -120,7 +120,7 @@ module PrintBox(File_name: sig val v : string end) = struct
     | b::`Tree (b1, bs1)::bs2 -> `Tree (b1, (b::bs1))::bs2
     | [b] ->
       PrintBox_text.output debug_ch @@ B.Simple.to_box @@ revert_order @@ b;
-      Caml.flush debug_ch; []
+      Caml.Format.fprintf ppf "@\n%!"; []
     | _ -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble")
   
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
