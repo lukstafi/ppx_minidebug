@@ -1,4 +1,4 @@
-module Debug_runtime = Minidebug_runtime.PrintBox(struct let v = "../../../debugger_pp_printbox.log" end)
+module Debug_runtime = Minidebug_runtime.Format(struct let v = "../../../debugger_pp_format.log" end)
 type t = {first: int; second: int} [@@deriving show]
 type num = int [@@deriving show]
 let%debug_pp bar (x: t): num = let y: num = x.first + 1 in x.second * y

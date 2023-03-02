@@ -24,17 +24,17 @@ let rec pat2pat_res pat =
     Ast_builder.Default.ppat_extension ~loc @@ Location.error_extensionf ~loc
       "ppx_minidebug requires a pattern identifier here: try using an `as` alias."
 
-let log_preamble ?(brief=false) ?(message="") ~loc () =
+let open_log_preamble ?(brief=false) ?(message="") ~loc () =
   if brief then
     [%expr
-      Debug_runtime.log_preamble_brief
+      Debug_runtime.open_log_preamble_brief
         ~fname:[%e A.estring ~loc loc.loc_start.pos_fname]
         ~pos_lnum:[%e A.eint ~loc loc.loc_start.pos_lnum]
         ~pos_colnum:[%e A.eint ~loc (loc.loc_start.pos_cnum - loc.loc_start.pos_bol)]
         ~message:[%e A.estring ~loc message]]
   else
     [%expr
-      Debug_runtime.log_preamble_full
+      Debug_runtime.open_log_preamble_full
         ~fname:[%e A.estring ~loc loc.loc_start.pos_fname]
         ~start_lnum:[%e A.eint ~loc loc.loc_start.pos_lnum]
         ~start_colnum:[%e A.eint ~loc (loc.loc_start.pos_cnum - loc.loc_start.pos_bol)]
@@ -96,7 +96,7 @@ let rec expand_fun body = function
   | [] -> body
   | (arg, loc)::args -> [%expr fun [%p arg] -> [%e expand_fun body args]]
 
-let debug_fun ~toplevel callback bind descr_loc typ_opt1 exp =
+let debug_fun callback bind descr_loc typ_opt1 exp =
   let args, body, typ_opt2 = collect_fun [] exp in
   let loc = exp.pexp_loc in
   let typ =
@@ -109,26 +109,21 @@ let debug_fun ~toplevel callback bind descr_loc typ_opt1 exp =
         Some (!log_value ~loc ~typ ~descr_loc (pat2expr pat))
       | _ -> None
   ) args in
-  let preamble = log_preamble ~message:descr_loc.txt ~loc () in
-  let arg_logs = match arg_logs with
-  | [] -> [%expr ()]
-  | [hd] -> hd
-  | hd::tl -> List.fold_left (fun e1 e2 -> [%expr [%e e1]; [%e e2]]) hd tl in
+  let preamble = open_log_preamble ~message:descr_loc.txt ~loc () in
+  let arg_logs = List.fold_left (fun e1 e2 -> [%expr [%e e1]; [%e e2]]) preamble arg_logs in
   let result = pat2pat_res bind in
   let body =
     [%expr
-      [%e preamble];
-      Debug_runtime.open_box ();
       [%e arg_logs];
       let [%p result] = [%e callback body] in
       [%e !log_value ~loc ~typ ~descr_loc (pat2expr result)];
-      Debug_runtime.close_box ~toplevel:[%e A.ebool ~loc toplevel] ();
+      Debug_runtime.close_log ();
       [%e pat2expr result]] in
   let body =
     match typ_opt2 with None -> body | Some typ -> [%expr ([%e body] : [%t typ])] in
   expand_fun body args
 
-let debug_binding ~toplevel callback vb =
+let debug_binding callback vb =
   let pat = vb.pvb_pat in
   let loc = vb.pvb_loc in
   let descr_loc, typ_opt =
@@ -142,16 +137,15 @@ let debug_binding ~toplevel callback vb =
     | _ -> raise Not_transforming in
   match vb.pvb_expr.pexp_desc, typ_opt with
   | Pexp_fun _, _ -> 
-    {vb with pvb_expr = debug_fun ~toplevel callback vb.pvb_pat descr_loc typ_opt vb.pvb_expr}
+    {vb with pvb_expr = debug_fun callback vb.pvb_pat descr_loc typ_opt vb.pvb_expr}
   | _, Some typ ->
     let result = pat2pat_res pat in
     let exp =
       [%expr
-        [%e log_preamble ~brief:true ~message:" " ~loc:descr_loc.loc ()];
-        Debug_runtime.open_box ();
+        [%e open_log_preamble ~brief:true ~message:" " ~loc:descr_loc.loc ()];
         let [%p result] = [%e callback vb.pvb_expr] in
         [%e !log_value ~loc ~typ ~descr_loc (pat2expr result)];
-        Debug_runtime.close_box ~toplevel:[%e A.ebool ~loc toplevel] ();
+        Debug_runtime.close_log ();
         [%e pat2expr result]] in
     {vb with pvb_expr = exp}
   | _ -> raise Not_transforming
@@ -165,7 +159,7 @@ let traverse =
       match e with
       | { pexp_desc=Pexp_let (rec_flag, bindings, body); pexp_loc=_; _ } ->
         let bindings = List.map (fun vb ->
-              try debug_binding ~toplevel:false callback vb
+              try debug_binding callback vb
               with Not_transforming -> {vb with pvb_expr = callback vb.pvb_expr}) bindings in
         let body = self#expression body in
         { e with pexp_desc = Pexp_let (rec_flag, bindings, body) }
@@ -176,52 +170,25 @@ let traverse =
       match si with
       | { pstr_desc=Pstr_value (rec_flag, bindings); pstr_loc=_; _ } ->
         let bindings = List.map (fun vb ->
-            try debug_binding ~toplevel:false callback vb
+            try debug_binding callback vb
             with Not_transforming -> {vb with pvb_expr = callback vb.pvb_expr}) bindings in
         { si with pstr_desc = Pstr_value (rec_flag, bindings) }
       | _ -> super#structure_item si
   end
-  
-  let traverse_toplevel =
-    let traverse = traverse in
-    object (self)
-      inherit Ast_traverse.map (* _with_expansion_context *) as super
-  
-      method! expression e =
-        let callback e = traverse#expression e in
-        match e with
-        | { pexp_desc=Pexp_let (rec_flag, bindings, body); pexp_loc=_; _ } ->
-          let bindings = List.map (fun vb ->
-                try debug_binding ~toplevel:true callback vb
-                with Not_transforming -> {vb with pvb_expr = super#expression vb.pvb_expr}) bindings in
-          let body = self#expression body in
-          { e with pexp_desc = Pexp_let (rec_flag, bindings, body) }
-        | _ -> super#expression e
-  
-      method! structure_item si =
-        let callback e = traverse#expression e in
-        match si with
-        | { pstr_desc=Pstr_value (rec_flag, bindings); pstr_loc=_; _ } ->
-          let bindings = List.map (fun vb ->
-              try debug_binding ~toplevel:true callback vb
-              with Not_transforming -> {vb with pvb_expr = super#expression vb.pvb_expr}) bindings in
-          { si with pstr_desc = Pstr_value (rec_flag, bindings) }
-        | _ -> super#structure_item si
-    end
-  
+
 let debug_this_expander payload =
-  let callback e = (traverse)#expression e in
+  let callback e = traverse#expression e in
   match payload with
   | { pexp_desc = Pexp_let (recflag, bindings, body); _ } ->
     (* This is the [let%debug_this ... in] use-case: do not debug the whole body. *)
-     let bindings = List.map (debug_binding ~toplevel:true callback) bindings in
+     let bindings = List.map (debug_binding callback) bindings in
      {payload with pexp_desc=Pexp_let (recflag, bindings, body)}
   | expr -> expr
 
-let debug_expander payload = (traverse_toplevel)#expression payload
+let debug_expander payload = traverse#expression payload
 
 let str_expander ~loc payload =
-  match List.map (fun si -> (traverse_toplevel)#structure_item si) payload with
+  match List.map (fun si -> traverse#structure_item si) payload with
   | [item] -> item
   | items ->
     Ast_helper.Str.include_ {

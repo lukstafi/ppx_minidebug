@@ -1,4 +1,4 @@
-module Debug_runtime = Minidebug_runtime.PrintBox(struct let v = "../../../debugger_show_printbox.log" end)
+module Debug_runtime = Minidebug_runtime.Flat(struct let v = "../../../debugger_show_flat.log" end)
 
 let%debug_show foo (x: int): int list =
   let y: int = x + 1 in

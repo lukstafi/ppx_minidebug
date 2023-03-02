@@ -11,14 +11,13 @@ module Printf(File_name: sig val v : string end) = struct
   let () =
     Format.fprintf ppf "\nBEGIN DEBUG SESSION at time %a\n%!"
     pp_timestamp (Ptime_clock.now ())
-  let open_box() = Format.pp_open_hovbox ppf 2
-  let close_box ~toplevel () =
+  let close_log () =
     Format.pp_close_box ppf ();
-    (if toplevel then Format.pp_print_newline ppf ())
-  let log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
+    (if then Format.pp_print_newline ppf ())
+  let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
     Format.fprintf ppf
         "\"%s\":%d:%d:%s" fname pos_lnum pos_colnum message
-  let log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message =
+  let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message =
     Format.fprintf ppf
         "@[\"%s\":%d:%d-%d:%d@ at time@ %a: %s@]@ "
         fname start_lnum start_colnum  end_lnum end_colnum
