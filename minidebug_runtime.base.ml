@@ -1,5 +1,9 @@
 open Base
 
+let pp_timestamp ppf () =
+  let tz_offset_s = Ptime_clock.current_tz_offset_s () in
+  Ptime.(pp_human ~frac_s:6 ?tz_offset_s ()) ppf (Ptime_clock.now ())
+
 module Format(File_name: sig val v : string end) = struct  
   let debug_ch =
     Caml.open_out_gen [Open_creat; Open_text; Open_append] 0o640 File_name.v
@@ -10,12 +14,8 @@ module Format(File_name: sig val v : string end) = struct
     Caml.Format.pp_set_geometry ppf ~max_indent:50 ~margin:100;
     ppf
     
-  let pp_timestamp ppf now =
-    let tz_offset_s = Ptime_clock.current_tz_offset_s () in
-    Ptime.(pp_human ?tz_offset_s ()) ppf now
-    
   let () =
-    Caml.Format.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp (Ptime_clock.now ())
+    Caml.Format.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
   
   let close_log () =
     Caml.Format.pp_close_box ppf ()
@@ -28,7 +28,7 @@ module Format(File_name: sig val v : string end) = struct
     Caml.Format.fprintf ppf
         "@[\"%s\":%d:%d-%d:%d@ at time@ %a: %s@]@ @[<hov 2>"
         fname start_lnum start_colnum  end_lnum end_colnum
-        pp_timestamp (Ptime_clock.now ()) message
+        pp_timestamp () message
         
   let log_value_sexp ~descr ~sexp =
     Caml.Format.fprintf ppf "%s = %a@ @ " descr Sexp.pp_hum sexp
@@ -50,33 +50,41 @@ module Flat(File_name: sig val v : string end) = struct
     Caml.Format.pp_set_geometry ppf ~max_indent:50 ~margin:100;
     ppf
     
-  let pp_timestamp ppf now =
-    let tz_offset_s = Ptime_clock.current_tz_offset_s () in
-    Ptime.(pp_human ?tz_offset_s ()) ppf now
+  let callstack = ref []
     
   let () =
-    Caml.Format.fprintf ppf "\nBEGIN DEBUG SESSION at time %a@." pp_timestamp (Ptime_clock.now ())
+    Caml.Format.fprintf ppf "\nBEGIN DEBUG SESSION at time %a\n%!" pp_timestamp ()
   
-  let close_log () = ()
+  let close_log () =
+    match !callstack with
+    | [] -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
+    | None::tl ->
+      callstack := tl
+    | Some message::tl ->
+      callstack := tl;
+      Caml.Format.fprintf ppf "%a - %s end\n%!" pp_timestamp () message
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
+    callstack := None :: !callstack;
     Caml.Format.fprintf ppf
-        "\"%s\":%d:%d:%s " fname pos_lnum pos_colnum message
+        "\"%s\":%d:%d:%s" fname pos_lnum pos_colnum message
         
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message =
+    callstack := Some message :: !callstack;
     Caml.Format.fprintf ppf
-        "\"%s\":%d:%d-%d:%d@ at time@ %a: %s@."
-        fname start_lnum start_colnum  end_lnum end_colnum
-        pp_timestamp (Ptime_clock.now ()) message
+        "%a - %s begin \"%s\":%d:%d-%d:%d\n%!"
+        pp_timestamp () message
+         fname start_lnum start_colnum  end_lnum end_colnum
+        
         
   let log_value_sexp ~descr ~sexp =
-    Caml.Format.fprintf ppf "%s = %a@." descr Sexp.pp_hum sexp
+    Caml.Format.fprintf ppf "%s = %a\n%!" descr Sexp.pp_hum sexp
     
   let log_value_pp ~descr ~pp ~v =
-    Caml.Format.fprintf ppf "%s = %a@." descr pp v
+    Caml.Format.fprintf ppf "%s = %a\n%!" descr pp v
     
   let log_value_show ~descr ~v =
-    Caml.Format.fprintf ppf "%s = %s@." descr v
+    Caml.Format.fprintf ppf "%s = %s\n%!" descr v
 end
 
 let rec revert_order: PrintBox.Simple.t -> PrintBox.Simple.t = function
@@ -103,13 +111,9 @@ module PrintBox(File_name: sig val v : string end) = struct
   let stack_next b = stack := (match !stack with
   | `Tree (b1, bs1)::bs2 -> `Tree (b1, (b::bs1))::bs2
   | _ -> failwith "minidebug_runtime: a log_value must be preceded by an open_log_preamble")
-  
-  let pp_timestamp ppf now =
-    let tz_offset_s = Ptime_clock.current_tz_offset_s () in
-    Ptime.(pp_human ?tz_offset_s ()) ppf now
     
   let () =
-    Caml.Format.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp (Ptime_clock.now ())
+    Caml.Format.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
 
   let close_log () =
     (* Note: we treat a `Tree under a box as part of that box. *)
@@ -128,7 +132,7 @@ module PrintBox(File_name: sig val v : string end) = struct
     let preamble = B.Simple.asprintf
         "@[\"%s\":%d:%d-%d:%d@ at time@ %a: %s@]"
         fname start_lnum start_colnum  end_lnum end_colnum
-        pp_timestamp (Ptime_clock.now ()) message in
+        pp_timestamp () message in
     stack := `Tree (preamble, []) :: !stack
     
   let log_value_sexp ~descr ~sexp =
