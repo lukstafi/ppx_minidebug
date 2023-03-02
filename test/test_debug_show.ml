@@ -1,4 +1,4 @@
-module Debug_runtime = Debug_runtime_unix.Printf(struct let v = "../../../debugger_show.log" end)
+module Debug_runtime = Minidebug_runtime.Printf(struct let v = "../../../debugger_show.log" end)
 
 let%debug_show foo (x: int): int list =
   let y: int = x + 1 in

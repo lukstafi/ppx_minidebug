@@ -7,13 +7,12 @@
  (preprocess (pps ppxlib.metaquot)))
 
 (library
- (public_name debug_runtime_jane)
- (name debug_runtime_jane)
- (modules debug_runtime_jane)
- (libraries base core stdio ptime.clock.os))
-
-(library
- (public_name debug_runtime_unix)
- (name debug_runtime_unix)
- (modules debug_runtime_unix)
- (libraries ptime.clock.os))
+ (public_name ppx_minidebug.runtime)
+ (name minidebug_runtime)
+ (modules minidebug_runtime)
+ (libraries ptime.clock.os printbox printbox-text
+ (select
+  minidebug_runtime.ml
+  from
+  (base -> minidebug_runtime.base.ml)
+  (-> minidebug_runtime.nosexp.ml))))

@@ -24,17 +24,9 @@
   (logger debugger "printf debugging")))
 
 (package
- (name debug_runtime_jane)
- (synopsis "JaneStreet libraries-based backend for `ppx_minidebug` style loggers")
- (description "Uses `Core.Time_ns` for getting timestamps (UTC time).")
- (depends ocaml dune core)
- (tags
-  (logger debugger "printf debugging")))
-
-(package
- (name debug_runtime_unix)
- (synopsis "Non-JaneStreet backend for `ppx_minidebug` style loggers")
- (description "Uses `Unix` for getting timestamps (local time).")
+ (name ppx_minidebug.runtime)
+ (synopsis "Backends for `ppx_minidebug` style loggers")
+ (description "You can use `let module Debug_runtime = Minidebug_runtime.F(...) in ...` to localize the debug file.")
  (depends ocaml dune)
  (tags
   (logger debugger "printf debugging")))

@@ -46,41 +46,41 @@
 (test
  (name test_debug_sexp)
  (modules test_debug_sexp)
- (libraries base core stdio debug_runtime_jane)
+ (libraries base core stdio minidebug_runtime)
  (preprocess
   (pps ppx_minidebug ppx_jane)))
 
 (test
  (name test_debug_pp)
  (modules test_debug_pp)
- (libraries debug_runtime_unix)
+ (libraries minidebug_runtime)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
 
 (test
  (name test_debug_show)
  (modules test_debug_show)
- (libraries debug_runtime_unix)
+ (libraries minidebug_runtime)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
 
 (test
  (name test_debug_sexp_expected)
  (modules test_debug_sexp_expected)
- (libraries base core stdio debug_runtime_jane)
+ (libraries base core stdio minidebug_runtime)
  (preprocess
   (pps ppx_jane)))
 
 (test
  (name test_debug_pp_expected)
  (modules test_debug_pp_expected)
- (libraries debug_runtime_unix)
+ (libraries minidebug_runtime)
  (preprocess
   (pps ppx_deriving.show)))
 
 (test
  (name test_debug_show_expected)
  (modules test_debug_show_expected)
- (libraries debug_runtime_unix)
+ (libraries minidebug_runtime)
  (preprocess
   (pps ppx_deriving.show)))
