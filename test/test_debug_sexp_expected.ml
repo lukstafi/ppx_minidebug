@@ -1,6 +1,8 @@
 open Base
 module Debug_runtime =
-  (Minidebug_runtime.Printf)(struct let v = "../../../debugger_sexp.log" end)
+  (Minidebug_runtime.Flat)(struct
+                             let v = "../../../debugger_sexp_flat.log"
+                           end)
 let foo (x : int) =
   (Debug_runtime.log_preamble_full ~fname:"test_debug_sexp.ml" ~start_lnum:4
      ~start_colnum:19 ~end_lnum:6 ~end_colnum:15 ~message:"foo";

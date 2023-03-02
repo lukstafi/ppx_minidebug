@@ -1,5 +1,7 @@
 module Debug_runtime =
-  (Minidebug_runtime.Printf)(struct let v = "../../../debugger_show.log" end)
+  (Minidebug_runtime.Flat)(struct
+                             let v = "../../../debugger_show_flat.log"
+                           end)
 let foo (x : int) =
   (Debug_runtime.log_preamble_full ~fname:"test_debug_show.ml" ~start_lnum:3
      ~start_colnum:19 ~end_lnum:5 ~end_colnum:15 ~message:"foo";

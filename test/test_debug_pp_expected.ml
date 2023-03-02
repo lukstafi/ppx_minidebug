@@ -1,5 +1,5 @@
 module Debug_runtime =
-  (Minidebug_runtime.Printf)(struct let v = "../../../debugger_pp.log" end)
+  (Minidebug_runtime.Flat)(struct let v = "../../../debugger_pp_flat.log" end)
 type t = {
   first: int ;
   second: int }[@@deriving show]

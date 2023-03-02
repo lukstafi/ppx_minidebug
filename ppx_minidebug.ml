@@ -147,8 +147,8 @@ let debug_binding ~toplevel callback vb =
     let result = pat2pat_res pat in
     let exp =
       [%expr
-        Debug_runtime.open_box ();
         [%e log_preamble ~brief:true ~message:" " ~loc:descr_loc.loc ()];
+        Debug_runtime.open_box ();
         let [%p result] = [%e callback vb.pvb_expr] in
         [%e !log_value ~loc ~typ ~descr_loc (pat2expr result)];
         Debug_runtime.close_box ~toplevel:[%e A.ebool ~loc toplevel] ();
