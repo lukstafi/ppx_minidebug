@@ -51,7 +51,9 @@ module Flat(File_name: sig val v : string end) = struct
     ppf
     
   let callstack = ref []
-    
+
+  let indent() = String.make (List.length !callstack) ' '
+  
   let () =
     Caml.Format.fprintf ppf "\nBEGIN DEBUG SESSION at time %a\n%!" pp_timestamp ()
   
@@ -62,29 +64,26 @@ module Flat(File_name: sig val v : string end) = struct
       callstack := tl
     | Some message::tl ->
       callstack := tl;
-      Caml.Format.fprintf ppf "%a - %s end\n%!" pp_timestamp () message
+      Caml.Format.fprintf ppf "%s%a - %s end\n%!" (indent()) pp_timestamp () message
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
     callstack := None :: !callstack;
-    Caml.Format.fprintf ppf
-        "\"%s\":%d:%d:%s" fname pos_lnum pos_colnum message
+    Caml.Format.fprintf ppf "%s\"%s\":%d:%d:%s\n%!" (indent()) fname pos_lnum pos_colnum message
         
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message =
-    callstack := Some message :: !callstack;
     Caml.Format.fprintf ppf
-        "%a - %s begin \"%s\":%d:%d-%d:%d\n%!"
-        pp_timestamp () message
-         fname start_lnum start_colnum  end_lnum end_colnum
-        
-        
+        "%s%a - %s begin \"%s\":%d:%d-%d:%d\n%!"
+        (indent()) pp_timestamp () message fname start_lnum start_colnum  end_lnum end_colnum;
+    callstack := Some message :: !callstack
+
   let log_value_sexp ~descr ~sexp =
-    Caml.Format.fprintf ppf "%s = %a\n%!" descr Sexp.pp_hum sexp
+    Caml.Format.fprintf ppf "%s%s = %a\n%!"  (indent()) descr Sexp.pp_hum sexp
     
   let log_value_pp ~descr ~pp ~v =
-    Caml.Format.fprintf ppf "%s = %a\n%!" descr pp v
+    Caml.Format.fprintf ppf "%s%s = %a\n%!" (indent()) descr pp v
     
   let log_value_show ~descr ~v =
-    Caml.Format.fprintf ppf "%s = %s\n%!" descr v
+    Caml.Format.fprintf ppf "%s%s = %s\n%!" (indent()) descr v
 end
 
 let rec revert_order: PrintBox.Simple.t -> PrintBox.Simple.t = function
