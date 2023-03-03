@@ -4,6 +4,14 @@ let pp_timestamp ppf () =
   let tz_offset_s = Ptime_clock.current_tz_offset_s () in
   Ptime.(pp_human ~frac_s:6 ?tz_offset_s ()) ppf (Ptime_clock.now ())
 
+let timestamp_to_string () =
+  let _ = Caml.Format.flush_str_formatter () in
+  let tz_offset_s = Ptime_clock.current_tz_offset_s () in
+  Ptime.(pp_human ~frac_s:6 ?tz_offset_s ())
+    Caml.Format.str_formatter
+   (Ptime_clock.now ());
+  Caml.Format.flush_str_formatter ()
+
 module Format(File_name: sig val v : string end) = struct  
   let debug_ch =
     Caml.open_out_gen [Open_creat; Open_text; Open_append] 0o640 File_name.v
@@ -40,22 +48,17 @@ module Format(File_name: sig val v : string end) = struct
     Caml.Format.fprintf ppf "%s = %s@ @ " descr v
 end
 
-module Flat(File_name: sig val v : string end) = struct  
+module Flushing(File_name: sig val v : string end) = struct  
   let debug_ch =
     Caml.open_out_gen [Open_creat; Open_text; Open_append] 0o640 File_name.v
   (* Stdio.Out_channel.create ~binary:false ~append:true File_name.v *)
-  
-  let ppf =
-    let ppf = Caml.Format.formatter_of_out_channel debug_ch in
-    Caml.Format.pp_set_geometry ppf ~max_indent:50 ~margin:100;
-    ppf
     
   let callstack = ref []
 
   let indent() = String.make (List.length !callstack) ' '
   
   let () =
-    Caml.Format.fprintf ppf "\nBEGIN DEBUG SESSION at time %a\n%!" pp_timestamp ()
+    Caml.Printf.fprintf debug_ch "\nBEGIN DEBUG SESSION at time %s\n%!" (timestamp_to_string())
   
   let close_log () =
     match !callstack with
@@ -64,26 +67,29 @@ module Flat(File_name: sig val v : string end) = struct
       callstack := tl
     | Some message::tl ->
       callstack := tl;
-      Caml.Format.fprintf ppf "%s%a - %s end\n%!" (indent()) pp_timestamp () message
+      Caml.Printf.fprintf debug_ch "%s%s - %s end\n%!" (indent()) (timestamp_to_string()) message
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
     callstack := None :: !callstack;
-    Caml.Format.fprintf ppf "%s\"%s\":%d:%d:%s\n%!" (indent()) fname pos_lnum pos_colnum message
+    Caml.Printf.fprintf debug_ch "%s\"%s\":%d:%d:%s\n%!" (indent()) fname pos_lnum pos_colnum message
         
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message =
-    Caml.Format.fprintf ppf
-        "%s%a - %s begin \"%s\":%d:%d-%d:%d\n%!"
-        (indent()) pp_timestamp () message fname start_lnum start_colnum  end_lnum end_colnum;
+    Caml.Printf.fprintf debug_ch
+        "%s%s - %s begin \"%s\":%d:%d-%d:%d\n%!"
+        (indent()) (timestamp_to_string()) message fname start_lnum start_colnum  end_lnum end_colnum;
     callstack := Some message :: !callstack
 
   let log_value_sexp ~descr ~sexp =
-    Caml.Format.fprintf ppf "%s%s = %a\n%!"  (indent()) descr Sexp.pp_hum sexp
+    Caml.Printf.fprintf debug_ch "%s%s = %s\n%!"  (indent()) descr (Sexp.to_string_hum sexp)
     
   let log_value_pp ~descr ~pp ~v =
-    Caml.Format.fprintf ppf "%s%s = %a\n%!" (indent()) descr pp v
+    let _ = Caml.Format.flush_str_formatter () in
+    pp Caml.Format.str_formatter v;
+    let v_str = Caml.Format.flush_str_formatter () in
+    Caml.Printf.fprintf debug_ch "%s%s = %s\n%!" (indent()) descr v_str
     
   let log_value_show ~descr ~v =
-    Caml.Format.fprintf ppf "%s%s = %s\n%!" (indent()) descr v
+    Caml.Printf.fprintf debug_ch "%s%s = %s\n%!" (indent()) descr v
 end
 
 let rec revert_order: PrintBox.Simple.t -> PrintBox.Simple.t = function

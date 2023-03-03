@@ -73,13 +73,13 @@ BEGIN DEBUG SESSION at time 2023-03-02 22:20:39.305 +01:00
 │ │ │ │ │ ├─x = ((first 44) (second 4))
 ```
 
-### `Flat`-based traces
+### `Flushing`-based traces
 
-Define a `Debug_runtime` using the `Flat` functor.
+Define a `Debug_runtime` using the `Flushing` functor.
 ```ocaml
-module Debug_runtime = Minidebug_runtime.Flat(struct let v = "path/to/debugger_flat.log" end)
+module Debug_runtime = Minidebug_runtime.Flushing(struct let v = "path/to/debugger_flushing.log" end)
 ```
-The recorded traces will not really be flat -- they are still indented, but if the values to print are multi-line, their formatting might be messy. The benefit of `Flat` traces is that the output is flushed line-at-a-time, so no output will be lost if the traced program crashes. Truncated example (using `%debug_show`):
+The recorded traces are still indented, but if the values to print are multi-line, their formatting might be messy. The benefit of `Flushing` traces is that the output is flushed line-at-a-time, so no output will be lost if the traced program crashes. Truncated example (using `%debug_show`):
 ```ocaml
 BEGIN DEBUG SESSION at time 2023-03-02 23:19:40.763950 +01:00
 2023-03-02 23:19:40.763980 +01:00 - foo begin "test/test_debug_show.ml":3:19-5:15
@@ -120,11 +120,11 @@ Tracing only happens in explicitly marked scopes, using the extension points: `%
 
 The `%debug_this` variants are intended only for `let`-bindings: `let%debug_this v: t = compute value in body` will trace `v` and the type-annotated bindings and functions inside `compute value`, but it will not trace `body`.
 
-To properly trace in concurrent settings, ensure that different threads use different log files. For example, you can bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.Flat(struct let v = thread_specific_fname end) in ...` In particular, when performing `dune runtest` in the `ppx_minidebug` directory, the `test_debug_n` and the `test_debug_n_expected` pairs of programs will interfere with each other, unless you adjust the log file names in them.
+To properly trace in concurrent settings, ensure that different threads use different log files. For example, you can bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.Flushing(struct let v = thread_specific_fname end) in ...` In particular, when performing `dune runtest` in the `ppx_minidebug` directory, the `test_debug_n` and the `test_debug_n_expected` pairs of programs will interfere with each other, unless you adjust the log file names in them.
 
 `minidebug_runtime` appends to log files, so you need to delete them as appropriate for your convenience.
 
-I had difficulty getting the `Format`-based output to indent well, thus the other recording options. Moreover, the `Flat` recordings enable [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond) flame graphs.
+I had difficulty getting the `Format`-based output to indent well, thus the other recording options. Moreover, the `Flushing` recordings enable [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond) flame graphs.
 
 `ppx_minidebug` and `minidebug_runtime` can be installed using `opam` in the normal way. `minidebug_runtime` depends on `printbox` and `ptime`, and only optionally on `base` (for the s-expression functionality).
 
@@ -155,7 +155,7 @@ Then, pressing `alt+q` will open a pre-populated dialog, and `enter` will get me
 
 ### Visualize the flame graph using [Log Inspector](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond)
 
-[Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond)'s main feature is visualizing timestamped logs as flame graphs. To invoke it in VS Code, go to the `Minidebug_runtime.Flat`-style logs file, press `crtl+shift+P`, and execute the command "Log Inspector: Draw". Example effect:
+[Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond)'s main feature is visualizing timestamped logs as flame graphs. To invoke it in VS Code, go to the `Minidebug_runtime.Flushing`-style logs file, press `crtl+shift+P`, and execute the command "Log Inspector: Draw". Example effect:
 ![Log Inspector flame graph](doc/ppx_minidebug-LogInspector.png)
 
 Note that [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond) is a forked variant of the Log Inspector extension.
