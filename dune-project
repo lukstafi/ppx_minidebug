@@ -15,6 +15,8 @@
 
 (documentation https://github.com/lukstafi/ppx_minidebug/blob/main/README.md)
 
+(version 0.1)
+
 (package
  (name ppx_minidebug)
  (synopsis "Debug logs for selected functions and let-bindings")
