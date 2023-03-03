@@ -1,4 +1,5 @@
-module Debug_runtime = Minidebug_runtime.Flat(struct let v = "../../../debugger_show_flat.log" end)
+module Debug_runtime =
+  Minidebug_runtime.Flushing(struct let v = "../../../debugger_show_flushing.log" end)
 
 let%debug_show foo (x: int): int list =
   let y: int = x + 1 in

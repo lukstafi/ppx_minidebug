@@ -67,7 +67,8 @@ module Flushing(File_name: sig val v : string end) = struct
       callstack := tl
     | Some message::tl ->
       callstack := tl;
-      Caml.Printf.fprintf debug_ch "%s%s - %s end\n%!" (indent()) (timestamp_to_string()) message
+      Caml.Printf.fprintf debug_ch "%s%s - %s end\n%!" (indent()) (timestamp_to_string()) message;
+      Caml.flush debug_ch
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
     callstack := None :: !callstack;
