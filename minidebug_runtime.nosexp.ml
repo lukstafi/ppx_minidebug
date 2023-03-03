@@ -10,12 +10,14 @@ let timestamp_to_string () =
    (Ptime_clock.now ());
   Caml.Format.flush_str_formatter ()
 
+module Debug_ch(File_name: sig val v : string end) = struct
+    let debug_ch = open_out_gen [Open_creat; Open_text; Open_append] 0o640 File_name.v
+end
+
 module CamlFormat = Format
 
-module Format(File_name: sig val v : string end) = struct  
-  let debug_ch =
-    open_out_gen [Open_creat; Open_text; Open_append] 0o640 File_name.v
-  (* Stdio.Out_channel.create ~binary:false ~append:true File_name.v *)
+module Format(Log_to: sig val debug_ch : Caml.out_channel end) = struct  
+  open Log_to
 
   let ppf =
     let ppf = CamlFormat.formatter_of_out_channel debug_ch in
@@ -45,10 +47,8 @@ module Format(File_name: sig val v : string end) = struct
     CamlFormat.fprintf ppf "%s = %s@ @ " descr v
 end
 
-module Flushing(File_name: sig val v : string end) = struct  
-  let debug_ch =
-    open_out_gen [Open_creat; Open_text; Open_append] 0o640 File_name.v
-  (* Stdio.Out_channel.create ~binary:false ~append:true File_name.v *)
+module Flushing(Log_to: sig val debug_ch : Caml.out_channel end) = struct  
+  open Log_to
     
   let callstack = ref []
 
@@ -95,12 +95,9 @@ let rec revert_order: PrintBox.Simple.t -> PrintBox.Simple.t = function
 | `Hlist bs -> `Hlist (List.rev_map revert_order bs)
 | `Tree (b, bs) -> `Tree (b, List.rev_map revert_order bs)
 
-module PrintBox(File_name: sig val v : string end) = struct
+module Flushing(Log_to: sig val debug_ch : Caml.out_channel end) = struct  
+  open Log_to
   module B = PrintBox
-  
-  let debug_ch =
-    open_out_gen [Open_creat; Open_text; Open_append] 0o640 File_name.v
-  (* Stdio.Out_channel.create ~binary:false ~append:true File_name.v *)
   
   let ppf =
     let ppf = CamlFormat.formatter_of_out_channel debug_ch in

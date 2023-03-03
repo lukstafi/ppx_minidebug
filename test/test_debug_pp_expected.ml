@@ -1,14 +1,15 @@
 module Debug_runtime =
-  (Minidebug_runtime.Format)(struct
-                               let v = "../../../debugger_pp_format.log"
-                             end)
+  (Minidebug_runtime.Format)((Minidebug_runtime.Debug_ch)(struct
+                                                            let v =
+                                                              "../../../debugger_pp_format.log"
+                                                          end))
 type t = {
   first: int ;
   second: int }[@@deriving show]
 type num = int[@@deriving show]
 let bar (x : t) =
   ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_pp.ml"
-      ~start_lnum:4 ~start_colnum:17 ~end_lnum:4 ~end_colnum:71
+      ~start_lnum:6 ~start_colnum:17 ~end_lnum:6 ~end_colnum:71
       ~message:"bar";
     Debug_runtime.log_value_pp ~descr:"x" ~pp ~v:x);
    (let bar__res = let y : num = x.first + 1 in x.second * y in
@@ -18,7 +19,7 @@ let bar (x : t) =
 let () = print_endline @@ (Int.to_string @@ (bar { first = 7; second = 42 }))
 let baz (x : t) =
   ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_pp.ml"
-      ~start_lnum:8 ~start_colnum:17 ~end_lnum:9 ~end_colnum:89
+      ~start_lnum:10 ~start_colnum:17 ~end_lnum:11 ~end_colnum:89
       ~message:"baz";
     Debug_runtime.log_value_pp ~descr:"x" ~pp ~v:x);
    (let baz__res =
@@ -31,7 +32,7 @@ let baz (x : t) =
 let () = print_endline @@ (Int.to_string @@ (baz { first = 7; second = 42 }))
 let rec loop (depth : num) (x : t) =
   (((Debug_runtime.open_log_preamble_full ~fname:"test_debug_pp.ml"
-       ~start_lnum:12 ~start_colnum:22 ~end_lnum:18 ~end_colnum:9
+       ~start_lnum:14 ~start_colnum:22 ~end_lnum:20 ~end_colnum:9
        ~message:"loop";
      Debug_runtime.log_value_pp ~descr:"depth" ~pp:pp_num ~v:depth);
     Debug_runtime.log_value_pp ~descr:"x" ~pp ~v:x);
@@ -45,7 +46,7 @@ let rec loop (depth : num) (x : t) =
         else
           (let y : num =
              Debug_runtime.open_log_preamble_brief ~fname:"test_debug_pp.ml"
-               ~pos_lnum:16 ~pos_colnum:8 ~message:" ";
+               ~pos_lnum:18 ~pos_colnum:8 ~message:" ";
              (let y__res =
                 (loop (depth + 1)
                    { first = (x.second - 1); second = (x.first + 2) } : 
@@ -55,7 +56,7 @@ let rec loop (depth : num) (x : t) =
               y__res) in
            let z : num =
              Debug_runtime.open_log_preamble_brief ~fname:"test_debug_pp.ml"
-               ~pos_lnum:17 ~pos_colnum:8 ~message:" ";
+               ~pos_lnum:19 ~pos_colnum:8 ~message:" ";
              (let z__res =
                 (loop (depth + 1) { first = (x.second + 1); second = y } : 
                 num) in

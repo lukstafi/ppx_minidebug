@@ -3,17 +3,19 @@ ppx_minidebug
 
 ## `ppx_minidebug`: A poor man's version of [`ppx_debug`](https://github.com/dariusf/ppx_debug)
 
-`ppx_minidebug` traces selected code if it has type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` based on `deriving.show`, and `%debug_sexp` based on the `sexplib`. The syntax extension expects a module `Debug_runtime` in the scope. `minidebug_runtime` offers three ways of recording the traces, as functors generating `Debug_runtime` modules given a file path.
+`ppx_minidebug` traces selected code if it has type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` based on `deriving.show`, and `%debug_sexp` based on the `sexplib`. The syntax extension expects a module `Debug_runtime` in the scope. `minidebug_runtime` offers three ways of logging the traces, as functors generating `Debug_runtime` modules given a file path.
 
 Take a look at [`ppx_debug`](https://github.com/dariusf/ppx_debug) which is significantly more powerful!
 
 ### `Format`-based traces
 
-Define a `Debug_runtime` using the `Format` functor.
+Define a `Debug_runtime` using the `Format` functor. The helper functor `Debug_ch` opens a file for appending.
 ```ocaml
-module Debug_runtime = Minidebug_runtime.Format(struct let v = "path/to/debugger_format.log" end)
+module Debug_runtime =
+  Minidebug_runtime.Format(
+    Minidebug_runtime.Debug_ch(struct let v = "path/to/debugger_format.log" end))
 ```
-The recorded traces will be indented using OCaml's `Format` module. Truncated example (using `%debug_pp`):
+The logged traces will be indented using OCaml's `Format` module. Truncated example (using `%debug_pp`):
 ```ocaml
 BEGIN DEBUG SESSION at time 2023-03-02 22:20:39.302 +01:00
 "test/test_debug_pp.ml":4:17-4:71 at time 2023-03-02 22:20:39.302 +01:00: bar
@@ -36,9 +38,11 @@ depth = 0  x = { Test_debug_pp.first = 7; second = 42 }  "test/test_debug_pp.ml"
 
 Define a `Debug_runtime` using the `PrintBox` functor.
 ```ocaml
-module Debug_runtime = Minidebug_runtime.PrintBox(struct let v = "path/to/debugger_printbox.log" end)
+module Debug_runtime =
+  Minidebug_runtime.PrintBox(
+    Minidebug_runtime.Debug_ch(struct let v = "path/to/debugger_printbox.log" end))
 ```
-The recorded traces will be indented using OCaml's `Format` module. Truncated example (using `%debug_sexp`):
+The logged traces will be indented using OCaml's `Format` module. Truncated example (using `%debug_sexp`):
 ```ocaml
 BEGIN DEBUG SESSION at time 2023-03-02 22:20:39.305 +01:00
 "test/test_debug_sexp.ml":4:19-6:15 at time
@@ -77,9 +81,11 @@ BEGIN DEBUG SESSION at time 2023-03-02 22:20:39.305 +01:00
 
 Define a `Debug_runtime` using the `Flushing` functor.
 ```ocaml
-module Debug_runtime = Minidebug_runtime.Flushing(struct let v = "path/to/debugger_flushing.log" end)
+module Debug_runtime =
+  Minidebug_runtime.Flushing(
+    Minidebug_runtime.Debug_ch(struct let v = "path/to/debugger_flushing.log" end))
 ```
-The recorded traces are still indented, but if the values to print are multi-line, their formatting might be messy. The benefit of `Flushing` traces is that the output is flushed line-at-a-time, so no output will be lost if the traced program crashes. Truncated example (using `%debug_show`):
+The logged traces are still indented, but if the values to print are multi-line, their formatting might be messy. The benefit of `Flushing` traces is that the output is flushed line-at-a-time, so no output should be lost if the traced program crashes. Truncated example (using `%debug_show`):
 ```ocaml
 BEGIN DEBUG SESSION at time 2023-03-02 23:19:40.763950 +01:00
 2023-03-02 23:19:40.763980 +01:00 - foo begin "test/test_debug_show.ml":3:19-5:15
@@ -120,11 +126,13 @@ Tracing only happens in explicitly marked scopes, using the extension points: `%
 
 The `%debug_this` variants are intended only for `let`-bindings: `let%debug_this v: t = compute value in body` will trace `v` and the type-annotated bindings and functions inside `compute value`, but it will not trace `body`.
 
-To properly trace in concurrent settings, ensure that different threads use different log files. For example, you can bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.Flushing(struct let v = thread_specific_fname end) in ...` In particular, when performing `dune runtest` in the `ppx_minidebug` directory, the `test_debug_n` and the `test_debug_n_expected` pairs of programs will interfere with each other, unless you adjust the log file names in them.
+To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.Flushing(struct let debug_ch = thread_specific_ch end) in ...` In particular, when performing `dune runtest` in the `ppx_minidebug` directory, the `test_debug_n` and the `test_debug_n_expected` pairs of programs will interfere with each other, unless you adjust the log file names in them.
 
-`minidebug_runtime` appends to log files, so you need to delete them as appropriate for your convenience.
+`Minidebug_runtime.Debug_ch` appends to log files, so you need to delete them as appropriate for your convenience.
 
-I had difficulty getting the `Format`-based output to indent well, thus the other recording options. Moreover, the `Flushing` recordings enable [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond) flame graphs.
+Note: currently the `Format`-functor-based output does not seem to indent well.
+
+The `Flushing` logs enable [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond) flame graphs. One should be able to get other logging styles to work with `Log Inspector` by configuring its regexp patterns.
 
 `ppx_minidebug` and `minidebug_runtime` can be installed using `opam` in the normal way. `minidebug_runtime` depends on `printbox` and `ptime`, and only optionally on `base` (for the s-expression functionality).
 

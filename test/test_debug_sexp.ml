@@ -1,5 +1,7 @@
 open Base
-module Debug_runtime = Minidebug_runtime.PrintBox(struct let v = "../../../debugger_sexp_printbox.log" end)
+module Debug_runtime =
+  Minidebug_runtime.PrintBox(
+    Minidebug_runtime.Debug_ch(struct let v = "../../../debugger_sexp_printbox.log" end))
 
 let%debug_sexp foo (x: int): int list =
   let y: int = x + 1 in
