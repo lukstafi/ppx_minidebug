@@ -18,3 +18,7 @@
   (sexplib -> minidebug_runtime.sexplib.ml)
   (-> minidebug_runtime.nosexp.ml))
   ))
+
+(documentation
+ (package ppx_minidebug)
+  (mld_files ppx_minidebug_usage))
