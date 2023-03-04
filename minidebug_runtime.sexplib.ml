@@ -13,40 +13,42 @@ let timestamp_to_string () =
   CFormat.flush_str_formatter ()
 
 module Debug_ch(File_name: sig val v : string end) = struct
-    let debug_ch = open_out_gen [Open_creat; Open_text; Open_append] 0o640 File_name.v
+    let debug_ch = Caml.open_out_gen [Open_creat; Open_text; Open_append] 0o640 File_name.v
+    (* Stdio.Out_channel.create ~binary:false ~append:true File_name.v *)
 end
-
-module CamlFormat = Format
 
 module Format(Log_to: sig val debug_ch : Caml.out_channel end) = struct  
   open Log_to
 
   let ppf =
-    let ppf = CamlFormat.formatter_of_out_channel debug_ch in
-    CamlFormat.pp_set_geometry ppf ~max_indent:50 ~margin:100;
+    let ppf = CFormat.formatter_of_out_channel debug_ch in
+    CFormat.pp_set_geometry ppf ~max_indent:50 ~margin:100;
     ppf
     
   let () =
-    CamlFormat.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
+    CFormat.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
   
   let close_log () =
-    CamlFormat.pp_close_box ppf ()
+    CFormat.pp_close_box ppf ()
       
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
-    CamlFormat.fprintf ppf
+    CFormat.fprintf ppf
         "\"%s\":%d:%d:%s@ @[<hov 2>" fname pos_lnum pos_colnum message
         
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message =
-    CamlFormat.fprintf ppf
+    CFormat.fprintf ppf
         "@[\"%s\":%d:%d-%d:%d@ at time@ %a: %s@]@ @[<hov 2>"
         fname start_lnum start_colnum  end_lnum end_colnum
         pp_timestamp () message
+        
+  let log_value_sexp ~descr ~sexp =
+    CFormat.fprintf ppf "%s = %a@ @ " descr Sexplib0.Sexp.pp_hum sexp
     
   let log_value_pp ~descr ~pp ~v =
-    CamlFormat.fprintf ppf "%s = %a@ @ " descr pp v
+    CFormat.fprintf ppf "%s = %a@ @ " descr pp v
     
   let log_value_show ~descr ~v =
-    CamlFormat.fprintf ppf "%s = %s@ @ " descr v
+    CFormat.fprintf ppf "%s = %s@ @ " descr v
 end
 
 module Flushing(Log_to: sig val debug_ch : Caml.out_channel end) = struct  
@@ -57,7 +59,7 @@ module Flushing(Log_to: sig val debug_ch : Caml.out_channel end) = struct
   let indent() = String.make (List.length !callstack) ' '
   
   let () =
-    Printf.fprintf debug_ch "\nBEGIN DEBUG SESSION at time %s\n%!" (timestamp_to_string())
+    Caml.Printf.fprintf debug_ch "\nBEGIN DEBUG SESSION at time %s\n%!" (timestamp_to_string())
   
   let close_log () =
     match !callstack with
@@ -71,22 +73,25 @@ module Flushing(Log_to: sig val debug_ch : Caml.out_channel end) = struct
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
     callstack := None :: !callstack;
-    Printf.fprintf debug_ch "%s\"%s\":%d:%d:%s\n%!" (indent()) fname pos_lnum pos_colnum message
+    Caml.Printf.fprintf debug_ch "%s\"%s\":%d:%d:%s\n%!" (indent()) fname pos_lnum pos_colnum message
         
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message =
-    Printf.fprintf debug_ch
+    Caml.Printf.fprintf debug_ch
         "%s%s - %s begin \"%s\":%d:%d-%d:%d\n%!"
         (indent()) (timestamp_to_string()) message fname start_lnum start_colnum  end_lnum end_colnum;
     callstack := Some message :: !callstack
 
+  let log_value_sexp ~descr ~sexp =
+    Caml.Printf.fprintf debug_ch "%s%s = %s\n%!"  (indent()) descr (Sexplib0.Sexp.to_string_hum sexp)
+    
   let log_value_pp ~descr ~pp ~v =
-    let _ = CamlFormat.flush_str_formatter () in
-    pp CamlFormat.str_formatter v;
-    let v_str = CamlFormat.flush_str_formatter () in
-    Printf.fprintf debug_ch "%s%s = %s\n%!" (indent()) descr v_str
+    let _ = CFormat.flush_str_formatter () in
+    pp CFormat.str_formatter v;
+    let v_str = CFormat.flush_str_formatter () in
+    Caml.Printf.fprintf debug_ch "%s%s = %s\n%!" (indent()) descr v_str
     
   let log_value_show ~descr ~v =
-    Printf.fprintf debug_ch "%s%s = %s\n%!" (indent()) descr v
+    Caml.Printf.fprintf debug_ch "%s%s = %s\n%!" (indent()) descr v
 end
 
 let rec revert_order: PrintBox.Simple.t -> PrintBox.Simple.t = function
@@ -97,13 +102,13 @@ let rec revert_order: PrintBox.Simple.t -> PrintBox.Simple.t = function
 | `Hlist bs -> `Hlist (List.rev_map revert_order bs)
 | `Tree (b, bs) -> `Tree (b, List.rev_map revert_order bs)
 
-module Flushing(Log_to: sig val debug_ch : Caml.out_channel end) = struct  
+module PrintBox(Log_to: sig val debug_ch : Caml.out_channel end) = struct
   open Log_to
   module B = PrintBox
   
   let ppf =
-    let ppf = CamlFormat.formatter_of_out_channel debug_ch in
-    CamlFormat.pp_set_geometry ppf ~max_indent:50 ~margin:100;
+    let ppf = CFormat.formatter_of_out_channel debug_ch in
+    CFormat.pp_set_geometry ppf ~max_indent:50 ~margin:100;
     ppf
     
   let stack: B.Simple.t list ref = ref []
@@ -112,7 +117,7 @@ module Flushing(Log_to: sig val debug_ch : Caml.out_channel end) = struct
   | _ -> failwith "minidebug_runtime: a log_value must be preceded by an open_log_preamble")
     
   let () =
-    CamlFormat.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
+    CFormat.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
 
   let close_log () =
     (* Note: we treat a `Tree under a box as part of that box. *)
@@ -120,7 +125,7 @@ module Flushing(Log_to: sig val debug_ch : Caml.out_channel end) = struct
     | b::`Tree (b1, bs1)::bs2 -> `Tree (b1, (b::bs1))::bs2
     | [b] ->
       PrintBox_text.output debug_ch @@ B.Simple.to_box @@ revert_order @@ b;
-      CamlFormat.fprintf ppf "@\n%!"; []
+      CFormat.fprintf ppf "@\n%!"; []
     | _ -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble")
   
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
@@ -133,6 +138,9 @@ module Flushing(Log_to: sig val debug_ch : Caml.out_channel end) = struct
         fname start_lnum start_colnum  end_lnum end_colnum
         pp_timestamp () message in
     stack := `Tree (preamble, []) :: !stack
+    
+  let log_value_sexp ~descr ~sexp =
+    stack_next @@ B.Simple.asprintf "%s = %a" descr Sexplib0.Sexp.pp_hum sexp
     
   let log_value_pp ~descr ~pp ~v =
     stack_next @@ B.Simple.asprintf "%s = %a" descr pp v
