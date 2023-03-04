@@ -12,8 +12,10 @@ let timestamp_to_string () =
    (Ptime_clock.now ());
   CFormat.flush_str_formatter ()
 
-module Debug_ch(File_name: sig val v : string end) = struct
-    let debug_ch = Caml.open_out_gen [Open_creat; Open_text; Open_append] 0o640 File_name.v
+module type Debug_ch = sig val debug_ch : out_channel end
+
+module Debug_ch(File_name: sig val filename : string end): Debug_ch = struct
+    let debug_ch = Caml.open_out_gen [Open_creat; Open_text; Open_append] 0o640 File_name.filename
     (* Stdio.Out_channel.create ~binary:false ~append:true File_name.v *)
 end
     

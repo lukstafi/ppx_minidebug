@@ -1,6 +1,12 @@
+(** The functors creating a [Debug_runtime] module that [ppx_minidebug] requires. *)
 
-module Debug_ch : functor(_ : sig val v : string end) -> sig val debug_ch : out_channel end
-    
+module type Debug_ch = sig val debug_ch : out_channel end
+
+(** Opens a file with the given path for appending. *)
+module Debug_ch : functor(_ : sig val filename : string end) -> Debug_ch
+
+(** When using the [ppx_minidebug] syntax extension, provide a module called [Debug_runtime] with
+    the following signature in scope of the instrumented code. *)
 module type Debug_runtime =
 sig
   val close_log : unit -> unit
@@ -17,8 +23,13 @@ sig
   val log_value_show : descr:string -> v:string -> unit
 end
 
-module Format : functor (_ : sig val debug_ch : out_channel end) -> Debug_runtime
-    
-module Flushing : functor (_ : sig val debug_ch : out_channel end) -> Debug_runtime
+(** The logged traces will be indented using OCaml's `Format` module. *)
+module Format : functor (_ : Debug_ch) -> Debug_runtime
 
-module PrintBox : functor (_ : sig val debug_ch : out_channel end) -> Debug_runtime
+(** The output is flushed line-at-a-time, so no output should be lost if the traced program crashes.
+    The logged traces are still indented, but if the values to print are multi-line, their formatting
+    might be messy. The indentation is also smaller (half of PrintBox). *)
+module Flushing : functor (_ : Debug_ch) -> Debug_runtime
+
+(** The logged traces will be pretty-printed as trees using the `printbox` package. *)
+module PrintBox : functor (_ : Debug_ch) -> Debug_runtime
