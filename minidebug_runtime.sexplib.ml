@@ -16,8 +16,25 @@ module Debug_ch(File_name: sig val v : string end) = struct
     let debug_ch = Caml.open_out_gen [Open_creat; Open_text; Open_append] 0o640 File_name.v
     (* Stdio.Out_channel.create ~binary:false ~append:true File_name.v *)
 end
+    
+module type Debug_runtime =
+sig
+  val close_log : unit -> unit
+  val open_log_preamble_brief :
+    fname:string ->
+    pos_lnum:int -> pos_colnum:int -> message:string -> unit
+  val open_log_preamble_full :
+    fname:string ->
+    start_lnum:int ->
+    start_colnum:int ->
+    end_lnum:int -> end_colnum:int -> message:string -> unit
+  val log_value_sexp : descr:string -> sexp:Sexplib0.Sexp.t -> unit
+  val log_value_pp :
+    descr:string -> pp:(Format.formatter -> 'a -> unit) -> v:'a -> unit
+  val log_value_show : descr:string -> v:string -> unit
+end
 
-module Format(Log_to: sig val debug_ch : Caml.out_channel end) = struct  
+module Format(Log_to: sig val debug_ch : Caml.out_channel end): Debug_runtime = struct  
   open Log_to
 
   let ppf =
@@ -51,7 +68,7 @@ module Format(Log_to: sig val debug_ch : Caml.out_channel end) = struct
     CFormat.fprintf ppf "%s = %s@ @ " descr v
 end
 
-module Flushing(Log_to: sig val debug_ch : Caml.out_channel end) = struct  
+module Flushing(Log_to: sig val debug_ch : Caml.out_channel end): Debug_runtime = struct  
   open Log_to
     
   let callstack = ref []
@@ -102,7 +119,7 @@ let rec revert_order: PrintBox.Simple.t -> PrintBox.Simple.t = function
 | `Hlist bs -> `Hlist (List.rev_map revert_order bs)
 | `Tree (b, bs) -> `Tree (b, List.rev_map revert_order bs)
 
-module PrintBox(Log_to: sig val debug_ch : Caml.out_channel end) = struct
+module PrintBox(Log_to: sig val debug_ch : Caml.out_channel end): Debug_runtime = struct
   open Log_to
   module B = PrintBox
   

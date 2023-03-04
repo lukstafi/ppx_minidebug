@@ -17,6 +17,12 @@
   (base -> minidebug_runtime.sexplib.ml)
   (sexplib -> minidebug_runtime.sexplib.ml)
   (-> minidebug_runtime.nosexp.ml))
+  (select
+  minidebug_runtime.mli
+  from
+  (base -> minidebug_runtime.sexplib.mli)
+  (sexplib -> minidebug_runtime.sexplib.mli)
+  (-> minidebug_runtime.nosexp.mli))
   ))
 
 (documentation
