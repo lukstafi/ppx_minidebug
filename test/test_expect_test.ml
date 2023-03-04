@@ -22,15 +22,20 @@ let%expect_test "%debug_show flushing to stdout" =
   let baz (x: t): int =
     let (y, z as _yz): int * int = x.first + 1, 3 in x.second * y + z in
   let () = print_endline @@ Int.to_string @@ baz {first=7; second=42} in
+  let output = [%expect.output] in
+  let output = Str.global_replace
+      (Str.regexp {|[0-9]+-[0-9]+-[0-9]+ [0-9]+:[0-9]+:[0-9]+\.[0-9]+\( \+[0-9]+:[0-9]+\)?|})
+      "YYYY-MM-DD HH:MM:SS.NNNNNN" output in
+  print_endline output;
   [%expect {|
-    BEGIN DEBUG SESSION at time 2023-03-04 11:41:31.692740 +01:00
-    2023-03-04 11:41:31.692756 +01:00 - bar begin "test/test_expect_test.ml":20:21-20:75
+    BEGIN DEBUG SESSION at time YYYY-MM-DD HH:MM:SS.NNNNNN
+    YYYY-MM-DD HH:MM:SS.NNNNNN - bar begin "test/test_expect_test.ml":20:21-20:75
      x = { Test_expect_test.first = 7; second = 42 }
      bar = 336
-    2023-03-04 11:41:31.692810 +01:00 - bar end
+    YYYY-MM-DD HH:MM:SS.NNNNNN - bar end
     336
-    2023-03-04 11:41:31.692815 +01:00 - baz begin "test/test_expect_test.ml":22:10-23:69
+    YYYY-MM-DD HH:MM:SS.NNNNNN - baz begin "test/test_expect_test.ml":22:10-23:69
      x = { Test_expect_test.first = 7; second = 42 }
      baz = 339
-    2023-03-04 11:41:31.692823 +01:00 - baz end
+    YYYY-MM-DD HH:MM:SS.NNNNNN - baz end
     339 |}]
