@@ -84,3 +84,11 @@
  (libraries minidebug_runtime)
  (preprocess
   (pps ppx_deriving.show)))
+
+(library
+ (name test_inline_tests)
+ (inline_tests)
+ (modules test_expect_test)
+ (libraries minidebug_runtime)
+ (preprocess
+  (pps ppx_minidebug ppx_deriving.show ppx_expect)))
