@@ -14,6 +14,7 @@
  (select
   minidebug_runtime.ml
   from
-  (base -> minidebug_runtime.base.ml)
+  (base -> minidebug_runtime.sexplib.ml)
+  (sexplib -> minidebug_runtime.sexplib.ml)
   (-> minidebug_runtime.nosexp.ml))
   ))

@@ -3,12 +3,12 @@ let pp_timestamp ppf () =
   Ptime.(pp_human ~frac_s:6 ?tz_offset_s ()) ppf (Ptime_clock.now ())
 
 let timestamp_to_string () =
-  let _ = Caml.Format.flush_str_formatter () in
+  let _ = CFormat.flush_str_formatter () in
   let tz_offset_s = Ptime_clock.current_tz_offset_s () in
   Ptime.(pp_human ~frac_s:6 ?tz_offset_s ())
-    Caml.Format.str_formatter
+    CFormat.str_formatter
    (Ptime_clock.now ());
-  Caml.Format.flush_str_formatter ()
+  CFormat.flush_str_formatter ()
 
 module Debug_ch(File_name: sig val v : string end) = struct
     let debug_ch = open_out_gen [Open_creat; Open_text; Open_append] 0o640 File_name.v
