@@ -1,0 +1,469 @@
+
+BEGIN DEBUG SESSION at time YYYY-MM-DD HH:MM:SS.NNNNNN
+YYYY-MM-DD HH:MM:SS.NNNNNN - foo begin "test/test_debug_show.ml":5:19-7:15
+ x = 7
+ foo = [7; 8; 16]
+YYYY-MM-DD HH:MM:SS.NNNNNN - foo end
+YYYY-MM-DD HH:MM:SS.NNNNNN - bar begin "test/test_debug_show.ml":12:19-12:73
+ x = { Test_debug_show.first = 7; second = 42 }
+ bar = 336
+YYYY-MM-DD HH:MM:SS.NNNNNN - bar end
+YYYY-MM-DD HH:MM:SS.NNNNNN - baz begin "test/test_debug_show.ml":15:19-16:67
+ x = { Test_debug_show.first = 7; second = 42 }
+ baz = 339
+YYYY-MM-DD HH:MM:SS.NNNNNN - baz end
+YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+ depth = 0
+ x = { Test_debug_show.first = 7; second = 42 }
+  "test/test_debug_show.ml":23:8: 
+  YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+   depth = 1
+   x = { Test_debug_show.first = 41; second = 9 }
+    "test/test_debug_show.ml":23:8: 
+    YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+     depth = 2
+     x = { Test_debug_show.first = 8; second = 43 }
+      "test/test_debug_show.ml":23:8: 
+      YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+       depth = 3
+       x = { Test_debug_show.first = 42; second = 10 }
+        "test/test_debug_show.ml":23:8: 
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+         depth = 4
+         x = { Test_debug_show.first = 9; second = 44 }
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+          depth = 5
+          x = { Test_debug_show.first = 45; second = 4 }
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+           depth = 6
+           x = { Test_debug_show.first = 5; second = 22 }
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+            depth = 7
+            x = { Test_debug_show.first = 23; second = 2 }
+            loop = 25
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+           loop = 25
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+          loop = 25
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+         loop = 25
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+        y = 25
+        "test/test_debug_show.ml":24:8: 
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+         depth = 4
+         x = { Test_debug_show.first = 11; second = 25 }
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+          depth = 5
+          x = { Test_debug_show.first = 26; second = 5 }
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+           depth = 6
+           x = { Test_debug_show.first = 6; second = 13 }
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+            depth = 7
+            x = { Test_debug_show.first = 14; second = 3 }
+            loop = 17
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+           loop = 17
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+          loop = 17
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+         loop = 17
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+        z = 17
+       loop = 24
+      YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+      y = 24
+      "test/test_debug_show.ml":24:8: 
+      YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+       depth = 3
+       x = { Test_debug_show.first = 44; second = 24 }
+        "test/test_debug_show.ml":23:8: 
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+         depth = 4
+         x = { Test_debug_show.first = 23; second = 46 }
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+          depth = 5
+          x = { Test_debug_show.first = 47; second = 11 }
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+           depth = 6
+           x = { Test_debug_show.first = 12; second = 23 }
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+            depth = 7
+            x = { Test_debug_show.first = 24; second = 6 }
+            loop = 30
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+           loop = 30
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+          loop = 30
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+         loop = 30
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+        y = 30
+        "test/test_debug_show.ml":24:8: 
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+         depth = 4
+         x = { Test_debug_show.first = 25; second = 30 }
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+          depth = 5
+          x = { Test_debug_show.first = 31; second = 12 }
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+           depth = 6
+           x = { Test_debug_show.first = 13; second = 15 }
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+            depth = 7
+            x = { Test_debug_show.first = 16; second = 6 }
+            loop = 22
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+           loop = 22
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+          loop = 22
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+         loop = 22
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+        z = 22
+       loop = 29
+      YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+      z = 29
+     loop = 36
+    YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+    y = 36
+    "test/test_debug_show.ml":24:8: 
+    YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+     depth = 2
+     x = { Test_debug_show.first = 10; second = 36 }
+      "test/test_debug_show.ml":23:8: 
+      YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+       depth = 3
+       x = { Test_debug_show.first = 35; second = 12 }
+        "test/test_debug_show.ml":23:8: 
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+         depth = 4
+         x = { Test_debug_show.first = 11; second = 37 }
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+          depth = 5
+          x = { Test_debug_show.first = 38; second = 5 }
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+           depth = 6
+           x = { Test_debug_show.first = 6; second = 19 }
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+            depth = 7
+            x = { Test_debug_show.first = 20; second = 3 }
+            loop = 23
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+           loop = 23
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+          loop = 23
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+         loop = 23
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+        y = 23
+        "test/test_debug_show.ml":24:8: 
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+         depth = 4
+         x = { Test_debug_show.first = 13; second = 23 }
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+          depth = 5
+          x = { Test_debug_show.first = 24; second = 6 }
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+           depth = 6
+           x = { Test_debug_show.first = 7; second = 12 }
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+            depth = 7
+            x = { Test_debug_show.first = 13; second = 3 }
+            loop = 16
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+           loop = 16
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+          loop = 16
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+         loop = 16
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+        z = 16
+       loop = 23
+      YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+      y = 23
+      "test/test_debug_show.ml":24:8: 
+      YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+       depth = 3
+       x = { Test_debug_show.first = 37; second = 23 }
+        "test/test_debug_show.ml":23:8: 
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+         depth = 4
+         x = { Test_debug_show.first = 22; second = 39 }
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+          depth = 5
+          x = { Test_debug_show.first = 40; second = 11 }
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+           depth = 6
+           x = { Test_debug_show.first = 12; second = 20 }
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+            depth = 7
+            x = { Test_debug_show.first = 21; second = 6 }
+            loop = 27
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+           loop = 27
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+          loop = 27
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+         loop = 27
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+        y = 27
+        "test/test_debug_show.ml":24:8: 
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+         depth = 4
+         x = { Test_debug_show.first = 24; second = 27 }
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+          depth = 5
+          x = { Test_debug_show.first = 28; second = 12 }
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+           depth = 6
+           x = { Test_debug_show.first = 13; second = 14 }
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+            depth = 7
+            x = { Test_debug_show.first = 15; second = 6 }
+            loop = 21
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+           loop = 21
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+          loop = 21
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+         loop = 21
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+        z = 21
+       loop = 28
+      YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+      z = 28
+     loop = 35
+    YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+    z = 35
+   loop = 42
+  YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+  y = 42
+  "test/test_debug_show.ml":24:8: 
+  YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+   depth = 1
+   x = { Test_debug_show.first = 43; second = 42 }
+    "test/test_debug_show.ml":23:8: 
+    YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+     depth = 2
+     x = { Test_debug_show.first = 41; second = 45 }
+      "test/test_debug_show.ml":23:8: 
+      YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+       depth = 3
+       x = { Test_debug_show.first = 44; second = 43 }
+        "test/test_debug_show.ml":23:8: 
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+         depth = 4
+         x = { Test_debug_show.first = 42; second = 46 }
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+          depth = 5
+          x = { Test_debug_show.first = 47; second = 21 }
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+           depth = 6
+           x = { Test_debug_show.first = 22; second = 23 }
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+            depth = 7
+            x = { Test_debug_show.first = 24; second = 11 }
+            loop = 35
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+           loop = 35
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+          loop = 35
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+         loop = 35
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+        y = 35
+        "test/test_debug_show.ml":24:8: 
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+         depth = 4
+         x = { Test_debug_show.first = 44; second = 35 }
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+          depth = 5
+          x = { Test_debug_show.first = 36; second = 22 }
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+           depth = 6
+           x = { Test_debug_show.first = 23; second = 18 }
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+            depth = 7
+            x = { Test_debug_show.first = 19; second = 11 }
+            loop = 30
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+           loop = 30
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+          loop = 30
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+         loop = 30
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+        z = 30
+       loop = 37
+      YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+      y = 37
+      "test/test_debug_show.ml":24:8: 
+      YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+       depth = 3
+       x = { Test_debug_show.first = 46; second = 37 }
+        "test/test_debug_show.ml":23:8: 
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+         depth = 4
+         x = { Test_debug_show.first = 36; second = 48 }
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+          depth = 5
+          x = { Test_debug_show.first = 49; second = 18 }
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+           depth = 6
+           x = { Test_debug_show.first = 19; second = 24 }
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+            depth = 7
+            x = { Test_debug_show.first = 25; second = 9 }
+            loop = 34
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+           loop = 34
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+          loop = 34
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+         loop = 34
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+        y = 34
+        "test/test_debug_show.ml":24:8: 
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+         depth = 4
+         x = { Test_debug_show.first = 38; second = 34 }
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+          depth = 5
+          x = { Test_debug_show.first = 35; second = 19 }
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+           depth = 6
+           x = { Test_debug_show.first = 20; second = 17 }
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+            depth = 7
+            x = { Test_debug_show.first = 18; second = 10 }
+            loop = 28
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+           loop = 28
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+          loop = 28
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+         loop = 28
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+        z = 28
+       loop = 35
+      YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+      z = 35
+     loop = 42
+    YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+    y = 42
+    "test/test_debug_show.ml":24:8: 
+    YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+     depth = 2
+     x = { Test_debug_show.first = 43; second = 42 }
+      "test/test_debug_show.ml":23:8: 
+      YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+       depth = 3
+       x = { Test_debug_show.first = 41; second = 45 }
+        "test/test_debug_show.ml":23:8: 
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+         depth = 4
+         x = { Test_debug_show.first = 44; second = 43 }
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+          depth = 5
+          x = { Test_debug_show.first = 44; second = 22 }
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+           depth = 6
+           x = { Test_debug_show.first = 23; second = 22 }
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+            depth = 7
+            x = { Test_debug_show.first = 23; second = 11 }
+            loop = 34
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+           loop = 34
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+          loop = 34
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+         loop = 34
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+        y = 34
+        "test/test_debug_show.ml":24:8: 
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+         depth = 4
+         x = { Test_debug_show.first = 46; second = 34 }
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+          depth = 5
+          x = { Test_debug_show.first = 35; second = 23 }
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+           depth = 6
+           x = { Test_debug_show.first = 24; second = 17 }
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+            depth = 7
+            x = { Test_debug_show.first = 18; second = 12 }
+            loop = 30
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+           loop = 30
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+          loop = 30
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+         loop = 30
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+        z = 30
+       loop = 37
+      YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+      y = 37
+      "test/test_debug_show.ml":24:8: 
+      YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+       depth = 3
+       x = { Test_debug_show.first = 43; second = 37 }
+        "test/test_debug_show.ml":23:8: 
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+         depth = 4
+         x = { Test_debug_show.first = 36; second = 45 }
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+          depth = 5
+          x = { Test_debug_show.first = 46; second = 18 }
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+           depth = 6
+           x = { Test_debug_show.first = 19; second = 23 }
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+            depth = 7
+            x = { Test_debug_show.first = 24; second = 9 }
+            loop = 33
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+           loop = 33
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+          loop = 33
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+         loop = 33
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+        y = 33
+        "test/test_debug_show.ml":24:8: 
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+         depth = 4
+         x = { Test_debug_show.first = 38; second = 33 }
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+          depth = 5
+          x = { Test_debug_show.first = 34; second = 19 }
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+           depth = 6
+           x = { Test_debug_show.first = 20; second = 17 }
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9
+            depth = 7
+            x = { Test_debug_show.first = 18; second = 10 }
+            loop = 28
+           YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+           loop = 28
+          YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+          loop = 28
+         YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+         loop = 28
+        YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+        z = 28
+       loop = 35
+      YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+      z = 35
+     loop = 42
+    YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+    z = 42
+   loop = 49
+  YYYY-MM-DD HH:MM:SS.NNNNNN - loop end
+  z = 49
+ loop = 56
+YYYY-MM-DD HH:MM:SS.NNNNNN - loop end

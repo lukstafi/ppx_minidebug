@@ -1,7 +1,7 @@
 module Debug_runtime =
   (Minidebug_runtime.Flushing)((Minidebug_runtime.Debug_ch)(struct
                                                               let filename =
-                                                                "../../../debugger_show_flushing.log"
+                                                                "debugger_show_flushing.log"
                                                             end))
 let foo (x : int) =
   ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_show.ml"
@@ -13,7 +13,7 @@ let foo (x : int) =
       ~v:(([%show : int list]) foo__res);
     Debug_runtime.close_log ();
     foo__res) : int list)
-let () = print_endline @@ (Int.to_string @@ (List.hd @@ (foo 7)))
+let () = ignore @@ (List.hd @@ (foo 7))
 type t = {
   first: int ;
   second: int }[@@deriving show]
@@ -26,7 +26,7 @@ let bar (x : t) =
     Debug_runtime.log_value_show ~descr:"bar" ~v:(([%show : int]) bar__res);
     Debug_runtime.close_log ();
     bar__res) : int)
-let () = print_endline @@ (Int.to_string @@ (bar { first = 7; second = 42 }))
+let () = ignore @@ (bar { first = 7; second = 42 })
 let baz (x : t) =
   ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_show.ml"
       ~start_lnum:15 ~start_colnum:19 ~end_lnum:16 ~end_colnum:67
@@ -38,7 +38,7 @@ let baz (x : t) =
     Debug_runtime.log_value_show ~descr:"baz" ~v:(([%show : int]) baz__res);
     Debug_runtime.close_log ();
     baz__res) : int)
-let () = print_endline @@ (Int.to_string @@ (baz { first = 7; second = 42 }))
+let () = ignore @@ (baz { first = 7; second = 42 })
 let rec loop (depth : int) (x : t) =
   (((Debug_runtime.open_log_preamble_full ~fname:"test_debug_show.ml"
        ~start_lnum:19 ~start_colnum:24 ~end_lnum:25 ~end_colnum:9
@@ -80,5 +80,4 @@ let rec loop (depth : int) (x : t) =
     Debug_runtime.log_value_show ~descr:"loop" ~v:(([%show : int]) loop__res);
     Debug_runtime.close_log ();
     loop__res) : int)
-let () =
-  print_endline @@ (Int.to_string @@ (loop 0 { first = 7; second = 42 }))
+let () = ignore @@ (loop 0 { first = 7; second = 42 })

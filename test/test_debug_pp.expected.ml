@@ -1,7 +1,7 @@
 module Debug_runtime =
   (Minidebug_runtime.Format)((Minidebug_runtime.Debug_ch)(struct
                                                             let filename =
-                                                              "../../../debugger_pp_format.log"
+                                                              "debugger_pp_format.log"
                                                           end))
 type t = {
   first: int ;
@@ -16,7 +16,7 @@ let bar (x : t) =
     Debug_runtime.log_value_pp ~descr:"bar" ~pp:pp_num ~v:bar__res;
     Debug_runtime.close_log ();
     bar__res) : num)
-let () = print_endline @@ (Int.to_string @@ (bar { first = 7; second = 42 }))
+let () = ignore @@ (bar { first = 7; second = 42 })
 let baz (x : t) =
   ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_pp.ml"
       ~start_lnum:10 ~start_colnum:17 ~end_lnum:11 ~end_colnum:89
@@ -29,7 +29,7 @@ let baz (x : t) =
     Debug_runtime.log_value_pp ~descr:"baz" ~pp:pp_num ~v:baz__res;
     Debug_runtime.close_log ();
     baz__res) : num)
-let () = print_endline @@ (Int.to_string @@ (baz { first = 7; second = 42 }))
+let () = ignore @@ (baz { first = 7; second = 42 })
 let rec loop (depth : num) (x : t) =
   (((Debug_runtime.open_log_preamble_full ~fname:"test_debug_pp.ml"
        ~start_lnum:14 ~start_colnum:22 ~end_lnum:20 ~end_colnum:9
@@ -67,5 +67,4 @@ let rec loop (depth : num) (x : t) =
     Debug_runtime.log_value_pp ~descr:"loop" ~pp:pp_num ~v:loop__res;
     Debug_runtime.close_log ();
     loop__res) : num)
-let () =
-  print_endline @@ (Int.to_string @@ (loop 0 { first = 7; second = 42 }))
+let () = ignore @@ (loop 0 { first = 7; second = 42 })

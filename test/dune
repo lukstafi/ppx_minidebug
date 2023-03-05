@@ -5,7 +5,7 @@
  (modes exe))
 
 (rule
- (targets test_debug_sexp_actual.ml)
+ (targets test_debug_sexp.actual.ml)
  (deps
   (:pp pp.exe)
   (:input test_debug_sexp.ml))
@@ -13,7 +13,7 @@
   (run ./%{pp} --impl %{input} -o %{targets})))
 
 (rule
- (targets test_debug_pp_actual.ml)
+ (targets test_debug_pp.actual.ml)
  (deps
   (:pp pp.exe)
   (:input test_debug_pp.ml))
@@ -21,7 +21,7 @@
   (run ./%{pp} --impl %{input} -o %{targets})))
 
 (rule
- (targets test_debug_show_actual.ml)
+ (targets test_debug_show.actual.ml)
  (deps
   (:pp pp.exe)
   (:input test_debug_show.ml))
@@ -31,59 +31,71 @@
 (rule
  (alias runtest)
  (action
-  (diff test_debug_sexp_expected.ml test_debug_sexp_actual.ml)))
+  (diff test_debug_sexp.expected.ml test_debug_sexp.actual.ml)))
 
 (rule
  (alias runtest)
  (action
-  (diff test_debug_pp_expected.ml test_debug_pp_actual.ml)))
+  (diff test_debug_pp.expected.ml test_debug_pp.actual.ml)))
 
 (rule
  (alias runtest)
  (action
-  (diff test_debug_show_expected.ml test_debug_show_actual.ml)))
+  (diff test_debug_show.expected.ml test_debug_show.actual.ml)))
 
-(test
+(executable
  (name test_debug_sexp)
  (modules test_debug_sexp)
  (libraries base core stdio minidebug_runtime)
+ (modes exe)
  (preprocess
   (pps ppx_minidebug ppx_jane)))
 
-(test
+(rule
+ (target debugger_sexp_printbox.log)
+ (action (progn
+  (run %{dep:test_debug_sexp.exe})
+  (run sed -i "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" %{target}))))
+
+(rule
+ (alias runtest)
+ (action (diff debugger_sexp_printbox.expected.log debugger_sexp_printbox.log)))
+
+(executable
  (name test_debug_pp)
  (modules test_debug_pp)
  (libraries minidebug_runtime)
+ (modes exe)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
 
-(test
+(rule
+ (target debugger_pp_format.log)
+ (action (progn
+  (run %{dep:test_debug_pp.exe})
+  (run sed -i "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" %{target}))))
+
+(rule
+ (alias runtest)
+ (action (diff debugger_pp_format.expected.log debugger_pp_format.log)))
+
+(executable
  (name test_debug_show)
  (modules test_debug_show)
  (libraries minidebug_runtime)
+ (modes exe)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
 
-(test
- (name test_debug_sexp_expected)
- (modules test_debug_sexp_expected)
- (libraries base core stdio minidebug_runtime)
- (preprocess
-  (pps ppx_jane)))
+(rule
+ (target debugger_show_flushing.log)
+ (action (progn
+  (run %{dep:test_debug_show.exe})
+  (run sed -i "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" %{target}))))
 
-(test
- (name test_debug_pp_expected)
- (modules test_debug_pp_expected)
- (libraries minidebug_runtime)
- (preprocess
-  (pps ppx_deriving.show)))
-
-(test
- (name test_debug_show_expected)
- (modules test_debug_show_expected)
- (libraries minidebug_runtime)
- (preprocess
-  (pps ppx_deriving.show)))
+(rule
+ (alias runtest)
+ (action (diff debugger_show_flushing.expected.log debugger_show_flushing.log)))
 
 (library
  (name test_inline_tests)

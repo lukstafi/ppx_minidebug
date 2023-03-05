@@ -2,7 +2,7 @@ open Base
 module Debug_runtime =
   (Minidebug_runtime.PrintBox)((Minidebug_runtime.Debug_ch)(struct
                                                               let filename =
-                                                                "../../../debugger_sexp_printbox.log"
+                                                                "debugger_sexp_printbox.log"
                                                             end))
 let foo (x : int) =
   ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_sexp.ml"
@@ -14,9 +14,7 @@ let foo (x : int) =
       ~sexp:(([%sexp_of : int list]) foo__res);
     Debug_runtime.close_log ();
     foo__res) : int list)
-let () =
-  Stdio.Out_channel.print_endline @@
-    (Int.to_string @@ (List.hd_exn @@ (foo 7)))
+let () = ignore @@ (List.hd_exn @@ (foo 7))
 type t = {
   first: int ;
   second: int }[@@deriving sexp]
@@ -30,9 +28,7 @@ let bar (x : t) =
       ~sexp:(([%sexp_of : int]) bar__res);
     Debug_runtime.close_log ();
     bar__res) : int)
-let () =
-  Stdio.Out_channel.print_endline @@
-    (Int.to_string @@ (bar { first = 7; second = 42 }))
+let () = ignore @@ (bar { first = 7; second = 42 })
 let baz (x : t) =
   ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_sexp.ml"
       ~start_lnum:16 ~start_colnum:19 ~end_lnum:17 ~end_colnum:67
@@ -45,9 +41,7 @@ let baz (x : t) =
       ~sexp:(([%sexp_of : int]) baz__res);
     Debug_runtime.close_log ();
     baz__res) : int)
-let () =
-  Stdio.Out_channel.print_endline @@
-    (Int.to_string @@ (baz { first = 7; second = 42 }))
+let () = ignore @@ (baz { first = 7; second = 42 })
 let rec loop (depth : int) (x : t) =
   (((Debug_runtime.open_log_preamble_full ~fname:"test_debug_sexp.ml"
        ~start_lnum:20 ~start_colnum:24 ~end_lnum:26 ~end_colnum:9
@@ -91,6 +85,4 @@ let rec loop (depth : int) (x : t) =
       ~sexp:(([%sexp_of : int]) loop__res);
     Debug_runtime.close_log ();
     loop__res) : int)
-let () =
-  Stdio.Out_channel.print_endline @@
-    (Int.to_string @@ (loop 0 { first = 7; second = 42 }))
+let () = ignore @@ (loop 0 { first = 7; second = 42 })
