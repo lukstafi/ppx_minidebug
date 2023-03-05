@@ -36,6 +36,6 @@
  (action
   (progn
    (run cp -rf _doc/_html ../../docs/)
-   (run git add -A ../../docs/_html)
-   (run git commit ../../docs/_html -m "Update generated API docs")
+   (run git add -A ../../docs)
+   (run git commit ../../docs -m "Update generated API docs")
    (run git push origin main))))
