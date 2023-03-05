@@ -7,6 +7,8 @@ ppx_minidebug
 
 Take a look at [`ppx_debug`](https://github.com/dariusf/ppx_debug) which is significantly more powerful!
 
+See also [the generated documentation](https://lukstafi.github.io/ppx_minidebug/).
+
 ### `Format`-based traces
 
 Define a `Debug_runtime` using the `Format` functor. The helper functor `Debug_ch` opens a file for appending.
