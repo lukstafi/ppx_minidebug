@@ -14,7 +14,7 @@ E.g. either `module Debug_runtime = Minidebug_runtime.Format(struct let debug_ch
 ```ocaml
 module Debug_runtime =
   Minidebug_runtime.Format(
-    Minidebug_runtime.Debug_ch(struct let v = "path/to/debugger_format.log" end))
+    Minidebug_runtime.Debug_ch(struct let filename = "path/to/debugger_format.log" end))
 ```
 The logged traces will be indented using OCaml's `Format` module. Truncated example (using `%debug_pp`):
 ```ocaml
@@ -42,7 +42,7 @@ E.g. either `module Debug_runtime = Minidebug_runtime.PrintBox(struct let debug_
 ```ocaml
 module Debug_runtime =
   Minidebug_runtime.PrintBox(
-    Minidebug_runtime.Debug_ch(struct let v = "path/to/debugger_printbox.log" end))
+    Minidebug_runtime.Debug_ch(struct let filename = "path/to/debugger_printbox.log" end))
 ```
 The logged traces will be pretty-printed as trees using the `printbox` package. Truncated example (using `%debug_sexp`):
 ```ocaml
@@ -86,7 +86,7 @@ E.g. either `module Debug_runtime = Minidebug_runtime.Flushing(struct let debug_
 ```ocaml
 module Debug_runtime =
   Minidebug_runtime.Flushing(
-    Minidebug_runtime.Debug_ch(struct let v = "path/to/debugger_flushing.log" end))
+    Minidebug_runtime.Debug_ch(struct let filename = "path/to/debugger_flushing.log" end))
 ```
 The logged traces are still indented, but if the values to print are multi-line, their formatting might be messy. The benefit of `Flushing` traces is that the output is flushed line-at-a-time, so no output should be lost if the traced program crashes. The indentation is also smaller (half of PrintBox). Truncated example (using `%debug_show`):
 ```ocaml

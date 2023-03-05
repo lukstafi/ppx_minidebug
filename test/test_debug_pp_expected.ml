@@ -1,6 +1,6 @@
 module Debug_runtime =
   (Minidebug_runtime.Format)((Minidebug_runtime.Debug_ch)(struct
-                                                            let v =
+                                                            let filename =
                                                               "../../../debugger_pp_format.log"
                                                           end))
 type t = {

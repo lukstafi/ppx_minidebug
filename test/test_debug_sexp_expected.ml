@@ -1,7 +1,7 @@
 open Base
 module Debug_runtime =
   (Minidebug_runtime.PrintBox)((Minidebug_runtime.Debug_ch)(struct
-                                                              let v =
+                                                              let filename =
                                                                 "../../../debugger_sexp_printbox.log"
                                                             end))
 let foo (x : int) =

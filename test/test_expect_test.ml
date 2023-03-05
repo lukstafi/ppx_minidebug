@@ -4,7 +4,7 @@ let%expect_test "%debug_show flushing to a file" =
   let module Debug_runtime =
     Minidebug_runtime.Flushing(
       Minidebug_runtime.Debug_ch(
-        struct let v = "../../../debugger_expect_show_flushing.log" end)) in
+        struct let filename = "../../../debugger_expect_show_flushing.log" end)) in
   let%debug_this_show rec loop (depth: int) (x: t): int =
     if depth > 6 then x.first + x.second
     else if depth > 3 then loop (depth + 1) {first=x.second + 1; second=x.first / 2}

@@ -1,6 +1,6 @@
 module Debug_runtime =
   (Minidebug_runtime.Flushing)((Minidebug_runtime.Debug_ch)(struct
-                                                              let v =
+                                                              let filename =
                                                                 "../../../debugger_show_flushing.log"
                                                             end))
 let foo (x : int) =
