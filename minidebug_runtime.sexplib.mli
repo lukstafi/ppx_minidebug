@@ -1,12 +1,16 @@
-(** The functors creating a [Debug_runtime] module that [ppx_minidebug] requires. *)
+(** The functors creating a [Debug_runtime] module that
+    {{:http://lukstafi.github.io/ppx_minidebug/_html/minidebug_runtime/Minidebug_runtime/index.html}
+    [ppx_minidebug]} requires. *)
 
 module type Debug_ch = sig val debug_ch : out_channel end
 
 (** Opens a file with the given path for appending. *)
 module Debug_ch : functor(_ : sig val filename : string end) -> Debug_ch
 
-(** When using the [ppx_minidebug] syntax extension, provide a module called [Debug_runtime] with
-    the following signature in scope of the instrumented code. *)
+(** When using the
+    {{:http://lukstafi.github.io/ppx_minidebug/_html/minidebug_runtime/Minidebug_runtime/index.html}
+    [ppx_minidebug]} syntax extension, provide a module called [Debug_runtime] with
+    this signature in scope of the instrumented code. *)
 module type Debug_runtime =
 sig
   val close_log : unit -> unit

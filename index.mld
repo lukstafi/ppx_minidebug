@@ -1,0 +1,83 @@
+{1 [ppx_minidebug] usage}
+
+[ppx_minidebug] traces selected code if it has type annotations. [ppx_minidebug] offers three ways
+of instrumenting the code: [%debug_pp] and [%debug_show] based on [deriving.show], and [%debug_sexp]
+based on the [sexplib]. The syntax extension expects a module [Debug_runtime] in the scope.
+[minidebug_runtime] offers three ways of logging the traces, as functors generating [Debug_runtime]
+modules given a file path.
+
+Take a look at {{:https://github.com/dariusf/ppx_debug} [ppx_debug]} which is significantly more powerful!
+
+See {{:http://lukstafi.github.io/ppx_minidebug/_html/minidebug_runtime/Minidebug_runtime/index.html}
+[Minidebug_runtime]} for the provided loggers.
+
+{2 Usage}
+
+To trace a function, you have to type-annotate the function result. To trace an argument of a traced
+function, or a [let]-binding, you need to type-annotate it. You can control how much gets logged by
+adding or removing type annotations.
+
+Tracing only happens in explicitly marked scopes, using the extension points: [%debug_pp],
+[%debug_this_pp], [%debug_show], [%debug_this_show] (based on printing functionality provided by
+[deriving.show]), [%debug_sexp], [%debug_this_sexp] (using functionality provided by [sexplib] and
+[ppx_sexp]). See examples in {{:https://github.com/lukstafi/ppx_minidebug/tree/main/test} the test
+directory}.
+
+The [%debug_this] variants are intended only for [let]-bindings:
+[let%debug_this v: t = compute value in body] will trace [v] and the type-annotated bindings and
+functions inside [compute value], but it will not trace [body].
+
+Example setting up a logger printing to the screen:
+{[
+module Debug_runtime =
+  Minidebug_runtime.Flushing(struct let debug_ch = stdout end)
+let%debug_show test_logging: string = "Hello World"
+]}
+Example setting up a logger printing to a file:
+{[
+module Debug_runtime =
+  Minidebug_runtime.Flushing(
+    Minidebug_runtime.Debug_ch(struct let filename = "debugger_flushing.log" end))
+let%debug_show test_logging: string = "Hello World"
+]}
+
+{2 VS Code suggestions}
+
+{3 Visualize the flame graph using
+   {{:https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond}
+   Log Inspector}}
+
+{{:https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond}
+Log Inspector (sub-millisecond)}'s main feature is visualizing timestamped logs as flame graphs.
+To invoke it in VS Code, go to the [Minidebug_runtime.Flushing]-style logs file, press {e crtl+shift+P},
+and execute the command {e Log Inspector: Draw}.
+
+Note that {{:https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond}
+Log Inspector (sub-millisecond)} is a forked variant of the Log Inspector extension.
+
+{3 Go to file location using
+{{:https://marketplace.visualstudio.com/items?itemName=ArturoDent.find-and-transform}Find and Transform}}
+
+{{:https://marketplace.visualstudio.com/items?itemName=ArturoDent.find-and-transform}Find and Transform}
+is a powerful VS Code extension, so there might be easier ways to accomplish this, but it gets
+the job done. I put the following in my `keybindings.json` file (command: {e Open Keyboard Shortcuts
+(JSON)}):
+{@json[
+  {
+    "key": "alt+q",
+    "command": "findInCurrentFile",
+    "args": {
+      "description": "Open file at cursor",
+      "find": "\"([^\"]+)\":([0-9]+)",
+      "replace": [
+        "$${",
+        "vscode.commands.executeCommand('workbench.action.quickOpen', `$1:$2`);",
+        "return '\\\"$1\\\":$2';",
+        "}$$",
+      ],
+      "isRegex": true,
+      "restrictFind": "line",
+    }
+  }
+]}
+Then, pressing `alt+q` will open a pre-populated dialog, and `enter` will get me to the file location.

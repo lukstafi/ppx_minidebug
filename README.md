@@ -142,7 +142,7 @@ The `PrintBox` logs are the prettiest, I could not get the `Format`-functor-base
 ### Visualize the flame graph using [Log Inspector](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond)
 
 [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond)'s main feature is visualizing timestamped logs as flame graphs. To invoke it in VS Code, go to the `Minidebug_runtime.Flushing`-style logs file, press `crtl+shift+P`, and execute the command "Log Inspector: Draw". Example effect:
-![Log Inspector flame graph](doc/ppx_minidebug-LogInspector.png)
+![Log Inspector flame graph](docs/ppx_minidebug-LogInspector.png)
 
 Note that [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond) is a forked variant of the Log Inspector extension.
 
