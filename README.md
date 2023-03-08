@@ -141,32 +141,13 @@ The `PrintBox` logs are the prettiest, I could not get the `Format`-functor-base
 
 ## VS Code suggestions
 
+### Add / remove type annotations and visit files using [VOCaml](https://marketplace.visualstudio.com/items?itemName=lukstafi.vocaml)
+
+[VOCaml helpers for coding in OCaml](https://marketplace.visualstudio.com/items?itemName=lukstafi.vocaml) provide commands to add and remove annotations on selected bindings. They can be used to introduce logging, tune it, and cleanup afterward. It also has a command to populate the _Quick Open_ dialog with a file name and location from a line under cursor. It can be used to jump to the source code from a log file.
+
 ### Visualize the flame graph using [Log Inspector](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond)
 
 [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond)'s main feature is visualizing timestamped logs as flame graphs. To invoke it in VS Code, go to the `Minidebug_runtime.Flushing`-style logs file, press `crtl+shift+P`, and execute the command "Log Inspector: Draw". Example effect:
 ![Log Inspector flame graph](docs/ppx_minidebug-LogInspector.png)
 
 Note that [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond) is a forked variant of the Log Inspector extension.
-
-### Go to file location using [Find and Transform](https://marketplace.visualstudio.com/items?itemName=ArturoDent.find-and-transform)
-
-[Find and Transform](https://marketplace.visualstudio.com/items?itemName=ArturoDent.find-and-transform) is a powerful VS Code extension, so there might be easier ways to accomplish this, but it does the job done. I put the following in my `keybindings.json` file (command: `Open Keyboard Shortcuts (JSON)`):
-```json
-  {
-    "key": "alt+q",
-    "command": "findInCurrentFile",
-    "args": {
-      "description": "Open file at cursor",
-      "find": "\"([^\"]+)\":([0-9]+)",
-      "replace": [
-        "$${",
-        "vscode.commands.executeCommand('workbench.action.quickOpen', `$1:$2`);",
-        "return '\\\"$1\\\":$2';",
-        "}$$",
-      ],
-      "isRegex": true,
-      "restrictFind": "line",
-    }
-  }
-```
-Then, pressing `alt+q` will open a pre-populated dialog, and `enter` will get me to the file location.
