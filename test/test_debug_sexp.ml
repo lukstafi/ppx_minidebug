@@ -17,6 +17,12 @@ let%debug_sexp baz (x: t): int =
   let (y, z as _yz): int * int = x.first + 1, 3 in x.second * y + z
 let () = ignore @@ baz {first=7; second=42}
 
+let%debug_sexp lab ~(x: int): int list =
+  let y: int = x + 1 in
+  [x; y; 2 * y]
+
+let () = ignore @@ List.hd_exn @@ lab ~x:7
+
 let%debug_sexp rec loop (depth: int) (x: t): int =
   if depth > 4 then x.first + x.second
   else if depth > 1 then loop (depth + 1) {first=x.second + 1; second=x.first / 2}

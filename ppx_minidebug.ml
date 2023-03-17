@@ -87,14 +87,17 @@ let log_value_show ~loc ~typ ~descr_loc exp =
 let log_value = ref log_value_sexp
       
 let rec collect_fun accu = function
-  | [%expr fun [%p? arg] -> [%e? body]] as exp -> collect_fun ((arg, exp.pexp_loc)::accu) body
+  | {pexp_desc=Pexp_fun (arg_label, arg, opt_val, body); pexp_loc; pexp_loc_stack; pexp_attributes} ->
+     collect_fun ((arg_label, arg, opt_val, pexp_loc, pexp_loc_stack, pexp_attributes)::accu) body
   | [%expr ([%e? body] : [%t? typ ] ) ] ->
     List.rev accu, body, Some typ
   | body -> List.rev accu, body, None
 
 let rec expand_fun body = function
   | [] -> body
-  | (arg, loc)::args -> [%expr fun [%p arg] -> [%e expand_fun body args]]
+  | (arg_label, arg, opt_val, pexp_loc, pexp_loc_stack, pexp_attributes)::args ->
+    {pexp_desc=Pexp_fun (arg_label, arg, opt_val, expand_fun body args);
+     pexp_loc; pexp_loc_stack; pexp_attributes}
 
 let debug_fun callback bind descr_loc typ_opt1 exp =
   let args, body, typ_opt2 = collect_fun [] exp in
@@ -104,9 +107,11 @@ let debug_fun callback bind descr_loc typ_opt1 exp =
     | Some typ, _ | None, Some typ -> typ
     | None, None -> raise Not_transforming in
   let arg_logs = List.filter_map (function
-      | [%pat? ([%p? {ppat_desc=(Ppat_var descr_loc | Ppat_alias (_, descr_loc)); _} as pat ] :
-                  [%t? typ ] ) ], loc ->
-        Some (!log_value ~loc ~typ ~descr_loc (pat2expr pat))
+      | _arg_label, _opt_val,
+        [%pat? ([%p? {ppat_desc=(Ppat_var descr_loc | Ppat_alias (_, descr_loc)); _} as pat ] :
+                  [%t? typ ] ) ],
+        pexp_loc, _pexp_loc_stack, _pexp_attributes ->
+        Some (!log_value ~loc:pexp_loc ~typ ~descr_loc (pat2expr pat))
       | _ -> None
   ) args in
   let preamble = open_log_preamble ~message:descr_loc.txt ~loc () in

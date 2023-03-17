@@ -42,9 +42,20 @@ let baz (x : t) =
     Debug_runtime.close_log ();
     baz__res) : int)
 let () = ignore @@ (baz { first = 7; second = 42 })
+let lab ~x:(x : int)  =
+  ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_sexp.ml"
+      ~start_lnum:20 ~start_colnum:19 ~end_lnum:22 ~end_colnum:15
+      ~message:"lab";
+    Debug_runtime.log_value_sexp ~descr:"x" ~sexp:(([%sexp_of : int]) x));
+   (let lab__res = let y : int = x + 1 in [x; y; 2 * y] in
+    Debug_runtime.log_value_sexp ~descr:"lab"
+      ~sexp:(([%sexp_of : int list]) lab__res);
+    Debug_runtime.close_log ();
+    lab__res) : int list)
+let () = ignore @@ (List.hd_exn @@ (lab ~x:7))
 let rec loop (depth : int) (x : t) =
   (((Debug_runtime.open_log_preamble_full ~fname:"test_debug_sexp.ml"
-       ~start_lnum:20 ~start_colnum:24 ~end_lnum:26 ~end_colnum:9
+       ~start_lnum:26 ~start_colnum:24 ~end_lnum:32 ~end_colnum:9
        ~message:"loop";
      Debug_runtime.log_value_sexp ~descr:"depth"
        ~sexp:(([%sexp_of : int]) depth));
@@ -59,7 +70,7 @@ let rec loop (depth : int) (x : t) =
         else
           (let y : int =
              Debug_runtime.open_log_preamble_brief
-               ~fname:"test_debug_sexp.ml" ~pos_lnum:24 ~pos_colnum:8
+               ~fname:"test_debug_sexp.ml" ~pos_lnum:30 ~pos_colnum:8
                ~message:" ";
              (let y__res =
                 (loop (depth + 1)
@@ -71,7 +82,7 @@ let rec loop (depth : int) (x : t) =
               y__res) in
            let z : int =
              Debug_runtime.open_log_preamble_brief
-               ~fname:"test_debug_sexp.ml" ~pos_lnum:25 ~pos_colnum:8
+               ~fname:"test_debug_sexp.ml" ~pos_lnum:31 ~pos_colnum:8
                ~message:" ";
              (let z__res =
                 (loop (depth + 1) { first = (x.second + 1); second = y } : 
