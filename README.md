@@ -151,3 +151,34 @@ The `PrintBox` logs are the prettiest, I could not get the `Format`-functor-base
 ![Log Inspector flame graph](docs/ppx_minidebug-LogInspector.png)
 
 Note that [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond) is a forked variant of the Log Inspector extension.
+
+### Go to file location using [Find and Transform](https://marketplace.visualstudio.com/items?itemName=ArturoDent.find-and-transform)
+
+This will expand your general-purpose VS Code toolbox!
+
+[Find and Transform](https://marketplace.visualstudio.com/items?itemName=ArturoDent.find-and-transform) is a powerful VS Code extension. I put the following in my `keybindings.json` file (command: `Open Keyboard Shortcuts (JSON)`):
+```json
+  {
+    "key": "alt+q",
+    "command": "findInCurrentFile",
+    "args": {
+      "description": "Open file at cursor",
+      "find": "\"([^\"]+)\":([0-9]+)",
+      "run": [
+        "$${",
+          "const pos = new vscode.Position($2, 0);",
+          "const range = new vscode.Range(pos, pos);",
+          "const options = {selection: range};",
+          "const wsFolderUri = vscode.workspace.workspaceFolders[0].uri;",
+          "const uri = await vscode.Uri.joinPath(wsFolderUri, '$1');",
+          "await vscode.commands.executeCommand('vscode.open', uri, options);",
+          
+          // "await vscode.commands.executeCommand('workbench.action.quickOpen', `$1:$2`);",
+        "}$$",
+      ],
+      "isRegex": true,
+      "restrictFind": "line",
+    }
+  }
+```
+Then, pressing `alt+q` will go to the file directly, assuming the logs contain the full relative path.
