@@ -21,6 +21,6 @@
  (name ppx_minidebug)
  (synopsis "Debug logs for selected functions and let-bindings")
  (description "A poor man's `ppx_debug` with formatted logs of let-bound values, function arguments and results.")
- (depends ocaml dune)
+ (depends ocaml dune ppx_deriving ppxlib printbox printbox-text printbox-html ptime)
  (tags
   (logger debugger "printf debugging")))
