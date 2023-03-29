@@ -31,11 +31,15 @@ let%expect_test "%debug_show flushing to stdout" =
     BEGIN DEBUG SESSION at time YYYY-MM-DD HH:MM:SS.NNNNNN
     YYYY-MM-DD HH:MM:SS.NNNNNN - bar begin "test/test_expect_test.ml":20:21-20:75
      x = { Test_expect_test.first = 7; second = 42 }
+      "test/test_expect_test.ml":20:39:
+      y = 8
      bar = 336
     YYYY-MM-DD HH:MM:SS.NNNNNN - bar end
     336
     YYYY-MM-DD HH:MM:SS.NNNNNN - baz begin "test/test_expect_test.ml":22:10-23:69
      x = { Test_expect_test.first = 7; second = 42 }
+      "test/test_expect_test.ml":23:17:
+      _yz = (8, 3)
      baz = 339
     YYYY-MM-DD HH:MM:SS.NNNNNN - baz end
     339 |}]

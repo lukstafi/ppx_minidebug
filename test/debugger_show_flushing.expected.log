@@ -2,14 +2,20 @@
 BEGIN DEBUG SESSION at time YYYY-MM-DD HH:MM:SS.NNNNNN
 YYYY-MM-DD HH:MM:SS.NNNNNN - foo begin "test/test_debug_show.ml":5:19-7:15
  x = 7
+  "test/test_debug_show.ml":6:6: 
+  y = 8
  foo = [7; 8; 16]
 YYYY-MM-DD HH:MM:SS.NNNNNN - foo end
 YYYY-MM-DD HH:MM:SS.NNNNNN - bar begin "test/test_debug_show.ml":12:19-12:73
  x = { Test_debug_show.first = 7; second = 42 }
+  "test/test_debug_show.ml":12:37: 
+  y = 8
  bar = 336
 YYYY-MM-DD HH:MM:SS.NNNNNN - bar end
 YYYY-MM-DD HH:MM:SS.NNNNNN - baz begin "test/test_debug_show.ml":15:19-16:67
  x = { Test_debug_show.first = 7; second = 42 }
+  "test/test_debug_show.ml":16:15: 
+  _yz = (8, 3)
  baz = 339
 YYYY-MM-DD HH:MM:SS.NNNNNN - baz end
 YYYY-MM-DD HH:MM:SS.NNNNNN - loop begin "test/test_debug_show.ml":19:24-25:9

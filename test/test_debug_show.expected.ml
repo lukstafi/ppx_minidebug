@@ -8,7 +8,15 @@ let foo (x : int) =
       ~start_lnum:5 ~start_colnum:19 ~end_lnum:7 ~end_colnum:15
       ~message:"foo";
     Debug_runtime.log_value_show ~descr:"x" ~v:(([%show : int]) x));
-   (let foo__res = let y : int = x + 1 in [x; y; 2 * y] in
+   (let foo__res =
+      let y : int =
+        Debug_runtime.open_log_preamble_brief ~fname:"test_debug_show.ml"
+          ~pos_lnum:6 ~pos_colnum:6 ~message:" ";
+        (let y__res = (x + 1 : int) in
+         Debug_runtime.log_value_show ~descr:"y" ~v:(([%show : int]) y__res);
+         Debug_runtime.close_log ();
+         y__res) in
+      [x; y; 2 * y] in
     Debug_runtime.log_value_show ~descr:"foo"
       ~v:(([%show : int list]) foo__res);
     Debug_runtime.close_log ();
@@ -22,7 +30,15 @@ let bar (x : t) =
       ~start_lnum:12 ~start_colnum:19 ~end_lnum:12 ~end_colnum:73
       ~message:"bar";
     Debug_runtime.log_value_show ~descr:"x" ~v:(([%show : t]) x));
-   (let bar__res = let y : int = x.first + 1 in x.second * y in
+   (let bar__res =
+      let y : int =
+        Debug_runtime.open_log_preamble_brief ~fname:"test_debug_show.ml"
+          ~pos_lnum:12 ~pos_colnum:37 ~message:" ";
+        (let y__res = (x.first + 1 : int) in
+         Debug_runtime.log_value_show ~descr:"y" ~v:(([%show : int]) y__res);
+         Debug_runtime.close_log ();
+         y__res) in
+      x.second * y in
     Debug_runtime.log_value_show ~descr:"bar" ~v:(([%show : int]) bar__res);
     Debug_runtime.close_log ();
     bar__res) : int)
@@ -33,7 +49,14 @@ let baz (x : t) =
       ~message:"baz";
     Debug_runtime.log_value_show ~descr:"x" ~v:(([%show : t]) x));
    (let baz__res =
-      let (((y, z) as _yz) : (int * int)) = ((x.first + 1), 3) in
+      let (((y, z) as _yz) : (int * int)) =
+        Debug_runtime.open_log_preamble_brief ~fname:"test_debug_show.ml"
+          ~pos_lnum:16 ~pos_colnum:15 ~message:" ";
+        (let _yz__res = ((x.first + 1), 3) in
+         Debug_runtime.log_value_show ~descr:"_yz"
+           ~v:(([%show : (int * int)]) _yz__res);
+         Debug_runtime.close_log ();
+         _yz__res) in
       (x.second * y) + z in
     Debug_runtime.log_value_show ~descr:"baz" ~v:(([%show : int]) baz__res);
     Debug_runtime.close_log ();

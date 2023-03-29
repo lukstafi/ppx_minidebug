@@ -1,9 +1,10 @@
 
 BEGIN DEBUG SESSION at time YYYY-MM-DD HH:MM:SS.NNNNNN
 "test/test_debug_pp.ml":6:17-6:71 at time YYYY-MM-DD HH:MM:SS.NNNNNN: bar
-x = { Test_debug_pp.first = 7; second = 42 }  bar = 336  
+x = { Test_debug_pp.first = 7; second = 42 }  "test/test_debug_pp.ml":6:35:  y = 8  bar = 336  
 "test/test_debug_pp.ml":10:17-11:89 at time YYYY-MM-DD HH:MM:SS.NNNNNN: baz
-x = { Test_debug_pp.first = 7; second = 42 }  baz = 339  
+x = { Test_debug_pp.first = 7; second = 42 }  "test/test_debug_pp.ml":11:30: 
+  _yz = { Test_debug_pp.first = 8; second = 3 }  baz = 339  
 "test/test_debug_pp.ml":14:22-20:9 at time YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 depth = 0  x = { Test_debug_pp.first = 7; second = 42 }  "test/test_debug_pp.ml":18:8: 
   "test/test_debug_pp.ml":14:22-20:9 at time YYYY-MM-DD HH:MM:SS.NNNNNN: loop

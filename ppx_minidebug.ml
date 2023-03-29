@@ -135,9 +135,9 @@ let debug_binding callback vb =
     match vb.pvb_pat, vb.pvb_expr with
     | [%pat? ([%p? {ppat_desc=(Ppat_var descr_loc | Ppat_alias (_, descr_loc)); _} ] : [%t? typ ] ) ], _ ->
       descr_loc, Some typ
-    | {ppat_desc=Ppat_var descr_loc; _}, [%expr ([%e? _exp] : [%t? typ ])] ->
+    | {ppat_desc=(Ppat_var descr_loc | Ppat_alias (_, descr_loc)); _}, [%expr ([%e? _exp] : [%t? typ ])] ->
         descr_loc, Some typ
-    | {ppat_desc=Ppat_var descr_loc; _}, _ ->
+    | {ppat_desc=(Ppat_var descr_loc | Ppat_alias (_, descr_loc)); _}, _ ->
         descr_loc, None
     | _ -> raise Not_transforming in
   match vb.pvb_expr.pexp_desc, typ_opt with
@@ -160,23 +160,25 @@ let traverse =
     inherit Ast_traverse.map as super
 
     method! expression e =
-      let callback e = super#expression e in
+      let callback e = self#expression e in
       match e with
       | { pexp_desc=Pexp_let (rec_flag, bindings, body); pexp_loc=_; _ } ->
         let bindings = List.map (fun vb ->
               try debug_binding callback vb
-              with Not_transforming -> {vb with pvb_expr = callback vb.pvb_expr}) bindings in
-        let body = self#expression body in
+              with Not_transforming -> 
+                {vb with pvb_expr = super#expression vb.pvb_expr}) bindings in
+        let body = callback body in
         { e with pexp_desc = Pexp_let (rec_flag, bindings, body) }
       | _ -> super#expression e
 
     method! structure_item si =
-      let callback e = super#expression e in
+      let callback e = self#expression e in
       match si with
       | { pstr_desc=Pstr_value (rec_flag, bindings); pstr_loc=_; _ } ->
         let bindings = List.map (fun vb ->
             try debug_binding callback vb
-            with Not_transforming -> {vb with pvb_expr = callback vb.pvb_expr}) bindings in
+            with Not_transforming -> 
+              {vb with pvb_expr = super#expression vb.pvb_expr}) bindings in
         { si with pstr_desc = Pstr_value (rec_flag, bindings) }
       | _ -> super#structure_item si
   end

@@ -3,42 +3,52 @@ BEGIN DEBUG SESSION at time YYYY-MM-DD HH:MM:SS.NNNNNN
 "test/test_debug_sexp.ml":6:19-8:15 at time
 YYYY-MM-DD HH:MM:SS.NNNNNN: foo
 ├─x = 7
+├─"test/test_debug_sexp.ml":7:6: 
+│ └─y = 8
 └─foo = (7 8 16)
 "test/test_debug_sexp.ml":13:19-13:73 at time
 YYYY-MM-DD HH:MM:SS.NNNNNN: bar
 ├─x = ((first 7) (second 42))
+├─"test/test_debug_sexp.ml":13:37: 
+│ └─y = 8
 └─bar = 336
-"test/test_debug_sexp.ml":16:19-17:67 at time
+"test/test_debug_sexp.ml":16:19-19:26 at time
 YYYY-MM-DD HH:MM:SS.NNNNNN: baz
 ├─x = ((first 7) (second 42))
-└─baz = 339
-"test/test_debug_sexp.ml":20:19-22:15 at time
+├─"test/test_debug_sexp.ml":17:15: 
+│ └─_yz = (8 3)
+├─"test/test_debug_sexp.ml":18:15: 
+│ └─_uw = (7 13)
+└─baz = 359
+"test/test_debug_sexp.ml":22:19-24:15 at time
 YYYY-MM-DD HH:MM:SS.NNNNNN: lab
 ├─x = 7
+├─"test/test_debug_sexp.ml":23:6: 
+│ └─y = 8
 └─lab = (7 8 16)
-"test/test_debug_sexp.ml":26:24-32:9 at time
+"test/test_debug_sexp.ml":28:24-34:9 at time
 YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 ├─depth = 0
 ├─x = ((first 7) (second 42))
-├─"test/test_debug_sexp.ml":30:8: 
-│ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+├─"test/test_debug_sexp.ml":32:8: 
+│ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ ├─depth = 1
 │ │ ├─x = ((first 41) (second 9))
-│ │ ├─"test/test_debug_sexp.ml":30:8: 
-│ │ │ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+│ │ ├─"test/test_debug_sexp.ml":32:8: 
+│ │ │ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ ├─depth = 2
 │ │ │ │ ├─x = ((first 8) (second 43))
-│ │ │ │ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+│ │ │ │ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ │ │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ │ ├─depth = 3
 │ │ │ │ │ ├─x = ((first 44) (second 4))
-│ │ │ │ │ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+│ │ │ │ │ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ │ │ │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ │ │ ├─depth = 4
 │ │ │ │ │ │ ├─x = ((first 5) (second 22))
-│ │ │ │ │ │ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+│ │ │ │ │ │ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ │ │ │ │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ │ │ │ ├─depth = 5
 │ │ │ │ │ │ │ ├─x = ((first 23) (second 2))
@@ -47,20 +57,20 @@ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ │ └─loop = 25
 │ │ │ │ └─loop = 25
 │ │ │ └─y = 25
-│ │ ├─"test/test_debug_sexp.ml":31:8: 
-│ │ │ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+│ │ ├─"test/test_debug_sexp.ml":33:8: 
+│ │ │ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ ├─depth = 2
 │ │ │ │ ├─x = ((first 10) (second 25))
-│ │ │ │ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+│ │ │ │ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ │ │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ │ ├─depth = 3
 │ │ │ │ │ ├─x = ((first 26) (second 5))
-│ │ │ │ │ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+│ │ │ │ │ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ │ │ │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ │ │ ├─depth = 4
 │ │ │ │ │ │ ├─x = ((first 6) (second 13))
-│ │ │ │ │ │ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+│ │ │ │ │ │ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ │ │ │ │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ │ │ │ ├─depth = 5
 │ │ │ │ │ │ │ ├─x = ((first 14) (second 3))
@@ -71,25 +81,25 @@ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ └─z = 17
 │ │ └─loop = 24
 │ └─y = 24
-├─"test/test_debug_sexp.ml":31:8: 
-│ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+├─"test/test_debug_sexp.ml":33:8: 
+│ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ ├─depth = 1
 │ │ ├─x = ((first 43) (second 24))
-│ │ ├─"test/test_debug_sexp.ml":30:8: 
-│ │ │ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+│ │ ├─"test/test_debug_sexp.ml":32:8: 
+│ │ │ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ ├─depth = 2
 │ │ │ │ ├─x = ((first 23) (second 45))
-│ │ │ │ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+│ │ │ │ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ │ │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ │ ├─depth = 3
 │ │ │ │ │ ├─x = ((first 46) (second 11))
-│ │ │ │ │ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+│ │ │ │ │ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ │ │ │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ │ │ ├─depth = 4
 │ │ │ │ │ │ ├─x = ((first 12) (second 23))
-│ │ │ │ │ │ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+│ │ │ │ │ │ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ │ │ │ │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ │ │ │ ├─depth = 5
 │ │ │ │ │ │ │ ├─x = ((first 24) (second 6))
@@ -98,20 +108,20 @@ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ │ └─loop = 30
 │ │ │ │ └─loop = 30
 │ │ │ └─y = 30
-│ │ ├─"test/test_debug_sexp.ml":31:8: 
-│ │ │ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+│ │ ├─"test/test_debug_sexp.ml":33:8: 
+│ │ │ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ ├─depth = 2
 │ │ │ │ ├─x = ((first 25) (second 30))
-│ │ │ │ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+│ │ │ │ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ │ │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ │ ├─depth = 3
 │ │ │ │ │ ├─x = ((first 31) (second 12))
-│ │ │ │ │ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+│ │ │ │ │ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ │ │ │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ │ │ ├─depth = 4
 │ │ │ │ │ │ ├─x = ((first 13) (second 15))
-│ │ │ │ │ │ ├─"test/test_debug_sexp.ml":26:24-32:9 at time
+│ │ │ │ │ │ ├─"test/test_debug_sexp.ml":28:24-34:9 at time
 │ │ │ │ │ │ │ YYYY-MM-DD HH:MM:SS.NNNNNN: loop
 │ │ │ │ │ │ │ ├─depth = 5
 │ │ │ │ │ │ │ ├─x = ((first 16) (second 6))

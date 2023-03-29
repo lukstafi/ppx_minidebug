@@ -14,7 +14,9 @@ let%debug_sexp bar (x: t): int = let y: int = x.first + 1 in x.second * y
 let () = ignore @@ bar {first=7; second=42}
 
 let%debug_sexp baz (x: t): int =
-  let (y, z as _yz): int * int = x.first + 1, 3 in x.second * y + z
+  let (y, z as _yz): int * int = x.first + 1, 3 in
+  let (u, w as _uw): int * int = 7, 13 in
+  x.second * y + z + u + w
 let () = ignore @@ baz {first=7; second=42}
 
 let%debug_sexp lab ~(x: int): int list =
