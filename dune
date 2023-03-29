@@ -11,20 +11,7 @@
  (public_name ppx_minidebug.runtime)
  (name minidebug_runtime)
  (modules minidebug_runtime)
- (libraries printbox printbox-text printbox-html ptime.clock.os
- (select
-  minidebug_runtime.ml
-  from
-  (base -> minidebug_runtime.sexplib.ml)
-  (sexplib -> minidebug_runtime.sexplib.ml)
-  (-> minidebug_runtime.nosexp.ml))
-  (select
-  minidebug_runtime.mli
-  from
-  (base -> minidebug_runtime.sexplib.mli)
-  (sexplib -> minidebug_runtime.sexplib.mli)
-  (-> minidebug_runtime.nosexp.mli))
-  ))
+ (libraries printbox printbox-text printbox-html ptime.clock.os sexplib0))
 
 (documentation
  (package ppx_minidebug)
