@@ -1,12 +1,20 @@
 # Change Log
 
+## [0.3.0] -- 2023-03-29
+
+### Changed
+
+- Breaking change: renamed `Minidebug_runtime.Format` to `Minidebug_runtime.PP_format`.
+- Non-optionally depending on `sexplib0` and `ppx_sexp_conv`, as optional dependency was making it hard to test. Also the `minidebug_runtime` source files duplication was ugly.
+- Trying to minimize dependencies: removed the unused direct dependency on `base`, but `ppx_sexp_conv` depends on it. Removed the dependency on `stdio`.
+- Added a building-related comment to the documentation.
+
 ## [0.2.0] -- 2023-03-29
 
 ### Fixed
 
 - Added non-optional package dependencies.
 - Major bug fix: missing processing of the top expression in a function body.
-- Testing involving the optional dependency is now optional.
 
 ## [0.1.4] -- 2023-03-21
 

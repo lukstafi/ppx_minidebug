@@ -3,21 +3,23 @@ ppx_minidebug
 
 ## `ppx_minidebug`: A poor man's version of [`ppx_debug`](https://github.com/dariusf/ppx_debug)
 
-`ppx_minidebug` traces selected code if it has type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` based on `deriving.show`, and `%debug_sexp` based on the `sexplib`. The syntax extension expects a module `Debug_runtime` in the scope. The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers three ways of logging the traces, as functors generating `Debug_runtime` modules given an output channel (e.g. for a file).
+`ppx_minidebug` traces selected code if it has type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` based on `deriving.show`, and `%debug_sexp` based on `sexplib0` and `ppx_sexp_conv`. The syntax extension expects a module `Debug_runtime` in the scope. The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers three ways of logging the traces, as functors generating `Debug_runtime` modules given an output channel (e.g. for a file).
 
 Take a look at [`ppx_debug`](https://github.com/dariusf/ppx_debug) which is significantly more powerful!
 
 See also [the generated documentation](https://lukstafi.github.io/ppx_minidebug/).
 
+ To install `ppx_minidebug` from sources, download it with e.g. `gh repo clone lukstafi/ppx_minidebug; cd ppx_minidebug` and then either `dune install` or `opam install .`
+
 To use `ppx_minidebug` in a Dune project, add/modify these stanzas: `(preprocess (pps ... ppx_minidebug))`, and `(libraries ... ppx_minidebug.runtime)`.
 
-### `Format`-based traces
+### `Pp_format`-based traces
 
-Define a `Debug_runtime` using the `Format` functor. The helper functor `Debug_ch` opens a file for appending.
-E.g. either `module Debug_runtime = Minidebug_runtime.Format(struct let debug_ch = stdout end)`, or:
+Define a `Debug_runtime` using the `Pp_format` functor. The helper functor `Debug_ch` opens a file for appending.
+E.g. either `module Debug_runtime = Minidebug_runtime.Pp_format(struct let debug_ch = stdout end)`, or:
 ```ocaml
 module Debug_runtime =
-  Minidebug_runtime.Format(
+  Minidebug_runtime.Pp_format(
     Minidebug_runtime.Debug_ch(struct let filename = "path/to/debugger_format.log" end))
 ```
 The logged traces will be indented using OCaml's `Format` module. Truncated example (using `%debug_pp`):
@@ -129,7 +131,7 @@ BEGIN DEBUG SESSION at time 2023-03-02 23:19:40.763950 +01:00
 
 To trace a function, you have to type-annotate the function result. To trace an argument of a traced function, or a `let`-binding, you need to type-annotate it. You can control how much gets logged by adding or removing type annotations.
 
-Tracing only happens in explicitly marked scopes, using the extension points: `%debug_pp`, `%debug_this_pp`, `%debug_show`, `%debug_this_show` (based on printing functionality provided by `deriving.show`), `%debug_sexp`, `%debug_this_sexp` (using functionality provided by `sexplib` and `ppx_sexp`). See examples in [the test directory](test/).
+Tracing only happens in explicitly marked scopes, using the extension points: `%debug_pp`, `%debug_this_pp`, `%debug_show`, `%debug_this_show` (based on printing functionality provided by `deriving.show`), `%debug_sexp`, `%debug_this_sexp` (using functionality provided by `sexplib0` and `ppx_sexp_conv`). See examples in [the test directory](test/).
 
 The `%debug_this` variants are intended only for `let`-bindings: `let%debug_this v: t = compute value in body` will trace `v` and the type-annotated bindings and functions inside `compute value`, but it will not trace `body`.
 
@@ -137,7 +139,7 @@ To properly trace in concurrent settings, ensure that different threads use diff
 
 `Minidebug_runtime.Debug_ch` appends to log files, so you need to delete them as appropriate for your convenience.
 
-The `PrintBox` logs are the prettiest, I could not get the `Format`-functor-based output look the way I wanted. The `Flushing` logs enable [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond) flame graphs. One should be able to get other logging styles to work with `Log Inspector` by configuring its regexp patterns.
+The `PrintBox` logs are the prettiest, I could not get the `Pp_format`-functor-based output look the way I wanted. The `Flushing` logs enable [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond) flame graphs. One should be able to get other logging styles to work with `Log Inspector` by configuring its regexp patterns.
 
 `ppx_minidebug` and `minidebug_runtime` can be installed using `opam` in the normal way. `minidebug_runtime` depends on `printbox` and `ptime`, and only optionally on `base` (for the s-expression functionality).
 

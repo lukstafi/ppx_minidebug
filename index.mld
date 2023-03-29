@@ -2,18 +2,24 @@
 
 [ppx_minidebug] traces selected code if it has type annotations. [ppx_minidebug] offers three ways
 of instrumenting the code: [%debug_pp] and [%debug_show] based on [deriving.show], and [%debug_sexp]
-based on the [sexplib]. The syntax extension expects a module [Debug_runtime] in the scope.
-The [ppx_minidebug.runtime] library offers three ways of logging the traces, as functors generating
-[Debug_runtime] modules given an output channel (e.g. for a file).
+based on [sexplib0] and [ppx_sexp_conv]. The syntax extension expects a module [Debug_runtime]
+in the scope. The [ppx_minidebug.runtime] library offers three ways of logging the traces,
+as functors generating [Debug_runtime] modules given an output channel (e.g. for a file).
 
-Take a look at {{:https://github.com/dariusf/ppx_debug} [ppx_debug]} which is significantly more powerful!
+Take a look at {{:https://github.com/dariusf/ppx_debug} [ppx_debug]} which is significantly
+more powerful!
 
 See {{:http://lukstafi.github.io/ppx_minidebug/minidebug_runtime/Minidebug_runtime/index.html}
 [Minidebug_runtime]} for the provided loggers.
 
 {2 Usage}
 
-To use [ppx_minidebug] in a Dune project, add/modify these stanzas: [(preprocess (pps ... ppx_minidebug))], and [(libraries ... ppx_minidebug.runtime)].
+ To install `ppx_minidebug` from sources, download it with e.g.
+ [gh repo clone lukstafi/ppx_minidebug; cd ppx_minidebug] and then either [dune install] or
+ [opam install .]
+
+To use [ppx_minidebug] in a Dune project, add/modify these stanzas:
+[(preprocess (pps ... ppx_minidebug))], and [(libraries ... ppx_minidebug.runtime)].
 
 To trace a function, you have to type-annotate the function result. To trace an argument of a traced
 function, or a [let]-binding, you need to type-annotate it. You can control how much gets logged by
@@ -21,9 +27,9 @@ adding or removing type annotations.
 
 Tracing only happens in explicitly marked scopes, using the extension points: [%debug_pp],
 [%debug_this_pp], [%debug_show], [%debug_this_show] (based on printing functionality provided by
-[deriving.show]), [%debug_sexp], [%debug_this_sexp] (using functionality provided by [sexplib] and
-[ppx_sexp]). See examples in {{:https://github.com/lukstafi/ppx_minidebug/tree/main/test} the test
-directory}.
+[deriving.show]), [%debug_sexp], [%debug_this_sexp] (using functionality provided by [sexplib0] and
+[ppx_sexp_conv]). See examples in {{:https://github.com/lukstafi/ppx_minidebug/tree/main/test}
+the test directory}.
 
 The [%debug_this] variants are intended only for [let]-bindings:
 [let%debug_this v: t = compute value in body] will trace [v] and the type-annotated bindings and
@@ -47,16 +53,24 @@ let%debug_show test_logging: string = "Hello World"
 
 {3 Add / remove type annotations and visit files using {e VOCaml}}
 
-{{:https://marketplace.visualstudio.com/items?itemName=lukstafi.vocaml}VOCaml helpers for coding in OCaml} provide commands to add and remove annotations on selected bindings. They can be used to introduce logging, tune it, and cleanup afterward. It also has a command to populate the _Quick Open_ dialog with a file name and location from a line under cursor. It can be used to jump to the source code from a log file.
+{{:https://marketplace.visualstudio.com/items?itemName=lukstafi.vocaml}VOCaml helpers for coding in OCaml}
+provide commands to add and remove annotations on selected bindings. They can be used to introduce
+logging, tune it, and cleanup afterward. It also has a command to populate the _Quick Open_ dialog
+with a file name and location from a line under cursor. It can be used to jump to the source code
+from a log file.
 
-Note that you can add and remove type annotations using VSCode OCaml Platform's code actions, and the {e Find and Transform} suggestion below is a more flexible go-to-file solution -- so VOCaml is somewhat redundant. But, it is still valuable: (1) it annotates multiple [let]-bindings at once in a selection, and (2) it annotates the argument types and the return type of a function (as required by [ppx_debug]) when invoked on a function definition.
+Note that you can add and remove type annotations using VSCode OCaml Platform's code actions,
+and the {e Find and Transform} suggestion below is a more flexible go-to-file solution -- so VOCaml
+is somewhat redundant. But, it is still valuable: (1) it annotates multiple [let]-bindings at once
+in a selection, and (2) it annotates the argument types and the return type of a function
+(as required by [ppx_debug]) when invoked on a function definition.
 
 {3 Visualize the flame graph using {e Log Inspector}}
 
 {{:https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond}
 Log Inspector (sub-millisecond)}'s main feature is visualizing timestamped logs as flame graphs.
-To invoke it in VS Code, go to the [Minidebug_runtime.Flushing]-style logs file, press {e crtl+shift+P},
-and execute the command {e Log Inspector: Draw}.
+To invoke it in VS Code, go to the [Minidebug_runtime.Flushing]-style logs file,
+press {e crtl+shift+P}, and execute the command {e Log Inspector: Draw}.
 
 Note that {{:https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond}
 Log Inspector (sub-millisecond)} is a forked variant of the Log Inspector extension.
@@ -66,8 +80,8 @@ Log Inspector (sub-millisecond)} is a forked variant of the Log Inspector extens
 This will expand your general-purpose VS Code toolbox!
 
 {{:https://marketplace.visualstudio.com/items?itemName=ArturoDent.find-and-transform}Find and Transform}
-is a powerful VS Code extension. I put the following in my `keybindings.json` file (command: {e Open Keyboard Shortcuts
-(JSON)}):
+is a powerful VS Code extension. I put the following in my `keybindings.json` file (command:
+{e Open Keyboard Shortcuts (JSON)}):
 {@json[
   {
     "key": "alt+q",
@@ -92,4 +106,6 @@ is a powerful VS Code extension. I put the following in my `keybindings.json` fi
     }
   }
 ]}
-Then, pressing `alt+q` will open a pre-populated dialog, and `enter` will get me to the file location. The file-and-location detection above matches the default one from the [Flushing] module, you can adjust the [find] pattern to match other formats.
+Then, pressing `alt+q` will open a pre-populated dialog, and `enter` will get me to the
+file location. The file-and-location detection above matches the default one from the [Flushing]
+module, you can adjust the [find] pattern to match other formats.
