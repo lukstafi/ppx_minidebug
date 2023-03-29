@@ -36,6 +36,7 @@ sig
   val log_value_show : descr:string -> v:string -> unit
 end
 
+module Pp_format(Log_to: sig val debug_ch : out_channel end): Debug_runtime = struct  
   open Log_to
 
   let ppf =

@@ -29,6 +29,7 @@ sig
 end
 
 (** The logged traces will be indented using OCaml's `Format` module. *)
+module Pp_format : functor (_ : Debug_ch) -> Debug_runtime
 
 (** The output is flushed line-at-a-time, so no output should be lost if the traced program crashes.
     The logged traces are still indented, but if the values to print are multi-line, their formatting

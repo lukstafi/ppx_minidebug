@@ -1,8 +1,8 @@
 module Debug_runtime =
-  (Minidebug_runtime.Format)((Minidebug_runtime.Debug_ch)(struct
-                                                            let filename =
-                                                              "debugger_pp_format.log"
-                                                          end))
+  (Minidebug_runtime.Pp_format)((Minidebug_runtime.Debug_ch)(struct
+                                                               let filename =
+                                                                 "debugger_pp_format.log"
+                                                             end))
 type t = {
   first: int ;
   second: int }[@@deriving show]
