@@ -15,7 +15,7 @@ let timestamp_to_string () =
 module type Debug_ch = sig val debug_ch : out_channel end
 
 module Debug_ch(File_name: sig val filename : string end): Debug_ch = struct
-    let debug_ch = Caml.open_out_gen [Open_creat; Open_text; Open_append] 0o640 File_name.filename
+    let debug_ch = open_out_gen [Open_creat; Open_text; Open_append] 0o640 File_name.filename
     (* Stdio.Out_channel.create ~binary:false ~append:true File_name.v *)
 end
     
@@ -35,7 +35,7 @@ sig
   val log_value_show : descr:string -> v:string -> unit
 end
 
-module Format(Log_to: sig val debug_ch : Caml.out_channel end): Debug_runtime = struct  
+module Format(Log_to: sig val debug_ch : out_channel end): Debug_runtime = struct  
   open Log_to
 
   let ppf =
@@ -66,7 +66,7 @@ module Format(Log_to: sig val debug_ch : Caml.out_channel end): Debug_runtime = 
     CFormat.fprintf ppf "%s = %s@ @ " descr v
 end
 
-module Flushing(Log_to: sig val debug_ch : Caml.out_channel end): Debug_runtime = struct  
+module Flushing(Log_to: sig val debug_ch : out_channel end): Debug_runtime = struct  
   open Log_to
     
   let callstack = ref []
@@ -74,7 +74,7 @@ module Flushing(Log_to: sig val debug_ch : Caml.out_channel end): Debug_runtime 
   let indent() = String.make (List.length !callstack) ' '
   
   let () =
-    Caml.Printf.fprintf debug_ch "\nBEGIN DEBUG SESSION at time %s\n%!" (timestamp_to_string())
+    Printf.fprintf debug_ch "\nBEGIN DEBUG SESSION at time %s\n%!" (timestamp_to_string())
   
   let close_log () =
     match !callstack with
@@ -83,15 +83,15 @@ module Flushing(Log_to: sig val debug_ch : Caml.out_channel end): Debug_runtime 
       callstack := tl
     | Some message::tl ->
       callstack := tl;
-      Caml.Printf.fprintf debug_ch "%s%s - %s end\n%!" (indent()) (timestamp_to_string()) message;
-      Caml.flush debug_ch
+      Printf.fprintf debug_ch "%s%s - %s end\n%!" (indent()) (timestamp_to_string()) message;
+      flush debug_ch
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
     callstack := None :: !callstack;
-    Caml.Printf.fprintf debug_ch "%s\"%s\":%d:%d:%s\n%!" (indent()) fname pos_lnum pos_colnum message
+    Printf.fprintf debug_ch "%s\"%s\":%d:%d:%s\n%!" (indent()) fname pos_lnum pos_colnum message
         
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message =
-    Caml.Printf.fprintf debug_ch
+    Printf.fprintf debug_ch
         "%s%s - %s begin \"%s\":%d:%d-%d:%d\n%!"
         (indent()) (timestamp_to_string()) message fname start_lnum start_colnum  end_lnum end_colnum;
     callstack := Some message :: !callstack
@@ -100,10 +100,10 @@ module Flushing(Log_to: sig val debug_ch : Caml.out_channel end): Debug_runtime 
     let _ = CFormat.flush_str_formatter () in
     pp CFormat.str_formatter v;
     let v_str = CFormat.flush_str_formatter () in
-    Caml.Printf.fprintf debug_ch "%s%s = %s\n%!" (indent()) descr v_str
+    Printf.fprintf debug_ch "%s%s = %s\n%!" (indent()) descr v_str
     
   let log_value_show ~descr ~v =
-    Caml.Printf.fprintf debug_ch "%s%s = %s\n%!" (indent()) descr v
+    Printf.fprintf debug_ch "%s%s = %s\n%!" (indent()) descr v
 end
 
 let rec revert_order: PrintBox.Simple.t -> PrintBox.Simple.t = function
@@ -114,7 +114,7 @@ let rec revert_order: PrintBox.Simple.t -> PrintBox.Simple.t = function
 | `Hlist bs -> `Hlist (List.rev_map revert_order bs)
 | `Tree (b, bs) -> `Tree (b, List.rev_map revert_order bs)
 
-module PrintBox(Log_to: sig val debug_ch : Caml.out_channel end): Debug_runtime = struct
+module PrintBox(Log_to: sig val debug_ch : out_channel end): Debug_runtime = struct
   open Log_to
   module B = PrintBox
   
