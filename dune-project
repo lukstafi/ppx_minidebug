@@ -13,7 +13,7 @@
 
 (license "LGPL-2.1-or-later")
 
-(documentation https://github.com/lukstafi/ppx_minidebug/blob/main/README.md)
+(documentation https://lukstafi.github.io/ppx_minidebug/ppx_minidebug/index.html)
 
 (version 0.3.0)
 
@@ -21,6 +21,6 @@
  (name ppx_minidebug)
  (synopsis "Debug logs for selected functions and let-bindings")
  (description "A poor man's `ppx_debug` with formatted logs of let-bound values, function arguments and results.")
- (depends ocaml dune ppx_deriving ppxlib printbox printbox-text printbox-html ptime)
+ (depends ocaml dune ppx_deriving ppx_sexp_conv ppxlib printbox printbox-text printbox-html ptime sexplib0)
  (tags
   (logger debugger "printf debugging")))

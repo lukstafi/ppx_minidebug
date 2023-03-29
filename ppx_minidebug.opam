@@ -9,17 +9,19 @@ authors: ["Lukasz Stafiniak"]
 license: "LGPL-2.1-or-later"
 tags: ["logger" "debugger" "printf debugging"]
 homepage: "https://github.com/lukstafi/ppx_minidebug"
-doc: "https://github.com/lukstafi/ppx_minidebug/blob/main/README.md"
+doc: "https://lukstafi.github.io/ppx_minidebug/ppx_minidebug/index.html"
 bug-reports: "https://github.com/lukstafi/ppx_minidebug/issues"
 depends: [
   "ocaml"
   "dune" {>= "3.7"}
   "ppx_deriving"
+  "ppx_sexp_conv"
   "ppxlib"
   "printbox"
   "printbox-text"
   "printbox-html"
   "ptime"
+  "sexplib0"
   "odoc" {with-doc}
 ]
 build: [
