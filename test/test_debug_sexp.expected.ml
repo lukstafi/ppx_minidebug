@@ -1,4 +1,4 @@
-open Base
+open Sexplib0.Sexp_conv
 module Debug_runtime =
   (Minidebug_runtime.PrintBox)((Minidebug_runtime.Debug_ch)(struct
                                                               let filename =
@@ -23,7 +23,7 @@ let foo (x : int) =
       ~sexp:(([%sexp_of : int list]) foo__res);
     Debug_runtime.close_log ();
     foo__res) : int list)
-let () = ignore @@ (List.hd_exn @@ (foo 7))
+let () = ignore @@ (List.hd @@ (foo 7))
 type t = {
   first: int ;
   second: int }[@@deriving sexp]
@@ -94,7 +94,7 @@ let lab ~x:(x : int)  =
       ~sexp:(([%sexp_of : int list]) lab__res);
     Debug_runtime.close_log ();
     lab__res) : int list)
-let () = ignore @@ (List.hd_exn @@ (lab ~x:7))
+let () = ignore @@ (List.hd @@ (lab ~x:7))
 let rec loop (depth : int) (x : t) =
   (((Debug_runtime.open_log_preamble_full ~fname:"test_debug_sexp.ml"
        ~start_lnum:28 ~start_colnum:24 ~end_lnum:34 ~end_colnum:9

@@ -1,4 +1,4 @@
-open Base
+open Sexplib0.Sexp_conv
 module Debug_runtime =
   Minidebug_runtime.PrintBox(
     Minidebug_runtime.Debug_ch(struct let filename = "debugger_sexp_printbox.log" end))
@@ -7,7 +7,7 @@ let%debug_sexp foo (x: int): int list =
   let y: int = x + 1 in
   [x; y; 2 * y]
 
-let () = ignore @@ List.hd_exn @@ foo 7
+let () = ignore @@ List.hd @@ foo 7
 
 type t = {first: int; second: int} [@@deriving sexp]
 let%debug_sexp bar (x: t): int = let y: int = x.first + 1 in x.second * y
@@ -23,7 +23,7 @@ let%debug_sexp lab ~(x: int): int list =
   let y: int = x + 1 in
   [x; y; 2 * y]
 
-let () = ignore @@ List.hd_exn @@ lab ~x:7
+let () = ignore @@ List.hd @@ lab ~x:7
 
 let%debug_sexp rec loop (depth: int) (x: t): int =
   if depth > 4 then x.first + x.second

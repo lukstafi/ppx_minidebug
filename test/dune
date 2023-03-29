@@ -46,10 +46,10 @@
 (executable
  (name test_debug_sexp)
  (modules test_debug_sexp)
- (libraries base core stdio minidebug_runtime)
+ (libraries sexplib0 minidebug_runtime)
  (modes exe)
  (preprocess
-  (pps ppx_minidebug ppx_jane)))
+  (pps ppx_minidebug ppx_sexp_conv)))
 
 (rule
  (target debugger_sexp_printbox.log)
