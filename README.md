@@ -3,11 +3,13 @@ ppx_minidebug
 
 ## `ppx_minidebug`: A poor man's version of [`ppx_debug`](https://github.com/dariusf/ppx_debug)
 
-`ppx_minidebug` traces selected code if it has type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` based on `deriving.show`, and `%debug_sexp` based on the `sexplib`. The syntax extension expects a module `Debug_runtime` in the scope. `minidebug_runtime` offers three ways of logging the traces, as functors generating `Debug_runtime` modules given a file path.
+`ppx_minidebug` traces selected code if it has type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` based on `deriving.show`, and `%debug_sexp` based on the `sexplib`. The syntax extension expects a module `Debug_runtime` in the scope. The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers three ways of logging the traces, as functors generating `Debug_runtime` modules given an output channel (e.g. for a file).
 
 Take a look at [`ppx_debug`](https://github.com/dariusf/ppx_debug) which is significantly more powerful!
 
 See also [the generated documentation](https://lukstafi.github.io/ppx_minidebug/).
+
+To use `ppx_minidebug` in a Dune project, add/modify these stanzas: `(preprocess (pps ... ppx_minidebug))`, and `(libraries ... ppx_minidebug.runtime)`.
 
 ### `Format`-based traces
 
