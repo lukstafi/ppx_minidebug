@@ -1,3 +1,9 @@
+## [0.3.1] -- 2023-03-30
+
+### Fixed
+
+- A small tweak to have `dune-release` work.
+
 ## [0.3.0] -- 2023-03-29
 
 ### Changed
