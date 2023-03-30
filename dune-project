@@ -13,7 +13,7 @@
 
 (license "LGPL-2.1-or-later")
 
-(documentation https://lukstafi.github.io/ppx_minidebug/ppx_minidebug/index.html)
+(documentation https://lukstafi.github.io/ppx_minidebug/ppx_minidebug)
 
 (version 0.3.0)
 

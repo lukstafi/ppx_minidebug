@@ -9,7 +9,7 @@ authors: ["Lukasz Stafiniak"]
 license: "LGPL-2.1-or-later"
 tags: ["logger" "debugger" "printf debugging"]
 homepage: "https://github.com/lukstafi/ppx_minidebug"
-doc: "https://lukstafi.github.io/ppx_minidebug/ppx_minidebug/index.html"
+doc: "https://lukstafi.github.io/ppx_minidebug/ppx_minidebug"
 bug-reports: "https://github.com/lukstafi/ppx_minidebug/issues"
 depends: [
   "ocaml"
