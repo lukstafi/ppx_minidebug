@@ -1,3 +1,10 @@
+## [0.3.2] -- 2023-04-25
+
+### Fixed
+
+- Third time the charm! Missing version bounds on `ocaml` and `ppxlib` to make CI happy.
+- BSD-compatible `sed` arguments to make CI happy.
+
 ## [0.3.1] -- 2023-03-30
 
 ### Fixed
