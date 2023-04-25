@@ -52,14 +52,15 @@
   (pps ppx_minidebug ppx_sexp_conv)))
 
 (rule
- (target debugger_sexp_printbox.log)
+ (target debugger_sexp_printbox.actual.log)
  (action (progn
   (run %{dep:test_debug_sexp.exe})
-  (run sed -i'.bak' "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" %{target}))))
+  (with-stdout-to debugger_sexp_printbox.actual.log
+   (run sed "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" debugger_sexp_printbox.log)))))
 
 (rule
  (alias runtest)
- (action (diff debugger_sexp_printbox.expected.log debugger_sexp_printbox.log)))
+ (action (diff debugger_sexp_printbox.expected.log debugger_sexp_printbox.actual.log)))
 
 (executable
  (name test_debug_pp)
@@ -70,14 +71,15 @@
   (pps ppx_minidebug ppx_deriving.show)))
 
 (rule
- (target debugger_pp_format.log)
+ (target debugger_pp_format.actual.log)
  (action (progn
   (run %{dep:test_debug_pp.exe})
-  (run sed -i'.bak' "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" %{target}))))
+  (with-stdout-to debugger_pp_format.actual.log
+   (run sed "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" debugger_pp_format.log)))))
 
 (rule
  (alias runtest)
- (action (diff debugger_pp_format.expected.log debugger_pp_format.log)))
+ (action (diff debugger_pp_format.expected.log debugger_pp_format.actual.log)))
 
 (executable
  (name test_debug_show)
@@ -88,14 +90,15 @@
   (pps ppx_minidebug ppx_deriving.show)))
 
 (rule
- (target debugger_show_flushing.log)
+ (target debugger_show_flushing.actual.log)
  (action (progn
   (run %{dep:test_debug_show.exe})
-  (run sed -i'.bak' "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" %{target}))))
+  (with-stdout-to debugger_show_flushing.actual.log
+   (run sed "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" debugger_show_flushing.log)))))
 
 (rule
  (alias runtest)
- (action (diff debugger_show_flushing.expected.log debugger_show_flushing.log)))
+ (action (diff debugger_show_flushing.expected.log debugger_show_flushing.actual.log)))
 
 (library
  (name test_inline_tests)
