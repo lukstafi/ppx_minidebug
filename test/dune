@@ -55,7 +55,7 @@
  (target debugger_sexp_printbox.log)
  (action (progn
   (run %{dep:test_debug_sexp.exe})
-  (run sed -i "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" %{target}))))
+  (run sed -i'.bak' "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" %{target}))))
 
 (rule
  (alias runtest)
@@ -73,7 +73,7 @@
  (target debugger_pp_format.log)
  (action (progn
   (run %{dep:test_debug_pp.exe})
-  (run sed -i "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" %{target}))))
+  (run sed -i'.bak' "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" %{target}))))
 
 (rule
  (alias runtest)
@@ -91,7 +91,7 @@
  (target debugger_show_flushing.log)
  (action (progn
   (run %{dep:test_debug_show.exe})
-  (run sed -i "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" %{target}))))
+  (run sed -i'.bak' "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" %{target}))))
 
 (rule
  (alias runtest)
