@@ -16,7 +16,7 @@ let%expect_test "%debug_show flushing to a file" =
   [%expect {| 56 |}]
 
 let%expect_test "%debug_show flushing to stdout" =
-  let module Debug_runtime = Minidebug_runtime.Flushing(struct let debug_ch = stdout end) in
+  let module Debug_runtime = Minidebug_runtime.Flushing(struct let debug_ch = stdout let time_tagged = true end) in
   let%debug_show bar (x: t): int = let y: int = x.first + 1 in x.second * y in
   let () = print_endline @@ Int.to_string @@ bar {first=7; second=42} in
   let baz (x: t): int =

@@ -12,13 +12,19 @@ let timestamp_to_string () =
    (Ptime_clock.now ());
   CFormat.flush_str_formatter ()
 
-module type Debug_ch = sig val debug_ch : out_channel end
+module type Debug_ch = sig val debug_ch : out_channel val time_tagged : bool end
 
 module Debug_ch(File_name: sig val filename : string end): Debug_ch = struct
     let debug_ch = open_out_gen [Open_creat; Open_text; Open_append] 0o640 File_name.filename
     (* or: Stdio.Out_channel.create ~binary:false ~append:true File_name.v *)
+    let time_tagged = true
 end
-    
+
+module Debug_ch_no_time_tags(File_name: sig val filename : string end): Debug_ch = struct
+  let debug_ch = open_out_gen [Open_creat; Open_text; Open_append] 0o640 File_name.filename
+  let time_tagged = false
+end
+  
 module type Debug_runtime =
 sig
   val close_log : unit -> unit
@@ -36,7 +42,7 @@ sig
   val log_value_show : descr:string -> v:string -> unit
 end
 
-module Pp_format(Log_to: sig val debug_ch : out_channel end): Debug_runtime = struct  
+module Pp_format(Log_to: Debug_ch): Debug_runtime = struct  
   open Log_to
 
   let ppf =
@@ -45,20 +51,21 @@ module Pp_format(Log_to: sig val debug_ch : out_channel end): Debug_runtime = st
     ppf
     
   let () =
-    CFormat.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
+    if Log_to.time_tagged then
+      CFormat.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
+    else CFormat.fprintf ppf "@.BEGIN DEBUG SESSION@."
   
   let close_log () =
     CFormat.pp_close_box ppf ()
-      
+
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
     CFormat.fprintf ppf
         "\"%s\":%d:%d:%s@ @[<hov 2>" fname pos_lnum pos_colnum message
-        
+
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message =
-    CFormat.fprintf ppf
-        "@[\"%s\":%d:%d-%d:%d@ at time@ %a: %s@]@ @[<hov 2>"
-        fname start_lnum start_colnum  end_lnum end_colnum
-        pp_timestamp () message
+    CFormat.fprintf ppf "@[\"%s\":%d:%d-%d:%d" fname start_lnum start_colnum  end_lnum end_colnum;
+    if Log_to.time_tagged then CFormat.fprintf ppf "@ at time@ %a" pp_timestamp ();
+    CFormat.fprintf ppf ": %s@]@ @[<hov 2>" message
         
   let log_value_sexp ~descr ~sexp =
     CFormat.fprintf ppf "%s = %a@ @ " descr Sexplib0.Sexp.pp_hum sexp
@@ -70,7 +77,7 @@ module Pp_format(Log_to: sig val debug_ch : out_channel end): Debug_runtime = st
     CFormat.fprintf ppf "%s = %s@ @ " descr v
 end
 
-module Flushing(Log_to: sig val debug_ch : out_channel end): Debug_runtime = struct  
+module Flushing(Log_to: Debug_ch): Debug_runtime = struct  
   open Log_to
     
   let callstack = ref []
@@ -78,7 +85,9 @@ module Flushing(Log_to: sig val debug_ch : out_channel end): Debug_runtime = str
   let indent() = String.make (List.length !callstack) ' '
   
   let () =
-    Printf.fprintf debug_ch "\nBEGIN DEBUG SESSION at time %s\n%!" (timestamp_to_string())
+    if Log_to.time_tagged then
+      Printf.fprintf debug_ch "\nBEGIN DEBUG SESSION at time %s\n%!" (timestamp_to_string())
+    else Printf.fprintf debug_ch "\nBEGIN DEBUG SESSION\n%!"
   
   let close_log () =
     match !callstack with
@@ -87,7 +96,9 @@ module Flushing(Log_to: sig val debug_ch : out_channel end): Debug_runtime = str
       callstack := tl
     | Some message::tl ->
       callstack := tl;
-      Printf.fprintf debug_ch "%s%s - %s end\n%!" (indent()) (timestamp_to_string()) message;
+      Printf.fprintf debug_ch "%s%!" (indent());
+      if Log_to.time_tagged then Printf.fprintf debug_ch "%s - %!" (timestamp_to_string());
+      Printf.fprintf debug_ch "%s end\n%!" message;
       flush debug_ch
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
@@ -95,9 +106,10 @@ module Flushing(Log_to: sig val debug_ch : out_channel end): Debug_runtime = str
     Printf.fprintf debug_ch "%s\"%s\":%d:%d:%s\n%!" (indent()) fname pos_lnum pos_colnum message
         
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message =
-    Printf.fprintf debug_ch
-        "%s%s - %s begin \"%s\":%d:%d-%d:%d\n%!"
-        (indent()) (timestamp_to_string()) message fname start_lnum start_colnum  end_lnum end_colnum;
+    Printf.fprintf debug_ch "%s%!" (indent());
+    if Log_to.time_tagged then Printf.fprintf debug_ch "%s - %!" (timestamp_to_string());
+    Printf.fprintf debug_ch "%s begin \"%s\":%d:%d-%d:%d\n%!"
+      message fname start_lnum start_colnum end_lnum end_colnum;
     callstack := Some message :: !callstack
 
   let log_value_sexp ~descr ~sexp =
@@ -121,7 +133,7 @@ let rec revert_order: PrintBox.Simple.t -> PrintBox.Simple.t = function
 | `Hlist bs -> `Hlist (List.rev_map revert_order bs)
 | `Tree (b, bs) -> `Tree (b, List.rev_map revert_order bs)
 
-module PrintBox(Log_to: sig val debug_ch : out_channel end): Debug_runtime = struct
+module PrintBox(Log_to: Debug_ch): Debug_runtime = struct
   open Log_to
   module B = PrintBox
   
@@ -136,7 +148,9 @@ module PrintBox(Log_to: sig val debug_ch : out_channel end): Debug_runtime = str
   | _ -> failwith "minidebug_runtime: a log_value must be preceded by an open_log_preamble")
     
   let () =
-    CFormat.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
+    if Log_to.time_tagged then
+      CFormat.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
+    else CFormat.fprintf ppf "@.BEGIN DEBUG SESSION@."
 
   let close_log () =
     (* Note: we treat a `Tree under a box as part of that box. *)
@@ -152,12 +166,15 @@ module PrintBox(Log_to: sig val debug_ch : out_channel end): Debug_runtime = str
     stack := `Tree (preamble, []) :: !stack
     
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message =
-    let preamble = B.Simple.asprintf
-        "@[\"%s\":%d:%d-%d:%d@ at time@ %a: %s@]"
-        fname start_lnum start_colnum  end_lnum end_colnum
-        pp_timestamp () message in
+    let preamble =
+      if Log_to.time_tagged then
+        B.Simple.asprintf "@[\"%s\":%d:%d-%d:%d@ at time@ %a: %s@]"
+          fname start_lnum start_colnum end_lnum end_colnum pp_timestamp () message
+      else
+        B.Simple.asprintf "@[\"%s\":%d:%d-%d:%d: %s@]"
+          fname start_lnum start_colnum end_lnum end_colnum message in
     stack := `Tree (preamble, []) :: !stack
-    
+
   let log_value_sexp ~descr ~sexp =
     stack_next @@ B.Simple.asprintf "%s = %a" descr Sexplib0.Sexp.pp_hum sexp
     

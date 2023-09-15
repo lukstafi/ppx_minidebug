@@ -1,8 +1,8 @@
 module Debug_runtime =
-  (Minidebug_runtime.Flushing)((Minidebug_runtime.Debug_ch)(struct
-                                                              let filename =
-                                                                "debugger_show_flushing.log"
-                                                            end))
+  (Minidebug_runtime.Flushing)((Minidebug_runtime.Debug_ch_no_time_tags)(
+  struct
+    let filename = "debugger_show_flushing.log"
+  end))
 let foo (x : int) =
   ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_show.ml"
       ~start_lnum:5 ~start_colnum:19 ~end_lnum:7 ~end_colnum:15

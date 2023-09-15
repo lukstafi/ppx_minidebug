@@ -1,7 +1,7 @@
 open Sexplib0.Sexp_conv
 module Debug_runtime =
   Minidebug_runtime.PrintBox(
-    Minidebug_runtime.Debug_ch(struct let filename = "debugger_sexp_printbox.log" end))
+    Minidebug_runtime.Debug_ch_no_time_tags(struct let filename = "debugger_sexp_printbox.log" end))
 
 let%debug_sexp foo (x: int): int list =
   let y: int = x + 1 in

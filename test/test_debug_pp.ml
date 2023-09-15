@@ -1,6 +1,6 @@
 module Debug_runtime =
   Minidebug_runtime.Pp_format(
-    Minidebug_runtime.Debug_ch(struct let filename = "debugger_pp_format.log" end))
+    Minidebug_runtime.Debug_ch_no_time_tags(struct let filename = "debugger_pp_format.log" end))
 type t = {first: int; second: int} [@@deriving show]
 type num = int [@@deriving show]
 let%debug_pp bar (x: t): num = let y: num = x.first + 1 in x.second * y

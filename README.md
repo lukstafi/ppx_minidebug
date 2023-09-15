@@ -16,7 +16,7 @@ To use `ppx_minidebug` in a Dune project, add/modify these stanzas: `(preprocess
 ### `Pp_format`-based traces
 
 Define a `Debug_runtime` using the `Pp_format` functor. The helper functor `Debug_ch` opens a file for appending.
-E.g. either `module Debug_runtime = Minidebug_runtime.Pp_format(struct let debug_ch = stdout end)`, or:
+E.g. either `module Debug_runtime = Minidebug_runtime.Pp_format(struct let debug_ch = stdout let time_tagged = true end)`, or:
 ```ocaml
 module Debug_runtime =
   Minidebug_runtime.Pp_format(
@@ -44,7 +44,7 @@ depth = 0  x = { Test_debug_pp.first = 7; second = 42 }  "test/test_debug_pp.ml"
 ### `PrintBox`-based traces
 
 Define a `Debug_runtime` using the `PrintBox` functor.
-E.g. either `module Debug_runtime = Minidebug_runtime.PrintBox(struct let debug_ch = stdout end)`, or:
+E.g. either `module Debug_runtime = Minidebug_runtime.PrintBox(struct let debug_ch = stdout let time_tagged = true end)`, or:
 ```ocaml
 module Debug_runtime =
   Minidebug_runtime.PrintBox(
@@ -88,7 +88,7 @@ BEGIN DEBUG SESSION at time 2023-03-02 22:20:39.305 +01:00
 ### `Flushing`-based traces
 
 Define a `Debug_runtime` using the `Flushing` functor.
-E.g. either `module Debug_runtime = Minidebug_runtime.Flushing(struct let debug_ch = stdout end)`, or:
+E.g. either `module Debug_runtime = Minidebug_runtime.Flushing(struct let debug_ch = stdout let time_tagged = true end)`, or:
 ```ocaml
 module Debug_runtime =
   Minidebug_runtime.Flushing(
@@ -135,13 +135,13 @@ Tracing only happens in explicitly marked scopes, using the extension points: `%
 
 The `%debug_this` variants are intended only for `let`-bindings: `let%debug_this v: t = compute value in body` will trace `v` and the type-annotated bindings and functions inside `compute value`, but it will not trace `body`.
 
-To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.Flushing(struct let debug_ch = thread_specific_ch end) in ...` In particular, when performing `dune runtest` in the `ppx_minidebug` directory, the `test_debug_n` and the `test_debug_n_expected` pairs of programs will interfere with each other, unless you adjust the log file names in them.
+To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.Flushing(struct let debug_ch = thread_specific_ch let time_tagged = true end) in ...` In particular, when performing `dune runtest` in the `ppx_minidebug` directory, the `test_debug_n` and the `test_debug_n_expected` pairs of programs will interfere with each other, unless you adjust the log file names in them.
 
 `Minidebug_runtime.Debug_ch` appends to log files, so you need to delete them as appropriate for your convenience.
 
 The `PrintBox` logs are the prettiest, I could not get the `Pp_format`-functor-based output look the way I wanted. The `Flushing` logs enable [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond) flame graphs. One should be able to get other logging styles to work with `Log Inspector` by configuring its regexp patterns.
 
-`ppx_minidebug` and `minidebug_runtime` can be installed using `opam` in the normal way. `minidebug_runtime` depends on `printbox` and `ptime`, and only optionally on `base` (for the s-expression functionality).
+`ppx_minidebug` can be installed using `opam`. `ppx_minidebug.runtime` depends on `printbox`, `ptime`, `sexplib0`.
 
 ## VS Code suggestions
 
@@ -156,7 +156,7 @@ Note that you can add and remove type annotations using VSCode OCaml Platform's 
 [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond)'s main feature is visualizing timestamped logs as flame graphs. To invoke it in VS Code, go to a `Minidebug_runtime.Flushing`-style logs file, press `crtl+shift+P`, and execute the command "Log Inspector: Draw". Example effect:
 ![Log Inspector flame graph](docs/ppx_minidebug-LogInspector.png)
 
-Note that [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond) is a forked variant of the Log Inspector extension.
+The sub-millisecond functionality is now upstreamed to [Log Inspector](https://marketplace.visualstudio.com/items?itemName=LogInspector.loginspector).
 
 ### Go to file location using [Find and Transform](https://marketplace.visualstudio.com/items?itemName=ArturoDent.find-and-transform)
 

@@ -2,10 +2,13 @@
     {{:http://lukstafi.github.io/ppx_minidebug/minidebug_runtime/Minidebug_runtime/index.html}
     [ppx_minidebug]} requires. *)
 
-module type Debug_ch = sig val debug_ch : out_channel end
+module type Debug_ch = sig val debug_ch : out_channel val time_tagged : bool end
 
-(** Opens a file with the given path for appending. *)
+(** Opens a file with the given path for appending. Debugging is time tagged. *)
 module Debug_ch : functor(_ : sig val filename : string end) -> Debug_ch
+
+(** Opens a file with the given path for appending. Debugging is not time tagged. *)
+module Debug_ch_no_time_tags : functor(_ : sig val filename : string end) -> Debug_ch
 
 (** When using the
     {{:http://lukstafi.github.io/ppx_minidebug/minidebug_runtime/Minidebug_runtime/index.html}

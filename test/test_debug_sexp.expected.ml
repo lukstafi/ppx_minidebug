@@ -1,9 +1,9 @@
 open Sexplib0.Sexp_conv
 module Debug_runtime =
-  (Minidebug_runtime.PrintBox)((Minidebug_runtime.Debug_ch)(struct
-                                                              let filename =
-                                                                "debugger_sexp_printbox.log"
-                                                            end))
+  (Minidebug_runtime.PrintBox)((Minidebug_runtime.Debug_ch_no_time_tags)(
+  struct
+    let filename = "debugger_sexp_printbox.log"
+  end))
 let foo (x : int) =
   ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_sexp.ml"
       ~start_lnum:6 ~start_colnum:19 ~end_lnum:8 ~end_colnum:15

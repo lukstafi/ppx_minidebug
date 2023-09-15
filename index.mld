@@ -39,7 +39,7 @@ functions inside [compute value], but it will not trace [body].
 Example setting up a logger printing to the screen:
 {[
 module Debug_runtime =
-  Minidebug_runtime.Flushing(struct let debug_ch = stdout end)
+  Minidebug_runtime.Flushing(struct let debug_ch = stdout let time_tagged = true end)
 let%debug_show test_logging: string = "Hello World"
 ]}
 Example setting up a logger printing to a file:
@@ -73,8 +73,8 @@ Log Inspector (sub-millisecond)}'s main feature is visualizing timestamped logs 
 To invoke it in VS Code, go to the [Minidebug_runtime.Flushing]-style logs file,
 press {e crtl+shift+P}, and execute the command {e Log Inspector: Draw}.
 
-Note that {{:https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond}
-Log Inspector (sub-millisecond)} is a forked variant of the Log Inspector extension.
+The sub-millisecond functionality is now upstreamed to
+{{:https://marketplace.visualstudio.com/items?itemName=LogInspector.loginspector} Log Inspector}.
 
 {3 Go to file location using {e Find and Transform}}
 

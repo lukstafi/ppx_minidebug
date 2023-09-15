@@ -52,11 +52,8 @@
   (pps ppx_minidebug ppx_sexp_conv)))
 
 (rule
- (target debugger_sexp_printbox.actual.log)
- (action (progn
-  (run %{dep:test_debug_sexp.exe})
-  (with-stdout-to debugger_sexp_printbox.actual.log
-   (run sed "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" debugger_sexp_printbox.log)))))
+ (target debugger_sexp_printbox.log)
+ (action (run %{dep:test_debug_sexp.exe})))
 
 (rule
  (alias runtest)
@@ -71,11 +68,8 @@
   (pps ppx_minidebug ppx_deriving.show)))
 
 (rule
- (target debugger_pp_format.actual.log)
- (action (progn
-  (run %{dep:test_debug_pp.exe})
-  (with-stdout-to debugger_pp_format.actual.log
-   (run sed "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" debugger_pp_format.log)))))
+ (target debugger_pp_format.log)
+ (action (run %{dep:test_debug_pp.exe})))
 
 (rule
  (alias runtest)
@@ -90,11 +84,8 @@
   (pps ppx_minidebug ppx_deriving.show)))
 
 (rule
- (target debugger_show_flushing.actual.log)
- (action (progn
-  (run %{dep:test_debug_show.exe})
-  (with-stdout-to debugger_show_flushing.actual.log
-   (run sed "s/[0-9]\\+-[0-9]\\+-[0-9]\\+ [0-9]\\+:[0-9]\\+:[0-9]\\+\\.[0-9]\\+\\( +[0-9]\\+:[0-9]\\+\\)\\?/YYYY-MM-DD HH:MM:SS.NNNNNN/g" debugger_show_flushing.log)))))
+ (target debugger_show_flushing.log)
+ (action (run %{dep:test_debug_show.exe})))
 
 (rule
  (alias runtest)

@@ -1,9 +1,8 @@
-## [0.3.2] -- 2023-04-25
+## [0.3.2] -- 2023-09-15
 
-### Fixed
+### Changed
 
-- Third time the charm! Missing version bounds on `ocaml` and `ppxlib` to make CI happy.
-- BSD-compatible `sed` arguments to make CI happy.
+-- Breaking change: explicitly set whether logs should be time tagged.
 
 ## [0.3.1] -- 2023-03-30
 
