@@ -1,8 +1,14 @@
-## [0.3.2] -- 2023-09-15
+## [0.3.3] -- 2023-09-15
 
 ### Changed
 
 -- Breaking change: explicitly set whether logs should be time tagged.
+
+## [0.3.2] -- 2023-04-25
+
+### Fixed
+
+-- Missing version bounds on `ocaml` and `ppxlib` to make CI happy.
 
 ## [0.3.1] -- 2023-03-30
 

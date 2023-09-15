@@ -57,7 +57,7 @@
 
 (rule
  (alias runtest)
- (action (diff debugger_sexp_printbox.expected.log debugger_sexp_printbox.actual.log)))
+ (action (diff debugger_sexp_printbox.expected.log debugger_sexp_printbox.log)))
 
 (executable
  (name test_debug_pp)
@@ -73,7 +73,7 @@
 
 (rule
  (alias runtest)
- (action (diff debugger_pp_format.expected.log debugger_pp_format.actual.log)))
+ (action (diff debugger_pp_format.expected.log debugger_pp_format.log)))
 
 (executable
  (name test_debug_show)
@@ -89,7 +89,7 @@
 
 (rule
  (alias runtest)
- (action (diff debugger_show_flushing.expected.log debugger_show_flushing.actual.log)))
+ (action (diff debugger_show_flushing.expected.log debugger_show_flushing.log)))
 
 (library
  (name test_inline_tests)
