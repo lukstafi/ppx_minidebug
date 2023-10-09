@@ -1,5 +1,5 @@
 (** The functors creating a [Debug_runtime] module that
-    {{:http://lukstafi.github.io/ppx_minidebug/minidebug_runtime/Minidebug_runtime/index.html}
+    {{:http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html}
     [ppx_minidebug]} requires. *)
 
 module type Debug_ch = sig val debug_ch : out_channel val time_tagged : bool end
@@ -11,7 +11,7 @@ module Debug_ch : functor(_ : sig val filename : string end) -> Debug_ch
 module Debug_ch_no_time_tags : functor(_ : sig val filename : string end) -> Debug_ch
 
 (** When using the
-    {{:http://lukstafi.github.io/ppx_minidebug/minidebug_runtime/Minidebug_runtime/index.html}
+    {{:http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html}
     [ppx_minidebug]} syntax extension, provide a module called [Debug_runtime] with
     this signature in scope of the instrumented code. *)
 module type Debug_runtime =
