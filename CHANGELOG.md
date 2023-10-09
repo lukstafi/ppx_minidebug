@@ -1,3 +1,9 @@
+## [0.4.0] -- current
+
+### Added
+
+-- The `PrintBox` logger now allows disabling (not outputting) a whole subtree of the logs.
+
 ## [0.3.3] -- 2023-09-15
 
 ### Changed

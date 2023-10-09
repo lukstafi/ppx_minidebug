@@ -39,5 +39,10 @@ module Pp_format : functor (_ : Debug_ch) -> Debug_runtime
     might be messy. The indentation is also smaller (half of PrintBox). *)
 module Flushing : functor (_ : Debug_ch) -> Debug_runtime
 
-(** The logged traces will be pretty-printed as trees using the `printbox` package. *)
-module PrintBox : functor (_ : Debug_ch) -> Debug_runtime
+(** The logged traces will be pretty-printed as trees using the `printbox` package. This logger
+    supports conditionally disabling a particular nesting of the logs, regardless of where
+    in the nesting level [no_debug_if] is called. *)
+module PrintBox : functor (_ : Debug_ch) -> sig
+  include Debug_runtime
+  val no_debug_if : bool -> unit
+end
