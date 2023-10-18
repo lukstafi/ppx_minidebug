@@ -46,118 +46,118 @@ let%expect_test "%debug_show flushing to stdout" =
 
 let%expect_test "%debug_show PrintBox to stdout disabled subtree" =
   let module Debug_runtime = Minidebug_runtime.PrintBox(struct let debug_ch = stdout let time_tagged = false end) in
-  let%debug_this_show rec fixpoint_complete (x: int): int =
+  let%debug_this_show rec loop_complete (x: int): int =
     let z: int = (x - 1) / 2 in
-    if x <= 0 then 0 else z + fixpoint_complete (z + x / 2) in
-  let () = print_endline @@ Int.to_string @@ fixpoint_complete 7 in
+    if x <= 0 then 0 else z + loop_complete (z + x / 2) in
+  let () = print_endline @@ Int.to_string @@ loop_complete 7 in
   [%expect {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":49:44-51:59: fixpoint_complete
+    "test/test_expect_test.ml":49:40-51:55: loop_complete
     ├─x = 7
     ├─"test/test_expect_test.ml":50:8:
     │ └─z = 3
-    ├─"test/test_expect_test.ml":49:44-51:59: fixpoint_complete
+    ├─"test/test_expect_test.ml":49:40-51:55: loop_complete
     │ ├─x = 6
     │ ├─"test/test_expect_test.ml":50:8:
     │ │ └─z = 2
-    │ ├─"test/test_expect_test.ml":49:44-51:59: fixpoint_complete
+    │ ├─"test/test_expect_test.ml":49:40-51:55: loop_complete
     │ │ ├─x = 5
     │ │ ├─"test/test_expect_test.ml":50:8:
     │ │ │ └─z = 2
-    │ │ ├─"test/test_expect_test.ml":49:44-51:59: fixpoint_complete
+    │ │ ├─"test/test_expect_test.ml":49:40-51:55: loop_complete
     │ │ │ ├─x = 4
     │ │ │ ├─"test/test_expect_test.ml":50:8:
     │ │ │ │ └─z = 1
-    │ │ │ ├─"test/test_expect_test.ml":49:44-51:59: fixpoint_complete
+    │ │ │ ├─"test/test_expect_test.ml":49:40-51:55: loop_complete
     │ │ │ │ ├─x = 3
     │ │ │ │ ├─"test/test_expect_test.ml":50:8:
     │ │ │ │ │ └─z = 1
-    │ │ │ │ ├─"test/test_expect_test.ml":49:44-51:59: fixpoint_complete
+    │ │ │ │ ├─"test/test_expect_test.ml":49:40-51:55: loop_complete
     │ │ │ │ │ ├─x = 2
     │ │ │ │ │ ├─"test/test_expect_test.ml":50:8:
     │ │ │ │ │ │ └─z = 0
-    │ │ │ │ │ ├─"test/test_expect_test.ml":49:44-51:59: fixpoint_complete
+    │ │ │ │ │ ├─"test/test_expect_test.ml":49:40-51:55: loop_complete
     │ │ │ │ │ │ ├─x = 1
     │ │ │ │ │ │ ├─"test/test_expect_test.ml":50:8:
     │ │ │ │ │ │ │ └─z = 0
-    │ │ │ │ │ │ ├─"test/test_expect_test.ml":49:44-51:59: fixpoint_complete
+    │ │ │ │ │ │ ├─"test/test_expect_test.ml":49:40-51:55: loop_complete
     │ │ │ │ │ │ │ ├─x = 0
     │ │ │ │ │ │ │ ├─"test/test_expect_test.ml":50:8:
     │ │ │ │ │ │ │ │ └─z = 0
-    │ │ │ │ │ │ │ └─fixpoint_complete = 0
-    │ │ │ │ │ │ └─fixpoint_complete = 0
-    │ │ │ │ │ └─fixpoint_complete = 0
-    │ │ │ │ └─fixpoint_complete = 1
-    │ │ │ └─fixpoint_complete = 2
-    │ │ └─fixpoint_complete = 4
-    │ └─fixpoint_complete = 6
-    └─fixpoint_complete = 9
+    │ │ │ │ │ │ │ └─loop_complete = 0
+    │ │ │ │ │ │ └─loop_complete = 0
+    │ │ │ │ │ └─loop_complete = 0
+    │ │ │ │ └─loop_complete = 1
+    │ │ │ └─loop_complete = 2
+    │ │ └─loop_complete = 4
+    │ └─loop_complete = 6
+    └─loop_complete = 9
     9 |}];
-  let%debug_this_show rec fixpoint_changes (x: int): int =
+  let%debug_this_show rec loop_changes (x: int): int =
     let z: int = (x - 1) / 2 in
     (* The call [x = 2] is not printed because it is a descendant of the no-debug call [x = 4]. *)
     Debug_runtime.no_debug_if (x <> 6 && x <> 2 && (z + 1) * 2 = x);
-    if x <= 0 then 0 else z + fixpoint_changes (z + x / 2) in
-let () = print_endline @@ Int.to_string @@ fixpoint_changes 7 in
+    if x <= 0 then 0 else z + loop_changes (z + x / 2) in
+let () = print_endline @@ Int.to_string @@ loop_changes 7 in
 [%expect {|
-  "test/test_expect_test.ml":96:43-100:58: fixpoint_changes
+  "test/test_expect_test.ml":96:39-100:54: loop_changes
   ├─x = 7
   ├─"test/test_expect_test.ml":97:8:
   │ └─z = 3
-  ├─"test/test_expect_test.ml":96:43-100:58: fixpoint_changes
+  ├─"test/test_expect_test.ml":96:39-100:54: loop_changes
   │ ├─x = 6
   │ ├─"test/test_expect_test.ml":97:8:
   │ │ └─z = 2
-  │ ├─"test/test_expect_test.ml":96:43-100:58: fixpoint_changes
+  │ ├─"test/test_expect_test.ml":96:39-100:54: loop_changes
   │ │ ├─x = 5
   │ │ ├─"test/test_expect_test.ml":97:8:
   │ │ │ └─z = 2
-  │ │ └─fixpoint_changes = 4
-  │ └─fixpoint_changes = 6
-  └─fixpoint_changes = 9
+  │ │ └─loop_changes = 4
+  │ └─loop_changes = 6
+  └─loop_changes = 9
   9 |}] 
 
 
 let%expect_test "%debug_show PrintBox to stdout with exception" =
   let module Debug_runtime = Minidebug_runtime.PrintBox(struct let debug_ch = stdout let time_tagged = false end) in
-  let%debug_this_show rec fixpoint_truncated (x: int): int =
+  let%debug_this_show rec loop_truncated (x: int): int =
     let z: int = (x - 1) / 2 in
-    if x <= 0 then failwith "the log as for fixpoint_complete but without return values";
-    z + fixpoint_truncated (z + x / 2) in
+    if x <= 0 then failwith "the log as for loop_complete but without return values";
+    z + loop_truncated (z + x / 2) in
   let () =
-    try print_endline @@ Int.to_string @@ fixpoint_truncated 7
+    try print_endline @@ Int.to_string @@ loop_truncated 7
     with _ -> print_endline "Raised exception." in
   [%expect {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":123:45-126:38: fixpoint_truncated
+    "test/test_expect_test.ml":123:41-126:34: loop_truncated
     ├─x = 7
     ├─"test/test_expect_test.ml":124:8:
     │ └─z = 3
-    └─"test/test_expect_test.ml":123:45-126:38: fixpoint_truncated
+    └─"test/test_expect_test.ml":123:41-126:34: loop_truncated
       ├─x = 6
       ├─"test/test_expect_test.ml":124:8:
       │ └─z = 2
-      └─"test/test_expect_test.ml":123:45-126:38: fixpoint_truncated
+      └─"test/test_expect_test.ml":123:41-126:34: loop_truncated
         ├─x = 5
         ├─"test/test_expect_test.ml":124:8:
         │ └─z = 2
-        └─"test/test_expect_test.ml":123:45-126:38: fixpoint_truncated
+        └─"test/test_expect_test.ml":123:41-126:34: loop_truncated
           ├─x = 4
           ├─"test/test_expect_test.ml":124:8:
           │ └─z = 1
-          └─"test/test_expect_test.ml":123:45-126:38: fixpoint_truncated
+          └─"test/test_expect_test.ml":123:41-126:34: loop_truncated
             ├─x = 3
             ├─"test/test_expect_test.ml":124:8:
             │ └─z = 1
-            └─"test/test_expect_test.ml":123:45-126:38: fixpoint_truncated
+            └─"test/test_expect_test.ml":123:41-126:34: loop_truncated
               ├─x = 2
               ├─"test/test_expect_test.ml":124:8:
               │ └─z = 0
-              └─"test/test_expect_test.ml":123:45-126:38: fixpoint_truncated
+              └─"test/test_expect_test.ml":123:41-126:34: loop_truncated
                 ├─x = 1
                 ├─"test/test_expect_test.ml":124:8:
                 │ └─z = 0
-                └─"test/test_expect_test.ml":123:45-126:38: fixpoint_truncated
+                └─"test/test_expect_test.ml":123:41-126:34: loop_truncated
                   ├─x = 0
                   └─"test/test_expect_test.ml":124:8:
                     └─z = 0
