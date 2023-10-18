@@ -120,10 +120,12 @@ let debug_fun callback bind descr_loc typ_opt1 exp =
   let body =
     [%expr
       [%e arg_logs];
-      let [%p result] = [%e callback body] in
-      [%e !log_value ~loc ~typ ~descr_loc (pat2expr result)];
-      Debug_runtime.close_log ();
-      [%e pat2expr result]] in
+      match [%e callback body] with
+      | [%p result] ->
+        [%e !log_value ~loc ~typ ~descr_loc (pat2expr result)];
+        Debug_runtime.close_log ();
+        [%e pat2expr result]
+      | exception e -> Debug_runtime.close_log (); raise e] in
   let body =
     match typ_opt2 with None -> body | Some typ -> [%expr ([%e body] : [%t typ])] in
   expand_fun body args
@@ -148,10 +150,12 @@ let debug_binding callback vb =
     let exp =
       [%expr
         [%e open_log_preamble ~brief:true ~message:" " ~loc:descr_loc.loc ()];
-        let [%p result] = [%e callback vb.pvb_expr] in
-        [%e !log_value ~loc ~typ ~descr_loc (pat2expr result)];
-        Debug_runtime.close_log ();
-        [%e pat2expr result]] in
+        match [%e callback vb.pvb_expr] with
+        | [%p result] ->
+          [%e !log_value ~loc ~typ ~descr_loc (pat2expr result)];
+          Debug_runtime.close_log ();
+          [%e pat2expr result]
+        | exception e -> Debug_runtime.close_log (); raise e] in
     {vb with pvb_expr = exp}
   | _ -> raise Not_transforming
 

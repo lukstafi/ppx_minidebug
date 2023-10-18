@@ -116,3 +116,49 @@ let () = print_endline @@ Int.to_string @@ fixpoint_changes 7 in
   │ └─fixpoint_changes = 6
   └─fixpoint_changes = 9
   9 |}] 
+
+
+let%expect_test "%debug_show PrintBox to stdout with exception" =
+  let module Debug_runtime = Minidebug_runtime.PrintBox(struct let debug_ch = stdout let time_tagged = false end) in
+  let%debug_this_show rec fixpoint_truncated (x: int): int =
+    let z: int = (x - 1) / 2 in
+    if x <= 0 then failwith "the log as for fixpoint_complete but without return values";
+    z + fixpoint_truncated (z + x / 2) in
+  let () =
+    try print_endline @@ Int.to_string @@ fixpoint_truncated 7
+    with _ -> print_endline "Raised exception." in
+  [%expect {|
+    BEGIN DEBUG SESSION
+    "test/test_expect_test.ml":123:45-126:38: fixpoint_truncated
+    ├─x = 7
+    ├─"test/test_expect_test.ml":124:8:
+    │ └─z = 3
+    └─"test/test_expect_test.ml":123:45-126:38: fixpoint_truncated
+      ├─x = 6
+      ├─"test/test_expect_test.ml":124:8:
+      │ └─z = 2
+      └─"test/test_expect_test.ml":123:45-126:38: fixpoint_truncated
+        ├─x = 5
+        ├─"test/test_expect_test.ml":124:8:
+        │ └─z = 2
+        └─"test/test_expect_test.ml":123:45-126:38: fixpoint_truncated
+          ├─x = 4
+          ├─"test/test_expect_test.ml":124:8:
+          │ └─z = 1
+          └─"test/test_expect_test.ml":123:45-126:38: fixpoint_truncated
+            ├─x = 3
+            ├─"test/test_expect_test.ml":124:8:
+            │ └─z = 1
+            └─"test/test_expect_test.ml":123:45-126:38: fixpoint_truncated
+              ├─x = 2
+              ├─"test/test_expect_test.ml":124:8:
+              │ └─z = 0
+              └─"test/test_expect_test.ml":123:45-126:38: fixpoint_truncated
+                ├─x = 1
+                ├─"test/test_expect_test.ml":124:8:
+                │ └─z = 0
+                └─"test/test_expect_test.ml":123:45-126:38: fixpoint_truncated
+                  ├─x = 0
+                  └─"test/test_expect_test.ml":124:8:
+                    └─z = 0
+    Raised exception. |}]
