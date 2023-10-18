@@ -85,6 +85,36 @@ BEGIN DEBUG SESSION at time 2023-03-02 22:20:39.305 +01:00
 │ │ │ │ │ ├─x = ((first 44) (second 4))
 ```
 
+This runtime also allows disabling the logging of specified subtrees, when the output is irrelevant or would be a distraction.
+The test suite example:
+```ocaml
+  let%debug_this_show rec fixpoint_changes (x: int): int =
+    let z: int = (x - 1) / 2 in
+    (* The call [x = 2] is not printed because it is a descendant of
+       the no-debug call [x = 4]. *)
+    Debug_runtime.no_debug_if (x <> 6 && x <> 2 && (z + 1) * 2 = x);
+    if x <= 0 then 0 else z + fixpoint_changes (z + x / 2) in
+  print_endline @@ Int.to_string @@ fixpoint_changes 7
+```
+leads to:
+```ocaml
+  "test/test_expect_test.ml":96:43-100:58: fixpoint_changes
+  ├─x = 7
+  ├─"test/test_expect_test.ml":97:8:
+  │ └─z = 3
+  ├─"test/test_expect_test.ml":96:43-100:58: fixpoint_changes
+  │ ├─x = 6
+  │ ├─"test/test_expect_test.ml":97:8:
+  │ │ └─z = 2
+  │ ├─"test/test_expect_test.ml":96:43-100:58: fixpoint_changes
+  │ │ ├─x = 5
+  │ │ ├─"test/test_expect_test.ml":97:8:
+  │ │ │ └─z = 2
+  │ │ └─fixpoint_changes = 4
+  │ └─fixpoint_changes = 6
+  └─fixpoint_changes = 9
+  9
+```
 ### `Flushing`-based traces
 
 Define a `Debug_runtime` using the `Flushing` functor.

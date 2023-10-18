@@ -44,5 +44,9 @@ module Flushing : functor (_ : Debug_ch) -> Debug_runtime
     in the nesting level [no_debug_if] is called. *)
 module PrintBox : functor (_ : Debug_ch) -> sig
   include Debug_runtime
+
+  (** When passed true within the scope of a log subtree, disables the logging of this subtree and its
+      subtrees. Does not do anything when passed false ([no_debug_if false] does {e not} re-enable
+      the log). *)
   val no_debug_if : bool -> unit
 end
