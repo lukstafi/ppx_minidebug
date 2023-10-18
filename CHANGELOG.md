@@ -1,20 +1,30 @@
-## [0.4.0] -- current
+## [0.5.0] -- TODOs
+
+### Changed
+
+- Exception handling that allows proper tracing/logging for raising functions and crashing (via uncaught exception) programs.
+
+## [0.4.0] -- 2023-10-18
 
 ### Added
 
--- The `PrintBox` logger now allows disabling (not outputting) a whole subtree of the logs.
+- The `PrintBox` logger now allows disabling (not outputting) a whole subtree of the logs.
+
+### Fixed
+
+- A broken link in the documentation landing page.
 
 ## [0.3.3] -- 2023-09-15
 
 ### Changed
 
--- Breaking change: explicitly set whether logs should be time tagged.
+- Breaking change: explicitly set whether logs should be time tagged.
 
 ## [0.3.2] -- 2023-04-25
 
 ### Fixed
 
--- Missing version bounds on `ocaml` and `ppxlib` to make CI happy.
+- Missing version bounds on `ocaml` and `ppxlib` to make CI happy.
 
 ## [0.3.1] -- 2023-03-30
 
