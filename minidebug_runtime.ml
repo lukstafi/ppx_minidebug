@@ -137,28 +137,33 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
     Printf.fprintf debug_ch "%s%s = %s\n%!" (indent ()) descr v
 end
 
-let rec revert_order: PrintBox.Simple.t -> PrintBox.Simple.t = function
-| `Empty -> `Empty
-| `Pad b -> `Pad (revert_order b)
-| (`Text _ | `Table _) as b -> b
-| `Vlist bs -> `Vlist (List.rev_map revert_order bs)
-| `Hlist bs -> `Hlist (List.rev_map revert_order bs)
-| `Tree (b, bs) -> `Tree (b, List.rev_map revert_order bs)
+let rec revert_tree_order : PrintBox.Simple.t -> PrintBox.Simple.t = function
+  | `Tree (b, bs) -> `Tree (b, List.rev_map revert_tree_order bs)
+  | b -> b
 
-module PrintBox(Log_to: Debug_ch) = struct
+module PrintBox (Log_to : Debug_ch) = struct
   open Log_to
+
+  let to_html = ref false
+  let boxify_sexp = ref false
+
   module B = PrintBox
-  
+
   let ppf =
     let ppf = CFormat.formatter_of_out_channel debug_ch in
     CFormat.pp_set_geometry ppf ~max_indent:50 ~margin:100;
     ppf
-    
-  let stack: (bool * B.Simple.t) list ref = ref []
-  let stack_next b = stack := (match !stack with
-  | (cond, `Tree (b1, bs1))::bs2 -> (cond, `Tree (b1, (b::bs1)))::bs2
-  | _ -> failwith "minidebug_runtime: a log_value must be preceded by an open_log_preamble")
-    
+
+  let stack : (bool * B.Simple.t) list ref = ref []
+
+  let stack_next b =
+    stack :=
+      match !stack with
+      | (cond, `Tree (b1, bs1)) :: bs2 -> (cond, `Tree (b1, b :: bs1)) :: bs2
+      | _ ->
+          failwith
+            "minidebug_runtime: a log_value must be preceded by an open_log_preamble"
+
   let () =
     if Log_to.time_tagged then
       CFormat.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
@@ -166,36 +171,55 @@ module PrintBox(Log_to: Debug_ch) = struct
 
   let close_log () =
     (* Note: we treat a `Tree under a box as part of that box. *)
-    stack := (match !stack with
-    | (true, b)::(cond, `Tree (b1, bs1))::bs2 -> (cond, `Tree (b1, (b::bs1)))::bs2
-    | (false, _)::bs -> bs
-    | [true, b] ->
-      PrintBox_text.output debug_ch @@ B.Simple.to_box @@ revert_order b;
-      CFormat.fprintf ppf "@\n%!"; []
-    | _ -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble")
-  
+    stack :=
+      match !stack with
+      | (true, b) :: (cond, `Tree (b1, bs1)) :: bs2 -> (cond, `Tree (b1, b :: bs1)) :: bs2
+      | (false, _) :: bs -> bs
+      | [ (true, b) ] ->
+          let box = B.Simple.to_box @@ revert_tree_order b in
+          if !to_html then
+            Out_channel.output_string debug_ch
+            @@ PrintBox_html.(to_string ~config:Config.(tree_summary true default) box)
+          else PrintBox_text.output debug_ch box;
+          Out_channel.output_string debug_ch "\n";
+          []
+          (* CFormat.fprintf ppf "@\n%!"; [] *)
+      | _ -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
+
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
     let preamble = B.Simple.sprintf "\"%s\":%d:%d:%s" fname pos_lnum pos_colnum message in
     stack := (true, `Tree (preamble, [])) :: !stack
-    
-  let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message =
+
+  let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
+      ~message =
     let preamble =
       if Log_to.time_tagged then
-        B.Simple.asprintf "@[\"%s\":%d:%d-%d:%d@ at time@ %a: %s@]"
-          fname start_lnum start_colnum end_lnum end_colnum pp_timestamp () message
+        B.Simple.asprintf "@[\"%s\":%d:%d-%d:%d@ at time@ %a: %s@]" fname start_lnum
+          start_colnum end_lnum end_colnum pp_timestamp () message
       else
-        B.Simple.asprintf "@[\"%s\":%d:%d-%d:%d: %s@]"
-          fname start_lnum start_colnum end_lnum end_colnum message in
+        B.Simple.asprintf "@[\"%s\":%d:%d-%d:%d: %s@]" fname start_lnum start_colnum
+          end_lnum end_colnum message
+    in
     stack := (true, `Tree (preamble, [])) :: !stack
 
-  let log_value_sexp ~descr ~sexp =
-    stack_next @@ B.Simple.asprintf "%s = %a" descr Sexplib0.Sexp.pp_hum sexp
-    
-  let log_value_pp ~descr ~pp ~v =
-    stack_next @@ B.Simple.asprintf "%s = %a" descr pp v
+  let boxify descr sexp =
+    let open Sexplib0.Sexp in
+    let rec loop_atom = function
+      | Atom s -> `Text s
+      | List [] -> `Empty
+      | List [ s ] -> loop_atom s
+      | List [ Atom s1; s2 ] -> `Tree (`Text s1, loop_list s2)
+      | List [ s1; s2 ] -> `Hlist [ loop_atom s1; loop_atom s2 ]
+      | List (Atom s1 :: l) -> `Tree (`Text s1, List.map loop_atom l)
+      | List (s1 :: l) -> `Tree (loop_atom s1, List.map loop_atom l)
+    and loop_list = function Atom s -> [ `Text s ] | List l -> List.map loop_atom l in
+    `Vlist (`Text (descr ^ " =") :: loop_list sexp)
 
-  let log_value_show ~descr ~v =
-    stack_next @@ B.Simple.sprintf "%s = %s" descr v
+  let log_value_sexp ~descr ~sexp =
+    if !boxify_sexp then stack_next @@ boxify descr sexp
+    else stack_next @@ B.Simple.asprintf "%s = %a" descr Sexplib0.Sexp.pp_hum sexp
+
+  let log_value_pp ~descr ~pp ~v = stack_next @@ B.Simple.asprintf "%s = %a" descr pp v
   let log_value_show ~descr ~v = stack_next @@ B.Simple.sprintf "%s = %s" descr v
 
   let no_debug_if cond =

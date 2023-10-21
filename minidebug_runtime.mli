@@ -45,6 +45,12 @@ module Flushing : functor (_ : Debug_ch) -> Debug_runtime
 module PrintBox : functor (_ : Debug_ch) -> sig
   include Debug_runtime
 
+  (** While [true], logs are generated as html; if [false], as monospaced text. *)
+  val to_html : bool ref
+
+  (** While [true], [Sexp.t]-based logs are converted to print-boxes before logging. *)
+    val boxify_sexp : bool ref
+  
   (** When passed true within the scope of a log subtree, disables the logging of this subtree and its
       subtrees. Does not do anything when passed false ([no_debug_if false] does {e not} re-enable
       the log). *)
