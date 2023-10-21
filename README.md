@@ -120,10 +120,8 @@ leads to:
 
 The `PrintBox` runtime can be configured to output logs using HTML. The logs then become collapsible trees, so that you can expose only the relevant information when debugging. Example configuration:
 ```ocaml
-module Debug_runtime = Minidebug_runtime.PrintBox (struct
-  let debug_ch = Stdio.stdout
-  let time_tagged = false
-end)
+module Debug_runtime =
+  Minidebug_runtime.PrintBox (Debug_ch_no_time_tags (struct let filename = "debug.html" end))
 let () = Debug_runtime.to_html := true
 let () = Debug_runtime.boxify_sexp_from_size := 50
 ```

@@ -54,10 +54,8 @@ runtime. In this example, we also configure the converting the [sexp]-based logs
 format (when they have at least 50 atoms). This means that both the log tree structure and the
 structure of large values can be incrementally explored using collapsible trees in an HTML renderer.
 {[
-module Debug_runtime = Minidebug_runtime.PrintBox (struct
-  let debug_ch = Stdio.stdout
-  let time_tagged = false
-end)
+module Debug_runtime =
+  Minidebug_runtime.PrintBox (Debug_ch_no_time_tags (struct let filename = "debug.html" end))
 let () = Debug_runtime.to_html := true
 let () = Debug_runtime.boxify_sexp_from_size := 50
 ]}
