@@ -145,7 +145,7 @@ module PrintBox (Log_to : Debug_ch) = struct
   open Log_to
 
   let to_html = ref false
-  let boxify_sexp = ref false
+  let boxify_sexp_from_size = ref (-1)
 
   module B = PrintBox
 
@@ -179,7 +179,10 @@ module PrintBox (Log_to : Debug_ch) = struct
           let box = B.Simple.to_box @@ revert_tree_order b in
           if !to_html then
             Out_channel.output_string debug_ch
-            @@ PrintBox_html.(to_string ~config:Config.(tree_summary true default) box)
+            @@ PrintBox_html.(
+                 to_string
+                   ~config:Config.(preformatted true @@ tree_summary true default)
+                   box)
           else PrintBox_text.output debug_ch box;
           Out_channel.output_string debug_ch "\n";
           []
@@ -202,21 +205,33 @@ module PrintBox (Log_to : Debug_ch) = struct
     in
     stack := (true, `Tree (preamble, [])) :: !stack
 
+  let sexp_size sexp =
+    let open Sexplib0.Sexp in
+    let rec loop = function
+      | Atom _ -> 1
+      | List l -> List.fold_left ( + ) 0 (List.map loop l)
+    in
+    loop sexp
+
   let boxify descr sexp =
     let open Sexplib0.Sexp in
-    let rec loop_atom = function
-      | Atom s -> `Text s
-      | List [] -> `Empty
-      | List [ s ] -> loop_atom s
-      | List [ Atom s1; s2 ] -> `Tree (`Text s1, loop_list s2)
-      | List [ s1; s2 ] -> `Hlist [ loop_atom s1; loop_atom s2 ]
-      | List (Atom s1 :: l) -> `Tree (`Text s1, List.map loop_atom l)
-      | List (s1 :: l) -> `Tree (loop_atom s1, List.map loop_atom l)
-    and loop_list = function Atom s -> [ `Text s ] | List l -> List.map loop_atom l in
-    `Vlist (`Text (descr ^ " =") :: loop_list sexp)
+    let rec loop_atom sexp =
+      if sexp_size sexp < !boxify_sexp_from_size then
+        B.Simple.asprintf "%a" Sexplib0.Sexp.pp_hum sexp
+      else
+        match sexp with
+        | Atom s -> `Text s
+        | List [] -> `Empty
+        | List [ s ] -> loop_atom s
+        | List (Atom s :: l) -> `Tree (`Text s, List.map loop_atom l)
+        | List l -> `Vlist (List.map loop_atom l) in
+        match sexp with
+        | Atom s | List [ Atom s ] -> `Text (descr ^ " = "^s)
+        | List [] -> `Empty (* `Text descr *)
+        | List l -> `Pad (`Tree (`Text (descr ^ " ="), List.map loop_atom l))
 
   let log_value_sexp ~descr ~sexp =
-    if !boxify_sexp then stack_next @@ boxify descr sexp
+    if !boxify_sexp_from_size >= 0 then stack_next @@ boxify descr sexp
     else stack_next @@ B.Simple.asprintf "%s = %a" descr Sexplib0.Sexp.pp_hum sexp
 
   let log_value_pp ~descr ~pp ~v = stack_next @@ B.Simple.asprintf "%s = %a" descr pp v

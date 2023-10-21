@@ -48,8 +48,9 @@ module PrintBox : functor (_ : Debug_ch) -> sig
   (** While [true], logs are generated as html; if [false], as monospaced text. *)
   val to_html : bool ref
 
-  (** While [true], [Sexp.t]-based logs are converted to print-boxes before logging. *)
-    val boxify_sexp : bool ref
+  (** If positive, [Sexp.t]-based logs with this many or more atoms are converted to print-boxes
+      before logging. *)
+  val boxify_sexp_from_size : int ref
   
   (** When passed true within the scope of a log subtree, disables the logging of this subtree and its
       subtrees. Does not do anything when passed false ([no_debug_if false] does {e not} re-enable
