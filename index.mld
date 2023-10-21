@@ -49,6 +49,18 @@ module Debug_runtime =
     Minidebug_runtime.Debug_ch(struct let filename = "debugger_flushing.log" end))
 let%debug_show test_logging: string = "Hello World"
 ]}
+Example setting up a logger printing to an HTML file -- this is only poosible with the [PrintBox]
+runtime. In this example, we also configure the converting the [sexp]-based logs to the [PrintBox]
+format (when they have at least 50 atoms). This means that both the log tree structure and the
+structure of large values can be incrementally explored using collapsible trees in an HTML renderer.
+{[
+module Debug_runtime = Minidebug_runtime.PrintBox (struct
+  let debug_ch = Stdio.stdout
+  let time_tagged = false
+end)
+let () = Debug_runtime.to_html := true
+let () = Debug_runtime.boxify_sexp_from_size := 50
+]}
 
 {2 VS Code suggestions}
 

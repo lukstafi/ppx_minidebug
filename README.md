@@ -115,6 +115,21 @@ leads to:
   └─fixpoint_changes = 9
   9
 ```
+
+#### Traces in HTML as collapsible trees
+
+The `PrintBox` runtime can be configured to output logs using HTML. The logs then become collapsible trees, so that you can expose only the relevant information when debugging. Example configuration:
+```ocaml
+module Debug_runtime = Minidebug_runtime.PrintBox (struct
+  let debug_ch = Stdio.stdout
+  let time_tagged = false
+end)
+let () = Debug_runtime.to_html := true
+let () = Debug_runtime.boxify_sexp_from_size := 50
+```
+Here we also convert the logged `sexp` values (with at least 50 atoms) to trees. Example result:
+![PrintBox runtime with collapsible/foldable trees](docs/ppx_minidebug-foldable_trees.png)
+
 ### `Flushing`-based traces
 
 Define a `Debug_runtime` using the `Flushing` functor.
@@ -124,7 +139,7 @@ module Debug_runtime =
   Minidebug_runtime.Flushing(
     Minidebug_runtime.Debug_ch(struct let filename = "path/to/debugger_flushing.log" end))
 ```
-The logged traces are still indented, but if the values to print are multi-line, their formatting might be messy. The benefit of `Flushing` traces is that the output is flushed line-at-a-time, so no output should be lost if the traced program crashes. The indentation is also smaller (half of PrintBox). Truncated example (using `%debug_show`):
+The logged traces are still indented, but if the values to print are multi-line, their formatting might be messy. The benefit of `Flushing` traces is that the output is flushed line-at-a-time, so no output should be lost if the traced program crashes. But in recent versions of `ppx_minidebug`, uncaught exceptions no longer break logging in the `PrintBox` and `Pp_format` runtimes. The indentation is also smaller (half of `PrintBox`). Truncated example (using `%debug_show`):
 ```ocaml
 BEGIN DEBUG SESSION at time 2023-03-02 23:19:40.763950 +01:00
 2023-03-02 23:19:40.763980 +01:00 - foo begin "test/test_debug_show.ml":3:19-5:15

@@ -1,5 +1,10 @@
 ## [0.5.0] -- current
 
+### Added
+
+- An option to output to HTML, when in the `PrintBox` runtime.
+- An option to convert the logged `sexp` values to `PrintBox` trees, when they exceed a given size in atoms.
+
 ### Changed
 
 - Exception handling that allows proper tracing/logging for raising functions and crashing (via uncaught exception) programs.
