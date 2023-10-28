@@ -1,9 +1,11 @@
-## [0.5.0] -- current
+## [0.5.0] -- 2023-10-29
 
 ### Added
 
 - An option to output to HTML, when in the `PrintBox` runtime.
 - An option to convert the logged `sexp` values to `PrintBox` trees, when they exceed a given size in atoms.
+- Runtime entry points `Debug_stdout`, `Flushing_stdout` and `Debug_html`.
+- Runtime-generating syntax `[%%debug]`
 
 ### Changed
 

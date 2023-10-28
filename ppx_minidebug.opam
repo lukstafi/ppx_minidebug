@@ -17,9 +17,9 @@ depends: [
   "ppx_deriving"
   "ppx_sexp_conv"
   "ppxlib" {>= "0.25.0"}
-  "printbox"
+  "printbox" {>= "0.7"}
   "printbox-text"
-  "printbox-html"
+  "printbox-html" {>= "0.7"}
   "ptime"
   "sexplib0"
   "ppx_expect" {with-test & >= "v0.9.0"}
