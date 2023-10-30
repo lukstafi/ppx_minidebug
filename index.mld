@@ -60,6 +60,12 @@ let () = Debug_runtime.to_html := true
 let () = Debug_runtime.boxify_sexp_from_size := 50
 ]}
 
+[debug_html] is a configurable shorthand for the above setup:
+{[
+module Debug_runtime = (val Minidebug_runtime.debug_html "debug.html")
+]}
+Similarly, [debug] is a configurable shorthand that defaults to logging to [stdout].
+
 {2 VS Code suggestions}
 
 {3 Add / remove type annotations and visit files using {e VOCaml}}

@@ -4,8 +4,7 @@
 
 - An option to output to HTML, when in the `PrintBox` runtime.
 - An option to convert the logged `sexp` values to `PrintBox` trees, when they exceed a given size in atoms.
-- Runtime entry points `Debug_stdout`, `Flushing_stdout` and `Debug_html`.
-- Runtime-generating syntax `[%%debug]`
+- Runtime entry points `debug_html` that returns a `PrintBox` runtime configured to output HTML into a file with the given name, and `debug` that returns a `PrintBox` runtime which by default logs to `stdout`.
 
 ### Changed
 

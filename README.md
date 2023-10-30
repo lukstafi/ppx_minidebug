@@ -43,13 +43,18 @@ depth = 0  x = { Test_debug_pp.first = 7; second = 42 }  "test/test_debug_pp.ml"
 
 ### `PrintBox`-based traces
 
-Define a `Debug_runtime` using the `PrintBox` functor.
-E.g. either `module Debug_runtime = Minidebug_runtime.PrintBox(struct let debug_ch = stdout let time_tagged = true end)`, or:
+This runtime has the most features.
+Here we define a `Debug_runtime` directly using the `PrintBox`
+functor. E.g. either
+`module Debug_runtime = Minidebug_runtime.PrintBox(struct let debug_ch = stdout let time_tagged = true end)`,
+or:
+
 ```ocaml
 module Debug_runtime =
   Minidebug_runtime.PrintBox(
     Minidebug_runtime.Debug_ch(struct let filename = "path/to/debugger_printbox.log" end))
 ```
+
 The logged traces will be pretty-printed as trees using the `printbox` package. Truncated example (using `%debug_sexp`):
 ```ocaml
 BEGIN DEBUG SESSION at time 2023-03-02 22:20:39.305 +01:00
@@ -119,6 +124,7 @@ leads to:
 #### Traces in HTML as collapsible trees
 
 The `PrintBox` runtime can be configured to output logs using HTML. The logs then become collapsible trees, so that you can expose only the relevant information when debugging. Example configuration:
+
 ```ocaml
 module Debug_runtime =
   Minidebug_runtime.PrintBox (Debug_ch_no_time_tags (struct let filename = "debug.html" end))
@@ -127,6 +133,20 @@ let () = Debug_runtime.boxify_sexp_from_size := 50
 ```
 Here we also convert the logged `sexp` values (with at least 50 atoms) to trees. Example result:
 ![PrintBox runtime with collapsible/foldable trees](docs/ppx_minidebug-foldable_trees.png)
+
+#### `PrintBox` creating helpers with defaults: `debug` and `debug_html`
+
+The above configuration is more concisely just:
+
+```ocaml
+module Debug_runtime = (val Minidebug_runtime.debug_html "debug.html")
+```
+
+Similarly, `debug` returns a `PrintBox` module, which by default logs to `stdout`:
+
+```ocaml
+module Debug_runtime = (val Minidebug_runtime.debug ())
+```
 
 ### `Flushing`-based traces
 
