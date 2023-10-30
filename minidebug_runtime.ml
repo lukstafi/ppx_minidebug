@@ -18,9 +18,8 @@ end
 let debug_ch ?(time_tagged = false) ?(for_append = true) filename : (module Debug_ch) =
   let module Result = struct
     let debug_ch =
-      open_out_gen
-        [ Open_creat; Open_text; (if for_append then Open_append else Open_trunc) ]
-        0o640 filename
+      if for_append then open_out_gen [ Open_creat; Open_append ] 0o640 filename
+      else open_out filename
 
     (* or: Stdio.Out_channel.create ~binary:false ~append:true File_name.v *)
     let time_tagged = time_tagged
@@ -241,3 +240,13 @@ module PrintBox (Log_to : Debug_ch) = struct
   let no_debug_if cond =
     match !stack with (true, b) :: bs when cond -> stack := (false, b) :: bs | _ -> ()
 end
+
+let debug_html ?(time_tagged = false) ?(for_append = false) ?(boxify_sexp_from_size = 50)
+    filename : (module Debug_runtime) =
+  let module Debug = PrintBox ((val debug_ch ~time_tagged ~for_append filename)) in
+  Debug.to_html := true;
+  Debug.boxify_sexp_from_size := boxify_sexp_from_size;
+  (module Debug)
+
+let debug ?(debug_ch = stdout) ?(time_tagged = false) () : (module Debug_runtime) =
+  (module PrintBox (struct let debug_ch = debug_ch let time_tagged = time_tagged end))

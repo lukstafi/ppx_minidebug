@@ -91,6 +91,22 @@
  (alias runtest)
  (action (diff debugger_show_flushing.expected.log debugger_show_flushing.log)))
 
+(executable
+ (name test_debug_html)
+ (modules test_debug_html)
+ (libraries sexplib0 minidebug_runtime)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_sexp_conv)))
+
+(rule
+ (target debugger_sexp_html.html)
+ (action (run %{dep:test_debug_html.exe})))
+
+(rule
+ (alias runtest)
+ (action (diff debugger_sexp_html.expected.html debugger_sexp_html.html)))
+
 (library
  (name test_inline_tests)
  (inline_tests)
