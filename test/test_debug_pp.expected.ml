@@ -1,20 +1,17 @@
-module Debug_runtime =
-  (Minidebug_runtime.Pp_format)((Minidebug_runtime.Debug_ch_no_time_tags)(
-  struct
-    let filename = "debugger_pp_format.log"
-  end))
+module Debug_runtime = (Minidebug_runtime.Pp_format)((val
+  Minidebug_runtime.debug_ch "debugger_pp_format.log"))
 type t = {
   first: int ;
   second: int }[@@deriving show]
 type num = int[@@deriving show]
 let bar (x : t) =
   ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_pp.ml"
-      ~start_lnum:6 ~start_colnum:17 ~end_lnum:6 ~end_colnum:71
+      ~start_lnum:7 ~start_colnum:17 ~end_lnum:9 ~end_colnum:14
       ~message:"bar";
     Debug_runtime.log_value_pp ~descr:"x" ~pp ~v:x);
    (match let y : num =
             Debug_runtime.open_log_preamble_brief ~fname:"test_debug_pp.ml"
-              ~pos_lnum:6 ~pos_colnum:35 ~message:" ";
+              ~pos_lnum:8 ~pos_colnum:6 ~message:" ";
             (match (x.first + 1 : num) with
              | y__res ->
                  (Debug_runtime.log_value_pp ~descr:"y" ~pp:pp_num ~v:y__res;
@@ -31,12 +28,12 @@ let bar (x : t) =
 let () = ignore @@ (bar { first = 7; second = 42 })
 let baz (x : t) =
   ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_pp.ml"
-      ~start_lnum:10 ~start_colnum:17 ~end_lnum:11 ~end_colnum:89
+      ~start_lnum:13 ~start_colnum:17 ~end_lnum:15 ~end_colnum:20
       ~message:"baz";
     Debug_runtime.log_value_pp ~descr:"x" ~pp ~v:x);
    (match let (({ first = y; second = z } as _yz) : t) =
             Debug_runtime.open_log_preamble_brief ~fname:"test_debug_pp.ml"
-              ~pos_lnum:11 ~pos_colnum:30 ~message:" ";
+              ~pos_lnum:14 ~pos_colnum:36 ~message:" ";
             (match { first = (x.first + 1); second = 3 } with
              | _yz__res ->
                  (Debug_runtime.log_value_pp ~descr:"_yz" ~pp ~v:_yz__res;
@@ -53,7 +50,7 @@ let baz (x : t) =
 let () = ignore @@ (baz { first = 7; second = 42 })
 let rec loop (depth : num) (x : t) =
   (((Debug_runtime.open_log_preamble_full ~fname:"test_debug_pp.ml"
-       ~start_lnum:14 ~start_colnum:22 ~end_lnum:20 ~end_colnum:9
+       ~start_lnum:19 ~start_colnum:22 ~end_lnum:25 ~end_colnum:9
        ~message:"loop";
      Debug_runtime.log_value_pp ~descr:"depth" ~pp:pp_num ~v:depth);
     Debug_runtime.log_value_pp ~descr:"x" ~pp ~v:x);
@@ -67,7 +64,7 @@ let rec loop (depth : num) (x : t) =
             else
               (let y : num =
                  Debug_runtime.open_log_preamble_brief
-                   ~fname:"test_debug_pp.ml" ~pos_lnum:18 ~pos_colnum:8
+                   ~fname:"test_debug_pp.ml" ~pos_lnum:23 ~pos_colnum:8
                    ~message:" ";
                  (match (loop (depth + 1)
                            { first = (x.second - 1); second = (x.first + 2) } : 
@@ -81,7 +78,7 @@ let rec loop (depth : num) (x : t) =
                   | exception e -> (Debug_runtime.close_log (); raise e)) in
                let z : num =
                  Debug_runtime.open_log_preamble_brief
-                   ~fname:"test_debug_pp.ml" ~pos_lnum:19 ~pos_colnum:8
+                   ~fname:"test_debug_pp.ml" ~pos_lnum:24 ~pos_colnum:8
                    ~message:" ";
                  (match (loop (depth + 1)
                            { first = (x.second + 1); second = y } : num)

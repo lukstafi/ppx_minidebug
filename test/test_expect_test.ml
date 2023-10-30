@@ -3,8 +3,7 @@ type t = {first: int; second: int} [@@deriving show]
 let%expect_test "%debug_show flushing to a file" =
   let module Debug_runtime =
     Minidebug_runtime.Flushing(
-      Minidebug_runtime.Debug_ch(
-        struct let filename = "../../../debugger_expect_show_flushing.log" end)) in
+      (val Minidebug_runtime.debug_ch ~time_tagged:true "../../../debugger_expect_show_flushing.log")) in
   let%debug_this_show rec loop (depth: int) (x: t): int =
     if depth > 6 then x.first + x.second
     else if depth > 3 then loop (depth + 1) {first=x.second + 1; second=x.first / 2}
@@ -29,16 +28,16 @@ let%expect_test "%debug_show flushing to stdout" =
   print_endline output;
   [%expect {|
     BEGIN DEBUG SESSION at time YYYY-MM-DD HH:MM:SS.NNNNNN
-    YYYY-MM-DD HH:MM:SS.NNNNNN - bar begin "test/test_expect_test.ml":20:21-20:75
+    YYYY-MM-DD HH:MM:SS.NNNNNN - bar begin "test/test_expect_test.ml":19:21-19:75
      x = { Test_expect_test.first = 7; second = 42 }
-      "test/test_expect_test.ml":20:39:
+      "test/test_expect_test.ml":19:39:
       y = 8
      bar = 336
     YYYY-MM-DD HH:MM:SS.NNNNNN - bar end
     336
-    YYYY-MM-DD HH:MM:SS.NNNNNN - baz begin "test/test_expect_test.ml":22:10-23:69
+    YYYY-MM-DD HH:MM:SS.NNNNNN - baz begin "test/test_expect_test.ml":21:10-22:69
      x = { Test_expect_test.first = 7; second = 42 }
-      "test/test_expect_test.ml":23:17:
+      "test/test_expect_test.ml":22:17:
       _yz = (8, 3)
      baz = 339
     YYYY-MM-DD HH:MM:SS.NNNNNN - baz end
@@ -52,37 +51,37 @@ let%expect_test "%debug_show PrintBox to stdout disabled subtree" =
   let () = print_endline @@ Int.to_string @@ loop_complete 7 in
   [%expect {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":49:40-51:55: loop_complete
+    "test/test_expect_test.ml":48:40-50:55: loop_complete
     ├─x = 7
-    ├─"test/test_expect_test.ml":50:8:
+    ├─"test/test_expect_test.ml":49:8:
     │ └─z = 3
-    ├─"test/test_expect_test.ml":49:40-51:55: loop_complete
+    ├─"test/test_expect_test.ml":48:40-50:55: loop_complete
     │ ├─x = 6
-    │ ├─"test/test_expect_test.ml":50:8:
+    │ ├─"test/test_expect_test.ml":49:8:
     │ │ └─z = 2
-    │ ├─"test/test_expect_test.ml":49:40-51:55: loop_complete
+    │ ├─"test/test_expect_test.ml":48:40-50:55: loop_complete
     │ │ ├─x = 5
-    │ │ ├─"test/test_expect_test.ml":50:8:
+    │ │ ├─"test/test_expect_test.ml":49:8:
     │ │ │ └─z = 2
-    │ │ ├─"test/test_expect_test.ml":49:40-51:55: loop_complete
+    │ │ ├─"test/test_expect_test.ml":48:40-50:55: loop_complete
     │ │ │ ├─x = 4
-    │ │ │ ├─"test/test_expect_test.ml":50:8:
+    │ │ │ ├─"test/test_expect_test.ml":49:8:
     │ │ │ │ └─z = 1
-    │ │ │ ├─"test/test_expect_test.ml":49:40-51:55: loop_complete
+    │ │ │ ├─"test/test_expect_test.ml":48:40-50:55: loop_complete
     │ │ │ │ ├─x = 3
-    │ │ │ │ ├─"test/test_expect_test.ml":50:8:
+    │ │ │ │ ├─"test/test_expect_test.ml":49:8:
     │ │ │ │ │ └─z = 1
-    │ │ │ │ ├─"test/test_expect_test.ml":49:40-51:55: loop_complete
+    │ │ │ │ ├─"test/test_expect_test.ml":48:40-50:55: loop_complete
     │ │ │ │ │ ├─x = 2
-    │ │ │ │ │ ├─"test/test_expect_test.ml":50:8:
+    │ │ │ │ │ ├─"test/test_expect_test.ml":49:8:
     │ │ │ │ │ │ └─z = 0
-    │ │ │ │ │ ├─"test/test_expect_test.ml":49:40-51:55: loop_complete
+    │ │ │ │ │ ├─"test/test_expect_test.ml":48:40-50:55: loop_complete
     │ │ │ │ │ │ ├─x = 1
-    │ │ │ │ │ │ ├─"test/test_expect_test.ml":50:8:
+    │ │ │ │ │ │ ├─"test/test_expect_test.ml":49:8:
     │ │ │ │ │ │ │ └─z = 0
-    │ │ │ │ │ │ ├─"test/test_expect_test.ml":49:40-51:55: loop_complete
+    │ │ │ │ │ │ ├─"test/test_expect_test.ml":48:40-50:55: loop_complete
     │ │ │ │ │ │ │ ├─x = 0
-    │ │ │ │ │ │ │ ├─"test/test_expect_test.ml":50:8:
+    │ │ │ │ │ │ │ ├─"test/test_expect_test.ml":49:8:
     │ │ │ │ │ │ │ │ └─z = 0
     │ │ │ │ │ │ │ └─loop_complete = 0
     │ │ │ │ │ │ └─loop_complete = 0
@@ -100,17 +99,17 @@ let%expect_test "%debug_show PrintBox to stdout disabled subtree" =
     if x <= 0 then 0 else z + loop_changes (z + x / 2) in
 let () = print_endline @@ Int.to_string @@ loop_changes 7 in
 [%expect {|
-  "test/test_expect_test.ml":96:39-100:54: loop_changes
+  "test/test_expect_test.ml":95:39-99:54: loop_changes
   ├─x = 7
-  ├─"test/test_expect_test.ml":97:8:
+  ├─"test/test_expect_test.ml":96:8:
   │ └─z = 3
-  ├─"test/test_expect_test.ml":96:39-100:54: loop_changes
+  ├─"test/test_expect_test.ml":95:39-99:54: loop_changes
   │ ├─x = 6
-  │ ├─"test/test_expect_test.ml":97:8:
+  │ ├─"test/test_expect_test.ml":96:8:
   │ │ └─z = 2
-  │ ├─"test/test_expect_test.ml":96:39-100:54: loop_changes
+  │ ├─"test/test_expect_test.ml":95:39-99:54: loop_changes
   │ │ ├─x = 5
-  │ │ ├─"test/test_expect_test.ml":97:8:
+  │ │ ├─"test/test_expect_test.ml":96:8:
   │ │ │ └─z = 2
   │ │ └─loop_changes = 4
   │ └─loop_changes = 6
@@ -129,36 +128,36 @@ let%expect_test "%debug_show PrintBox to stdout with exception" =
     with _ -> print_endline "Raised exception." in
   [%expect {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":123:41-126:34: loop_truncated
+    "test/test_expect_test.ml":122:41-125:34: loop_truncated
     ├─x = 7
-    ├─"test/test_expect_test.ml":124:8:
+    ├─"test/test_expect_test.ml":123:8:
     │ └─z = 3
-    └─"test/test_expect_test.ml":123:41-126:34: loop_truncated
+    └─"test/test_expect_test.ml":122:41-125:34: loop_truncated
       ├─x = 6
-      ├─"test/test_expect_test.ml":124:8:
+      ├─"test/test_expect_test.ml":123:8:
       │ └─z = 2
-      └─"test/test_expect_test.ml":123:41-126:34: loop_truncated
+      └─"test/test_expect_test.ml":122:41-125:34: loop_truncated
         ├─x = 5
-        ├─"test/test_expect_test.ml":124:8:
+        ├─"test/test_expect_test.ml":123:8:
         │ └─z = 2
-        └─"test/test_expect_test.ml":123:41-126:34: loop_truncated
+        └─"test/test_expect_test.ml":122:41-125:34: loop_truncated
           ├─x = 4
-          ├─"test/test_expect_test.ml":124:8:
+          ├─"test/test_expect_test.ml":123:8:
           │ └─z = 1
-          └─"test/test_expect_test.ml":123:41-126:34: loop_truncated
+          └─"test/test_expect_test.ml":122:41-125:34: loop_truncated
             ├─x = 3
-            ├─"test/test_expect_test.ml":124:8:
+            ├─"test/test_expect_test.ml":123:8:
             │ └─z = 1
-            └─"test/test_expect_test.ml":123:41-126:34: loop_truncated
+            └─"test/test_expect_test.ml":122:41-125:34: loop_truncated
               ├─x = 2
-              ├─"test/test_expect_test.ml":124:8:
+              ├─"test/test_expect_test.ml":123:8:
               │ └─z = 0
-              └─"test/test_expect_test.ml":123:41-126:34: loop_truncated
+              └─"test/test_expect_test.ml":122:41-125:34: loop_truncated
                 ├─x = 1
-                ├─"test/test_expect_test.ml":124:8:
+                ├─"test/test_expect_test.ml":123:8:
                 │ └─z = 0
-                └─"test/test_expect_test.ml":123:41-126:34: loop_truncated
+                └─"test/test_expect_test.ml":122:41-125:34: loop_truncated
                   ├─x = 0
-                  └─"test/test_expect_test.ml":124:8:
+                  └─"test/test_expect_test.ml":123:8:
                     └─z = 0
     Raised exception. |}]

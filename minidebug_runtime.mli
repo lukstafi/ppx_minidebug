@@ -4,11 +4,9 @@
 
 module type Debug_ch = sig val debug_ch : out_channel val time_tagged : bool end
 
-(** Opens a file with the given path for appending. Debugging is time tagged. *)
-module Debug_ch : functor(_ : sig val filename : string end) -> Debug_ch
-
-(** Opens a file with the given path for appending. Debugging is not time tagged. *)
-module Debug_ch_no_time_tags : functor(_ : sig val filename : string end) -> Debug_ch
+(** Opens a file with the given path. By default the logging will be time tagged and appending
+    to the file. *)
+val debug_ch : ?time_tagged:bool -> ?for_append:bool -> string -> (module Debug_ch)
 
 (** When using the
     {{:http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html}

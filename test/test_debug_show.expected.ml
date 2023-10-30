@@ -1,11 +1,8 @@
-module Debug_runtime =
-  (Minidebug_runtime.Flushing)((Minidebug_runtime.Debug_ch_no_time_tags)(
-  struct
-    let filename = "debugger_show_flushing.log"
-  end))
+module Debug_runtime = (Minidebug_runtime.Flushing)((val
+  Minidebug_runtime.debug_ch "debugger_show_flushing.log"))
 let foo (x : int) =
   ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_show.ml"
-      ~start_lnum:5 ~start_colnum:19 ~end_lnum:7 ~end_colnum:15
+      ~start_lnum:5 ~start_colnum:19 ~end_lnum:7 ~end_colnum:17
       ~message:"foo";
     Debug_runtime.log_value_show ~descr:"x" ~v:(([%show : int]) x));
    (match let y : int =
@@ -32,12 +29,12 @@ type t = {
   second: int }[@@deriving show]
 let bar (x : t) =
   ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_show.ml"
-      ~start_lnum:12 ~start_colnum:19 ~end_lnum:12 ~end_colnum:73
+      ~start_lnum:13 ~start_colnum:19 ~end_lnum:15 ~end_colnum:14
       ~message:"bar";
     Debug_runtime.log_value_show ~descr:"x" ~v:(([%show : t]) x));
    (match let y : int =
             Debug_runtime.open_log_preamble_brief ~fname:"test_debug_show.ml"
-              ~pos_lnum:12 ~pos_colnum:37 ~message:" ";
+              ~pos_lnum:14 ~pos_colnum:6 ~message:" ";
             (match (x.first + 1 : int) with
              | y__res ->
                  (Debug_runtime.log_value_show ~descr:"y"
@@ -56,12 +53,12 @@ let bar (x : t) =
 let () = ignore @@ (bar { first = 7; second = 42 })
 let baz (x : t) =
   ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_show.ml"
-      ~start_lnum:15 ~start_colnum:19 ~end_lnum:16 ~end_colnum:67
+      ~start_lnum:19 ~start_colnum:19 ~end_lnum:21 ~end_colnum:20
       ~message:"baz";
     Debug_runtime.log_value_show ~descr:"x" ~v:(([%show : t]) x));
    (match let (((y, z) as _yz) : (int * int)) =
             Debug_runtime.open_log_preamble_brief ~fname:"test_debug_show.ml"
-              ~pos_lnum:16 ~pos_colnum:15 ~message:" ";
+              ~pos_lnum:20 ~pos_colnum:17 ~message:" ";
             (match ((x.first + 1), 3) with
              | _yz__res ->
                  (Debug_runtime.log_value_show ~descr:"_yz"
@@ -80,7 +77,7 @@ let baz (x : t) =
 let () = ignore @@ (baz { first = 7; second = 42 })
 let rec loop (depth : int) (x : t) =
   (((Debug_runtime.open_log_preamble_full ~fname:"test_debug_show.ml"
-       ~start_lnum:19 ~start_colnum:24 ~end_lnum:25 ~end_colnum:9
+       ~start_lnum:25 ~start_colnum:24 ~end_lnum:31 ~end_colnum:9
        ~message:"loop";
      Debug_runtime.log_value_show ~descr:"depth" ~v:(([%show : int]) depth));
     Debug_runtime.log_value_show ~descr:"x" ~v:(([%show : t]) x));
@@ -94,7 +91,7 @@ let rec loop (depth : int) (x : t) =
             else
               (let y : int =
                  Debug_runtime.open_log_preamble_brief
-                   ~fname:"test_debug_show.ml" ~pos_lnum:23 ~pos_colnum:8
+                   ~fname:"test_debug_show.ml" ~pos_lnum:29 ~pos_colnum:8
                    ~message:" ";
                  (match (loop (depth + 1)
                            { first = (x.second - 1); second = (x.first + 2) } : 
@@ -108,7 +105,7 @@ let rec loop (depth : int) (x : t) =
                   | exception e -> (Debug_runtime.close_log (); raise e)) in
                let z : int =
                  Debug_runtime.open_log_preamble_brief
-                   ~fname:"test_debug_show.ml" ~pos_lnum:24 ~pos_colnum:8
+                   ~fname:"test_debug_show.ml" ~pos_lnum:30 ~pos_colnum:8
                    ~message:" ";
                  (match (loop (depth + 1)
                            { first = (x.second + 1); second = y } : int)

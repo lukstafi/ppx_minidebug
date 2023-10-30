@@ -15,24 +15,17 @@ module type Debug_ch = sig
   val time_tagged : bool
 end
 
-module Debug_ch (File_name : sig
-  val filename : string
-end) : Debug_ch = struct
-  let debug_ch =
-    open_out_gen [ Open_creat; Open_text; Open_append ] 0o640 File_name.filename
+let debug_ch ?(time_tagged = false) ?(for_append = true) filename : (module Debug_ch) =
+  let module Result = struct
+    let debug_ch =
+      open_out_gen
+        [ Open_creat; Open_text; (if for_append then Open_append else Open_trunc) ]
+        0o640 filename
 
-  (* or: Stdio.Out_channel.create ~binary:false ~append:true File_name.v *)
-  let time_tagged = true
-end
-
-module Debug_ch_no_time_tags (File_name : sig
-  val filename : string
-end) : Debug_ch = struct
-  let debug_ch =
-    open_out_gen [ Open_creat; Open_text; Open_append ] 0o640 File_name.filename
-
-  let time_tagged = false
-end
+    (* or: Stdio.Out_channel.create ~binary:false ~append:true File_name.v *)
+    let time_tagged = time_tagged
+  end in
+  (module Result)
 
 module type Debug_runtime = sig
   val close_log : unit -> unit
