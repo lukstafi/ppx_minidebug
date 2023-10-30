@@ -44,7 +44,7 @@ let%expect_test "%debug_show flushing to stdout" =
     339 |}]
 
 let%expect_test "%debug_show PrintBox to stdout disabled subtree" =
-  let module Debug_runtime = Minidebug_runtime.PrintBox(struct let debug_ch = stdout let time_tagged = false end) in
+  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let%debug_this_show rec loop_complete (x: int): int =
     let z: int = (x - 1) / 2 in
     if x <= 0 then 0 else z + loop_complete (z + x / 2) in
@@ -118,7 +118,7 @@ let () = print_endline @@ Int.to_string @@ loop_changes 7 in
 
 
 let%expect_test "%debug_show PrintBox to stdout with exception" =
-  let module Debug_runtime = Minidebug_runtime.PrintBox(struct let debug_ch = stdout let time_tagged = false end) in
+  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let%debug_this_show rec loop_truncated (x: int): int =
     let z: int = (x - 1) / 2 in
     if x <= 0 then failwith "the log as for loop_complete but without return values";

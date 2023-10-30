@@ -43,18 +43,8 @@ module Pp_format : functor (_ : Debug_ch) -> Debug_runtime
     might be messy. The indentation is also smaller (half of PrintBox). *)
 module Flushing : functor (_ : Debug_ch) -> Debug_runtime
 
-(** The logged traces will be pretty-printed as trees using the `printbox` package. This logger
-    supports conditionally disabling a particular nesting of the logs, regardless of where
-    in the nesting level [no_debug_if] is called. *)
-module PrintBox : functor (_ : Debug_ch) -> sig
+module type Debug_runtime_cond = sig
   include Debug_runtime
-
-  val to_html : bool ref
-  (** While [true], logs are generated as html; if [false], as monospaced text. *)
-
-  val boxify_sexp_from_size : int ref
-  (** If positive, [Sexp.t]-based logs with this many or more atoms are converted to print-boxes
-      before logging. *)
 
   val no_debug_if : bool -> unit
   (** When passed true within the scope of a log subtree, disables the logging of this subtree and its
@@ -62,16 +52,30 @@ module PrintBox : functor (_ : Debug_ch) -> sig
       the log). *)
 end
 
+(** The logged traces will be pretty-printed as trees using the `printbox` package. This logger
+    supports conditionally disabling a particular nesting of the logs, regardless of where
+    in the nesting level [no_debug_if] is called. *)
+module PrintBox : functor (_ : Debug_ch) -> sig
+  include Debug_runtime_cond
+
+  val to_html : bool ref
+  (** While [true], logs are generated as html; if [false], as monospaced text. *)
+
+  val boxify_sexp_from_size : int ref
+  (** If positive, [Sexp.t]-based logs with this many or more atoms are converted to print-boxes
+      before logging. *)
+end
+
 val debug_html :
   ?time_tagged:bool ->
   ?for_append:bool ->
   ?boxify_sexp_from_size:int ->
   string ->
-  (module Debug_runtime)
+  (module Debug_runtime_cond)
 (** Creates a PrintBox-based debug runtime configured to output html to a file with the given name.
     By default the logging will not be time tagged and the file will be created or erased
     by this function. The default [boxify_sexp_from_size] value is 50. *)
 
-val debug : ?debug_ch:out_channel -> ?time_tagged:bool -> unit -> (module Debug_runtime)
+val debug : ?debug_ch:out_channel -> ?time_tagged:bool -> unit -> (module Debug_runtime_cond)
 (** Creates a PrintBox-based debug runtime. By default it will log to [stdout] and will not be
     time tagged. *)

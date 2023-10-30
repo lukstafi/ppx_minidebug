@@ -46,6 +46,15 @@ module type Debug_runtime = sig
   val log_value_show : descr:string -> v:string -> unit
 end
 
+module type Debug_runtime_cond = sig
+  include Debug_runtime
+
+  val no_debug_if : bool -> unit
+  (** When passed true within the scope of a log subtree, disables the logging of this subtree and its
+      subtrees. Does not do anything when passed false ([no_debug_if false] does {e not} re-enable
+      the log). *)
+end
+
 module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
   open Log_to
 
@@ -242,11 +251,11 @@ module PrintBox (Log_to : Debug_ch) = struct
 end
 
 let debug_html ?(time_tagged = false) ?(for_append = false) ?(boxify_sexp_from_size = 50)
-    filename : (module Debug_runtime) =
+    filename : (module Debug_runtime_cond) =
   let module Debug = PrintBox ((val debug_ch ~time_tagged ~for_append filename)) in
   Debug.to_html := true;
   Debug.boxify_sexp_from_size := boxify_sexp_from_size;
   (module Debug)
 
-let debug ?(debug_ch = stdout) ?(time_tagged = false) () : (module Debug_runtime) =
+let debug ?(debug_ch = stdout) ?(time_tagged = false) () : (module Debug_runtime_cond) =
   (module PrintBox (struct let debug_ch = debug_ch let time_tagged = time_tagged end))
