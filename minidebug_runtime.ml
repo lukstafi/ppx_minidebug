@@ -259,3 +259,6 @@ let debug_html ?(time_tagged = false) ?(for_append = false) ?(boxify_sexp_from_s
 
 let debug ?(debug_ch = stdout) ?(time_tagged = false) () : (module Debug_runtime_cond) =
   (module PrintBox (struct let debug_ch = debug_ch let time_tagged = time_tagged end))
+
+let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) () : (module Debug_runtime) =
+  (module Flushing (struct let debug_ch = debug_ch let time_tagged = time_tagged end))

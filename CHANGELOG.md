@@ -1,3 +1,9 @@
+## [0.6.0] -- current
+
+### Added
+
+- Runtime entry point `debug_flushing` that returns a `Flushing` runtime which by default logs to `stdout`.
+
 ## [0.5.0] -- 2023-10-29
 
 ### Added

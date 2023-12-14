@@ -79,3 +79,7 @@ val debug_html :
 val debug : ?debug_ch:out_channel -> ?time_tagged:bool -> unit -> (module Debug_runtime_cond)
 (** Creates a PrintBox-based debug runtime. By default it will log to [stdout] and will not be
     time tagged. *)
+
+val debug_flushing : ?debug_ch:out_channel -> ?time_tagged:bool -> unit -> (module Debug_runtime)
+(** Creates a PrintBox-based debug runtime. By default it will log to [stdout] and will not be
+    time tagged. *)
