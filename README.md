@@ -1,5 +1,4 @@
-ppx_minidebug
-=============
+# ppx_minidebug
 
 ## `ppx_minidebug`: A poor man's version of [`ppx_debug`](https://github.com/dariusf/ppx_debug)
 
@@ -17,12 +16,14 @@ To use `ppx_minidebug` in a Dune project, add/modify these stanzas: `(preprocess
 
 Define a `Debug_runtime` using the `Pp_format` functor. The helper functor `Debug_ch` opens a file for appending.
 E.g. either `module Debug_runtime = Minidebug_runtime.Pp_format(struct let debug_ch = stdout let time_tagged = true end)`, or:
+
 ```ocaml
 module Debug_runtime =
-  Minidebug_runtime.Pp_format(
-    Minidebug_runtime.Debug_ch(struct let filename = "path/to/debugger_format.log" end))
+  Minidebug_runtime.Pp_format((val Minidebug_runtime.debug_ch "path/to/debugger_format.log"))
 ```
+
 The logged traces will be indented using OCaml's `Format` module. Truncated example (using `%debug_pp`):
+
 ```ocaml
 BEGIN DEBUG SESSION at time 2023-03-02 22:20:39.302 +01:00
 "test/test_debug_pp.ml":4:17-4:71 at time 2023-03-02 22:20:39.302 +01:00: bar
@@ -44,18 +45,16 @@ depth = 0  x = { Test_debug_pp.first = 7; second = 42 }  "test/test_debug_pp.ml"
 ### `PrintBox`-based traces
 
 This runtime has the most features.
-Here we define a `Debug_runtime` directly using the `PrintBox`
-functor. E.g. either
-`module Debug_runtime = Minidebug_runtime.PrintBox(struct let debug_ch = stdout let time_tagged = true end)`,
-or:
+Here we define a `Debug_runtime` either using the entrypoint `module Debug_runtime = (val Minidebug_runtime.debug ())`,
+or using the `PrintBox` functor, e.g.:
 
 ```ocaml
 module Debug_runtime =
-  Minidebug_runtime.PrintBox(
-    Minidebug_runtime.Debug_ch(struct let filename = "path/to/debugger_printbox.log" end))
+  Minidebug_runtime.PrintBox((val Minidebug_runtime.debug_ch "path/to/debugger_printbox.log" end))
 ```
 
 The logged traces will be pretty-printed as trees using the `printbox` package. Truncated example (using `%debug_sexp`):
+
 ```ocaml
 BEGIN DEBUG SESSION at time 2023-03-02 22:20:39.305 +01:00
 "test/test_debug_sexp.ml":4:19-6:15 at time
@@ -92,6 +91,7 @@ BEGIN DEBUG SESSION at time 2023-03-02 22:20:39.305 +01:00
 
 This runtime also allows disabling the logging of specified subtrees, when the output is irrelevant or would be a distraction.
 The test suite example:
+
 ```ocaml
   let%debug_this_show rec fixpoint_changes (x: int): int =
     let z: int = (x - 1) / 2 in
@@ -101,7 +101,9 @@ The test suite example:
     if x <= 0 then 0 else z + fixpoint_changes (z + x / 2) in
   print_endline @@ Int.to_string @@ fixpoint_changes 7
 ```
+
 leads to:
+
 ```ocaml
   "test/test_expect_test.ml":96:43-100:58: fixpoint_changes
   ├─x = 7
@@ -131,6 +133,7 @@ module Debug_runtime =
 let () = Debug_runtime.to_html := true
 let () = Debug_runtime.boxify_sexp_from_size := 50
 ```
+
 Here we also convert the logged `sexp` values (with at least 50 atoms) to trees. Example result:
 ![PrintBox runtime with collapsible/foldable trees](docs/ppx_minidebug-foldable_trees.png)
 
@@ -148,16 +151,31 @@ Similarly, `debug` returns a `PrintBox` module, which by default logs to `stdout
 module Debug_runtime = (val Minidebug_runtime.debug ())
 ```
 
-### `Flushing`-based traces
+### Breaking infinite recursion with `max_nesting_depth`; `Flushing`-based traces
 
-Define a `Debug_runtime` using the `Flushing` functor.
-E.g. either `module Debug_runtime = Minidebug_runtime.Flushing(struct let debug_ch = stdout let time_tagged = true end)`, or:
+The `PrintBox` and `Pp_format` backends only produce any output when a top-level log entry gets closed. This makes it harder to debug infinite loops and especially infinite recursion. The setting `max_nesting_depth` terminates a computation when the given log nesting is exceeded. For example:
+
+```ocaml
+let module Debug_runtime = (val Minidebug_runtime.debug ~max_nesting_depth:5 ()) in
+let%debug_this_show rec loop_exceeded (x : int) : int =
+  let z : int = (x - 1) / 2 in
+  if x <= 0 then 0 else z + loop_exceeded (z + (x / 2))
+
+let () =
+  try print_endline @@ Int.to_string @@ loop_exceeded 7
+  with _ -> print_endline "Raised exception."
+```
+
+If that is insufficient, you can define a `Debug_runtime` using the `Flushing` functor.
+E.g. either `module Debug_runtime = (val Minidebug_runtime.debug_flushing ())`, or:
+
 ```ocaml
 module Debug_runtime =
-  Minidebug_runtime.Flushing(
-    Minidebug_runtime.Debug_ch(struct let filename = "path/to/debugger_flushing.log" end))
+  Minidebug_runtime.Flushing((val Minidebug_runtime.debug_ch "path/to/debugger_flushing.log"))
 ```
+
 The logged traces are still indented, but if the values to print are multi-line, their formatting might be messy. The benefit of `Flushing` traces is that the output is flushed line-at-a-time, so no output should be lost if the traced program crashes. But in recent versions of `ppx_minidebug`, uncaught exceptions no longer break logging in the `PrintBox` and `Pp_format` runtimes. The indentation is also smaller (half of `PrintBox`). Truncated example (using `%debug_show`):
+
 ```ocaml
 BEGIN DEBUG SESSION at time 2023-03-02 23:19:40.763950 +01:00
 2023-03-02 23:19:40.763980 +01:00 - foo begin "test/test_debug_show.ml":3:19-5:15
@@ -226,6 +244,7 @@ The sub-millisecond functionality is now upstreamed to [Log Inspector](https://m
 This will expand your general-purpose VS Code toolbox!
 
 [Find and Transform](https://marketplace.visualstudio.com/items?itemName=ArturoDent.find-and-transform) is a powerful VS Code extension. I put the following in my `keybindings.json` file (command: `Open Keyboard Shortcuts (JSON)`):
+
 ```json
   {
     "key": "alt+q",
@@ -250,4 +269,5 @@ This will expand your general-purpose VS Code toolbox!
     }
   }
 ```
+
 Then, pressing `alt+q` will go to the file directly, assuming the logs contain the full relative path.

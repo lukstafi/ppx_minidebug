@@ -38,15 +38,13 @@ functions inside [compute value], but it will not trace [body].
 
 Example setting up a logger printing to the screen:
 {[
-module Debug_runtime =
-  Minidebug_runtime.Flushing(struct let debug_ch = stdout let time_tagged = true end)
+module Debug_runtime = (val Minidebug_runtime.debug_flushing ())
 let%debug_show test_logging: string = "Hello World"
 ]}
 Example setting up a logger printing to a file:
 {[
 module Debug_runtime =
-  Minidebug_runtime.Flushing(
-    Minidebug_runtime.Debug_ch(struct let filename = "debugger_flushing.log" end))
+  Minidebug_runtime.Flushing((val Minidebug_runtime.debug_ch "debugger_flushing.log"))
 let%debug_show test_logging: string = "Hello World"
 ]}
 Example setting up a logger printing to an HTML file -- this is only poosible with the [PrintBox]
@@ -55,7 +53,7 @@ format (when they have at least 50 atoms). This means that both the log tree str
 structure of large values can be incrementally explored using collapsible trees in an HTML renderer.
 {[
 module Debug_runtime =
-  Minidebug_runtime.PrintBox (Debug_ch_no_time_tags (struct let filename = "debug.html" end))
+  Minidebug_runtime.PrintBox ((val Minidebug_runtime.debug_ch "debug.html"))
 let () = Debug_runtime.to_html := true
 let () = Debug_runtime.boxify_sexp_from_size := 50
 ]}
@@ -64,7 +62,8 @@ let () = Debug_runtime.boxify_sexp_from_size := 50
 {[
 module Debug_runtime = (val Minidebug_runtime.debug_html "debug.html")
 ]}
-Similarly, [debug] is a configurable shorthand that defaults to logging to [stdout].
+Similarly, [debug] and [debug_flushing] are configurable shorthands that defaults to logging to [stdout]
+or other channels.
 
 {2 VS Code suggestions}
 
