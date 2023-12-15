@@ -5,9 +5,15 @@
 module type Debug_ch = sig
   val debug_ch : out_channel
   val time_tagged : bool
+  val max_nesting_depth : int option
 end
 
-val debug_ch : ?time_tagged:bool -> ?for_append:bool -> string -> (module Debug_ch)
+val debug_ch :
+  ?time_tagged:bool ->
+  ?max_nesting_depth:int ->
+  ?for_append:bool ->
+  string ->
+  (module Debug_ch)
 (** Opens a file with the given path. By default the logging will not be time tagged and
     will be appending to the file. *)
 
@@ -33,6 +39,7 @@ module type Debug_runtime = sig
   val log_value_sexp : descr:string -> sexp:Sexplib0.Sexp.t -> unit
   val log_value_pp : descr:string -> pp:(Format.formatter -> 'a -> unit) -> v:'a -> unit
   val log_value_show : descr:string -> v:string -> unit
+  val exceeds_max_nesting : unit -> bool
 end
 
 (** The logged traces will be indented using OCaml's `Format` module. *)
@@ -68,6 +75,7 @@ end
 
 val debug_html :
   ?time_tagged:bool ->
+  ?max_nesting_depth:int ->
   ?for_append:bool ->
   ?boxify_sexp_from_size:int ->
   string ->
@@ -76,10 +84,20 @@ val debug_html :
     By default the logging will not be time tagged and the file will be created or erased
     by this function. The default [boxify_sexp_from_size] value is 50. *)
 
-val debug : ?debug_ch:out_channel -> ?time_tagged:bool -> unit -> (module Debug_runtime_cond)
+val debug :
+  ?debug_ch:out_channel ->
+  ?time_tagged:bool ->
+  ?max_nesting_depth:int ->
+  unit ->
+  (module Debug_runtime_cond)
 (** Creates a PrintBox-based debug runtime. By default it will log to [stdout] and will not be
     time tagged. *)
 
-val debug_flushing : ?debug_ch:out_channel -> ?time_tagged:bool -> unit -> (module Debug_runtime)
+val debug_flushing :
+  ?debug_ch:out_channel ->
+  ?time_tagged:bool ->
+  ?max_nesting_depth:int ->
+  unit ->
+  (module Debug_runtime)
 (** Creates a PrintBox-based debug runtime. By default it will log to [stdout] and will not be
     time tagged. *)

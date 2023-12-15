@@ -1,8 +1,9 @@
-## [0.6.0] -- current
+## [0.6.0] -- 2023-12-15
 
 ### Added
 
 - Runtime entry point `debug_flushing` that returns a `Flushing` runtime which by default logs to `stdout`.
+- A new optional setting `max_nesting_depth`, which terminates a computation with a `Failure` exception when the given nesting of logs is exceeded.
 
 ## [0.5.0] -- 2023-10-29
 

@@ -13,16 +13,18 @@ let timestamp_to_string () =
 module type Debug_ch = sig
   val debug_ch : out_channel
   val time_tagged : bool
+  val max_nesting_depth : int option
 end
 
-let debug_ch ?(time_tagged = false) ?(for_append = true) filename : (module Debug_ch) =
+let debug_ch ?(time_tagged = false) ?max_nesting_depth ?(for_append = true) filename :
+    (module Debug_ch) =
   let module Result = struct
     let debug_ch =
       if for_append then open_out_gen [ Open_creat; Open_append ] 0o640 filename
       else open_out filename
 
-    (* or: Stdio.Out_channel.create ~binary:false ~append:true File_name.v *)
     let time_tagged = time_tagged
+    let max_nesting_depth = max_nesting_depth
   end in
   (module Result)
 
@@ -44,6 +46,7 @@ module type Debug_runtime = sig
   val log_value_sexp : descr:string -> sexp:Sexplib0.Sexp.t -> unit
   val log_value_pp : descr:string -> pp:(Format.formatter -> 'a -> unit) -> v:'a -> unit
   val log_value_show : descr:string -> v:string -> unit
+  val exceeds_max_nesting : unit -> bool
 end
 
 module type Debug_runtime_cond = sig
@@ -55,6 +58,11 @@ module type Debug_runtime_cond = sig
       the log). *)
 end
 
+let exceeds_max_nesting ~nesting_depth ~max_nesting_depth =
+  match max_nesting_depth with
+  | None -> false
+  | Some max_nesting_depth -> max_nesting_depth < nesting_depth
+
 module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
   open Log_to
 
@@ -63,28 +71,37 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
     CFormat.pp_set_geometry ppf ~max_indent:50 ~margin:100;
     ppf
 
+  let nesting_depth = ref 0
+
   let () =
     if Log_to.time_tagged then
       CFormat.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
     else CFormat.fprintf ppf "@.BEGIN DEBUG SESSION@."
 
-  let close_log () = CFormat.pp_close_box ppf ()
+  let close_log () =
+    decr nesting_depth;
+    CFormat.pp_close_box ppf ()
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
-    CFormat.fprintf ppf "\"%s\":%d:%d:%s@ @[<hov 2>" fname pos_lnum pos_colnum message
+    CFormat.fprintf ppf "\"%s\":%d:%d:%s@ @[<hov 2>" fname pos_lnum pos_colnum message;
+    incr nesting_depth
 
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
       ~message =
     CFormat.fprintf ppf "@[\"%s\":%d:%d-%d:%d" fname start_lnum start_colnum end_lnum
       end_colnum;
     if Log_to.time_tagged then CFormat.fprintf ppf "@ at time@ %a" pp_timestamp ();
-    CFormat.fprintf ppf ": %s@]@ @[<hov 2>" message
+    CFormat.fprintf ppf ": %s@]@ @[<hov 2>" message;
+    incr nesting_depth
 
   let log_value_sexp ~descr ~sexp =
     CFormat.fprintf ppf "%s = %a@ @ " descr Sexplib0.Sexp.pp_hum sexp
 
   let log_value_pp ~descr ~pp ~v = CFormat.fprintf ppf "%s = %a@ @ " descr pp v
   let log_value_show ~descr ~v = CFormat.fprintf ppf "%s = %s@ @ " descr v
+
+  let exceeds_max_nesting () =
+    exceeds_max_nesting ~nesting_depth:!nesting_depth ~max_nesting_depth
 end
 
 module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
@@ -136,6 +153,9 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
 
   let log_value_show ~descr ~v =
     Printf.fprintf debug_ch "%s%s = %s\n%!" (indent ()) descr v
+
+  let exceeds_max_nesting () =
+    exceeds_max_nesting ~nesting_depth:(List.length !callstack) ~max_nesting_depth
 end
 
 module PrintBox (Log_to : Debug_ch) = struct
@@ -246,19 +266,33 @@ module PrintBox (Log_to : Debug_ch) = struct
   let log_value_show ~descr ~v =
     stack_next @@ B.sprintf_with_style B.Style.preformatted "%s = %s" descr v
 
+  let exceeds_max_nesting () =
+    exceeds_max_nesting ~nesting_depth:(List.length !stack) ~max_nesting_depth
+
   let no_debug_if cond =
     match !stack with (true, b) :: bs when cond -> stack := (false, b) :: bs | _ -> ()
 end
 
-let debug_html ?(time_tagged = false) ?(for_append = false) ?(boxify_sexp_from_size = 50)
-    filename : (module Debug_runtime_cond) =
-  let module Debug = PrintBox ((val debug_ch ~time_tagged ~for_append filename)) in
+let debug_html ?(time_tagged = false) ?max_nesting_depth ?(for_append = false)
+    ?(boxify_sexp_from_size = 50) filename : (module Debug_runtime_cond) =
+  let module Debug =
+    PrintBox ((val debug_ch ~time_tagged ~for_append ?max_nesting_depth filename)) in
   Debug.to_html := true;
   Debug.boxify_sexp_from_size := boxify_sexp_from_size;
   (module Debug)
 
-let debug ?(debug_ch = stdout) ?(time_tagged = false) () : (module Debug_runtime_cond) =
-  (module PrintBox (struct let debug_ch = debug_ch let time_tagged = time_tagged end))
+let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth () :
+    (module Debug_runtime_cond) =
+  (module PrintBox (struct
+    let debug_ch = debug_ch
+    let time_tagged = time_tagged
+    let max_nesting_depth = max_nesting_depth
+  end))
 
-let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) () : (module Debug_runtime) =
-  (module Flushing (struct let debug_ch = debug_ch let time_tagged = time_tagged end))
+let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth () :
+    (module Debug_runtime) =
+  (module Flushing (struct
+    let debug_ch = debug_ch
+    let time_tagged = time_tagged
+    let max_nesting_depth = max_nesting_depth
+  end))
