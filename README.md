@@ -129,7 +129,7 @@ The `PrintBox` runtime can be configured to output logs using HTML. The logs the
 
 ```ocaml
 module Debug_runtime =
-  Minidebug_runtime.PrintBox (Debug_ch_no_time_tags (struct let filename = "debug.html" end))
+  Minidebug_runtime.PrintBox ((val Minidebug_runtime.debug_ch "debug.html"))
 let () = Debug_runtime.to_html := true
 let () = Debug_runtime.boxify_sexp_from_size := 50
 ```
