@@ -1,3 +1,9 @@
+## [0.7.0] -- current
+
+### Added
+
+- A new optional setting `max_num_children`, which terminates a computation with a `Failure` exception when the given size of sibling logs is exceeded.
+
 ## [0.6.0] -- 2023-12-15
 
 ### Added

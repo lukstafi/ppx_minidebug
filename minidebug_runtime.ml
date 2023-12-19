@@ -14,10 +14,11 @@ module type Debug_ch = sig
   val debug_ch : out_channel
   val time_tagged : bool
   val max_nesting_depth : int option
+  val max_num_children : int option
 end
 
-let debug_ch ?(time_tagged = false) ?max_nesting_depth ?(for_append = true) filename :
-    (module Debug_ch) =
+let debug_ch ?(time_tagged = false) ?max_nesting_depth ?max_num_children
+    ?(for_append = true) filename : (module Debug_ch) =
   let module Result = struct
     let debug_ch =
       if for_append then open_out_gen [ Open_creat; Open_append ] 0o640 filename
@@ -25,6 +26,7 @@ let debug_ch ?(time_tagged = false) ?max_nesting_depth ?(for_append = true) file
 
     let time_tagged = time_tagged
     let max_nesting_depth = max_nesting_depth
+    let max_num_children = max_num_children
   end in
   (module Result)
 
@@ -47,6 +49,7 @@ module type Debug_runtime = sig
   val log_value_pp : descr:string -> pp:(Format.formatter -> 'a -> unit) -> v:'a -> unit
   val log_value_show : descr:string -> v:string -> unit
   val exceeds_max_nesting : unit -> bool
+  val exceeds_max_children : unit -> bool
 end
 
 module type Debug_runtime_cond = sig
@@ -58,10 +61,7 @@ module type Debug_runtime_cond = sig
       the log). *)
 end
 
-let exceeds_max_nesting ~nesting_depth ~max_nesting_depth =
-  match max_nesting_depth with
-  | None -> false
-  | Some max_nesting_depth -> max_nesting_depth < nesting_depth
+let exceeds ~value ~limit = match limit with None -> false | Some limit -> limit < value
 
 module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
   open Log_to
@@ -71,7 +71,7 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
     CFormat.pp_set_geometry ppf ~max_indent:50 ~margin:100;
     ppf
 
-  let nesting_depth = ref 0
+  let stack = ref []
 
   let () =
     if Log_to.time_tagged then
@@ -79,36 +79,55 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
     else CFormat.fprintf ppf "@.BEGIN DEBUG SESSION@."
 
   let close_log () =
-    decr nesting_depth;
+    (match !stack with
+    | [] -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
+    | _ :: tl -> stack := tl);
     CFormat.pp_close_box ppf ()
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
-    CFormat.fprintf ppf "\"%s\":%d:%d:%s@ @[<hov 2>" fname pos_lnum pos_colnum message;
-    incr nesting_depth
+    stack := 0 :: !stack;
+    CFormat.fprintf ppf "\"%s\":%d:%d:%s@ @[<hov 2>" fname pos_lnum pos_colnum message
 
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
       ~message =
+    stack := 0 :: !stack;
     CFormat.fprintf ppf "@[\"%s\":%d:%d-%d:%d" fname start_lnum start_colnum end_lnum
       end_colnum;
     if Log_to.time_tagged then CFormat.fprintf ppf "@ at time@ %a" pp_timestamp ();
-    CFormat.fprintf ppf ": %s@]@ @[<hov 2>" message;
-    incr nesting_depth
+    CFormat.fprintf ppf ": %s@]@ @[<hov 2>" message
 
   let log_value_sexp ~descr ~sexp =
+    (match !stack with
+    | num_children :: tl -> stack := (num_children + 1) :: tl
+    | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
     CFormat.fprintf ppf "%s = %a@ @ " descr Sexplib0.Sexp.pp_hum sexp
 
-  let log_value_pp ~descr ~pp ~v = CFormat.fprintf ppf "%s = %a@ @ " descr pp v
-  let log_value_show ~descr ~v = CFormat.fprintf ppf "%s = %s@ @ " descr v
+  let log_value_pp ~descr ~pp ~v =
+    (match !stack with
+    | num_children :: tl -> stack := (num_children + 1) :: tl
+    | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
+    CFormat.fprintf ppf "%s = %a@ @ " descr pp v
+
+  let log_value_show ~descr ~v =
+    (match !stack with
+    | num_children :: tl -> stack := (num_children + 1) :: tl
+    | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
+    CFormat.fprintf ppf "%s = %s@ @ " descr v
 
   let exceeds_max_nesting () =
-    exceeds_max_nesting ~nesting_depth:!nesting_depth ~max_nesting_depth
+    exceeds ~value:(List.length !stack) ~limit:max_nesting_depth
+
+  let exceeds_max_children () =
+    match !stack with
+    | [] -> false
+    | num_children :: _ -> exceeds ~value:num_children ~limit:max_num_children
 end
 
 module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
   open Log_to
 
-  let callstack = ref []
-  let indent () = String.make (List.length !callstack) ' '
+  let stack = ref []
+  let indent () = String.make (List.length !stack) ' '
 
   let () =
     if Log_to.time_tagged then
@@ -117,11 +136,11 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
     else Printf.fprintf debug_ch "\nBEGIN DEBUG SESSION\n%!"
 
   let close_log () =
-    match !callstack with
+    match !stack with
     | [] -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
-    | None :: tl -> callstack := tl
-    | Some message :: tl ->
-        callstack := tl;
+    | (None, _) :: tl -> stack := tl
+    | (Some message, _) :: tl ->
+        stack := tl;
         Printf.fprintf debug_ch "%s%!" (indent ());
         if Log_to.time_tagged then
           Printf.fprintf debug_ch "%s - %!" (timestamp_to_string ());
@@ -129,7 +148,7 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
         flush debug_ch
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
-    callstack := None :: !callstack;
+    stack := (None, 0) :: !stack;
     Printf.fprintf debug_ch "%s\"%s\":%d:%d:%s\n%!" (indent ()) fname pos_lnum pos_colnum
       message
 
@@ -139,23 +158,37 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
     if Log_to.time_tagged then Printf.fprintf debug_ch "%s - %!" (timestamp_to_string ());
     Printf.fprintf debug_ch "%s begin \"%s\":%d:%d-%d:%d\n%!" message fname start_lnum
       start_colnum end_lnum end_colnum;
-    callstack := Some message :: !callstack
+    stack := (Some message, 0) :: !stack
 
   let log_value_sexp ~descr ~sexp =
+    (match !stack with
+    | (hd, num_children) :: tl -> stack := (hd, num_children + 1) :: tl
+    | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
     Printf.fprintf debug_ch "%s%s = %s\n%!" (indent ()) descr
       (Sexplib0.Sexp.to_string_hum sexp)
 
   let log_value_pp ~descr ~pp ~v =
+    (match !stack with
+    | (hd, num_children) :: tl -> stack := (hd, num_children + 1) :: tl
+    | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
     let _ = CFormat.flush_str_formatter () in
     pp CFormat.str_formatter v;
     let v_str = CFormat.flush_str_formatter () in
     Printf.fprintf debug_ch "%s%s = %s\n%!" (indent ()) descr v_str
 
   let log_value_show ~descr ~v =
+    (match !stack with
+    | (hd, num_children) :: tl -> stack := (hd, num_children + 1) :: tl
+    | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
     Printf.fprintf debug_ch "%s%s = %s\n%!" (indent ()) descr v
 
   let exceeds_max_nesting () =
-    exceeds_max_nesting ~nesting_depth:(List.length !callstack) ~max_nesting_depth
+    exceeds ~value:(List.length !stack) ~limit:max_nesting_depth
+
+  let exceeds_max_children () =
+    match !stack with
+    | [] -> false
+    | (_, num_children) :: _ -> exceeds ~value:num_children ~limit:max_num_children
 end
 
 module PrintBox (Log_to : Debug_ch) = struct
@@ -253,6 +286,9 @@ module PrintBox (Log_to : Debug_ch) = struct
           (B.text_with_style B.Style.preformatted (descr ^ " ="))
           (List.map loop_atom l)
 
+  let num_children () =
+    match !stack with [] -> 0 | (_, (_, children)) :: _ -> List.length children
+
   let log_value_sexp ~descr ~sexp =
     if !boxify_sexp_from_size >= 0 then stack_next @@ boxify descr sexp
     else
@@ -264,35 +300,43 @@ module PrintBox (Log_to : Debug_ch) = struct
     stack_next @@ B.asprintf_with_style B.Style.preformatted "%s = %a" descr pp v
 
   let log_value_show ~descr ~v =
-    stack_next @@ B.sprintf_with_style B.Style.preformatted "%s = %s" descr v
-
-  let exceeds_max_nesting () =
-    exceeds_max_nesting ~nesting_depth:(List.length !stack) ~max_nesting_depth
+    stack_next
+    @@ B.sprintf_with_style B.Style.preformatted "%s = %s" descr v
 
   let no_debug_if cond =
     match !stack with (true, b) :: bs when cond -> stack := (false, b) :: bs | _ -> ()
+
+  let exceeds_max_nesting () =
+    exceeds ~value:(List.length !stack) ~limit:max_nesting_depth
+
+  let exceeds_max_children () = exceeds ~value:(num_children ()) ~limit:max_num_children
 end
 
-let debug_html ?(time_tagged = false) ?max_nesting_depth ?(for_append = false)
-    ?(boxify_sexp_from_size = 50) filename : (module Debug_runtime_cond) =
+let debug_html ?(time_tagged = false) ?max_nesting_depth ?max_num_children
+    ?(for_append = false) ?(boxify_sexp_from_size = 50) filename :
+    (module Debug_runtime_cond) =
   let module Debug =
-    PrintBox ((val debug_ch ~time_tagged ~for_append ?max_nesting_depth filename)) in
+    PrintBox
+      ((val debug_ch ~time_tagged ~for_append ?max_nesting_depth ?max_num_children
+              filename)) in
   Debug.to_html := true;
   Debug.boxify_sexp_from_size := boxify_sexp_from_size;
   (module Debug)
 
-let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth () :
-    (module Debug_runtime_cond) =
+let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_num_children
+    () : (module Debug_runtime_cond) =
   (module PrintBox (struct
     let debug_ch = debug_ch
     let time_tagged = time_tagged
     let max_nesting_depth = max_nesting_depth
+    let max_num_children = max_num_children
   end))
 
-let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth () :
-    (module Debug_runtime) =
+let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth
+    ?max_num_children () : (module Debug_runtime) =
   (module Flushing (struct
     let debug_ch = debug_ch
     let time_tagged = time_tagged
     let max_nesting_depth = max_nesting_depth
+    let max_num_children = max_num_children
   end))

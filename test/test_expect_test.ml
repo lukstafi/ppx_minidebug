@@ -214,3 +214,99 @@ let%expect_test "%debug_show PrintBox to stdout depth exceeded" =
               └─"test/test_expect_test.ml":186:8:
                 └─z = <max_nesting_depth exceeded>
       Raised exception. |}]
+
+let%expect_test "%debug_show PrintBox to stdout num children exceeded linear" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~max_num_children:10 ()) in
+  let () =
+    try
+      let%debug_this_show _bar : unit =
+        for i = 0 to 100 do
+          let _baz : int = i * 2 in
+          ()
+        done
+      in
+      ()
+    with Failure s -> print_endline @@ "Raised exception: " ^ s
+  in
+  [%expect
+    {|
+    BEGIN DEBUG SESSION
+    "test/test_expect_test.ml":222:26:
+    ├─"test/test_expect_test.ml":224:14:
+    │ └─_baz = 0
+    ├─"test/test_expect_test.ml":224:14:
+    │ └─_baz = 2
+    ├─"test/test_expect_test.ml":224:14:
+    │ └─_baz = 4
+    ├─"test/test_expect_test.ml":224:14:
+    │ └─_baz = 6
+    ├─"test/test_expect_test.ml":224:14:
+    │ └─_baz = 8
+    ├─"test/test_expect_test.ml":224:14:
+    │ └─_baz = 10
+    ├─"test/test_expect_test.ml":224:14:
+    │ └─_baz = 12
+    ├─"test/test_expect_test.ml":224:14:
+    │ └─_baz = 14
+    ├─"test/test_expect_test.ml":224:14:
+    │ └─_baz = 16
+    ├─"test/test_expect_test.ml":224:14:
+    │ └─_baz = 18
+    ├─"test/test_expect_test.ml":224:14:
+    │ └─_baz = 20
+    └─_baz = <max_num_children exceeded>
+    Raised exception: ppx_minidebug: max_num_children exceeded |}]
+
+let%expect_test "%debug_show PrintBox to stdout num children exceeded nested" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~max_num_children:10 ()) in
+  let%debug_this_show rec loop_exceeded (x : int) : int =
+    Array.fold_left ( + ) 0
+    @@ Array.init
+         (100 / (x + 1))
+         (fun i ->
+           let z : int = i + ((x - 1) / 2) in
+           if x <= 0 then i else i + loop_exceeded (z + (x / 2) - i))
+  in
+  let () =
+    try print_endline @@ Int.to_string @@ loop_exceeded 3
+    with Failure s -> print_endline @@ "Raised exception: " ^ s
+  in
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      "test/test_expect_test.ml":258:40-264:69: loop_exceeded
+      ├─x = 3
+      ├─"test/test_expect_test.ml":263:15:
+      │ └─z = 1
+      └─"test/test_expect_test.ml":258:40-264:69: loop_exceeded
+        ├─x = 2
+        ├─"test/test_expect_test.ml":263:15:
+        │ └─z = 0
+        └─"test/test_expect_test.ml":258:40-264:69: loop_exceeded
+          ├─x = 1
+          ├─"test/test_expect_test.ml":263:15:
+          │ └─z = 0
+          └─"test/test_expect_test.ml":258:40-264:69: loop_exceeded
+            ├─x = 0
+            ├─"test/test_expect_test.ml":263:15:
+            │ └─z = 0
+            ├─"test/test_expect_test.ml":263:15:
+            │ └─z = 1
+            ├─"test/test_expect_test.ml":263:15:
+            │ └─z = 2
+            ├─"test/test_expect_test.ml":263:15:
+            │ └─z = 3
+            ├─"test/test_expect_test.ml":263:15:
+            │ └─z = 4
+            ├─"test/test_expect_test.ml":263:15:
+            │ └─z = 5
+            ├─"test/test_expect_test.ml":263:15:
+            │ └─z = 6
+            ├─"test/test_expect_test.ml":263:15:
+            │ └─z = 7
+            ├─"test/test_expect_test.ml":263:15:
+            │ └─z = 8
+            ├─"test/test_expect_test.ml":263:15:
+            │ └─z = 9
+            └─z = <max_num_children exceeded>
+      Raised exception: ppx_minidebug: max_num_children exceeded |}]

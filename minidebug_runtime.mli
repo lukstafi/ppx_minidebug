@@ -6,11 +6,13 @@ module type Debug_ch = sig
   val debug_ch : out_channel
   val time_tagged : bool
   val max_nesting_depth : int option
+  val max_num_children : int option
 end
 
 val debug_ch :
   ?time_tagged:bool ->
   ?max_nesting_depth:int ->
+  ?max_num_children:int ->
   ?for_append:bool ->
   string ->
   (module Debug_ch)
@@ -40,6 +42,7 @@ module type Debug_runtime = sig
   val log_value_pp : descr:string -> pp:(Format.formatter -> 'a -> unit) -> v:'a -> unit
   val log_value_show : descr:string -> v:string -> unit
   val exceeds_max_nesting : unit -> bool
+  val exceeds_max_children : unit -> bool
 end
 
 (** The logged traces will be indented using OCaml's `Format` module. *)
@@ -76,6 +79,7 @@ end
 val debug_html :
   ?time_tagged:bool ->
   ?max_nesting_depth:int ->
+  ?max_num_children:int ->
   ?for_append:bool ->
   ?boxify_sexp_from_size:int ->
   string ->
@@ -88,6 +92,7 @@ val debug :
   ?debug_ch:out_channel ->
   ?time_tagged:bool ->
   ?max_nesting_depth:int ->
+  ?max_num_children:int ->
   unit ->
   (module Debug_runtime_cond)
 (** Creates a PrintBox-based debug runtime. By default it will log to [stdout] and will not be
@@ -97,6 +102,7 @@ val debug_flushing :
   ?debug_ch:out_channel ->
   ?time_tagged:bool ->
   ?max_nesting_depth:int ->
+  ?max_num_children:int ->
   unit ->
   (module Debug_runtime)
 (** Creates a PrintBox-based debug runtime. By default it will log to [stdout] and will not be
