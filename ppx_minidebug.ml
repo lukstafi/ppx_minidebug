@@ -164,24 +164,24 @@ let debug_fun callback bind descr_loc typ_opt1 exp =
   let result = pat2pat_res bind in
   let body =
     [%expr
-      [%e arg_logs];
-      if Debug_runtime.exceeds_max_nesting () then (
-        [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
-        Debug_runtime.close_log ();
-        failwith "ppx_minidebug: max_nesting_depth exceeded")
-      else if Debug_runtime.exceeds_max_children () then (
+      if Debug_runtime.exceeds_max_children () then (
         [%e log_string ~loc ~descr_loc "<max_num_children exceeded>"];
-        Debug_runtime.close_log ();
         failwith "ppx_minidebug: max_num_children exceeded")
-      else
-        match [%e callback body] with
-        | [%p result] ->
-            [%e !log_value ~loc ~typ ~descr_loc (pat2expr result)];
-            Debug_runtime.close_log ();
-            [%e pat2expr result]
-        | exception e ->
-            Debug_runtime.close_log ();
-            raise e]
+      else (
+        [%e arg_logs];
+        if Debug_runtime.exceeds_max_nesting () then (
+          [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
+          Debug_runtime.close_log ();
+          failwith "ppx_minidebug: max_nesting_depth exceeded")
+        else
+          match [%e callback body] with
+          | [%p result] ->
+              [%e !log_value ~loc ~typ ~descr_loc (pat2expr result)];
+              Debug_runtime.close_log ();
+              [%e pat2expr result]
+          | exception e ->
+              Debug_runtime.close_log ();
+              raise e)]
   in
   let body =
     match typ_opt2 with None -> body | Some typ -> [%expr ([%e body] : [%t typ])]

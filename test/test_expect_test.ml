@@ -274,39 +274,39 @@ let%expect_test "%debug_show PrintBox to stdout num children exceeded nested" =
   [%expect
     {|
       BEGIN DEBUG SESSION
-      "test/test_expect_test.ml":258:40-264:69: loop_exceeded
+      "test/test_expect_test.ml":262:40-268:69: loop_exceeded
       ├─x = 3
-      ├─"test/test_expect_test.ml":263:15:
+      ├─"test/test_expect_test.ml":267:15:
       │ └─z = 1
-      └─"test/test_expect_test.ml":258:40-264:69: loop_exceeded
+      └─"test/test_expect_test.ml":262:40-268:69: loop_exceeded
         ├─x = 2
-        ├─"test/test_expect_test.ml":263:15:
+        ├─"test/test_expect_test.ml":267:15:
         │ └─z = 0
-        └─"test/test_expect_test.ml":258:40-264:69: loop_exceeded
+        └─"test/test_expect_test.ml":262:40-268:69: loop_exceeded
           ├─x = 1
-          ├─"test/test_expect_test.ml":263:15:
+          ├─"test/test_expect_test.ml":267:15:
           │ └─z = 0
-          └─"test/test_expect_test.ml":258:40-264:69: loop_exceeded
+          └─"test/test_expect_test.ml":262:40-268:69: loop_exceeded
             ├─x = 0
-            ├─"test/test_expect_test.ml":263:15:
+            ├─"test/test_expect_test.ml":267:15:
             │ └─z = 0
-            ├─"test/test_expect_test.ml":263:15:
+            ├─"test/test_expect_test.ml":267:15:
             │ └─z = 1
-            ├─"test/test_expect_test.ml":263:15:
+            ├─"test/test_expect_test.ml":267:15:
             │ └─z = 2
-            ├─"test/test_expect_test.ml":263:15:
+            ├─"test/test_expect_test.ml":267:15:
             │ └─z = 3
-            ├─"test/test_expect_test.ml":263:15:
+            ├─"test/test_expect_test.ml":267:15:
             │ └─z = 4
-            ├─"test/test_expect_test.ml":263:15:
+            ├─"test/test_expect_test.ml":267:15:
             │ └─z = 5
-            ├─"test/test_expect_test.ml":263:15:
+            ├─"test/test_expect_test.ml":267:15:
             │ └─z = 6
-            ├─"test/test_expect_test.ml":263:15:
+            ├─"test/test_expect_test.ml":267:15:
             │ └─z = 7
-            ├─"test/test_expect_test.ml":263:15:
+            ├─"test/test_expect_test.ml":267:15:
             │ └─z = 8
-            ├─"test/test_expect_test.ml":263:15:
+            ├─"test/test_expect_test.ml":267:15:
             │ └─z = 9
             └─z = <max_num_children exceeded>
       Raised exception: ppx_minidebug: max_num_children exceeded |}]
