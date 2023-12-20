@@ -151,12 +151,13 @@ Similarly, `debug` returns a `PrintBox` module, which by default logs to `stdout
 module Debug_runtime = (val Minidebug_runtime.debug ())
 ```
 
-### Breaking infinite recursion with `max_nesting_depth`; `Flushing`-based traces
+### Breaking infinite recursion with `max_nesting_depth` and looping with `max_num_children`; `Flushing`-based traces
 
 The `PrintBox` and `Pp_format` backends only produce any output when a top-level log entry gets closed. This makes it harder to debug infinite loops and especially infinite recursion. The setting `max_nesting_depth` terminates a computation when the given log nesting is exceeded. For example:
 
 ```ocaml
-let module Debug_runtime = (val Minidebug_runtime.debug ~max_nesting_depth:5 ()) in
+module Debug_runtime = (val Minidebug_runtime.debug ~max_nesting_depth:5 ())
+
 let%debug_this_show rec loop_exceeded (x : int) : int =
   let z : int = (x - 1) / 2 in
   if x <= 0 then 0 else z + loop_exceeded (z + (x / 2))
@@ -164,6 +165,18 @@ let%debug_this_show rec loop_exceeded (x : int) : int =
 let () =
   try print_endline @@ Int.to_string @@ loop_exceeded 7
   with _ -> print_endline "Raised exception."
+```
+
+Similarly, `max_num_children` raises a failure when the given number of logs with the same parent is exceeded. For example:
+
+```ocaml
+module Debug_runtime = (val Minidebug_runtime.debug ~max_num_children:50 ())
+
+let%debug_this_show _bar : unit =
+  for i = 0 to 100 do
+    let _baz : int = i * 2 in
+    ()
+  done
 ```
 
 If that is insufficient, you can define a `Debug_runtime` using the `Flushing` functor.
