@@ -47,7 +47,7 @@ module Debug_runtime =
   Minidebug_runtime.Flushing((val Minidebug_runtime.debug_ch "debugger_flushing.log"))
 let%debug_show test_logging: string = "Hello World"
 ]}
-Example setting up a logger printing to an HTML file -- this is only poosible with the [PrintBox]
+Example setting up a logger printing to an HTML file -- this is only possible with the [PrintBox]
 runtime. In this example, we also configure the converting the [sexp]-based logs to the [PrintBox]
 format (when they have at least 50 atoms). This means that both the log tree structure and the
 structure of large values can be incrementally explored using collapsible trees in an HTML renderer.
@@ -62,8 +62,8 @@ let () = Debug_runtime.boxify_sexp_from_size := 50
 {[
 module Debug_runtime = (val Minidebug_runtime.debug_html "debug.html")
 ]}
-Similarly, [debug] and [debug_flushing] are configurable shorthands that defaults to logging to [stdout]
-or other channels.
+Similarly, [debug] and [debug_flushing] are configurable shorthands that default to logging to [stdout]
+(but accept a `~debug_ch` argument).
 
 {2 VS Code suggestions}
 
