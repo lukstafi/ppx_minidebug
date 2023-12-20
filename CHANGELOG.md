@@ -1,5 +1,7 @@
 ## [0.6.1] -- 2023-12-20
 
+Support for debugging infinite loops.
+
 ### Added
 
 - A new optional setting `max_num_children`, which terminates a computation with a `Failure` exception when the given size of sibling logs is exceeded.
