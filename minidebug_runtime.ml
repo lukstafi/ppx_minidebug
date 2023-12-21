@@ -231,10 +231,10 @@ module PrintBox (Log_to : Debug_ch) = struct
       | [ (true, b) ] ->
           let box = stack_to_tree b in
           if !to_html then
-            Out_channel.output_string debug_ch
+            output_string debug_ch
             @@ PrintBox_html.(to_string ~config:Config.(tree_summary true default) box)
           else PrintBox_text.output debug_ch box;
-          Out_channel.output_string debug_ch "\n";
+          output_string debug_ch "\n";
           []
           (* CFormat.fprintf ppf "@\n%!"; [] *)
       | _ -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
