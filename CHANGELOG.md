@@ -1,3 +1,9 @@
+## [0.6.2] -- 2023-12-21
+
+### Fixed
+
+- Backward compatibility: `Out_channel.output_string` --> `Stdlib.output_string`.
+
 ## [0.6.1] -- 2023-12-20
 
 Support for debugging infinite loops.

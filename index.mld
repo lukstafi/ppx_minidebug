@@ -65,6 +65,18 @@ module Debug_runtime = (val Minidebug_runtime.debug_html "debug.html")
 Similarly, [debug] and [debug_flushing] are configurable shorthands that default to logging to [stdout]
 (but accept a `~debug_ch` argument).
 
+{3 Debugging infinite loops}
+
+Computation can be optionally interruped using the [~max_nesting_depth] and [~max_num_children] settings.
+The first raises a failure when the nesting of logs exceeds the given threshold, the second raises
+a failure when the number of log entries under a single parent exceeds the threshold. E.g.:
+{[
+module Debug_runtime =
+  (val Minidebug_runtime.debug_html ~max_nesting_depth:20 ~max_num_children:50 "debug.html")
+]}
+
+The cutoff points are indicated in the logs.
+
 {2 VS Code suggestions}
 
 {3 Add / remove type annotations and visit files using {e VOCaml}}
