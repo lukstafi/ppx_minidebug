@@ -137,6 +137,10 @@ let () = Debug_runtime.boxify_sexp_from_size := 50
 Here we also convert the logged `sexp` values (with at least 50 atoms) to trees. Example result:
 ![PrintBox runtime with collapsible/foldable trees](docs/ppx_minidebug-foldable_trees.png)
 
+The `PrintBox` runtime also supports highlighting paths to logs that match a `highlight_terms`
+regular expression. For example:
+![PrintBox runtime with collapsible/foldable trees](docs/ppx_minidebug-html_highlights.png)
+
 #### `PrintBox` creating helpers with defaults: `debug` and `debug_html`
 
 The above configuration is more concisely just:

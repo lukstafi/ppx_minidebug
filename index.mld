@@ -77,6 +77,12 @@ module Debug_runtime =
 
 The cutoff points are indicated in the logs.
 
+{3 Searching and navigating the logs}
+
+Currently (since 0.7.0) there is just one support mechanism for taming complex logs: a [highlight_terms]
+regular expression in the PrintBox runtime. Paths to logs that match [highlight_terms] are printed with
+a highlight style.
+
 {2 VS Code suggestions}
 
 {3 Add / remove type annotations and visit files using {e VOCaml}}

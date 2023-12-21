@@ -196,6 +196,7 @@ module PrintBox (Log_to : Debug_ch) = struct
 
   let to_html = ref false
   let boxify_sexp_from_size = ref (-1)
+  let highlight_terms = ref None
 
   module B = PrintBox
 
@@ -204,12 +205,23 @@ module PrintBox (Log_to : Debug_ch) = struct
     CFormat.pp_set_geometry ppf ~max_indent:50 ~margin:100;
     ppf
 
-  let stack : (bool * (B.t * B.t list)) list ref = ref []
+  type entry = { cond : bool; highlight : bool; header : B.t; body : B.t list }
+
+  let stack : entry list ref = ref []
 
   let stack_next b =
+    let hl =
+      match !highlight_terms with
+      | Some r ->
+          let message = PrintBox_text.to_string_with ~style:false b in
+          Re.execp r message
+      | None -> false
+    in
+    let b = if hl then B.frame b else b in
     stack :=
       match !stack with
-      | (cond, (b1, bs1)) :: bs2 -> (cond, (b1, b :: bs1)) :: bs2
+      | ({ highlight; body; _ } as entry) :: bs2 ->
+          { entry with highlight = hl || highlight; body = b :: body } :: bs2
       | _ ->
           failwith
             "minidebug_runtime: a log_value must be preceded by an open_log_preamble"
@@ -219,17 +231,21 @@ module PrintBox (Log_to : Debug_ch) = struct
       CFormat.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
     else CFormat.fprintf ppf "@.BEGIN DEBUG SESSION@."
 
-  let stack_to_tree (b, bs) = B.tree b (List.rev bs)
+  let stack_to_tree { cond = _; highlight; header; body } =
+    B.tree (if highlight then B.frame header else header) (List.rev body)
 
   let close_log () =
     (* Note: we treat a tree under a box as part of that box. *)
     stack :=
       match !stack with
-      | (true, b) :: (cond, (b2, bs2)) :: bs3 ->
-          (cond, (b2, stack_to_tree b :: bs2)) :: bs3
-      | (false, _) :: bs -> bs
-      | [ (true, b) ] ->
-          let box = stack_to_tree b in
+      | ({ cond = true; highlight = hl1; _ } as entry)
+        :: { cond; highlight = hl2; header; body }
+        :: bs3 ->
+          { cond; highlight = hl1 || hl2; header; body = stack_to_tree entry :: body }
+          :: bs3
+      | { cond = false; _ } :: bs -> bs
+      | [ ({ cond = true; _ } as entry) ] ->
+          let box = stack_to_tree entry in
           if !to_html then
             output_string debug_ch
             @@ PrintBox_html.(to_string ~config:Config.(tree_summary true default) box)
@@ -240,12 +256,15 @@ module PrintBox (Log_to : Debug_ch) = struct
       | _ -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
-    let preamble = B.sprintf "\"%s\":%d:%d:%s" fname pos_lnum pos_colnum message in
-    stack := (true, (preamble, [])) :: !stack
+    let header = B.sprintf "\"%s\":%d:%d:%s" fname pos_lnum pos_colnum message in
+    let highlight =
+      match !highlight_terms with Some r -> Re.execp r message | None -> false
+    in
+    stack := { cond = true; header; body = []; highlight } :: !stack
 
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
       ~message =
-    let preamble =
+    let header =
       if Log_to.time_tagged then
         B.asprintf "@[\"%s\":%d:%d-%d:%d@ at time@ %a: %s@]" fname start_lnum start_colnum
           end_lnum end_colnum pp_timestamp () message
@@ -253,7 +272,10 @@ module PrintBox (Log_to : Debug_ch) = struct
         B.asprintf "@[\"%s\":%d:%d-%d:%d: %s@]" fname start_lnum start_colnum end_lnum
           end_colnum message
     in
-    stack := (true, (preamble, [])) :: !stack
+    let highlight =
+      match !highlight_terms with Some r -> Re.execp r message | None -> false
+    in
+    stack := { cond = true; highlight; header; body = [] } :: !stack
 
   let sexp_size sexp =
     let open Sexplib0.Sexp in
@@ -286,8 +308,7 @@ module PrintBox (Log_to : Debug_ch) = struct
           (B.text_with_style B.Style.preformatted (descr ^ " ="))
           (List.map loop_atom l)
 
-  let num_children () =
-    match !stack with [] -> 0 | (_, (_, children)) :: _ -> List.length children
+  let num_children () = match !stack with [] -> 0 | { body; _ } :: _ -> List.length body
 
   let log_value_sexp ~descr ~sexp =
     if !boxify_sexp_from_size >= 0 then stack_next @@ boxify descr sexp
@@ -300,11 +321,13 @@ module PrintBox (Log_to : Debug_ch) = struct
     stack_next @@ B.asprintf_with_style B.Style.preformatted "%s = %a" descr pp v
 
   let log_value_show ~descr ~v =
-    stack_next
-    @@ B.sprintf_with_style B.Style.preformatted "%s = %s" descr v
+    stack_next @@ B.sprintf_with_style B.Style.preformatted "%s = %s" descr v
 
   let no_debug_if cond =
-    match !stack with (true, b) :: bs when cond -> stack := (false, b) :: bs | _ -> ()
+    match !stack with
+    | ({ cond = true; _ } as entry) :: bs when cond ->
+        stack := { entry with cond = false } :: bs
+    | _ -> ()
 
   let exceeds_max_nesting () =
     exceeds ~value:(List.length !stack) ~limit:max_nesting_depth
@@ -313,7 +336,7 @@ module PrintBox (Log_to : Debug_ch) = struct
 end
 
 let debug_html ?(time_tagged = false) ?max_nesting_depth ?max_num_children
-    ?(for_append = false) ?(boxify_sexp_from_size = 50) filename :
+    ?highlight_terms ?(for_append = false) ?(boxify_sexp_from_size = 50) filename :
     (module Debug_runtime_cond) =
   let module Debug =
     PrintBox
@@ -321,16 +344,19 @@ let debug_html ?(time_tagged = false) ?max_nesting_depth ?max_num_children
               filename)) in
   Debug.to_html := true;
   Debug.boxify_sexp_from_size := boxify_sexp_from_size;
+  Debug.highlight_terms := Option.map Re.compile highlight_terms;
   (module Debug)
 
 let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_num_children
-    () : (module Debug_runtime_cond) =
-  (module PrintBox (struct
+    ?highlight_terms () : (module Debug_runtime_cond) =
+  let module Debug = PrintBox (struct
     let debug_ch = debug_ch
     let time_tagged = time_tagged
     let max_nesting_depth = max_nesting_depth
     let max_num_children = max_num_children
-  end))
+  end) in
+  Debug.highlight_terms := Option.map Re.compile highlight_terms;
+  (module Debug)
 
 let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth
     ?max_num_children () : (module Debug_runtime) =

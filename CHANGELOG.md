@@ -1,3 +1,9 @@
+## [0.7.0] -- current
+
+### Added
+
+- A new optional PrintBox-only setting `highlight_terms`, which applies a highlight style on paths to leaves matching a regular expression.
+
 ## [0.6.2] -- 2023-12-21
 
 ### Fixed

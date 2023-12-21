@@ -74,12 +74,16 @@ module PrintBox : functor (_ : Debug_ch) -> sig
   val boxify_sexp_from_size : int ref
   (** If positive, [Sexp.t]-based logs with this many or more atoms are converted to print-boxes
       before logging. *)
+
+  val highlight_terms : Re.re option ref
+  (** Uses a highlight style for logs on paths ending with a log matching the regular expression. *)
 end
 
 val debug_html :
   ?time_tagged:bool ->
   ?max_nesting_depth:int ->
   ?max_num_children:int ->
+  ?highlight_terms:Re.t ->
   ?for_append:bool ->
   ?boxify_sexp_from_size:int ->
   string ->
@@ -93,6 +97,7 @@ val debug :
   ?time_tagged:bool ->
   ?max_nesting_depth:int ->
   ?max_num_children:int ->
+  ?highlight_terms:Re.t ->
   unit ->
   (module Debug_runtime_cond)
 (** Creates a PrintBox-based debug runtime. By default it will log to [stdout] and will not be

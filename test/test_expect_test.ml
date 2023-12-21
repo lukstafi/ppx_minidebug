@@ -310,3 +310,71 @@ let%expect_test "%debug_show PrintBox to stdout num children exceeded nested" =
             │ └─z = 9
             └─z = <max_num_children exceeded>
       Raised exception: ppx_minidebug: max_num_children exceeded |}]
+
+let%expect_test "%debug_show PrintBox to stdout highlight" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~highlight_terms:(Re.str "3") ()) in
+  let%debug_this_show rec loop_highlight (x : int) : int =
+    let z : int = (x - 1) / 2 in
+    if x <= 0 then 0 else z + loop_highlight (z + (x / 2))
+  in
+  print_endline @@ Int.to_string @@ loop_highlight 7;
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      ┌────────────────────────────────────────────────────────┐
+      │"test/test_expect_test.ml":316:41-318:58: loop_highlight│
+      ├────────────────────────────────────────────────────────┘
+      ├─x = 7
+      ├─┬──────────────────────────────────┐
+      │ │"test/test_expect_test.ml":317:8: │
+      │ ├──────────────────────────────────┘
+      │ └─┬─────┐
+      │   │z = 3│
+      │   └─────┘
+      ├─┬────────────────────────────────────────────────────────┐
+      │ │"test/test_expect_test.ml":316:41-318:58: loop_highlight│
+      │ ├────────────────────────────────────────────────────────┘
+      │ ├─x = 6
+      │ ├─"test/test_expect_test.ml":317:8:
+      │ │ └─z = 2
+      │ ├─┬────────────────────────────────────────────────────────┐
+      │ │ │"test/test_expect_test.ml":316:41-318:58: loop_highlight│
+      │ │ ├────────────────────────────────────────────────────────┘
+      │ │ ├─x = 5
+      │ │ ├─"test/test_expect_test.ml":317:8:
+      │ │ │ └─z = 2
+      │ │ ├─┬────────────────────────────────────────────────────────┐
+      │ │ │ │"test/test_expect_test.ml":316:41-318:58: loop_highlight│
+      │ │ │ ├────────────────────────────────────────────────────────┘
+      │ │ │ ├─x = 4
+      │ │ │ ├─"test/test_expect_test.ml":317:8:
+      │ │ │ │ └─z = 1
+      │ │ │ ├─┬────────────────────────────────────────────────────────┐
+      │ │ │ │ │"test/test_expect_test.ml":316:41-318:58: loop_highlight│
+      │ │ │ │ ├────────────────────────────────────────────────────────┘
+      │ │ │ │ ├─┬─────┐
+      │ │ │ │ │ │x = 3│
+      │ │ │ │ │ └─────┘
+      │ │ │ │ ├─"test/test_expect_test.ml":317:8:
+      │ │ │ │ │ └─z = 1
+      │ │ │ │ ├─"test/test_expect_test.ml":316:41-318:58: loop_highlight
+      │ │ │ │ │ ├─x = 2
+      │ │ │ │ │ ├─"test/test_expect_test.ml":317:8:
+      │ │ │ │ │ │ └─z = 0
+      │ │ │ │ │ ├─"test/test_expect_test.ml":316:41-318:58: loop_highlight
+      │ │ │ │ │ │ ├─x = 1
+      │ │ │ │ │ │ ├─"test/test_expect_test.ml":317:8:
+      │ │ │ │ │ │ │ └─z = 0
+      │ │ │ │ │ │ ├─"test/test_expect_test.ml":316:41-318:58: loop_highlight
+      │ │ │ │ │ │ │ ├─x = 0
+      │ │ │ │ │ │ │ ├─"test/test_expect_test.ml":317:8:
+      │ │ │ │ │ │ │ │ └─z = 0
+      │ │ │ │ │ │ │ └─loop_highlight = 0
+      │ │ │ │ │ │ └─loop_highlight = 0
+      │ │ │ │ │ └─loop_highlight = 0
+      │ │ │ │ └─loop_highlight = 1
+      │ │ │ └─loop_highlight = 2
+      │ │ └─loop_highlight = 4
+      │ └─loop_highlight = 6
+      └─loop_highlight = 9
+      9 |}]
