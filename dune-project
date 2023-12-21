@@ -40,6 +40,7 @@
   (ppx_expect
    (and
     :with-test
-    (>= v0.9.0))))
+    (>= v0.9.0)))
+  (odoc :with-doc))
  (tags
   (logger debugger "printf debugging")))
