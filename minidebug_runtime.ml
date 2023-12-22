@@ -209,15 +209,7 @@ module PrintBox (Log_to : Debug_ch) = struct
 
   let stack : entry list ref = ref []
 
-  let stack_next b =
-    let hl =
-      match !highlight_terms with
-      | Some r ->
-          let message = PrintBox_text.to_string_with ~style:false b in
-          Re.execp r message
-      | None -> false
-    in
-    let b = if hl then B.frame b else b in
+  let stack_next (hl, b) =
     stack :=
       match !stack with
       | ({ highlight; body; _ } as entry) :: bs2 ->
@@ -285,43 +277,58 @@ module PrintBox (Log_to : Debug_ch) = struct
     in
     loop sexp
 
+  let highlight_box ?(hl_body = false) b =
+    if hl_body then (true, B.frame b)
+    else
+      match !highlight_terms with
+      | Some r ->
+          let message = PrintBox_text.to_string_with ~style:false b in
+          let hl = Re.execp r message in
+          (hl, if hl then B.frame b else b)
+      | None -> (false, b)
+
   let boxify descr sexp =
     let open Sexplib0.Sexp in
-    let rec loop_atom sexp =
-      if sexp_size sexp < !boxify_sexp_from_size then
-        B.asprintf_with_style B.Style.preformatted "%a" Sexplib0.Sexp.pp_hum sexp
+    let rec loop_atom ?(as_tree = false) sexp =
+      if (not as_tree) && sexp_size sexp < !boxify_sexp_from_size then
+        highlight_box
+        @@ B.asprintf_with_style B.Style.preformatted "%a" Sexplib0.Sexp.pp_hum sexp
       else
         match sexp with
-        | Atom s -> B.text_with_style B.Style.preformatted s
-        | List [] -> B.empty
+        | Atom s -> highlight_box @@ B.text_with_style B.Style.preformatted s
+        | List [] -> (false, B.empty)
         | List [ s ] -> loop_atom s
         | List (Atom s :: l) ->
-            B.tree (B.text_with_style B.Style.preformatted s) (List.map loop_atom l)
-        | List l -> B.vlist (List.map loop_atom l)
+            let hl_body, bs = List.split @@ List.map loop_atom l in
+            let hl_body = List.exists (fun x -> x) hl_body in
+            let hl, b = highlight_box ~hl_body @@ B.text_with_style B.Style.preformatted s in
+            (hl_body || hl, B.tree b bs)
+        | List l ->
+            let hls, bs = List.split @@ List.map loop_atom l in
+            (List.exists (fun x -> x) hls, B.vlist bs)
     in
     match sexp with
     | Atom s | List [ Atom s ] ->
-        B.text_with_style B.Style.preformatted (descr ^ " = " ^ s)
-    | List [] -> B.empty
-    | List l ->
-        B.tree
-          (B.text_with_style B.Style.preformatted (descr ^ " ="))
-          (List.map loop_atom l)
+        highlight_box @@ B.text_with_style B.Style.preformatted (descr ^ " = " ^ s)
+    | List [] -> (false, B.empty)
+    | List l -> loop_atom ~as_tree:true @@ List (Atom (descr ^ " =") :: l)
 
   let num_children () = match !stack with [] -> 0 | { body; _ } :: _ -> List.length body
 
   let log_value_sexp ~descr ~sexp =
     if !boxify_sexp_from_size >= 0 then stack_next @@ boxify descr sexp
     else
-      stack_next
+      stack_next @@ highlight_box
       @@ B.asprintf_with_style B.Style.preformatted "%s = %a" descr Sexplib0.Sexp.pp_hum
            sexp
 
   let log_value_pp ~descr ~pp ~v =
-    stack_next @@ B.asprintf_with_style B.Style.preformatted "%s = %a" descr pp v
+    stack_next @@ highlight_box
+    @@ B.asprintf_with_style B.Style.preformatted "%s = %a" descr pp v
 
   let log_value_show ~descr ~v =
-    stack_next @@ B.sprintf_with_style B.Style.preformatted "%s = %s" descr v
+    stack_next @@ highlight_box
+    @@ B.sprintf_with_style B.Style.preformatted "%s = %s" descr v
 
   let no_debug_if cond =
     match !stack with
