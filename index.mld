@@ -81,7 +81,7 @@ The cutoff points are indicated in the logs.
 
 Currently (since 0.7.0) there is just one support mechanism for taming complex logs: a [highlight_terms]
 regular expression in the PrintBox runtime. Paths to logs that match [highlight_terms] are printed with
-a highlight style.
+a frame / border: around the log and summaries on the path.
 
 {2 VS Code suggestions}
 

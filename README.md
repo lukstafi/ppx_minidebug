@@ -139,14 +139,14 @@ Here we also convert the logged `sexp` values (with at least 50 atoms) to trees.
 
 The `PrintBox` runtime also supports highlighting paths to logs that match a `highlight_terms`
 regular expression. For example:
-![PrintBox runtime with collapsible/foldable trees](docs/ppx_minidebug-html_highlights.png)
+![PrintBox runtime with collapsible/foldable trees](docs/ppx_minidebug-highlight_term_169.png)
 
 #### `PrintBox` creating helpers with defaults: `debug` and `debug_html`
 
-The above configuration is more concisely just:
+The configuration for the above example is more concisely just:
 
 ```ocaml
-module Debug_runtime = (val Minidebug_runtime.debug_html "debug.html")
+module Debug_runtime = (val Minidebug_runtime.debug_html ~highlight_terms:(Re.str "169") "debug.html")
 ```
 
 Similarly, `debug` returns a `PrintBox` module, which by default logs to `stdout`:
