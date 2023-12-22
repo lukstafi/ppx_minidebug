@@ -141,6 +141,9 @@ The `PrintBox` runtime also supports highlighting paths to logs that match a `hi
 regular expression. For example:
 ![PrintBox runtime with collapsible/foldable trees](docs/ppx_minidebug-highlight_term_169.png)
 
+To limit the highlight noise, some log entries can be excluded from propagating the highlight status
+using the `exclude_on_path` setting.
+
 #### `PrintBox` creating helpers with defaults: `debug` and `debug_html`
 
 The configuration for the above example is more concisely just:

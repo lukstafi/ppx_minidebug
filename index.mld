@@ -81,7 +81,10 @@ The cutoff points are indicated in the logs.
 
 Currently (since 0.7.0) there is just one support mechanism for taming complex logs: a [highlight_terms]
 regular expression in the PrintBox runtime. Paths to logs that match [highlight_terms] are printed with
-a frame / border: around the log and summaries on the path.
+a frame / border: around the log and around summaries on the path to the log. A corresponding setting
+`exclude_on_path` will disable highlighting on logs (summaries) this regular expression matches on,
+regardless of children. Therefore, `exclude_on_path` stops the propagation of highlights upward.
+
 
 {2 VS Code suggestions}
 

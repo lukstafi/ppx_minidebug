@@ -197,6 +197,7 @@ module PrintBox (Log_to : Debug_ch) = struct
   let to_html = ref false
   let boxify_sexp_from_size = ref (-1)
   let highlight_terms = ref None
+  let exclude_on_path = ref None
 
   module B = PrintBox
 
@@ -205,15 +206,22 @@ module PrintBox (Log_to : Debug_ch) = struct
     CFormat.pp_set_geometry ppf ~max_indent:50 ~margin:100;
     ppf
 
-  type entry = { cond : bool; highlight : bool; header : B.t; body : B.t list }
+  type entry = {
+    cond : bool;
+    highlight : bool;
+    exclude : bool;
+    header : B.t;
+    body : B.t list;
+  }
 
   let stack : entry list ref = ref []
 
   let stack_next (hl, b) =
     stack :=
       match !stack with
-      | ({ highlight; body; _ } as entry) :: bs2 ->
-          { entry with highlight = hl || highlight; body = b :: body } :: bs2
+      | ({ highlight; exclude; body; _ } as entry) :: bs2 ->
+          { entry with highlight = highlight || ((not exclude) && hl); body = b :: body }
+          :: bs2
       | _ ->
           failwith
             "minidebug_runtime: a log_value must be preceded by an open_log_preamble"
@@ -223,17 +231,24 @@ module PrintBox (Log_to : Debug_ch) = struct
       CFormat.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
     else CFormat.fprintf ppf "@.BEGIN DEBUG SESSION@."
 
-  let stack_to_tree { cond = _; highlight; header; body } =
+  let stack_to_tree { cond = _; highlight; exclude = _; header; body } =
     B.tree (if highlight then B.frame header else header) (List.rev body)
 
   let close_log () =
     (* Note: we treat a tree under a box as part of that box. *)
     stack :=
+      (* Design choice: exclude does not apply to its own entry -- its about propagating children. *)
       match !stack with
-      | ({ cond = true; highlight = hl1; _ } as entry)
-        :: { cond; highlight = hl2; header; body }
+      | ({ cond = true; highlight = hl; exclude = _; _ } as entry)
+        :: { cond; highlight; exclude; header; body }
         :: bs3 ->
-          { cond; highlight = hl1 || hl2; header; body = stack_to_tree entry :: body }
+          {
+            cond;
+            highlight = highlight || ((not exclude) && hl);
+            exclude;
+            header;
+            body = stack_to_tree entry :: body;
+          }
           :: bs3
       | { cond = false; _ } :: bs -> bs
       | [ ({ cond = true; _ } as entry) ] ->
@@ -249,10 +264,14 @@ module PrintBox (Log_to : Debug_ch) = struct
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
     let header = B.sprintf "\"%s\":%d:%d:%s" fname pos_lnum pos_colnum message in
+    let exclude =
+      match !exclude_on_path with Some r -> Re.execp r message | None -> false
+    in
+    (* Design choice: we don't self-exclude from a log. *)
     let highlight =
       match !highlight_terms with Some r -> Re.execp r message | None -> false
     in
-    stack := { cond = true; header; body = []; highlight } :: !stack
+    stack := { cond = true; header; body = []; highlight; exclude } :: !stack
 
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
       ~message =
@@ -264,10 +283,13 @@ module PrintBox (Log_to : Debug_ch) = struct
         B.asprintf "@[\"%s\":%d:%d-%d:%d: %s@]" fname start_lnum start_colnum end_lnum
           end_colnum message
     in
+    let exclude =
+      match !exclude_on_path with Some r -> Re.execp r message | None -> false
+    in
     let highlight =
       match !highlight_terms with Some r -> Re.execp r message | None -> false
     in
-    stack := { cond = true; highlight; header; body = [] } :: !stack
+    stack := { cond = true; highlight; exclude; header; body = [] } :: !stack
 
   let sexp_size sexp =
     let open Sexplib0.Sexp in
@@ -278,14 +300,21 @@ module PrintBox (Log_to : Debug_ch) = struct
     loop sexp
 
   let highlight_box ?(hl_body = false) b =
-    if hl_body then (true, B.frame b)
-    else
-      match !highlight_terms with
-      | Some r ->
+    (* Recall the design choice: [exclude] does not apply to its own entry.
+       Therefore, an entry "propagates its highlight". *)
+    let hl =
+      match (!exclude_on_path, !highlight_terms, hl_body) with
+      | None, None, _ | Some _, None, false -> false
+      | Some e, hl_terms, true -> (
           let message = PrintBox_text.to_string_with ~style:false b in
-          let hl = Re.execp r message in
-          (hl, if hl then B.frame b else b)
-      | None -> (false, b)
+          let excl = Re.execp e message in
+          (not excl) || match hl_terms with None -> false | Some r -> Re.execp r message)
+      | None, Some _, true -> true
+      | _, Some r, false ->
+          let message = PrintBox_text.to_string_with ~style:false b in
+          Re.execp r message
+    in
+    (hl, if hl then B.frame b else b)
 
   let boxify descr sexp =
     let open Sexplib0.Sexp in
@@ -301,8 +330,10 @@ module PrintBox (Log_to : Debug_ch) = struct
         | List (Atom s :: l) ->
             let hl_body, bs = List.split @@ List.map loop_atom l in
             let hl_body = List.exists (fun x -> x) hl_body in
-            let hl, b = highlight_box ~hl_body @@ B.text_with_style B.Style.preformatted s in
-            (hl_body || hl, B.tree b bs)
+            let hl, b =
+              highlight_box ~hl_body @@ B.text_with_style B.Style.preformatted s
+            in
+            (hl, B.tree b bs)
         | List l ->
             let hls, bs = List.split @@ List.map loop_atom l in
             (List.exists (fun x -> x) hls, B.vlist bs)
@@ -343,8 +374,8 @@ module PrintBox (Log_to : Debug_ch) = struct
 end
 
 let debug_html ?(time_tagged = false) ?max_nesting_depth ?max_num_children
-    ?highlight_terms ?(for_append = false) ?(boxify_sexp_from_size = 50) filename :
-    (module Debug_runtime_cond) =
+    ?highlight_terms ?exclude_on_path ?(for_append = false) ?(boxify_sexp_from_size = 50)
+    filename : (module Debug_runtime_cond) =
   let module Debug =
     PrintBox
       ((val debug_ch ~time_tagged ~for_append ?max_nesting_depth ?max_num_children
@@ -352,10 +383,11 @@ let debug_html ?(time_tagged = false) ?max_nesting_depth ?max_num_children
   Debug.to_html := true;
   Debug.boxify_sexp_from_size := boxify_sexp_from_size;
   Debug.highlight_terms := Option.map Re.compile highlight_terms;
+  Debug.exclude_on_path := Option.map Re.compile exclude_on_path;
   (module Debug)
 
 let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_num_children
-    ?highlight_terms () : (module Debug_runtime_cond) =
+    ?highlight_terms ?exclude_on_path () : (module Debug_runtime_cond) =
   let module Debug = PrintBox (struct
     let debug_ch = debug_ch
     let time_tagged = time_tagged
@@ -363,6 +395,7 @@ let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_nu
     let max_num_children = max_num_children
   end) in
   Debug.highlight_terms := Option.map Re.compile highlight_terms;
+  Debug.exclude_on_path := Option.map Re.compile exclude_on_path;
   (module Debug)
 
 let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth

@@ -77,6 +77,10 @@ module PrintBox : functor (_ : Debug_ch) -> sig
 
   val highlight_terms : Re.re option ref
   (** Uses a highlight style for logs on paths ending with a log matching the regular expression. *)
+
+  val exclude_on_path : Re.re option ref
+  (** Does not propagate the highlight status from child logs through log headers matching
+      the given regular expression. *)
 end
 
 val debug_html :
@@ -84,6 +88,7 @@ val debug_html :
   ?max_nesting_depth:int ->
   ?max_num_children:int ->
   ?highlight_terms:Re.t ->
+  ?exclude_on_path:Re.t ->
   ?for_append:bool ->
   ?boxify_sexp_from_size:int ->
   string ->
@@ -98,6 +103,7 @@ val debug :
   ?max_nesting_depth:int ->
   ?max_num_children:int ->
   ?highlight_terms:Re.t ->
+  ?exclude_on_path:Re.t ->
   unit ->
   (module Debug_runtime_cond)
 (** Creates a PrintBox-based debug runtime. By default it will log to [stdout] and will not be
