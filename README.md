@@ -142,7 +142,9 @@ regular expression. For example:
 ![PrintBox runtime with collapsible/foldable trees](docs/ppx_minidebug-highlight_term_169.png)
 
 To limit the highlight noise, some log entries can be excluded from propagating the highlight status
-using the `exclude_on_path` setting.
+using the `exclude_on_path` setting. To trim excessive logging while still providing all the context,
+you can set `highlighted_roots:true`, which only outputs highlighted toplevel boxes.
+
 
 #### `PrintBox` creating helpers with defaults: `debug` and `debug_html`
 

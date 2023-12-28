@@ -81,6 +81,10 @@ module PrintBox : functor (_ : Debug_ch) -> sig
   val exclude_on_path : Re.re option ref
   (** Does not propagate the highlight status from child logs through log headers matching
       the given regular expression. *)
+
+  val highlighted_roots : bool ref
+  (** If set to true, only ouptputs highlighted toplevel boxes. This makes it simpler to trim
+      excessive logging while still providing all the context. Defaults to [false]. *)
 end
 
 val debug_html :
@@ -89,6 +93,7 @@ val debug_html :
   ?max_num_children:int ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
+  ?highlighted_roots:bool ->
   ?for_append:bool ->
   ?boxify_sexp_from_size:int ->
   string ->
@@ -104,6 +109,7 @@ val debug :
   ?max_num_children:int ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
+  ?highlighted_roots:bool ->
   unit ->
   (module Debug_runtime_cond)
 (** Creates a PrintBox-based debug runtime. By default it will log to [stdout] and will not be

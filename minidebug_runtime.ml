@@ -197,6 +197,7 @@ module PrintBox (Log_to : Debug_ch) = struct
   let to_html = ref false
   let boxify_sexp_from_size = ref (-1)
   let highlight_terms = ref None
+  let highlighted_roots = ref false
   let exclude_on_path = ref None
 
   module B = PrintBox
@@ -251,6 +252,7 @@ module PrintBox (Log_to : Debug_ch) = struct
           }
           :: bs3
       | { cond = false; _ } :: bs -> bs
+      | { highlight = false; _ } :: bs when !highlighted_roots -> bs
       | [ ({ cond = true; _ } as entry) ] ->
           let box = stack_to_tree entry in
           if !to_html then
@@ -374,8 +376,8 @@ module PrintBox (Log_to : Debug_ch) = struct
 end
 
 let debug_html ?(time_tagged = false) ?max_nesting_depth ?max_num_children
-    ?highlight_terms ?exclude_on_path ?(for_append = false) ?(boxify_sexp_from_size = 50)
-    filename : (module Debug_runtime_cond) =
+    ?highlight_terms ?exclude_on_path ?(highlighted_roots = false) ?(for_append = false)
+    ?(boxify_sexp_from_size = 50) filename : (module Debug_runtime_cond) =
   let module Debug =
     PrintBox
       ((val debug_ch ~time_tagged ~for_append ?max_nesting_depth ?max_num_children
@@ -383,11 +385,13 @@ let debug_html ?(time_tagged = false) ?max_nesting_depth ?max_num_children
   Debug.to_html := true;
   Debug.boxify_sexp_from_size := boxify_sexp_from_size;
   Debug.highlight_terms := Option.map Re.compile highlight_terms;
+  Debug.highlighted_roots := highlighted_roots;
   Debug.exclude_on_path := Option.map Re.compile exclude_on_path;
   (module Debug)
 
 let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_num_children
-    ?highlight_terms ?exclude_on_path () : (module Debug_runtime_cond) =
+    ?highlight_terms ?exclude_on_path ?(highlighted_roots = false) () :
+    (module Debug_runtime_cond) =
   let module Debug = PrintBox (struct
     let debug_ch = debug_ch
     let time_tagged = time_tagged
@@ -395,6 +399,7 @@ let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_nu
     let max_num_children = max_num_children
   end) in
   Debug.highlight_terms := Option.map Re.compile highlight_terms;
+  Debug.highlighted_roots := highlighted_roots;
   Debug.exclude_on_path := Option.map Re.compile exclude_on_path;
   (module Debug)
 

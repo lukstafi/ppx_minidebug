@@ -84,6 +84,8 @@ regular expression in the PrintBox runtime. Paths to logs that match [highlight_
 a frame / border: around the log and around summaries on the path to the log. A corresponding setting
 `exclude_on_path` will disable highlighting on logs (summaries) this regular expression matches on,
 regardless of children. Therefore, `exclude_on_path` stops the propagation of highlights upward.
+There is also an optional flag [highlighted_roots], to only output highlighted toplevel boxes.
+This makes it simpler to trim excessive logging while still providing all the context.
 
 
 {2 VS Code suggestions}

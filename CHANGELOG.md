@@ -4,6 +4,7 @@
 
 - A new optional PrintBox-only setting `highlight_terms`, which applies a frame / border on paths to leaves matching a regular expression.
 - A corresponding setting `exclude_on_path` -- if this regular expression matches on a log, its children have no effect on its highlight status. I.e., `exclude_on_path` stops the continued propagation of highlights.
+- A flag `highlighted_roots` prevents outputting toplevel boxes that have not been highlighted.
 
 ## [0.6.2] -- 2023-12-21
 
