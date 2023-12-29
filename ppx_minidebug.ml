@@ -252,6 +252,20 @@ let traverse =
               bindings
           in
           { e with pexp_desc = Pexp_let (rec_flag, bindings, callback body) }
+      | {
+       pexp_desc =
+         Pexp_extension ({ loc = _; txt = "debug_notrace" }, PStr [%str [%e? body]]);
+       _;
+      } -> (
+          let old_track_branches = !track_branches in
+          track_branches := false;
+          match callback body with
+          | result ->
+              track_branches := old_track_branches;
+              result
+          | exception e ->
+              track_branches := old_track_branches;
+              raise e)
       | { pexp_desc = Pexp_match (expr, cases); _ } when !track_branches ->
           let cases =
             List.mapi
@@ -295,7 +309,8 @@ let traverse =
               (fun else_ ->
                 let loc = else_.pexp_loc in
                 [%expr
-                  [%e open_log_preamble ~brief:true ~message:" <if -- else branch>" ~loc ()];
+                  [%e
+                    open_log_preamble ~brief:true ~message:" <if -- else branch>" ~loc ()];
                   match [%e callback else_] with
                   | if_else__result ->
                       Debug_runtime.close_log ();

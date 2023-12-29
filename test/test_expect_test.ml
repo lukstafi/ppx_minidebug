@@ -381,7 +381,7 @@ let%expect_test "%debug_show PrintBox to stdout highlight" =
       └─loop_highlight = 9
       9 |}]
 
-let%expect_test "%debug_show PrintBox to stdout with exception" =
+let%expect_test "%debug_show PrintBox tracking" =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let%track_this_show track_branches (x : int) : int =
     if x < 6 then match x with 0 -> 1 | 1 -> 0 | _ -> ~-x
@@ -409,3 +409,37 @@ let%expect_test "%debug_show PrintBox to stdout with exception" =
     └─track_branches = -3
     -3
         |}]
+
+let%expect_test "%debug_show PrintBox tracking with debug_notrace" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
+  let%track_this_show track_branches (x : int) : int =
+    if x < 6 then match%debug_notrace x with 0 -> 1 | 1 -> 0 | _ ->
+      let result : int = ~-x in result
+    else match x with 6 -> 5 | 7 -> 4 | _ ->
+      let result : int = x in result
+  in
+  let () =
+    try
+      print_endline @@ Int.to_string @@ track_branches 8;
+      print_endline @@ Int.to_string @@ track_branches 3
+    with _ -> print_endline "Raised exception."
+  in
+  [%expect
+    {|
+          BEGIN DEBUG SESSION
+          "test/test_expect_test.ml":415:37-419:36: track_branches
+          ├─x = 8
+          ├─"test/test_expect_test.ml":418:9: <if -- else branch>
+          │ └─"test/test_expect_test.ml":418:40: <match -- branch 2>
+          │   └─"test/test_expect_test.ml":419:10:
+          │     └─result = 8
+          └─track_branches = 8
+          8
+          "test/test_expect_test.ml":415:37-419:36: track_branches
+          ├─x = 3
+          ├─"test/test_expect_test.ml":416:18: <if -- then branch>
+          │ └─"test/test_expect_test.ml":417:10:
+          │   └─result = -3
+          └─track_branches = -3
+          -3
+              |}]
