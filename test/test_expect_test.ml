@@ -312,7 +312,9 @@ let%expect_test "%debug_show PrintBox to stdout num children exceeded nested" =
       Raised exception: ppx_minidebug: max_num_children exceeded |}]
 
 let%expect_test "%debug_show PrintBox to stdout highlight" =
-  let module Debug_runtime = (val Minidebug_runtime.debug ~highlight_terms:(Re.str "3") ()) in
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug ~highlight_terms:(Re.str "3") ())
+  in
   let%debug_this_show rec loop_highlight (x : int) : int =
     let z : int = (x - 1) / 2 in
     if x <= 0 then 0 else z + loop_highlight (z + (x / 2))
@@ -322,52 +324,52 @@ let%expect_test "%debug_show PrintBox to stdout highlight" =
     {|
       BEGIN DEBUG SESSION
       ┌────────────────────────────────────────────────────────┐
-      │"test/test_expect_test.ml":316:41-318:58: loop_highlight│
+      │"test/test_expect_test.ml":318:41-320:58: loop_highlight│
       ├────────────────────────────────────────────────────────┘
       ├─x = 7
       ├─┬──────────────────────────────────┐
-      │ │"test/test_expect_test.ml":317:8: │
+      │ │"test/test_expect_test.ml":319:8: │
       │ ├──────────────────────────────────┘
       │ └─┬─────┐
       │   │z = 3│
       │   └─────┘
       ├─┬────────────────────────────────────────────────────────┐
-      │ │"test/test_expect_test.ml":316:41-318:58: loop_highlight│
+      │ │"test/test_expect_test.ml":318:41-320:58: loop_highlight│
       │ ├────────────────────────────────────────────────────────┘
       │ ├─x = 6
-      │ ├─"test/test_expect_test.ml":317:8:
+      │ ├─"test/test_expect_test.ml":319:8:
       │ │ └─z = 2
       │ ├─┬────────────────────────────────────────────────────────┐
-      │ │ │"test/test_expect_test.ml":316:41-318:58: loop_highlight│
+      │ │ │"test/test_expect_test.ml":318:41-320:58: loop_highlight│
       │ │ ├────────────────────────────────────────────────────────┘
       │ │ ├─x = 5
-      │ │ ├─"test/test_expect_test.ml":317:8:
+      │ │ ├─"test/test_expect_test.ml":319:8:
       │ │ │ └─z = 2
       │ │ ├─┬────────────────────────────────────────────────────────┐
-      │ │ │ │"test/test_expect_test.ml":316:41-318:58: loop_highlight│
+      │ │ │ │"test/test_expect_test.ml":318:41-320:58: loop_highlight│
       │ │ │ ├────────────────────────────────────────────────────────┘
       │ │ │ ├─x = 4
-      │ │ │ ├─"test/test_expect_test.ml":317:8:
+      │ │ │ ├─"test/test_expect_test.ml":319:8:
       │ │ │ │ └─z = 1
       │ │ │ ├─┬────────────────────────────────────────────────────────┐
-      │ │ │ │ │"test/test_expect_test.ml":316:41-318:58: loop_highlight│
+      │ │ │ │ │"test/test_expect_test.ml":318:41-320:58: loop_highlight│
       │ │ │ │ ├────────────────────────────────────────────────────────┘
       │ │ │ │ ├─┬─────┐
       │ │ │ │ │ │x = 3│
       │ │ │ │ │ └─────┘
-      │ │ │ │ ├─"test/test_expect_test.ml":317:8:
+      │ │ │ │ ├─"test/test_expect_test.ml":319:8:
       │ │ │ │ │ └─z = 1
-      │ │ │ │ ├─"test/test_expect_test.ml":316:41-318:58: loop_highlight
+      │ │ │ │ ├─"test/test_expect_test.ml":318:41-320:58: loop_highlight
       │ │ │ │ │ ├─x = 2
-      │ │ │ │ │ ├─"test/test_expect_test.ml":317:8:
+      │ │ │ │ │ ├─"test/test_expect_test.ml":319:8:
       │ │ │ │ │ │ └─z = 0
-      │ │ │ │ │ ├─"test/test_expect_test.ml":316:41-318:58: loop_highlight
+      │ │ │ │ │ ├─"test/test_expect_test.ml":318:41-320:58: loop_highlight
       │ │ │ │ │ │ ├─x = 1
-      │ │ │ │ │ │ ├─"test/test_expect_test.ml":317:8:
+      │ │ │ │ │ │ ├─"test/test_expect_test.ml":319:8:
       │ │ │ │ │ │ │ └─z = 0
-      │ │ │ │ │ │ ├─"test/test_expect_test.ml":316:41-318:58: loop_highlight
+      │ │ │ │ │ │ ├─"test/test_expect_test.ml":318:41-320:58: loop_highlight
       │ │ │ │ │ │ │ ├─x = 0
-      │ │ │ │ │ │ │ ├─"test/test_expect_test.ml":317:8:
+      │ │ │ │ │ │ │ ├─"test/test_expect_test.ml":319:8:
       │ │ │ │ │ │ │ │ └─z = 0
       │ │ │ │ │ │ │ └─loop_highlight = 0
       │ │ │ │ │ │ └─loop_highlight = 0
@@ -378,3 +380,32 @@ let%expect_test "%debug_show PrintBox to stdout highlight" =
       │ └─loop_highlight = 6
       └─loop_highlight = 9
       9 |}]
+
+let%expect_test "%debug_show PrintBox to stdout with exception" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
+  let%track_this_show track_branches (x : int) : int =
+    if x < 6 then match x with 0 -> 1 | 1 -> 0 | _ -> ~-x
+    else match x with 6 -> 5 | 7 -> 4 | _ -> x
+  in
+  let () =
+    try
+      print_endline @@ Int.to_string @@ track_branches 7;
+      print_endline @@ Int.to_string @@ track_branches 3
+    with _ -> print_endline "Raised exception."
+  in
+  [%expect
+    {|
+    BEGIN DEBUG SESSION
+    "test/test_expect_test.ml":386:37-388:46: track_branches
+    ├─x = 7
+    ├─"test/test_expect_test.ml":388:9: <if -- else branch>
+    │ └─"test/test_expect_test.ml":388:31: <match -- branch 1>
+    └─track_branches = 4
+    4
+    "test/test_expect_test.ml":386:37-388:46: track_branches
+    ├─x = 3
+    ├─"test/test_expect_test.ml":387:18: <if -- then branch>
+    │ └─"test/test_expect_test.ml":387:49: <match -- branch 2>
+    └─track_branches = -3
+    -3
+        |}]

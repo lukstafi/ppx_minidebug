@@ -98,6 +98,7 @@ let log_value_show ~loc ~typ ~descr_loc exp =
       ~v:([%show: [%t typ]] [%e exp])]
 
 let log_value = ref log_value_sexp
+let track_branches = ref false
 
 let log_string ~loc ~descr_loc s =
   [%expr
@@ -241,7 +242,7 @@ let traverse =
     method! expression e =
       let callback e = self#expression e in
       match e with
-      | { pexp_desc = Pexp_let (rec_flag, bindings, body); pexp_loc = _; _ } ->
+      | { pexp_desc = Pexp_let (rec_flag, bindings, body); _ } ->
           let bindings =
             List.map
               (fun vb ->
@@ -250,8 +251,61 @@ let traverse =
                   { vb with pvb_expr = super#expression vb.pvb_expr })
               bindings
           in
-          let body = callback body in
-          { e with pexp_desc = Pexp_let (rec_flag, bindings, body) }
+          { e with pexp_desc = Pexp_let (rec_flag, bindings, callback body) }
+      | { pexp_desc = Pexp_match (expr, cases); _ } when !track_branches ->
+          let cases =
+            List.mapi
+              (fun i { pc_lhs; pc_guard; pc_rhs } ->
+                let pc_guard = Option.map callback pc_guard in
+                let loc = pc_rhs.pexp_loc in
+                let i = string_of_int i in
+                let pc_rhs =
+                  [%expr
+                    [%e
+                      open_log_preamble ~brief:true
+                        ~message:(" <match -- branch " ^ i ^ ">")
+                        ~loc:pc_lhs.ppat_loc ()];
+                    match [%e callback pc_rhs] with
+                    | match__result ->
+                        Debug_runtime.close_log ();
+                        match__result
+                    | exception e ->
+                        Debug_runtime.close_log ();
+                        raise e]
+                in
+                { pc_lhs; pc_guard; pc_rhs })
+              cases
+          in
+          { e with pexp_desc = Pexp_match (callback expr, cases) }
+      | { pexp_desc = Pexp_ifthenelse (if_, then_, else_); _ } when !track_branches ->
+          let then_ =
+            let loc = then_.pexp_loc in
+            [%expr
+              [%e open_log_preamble ~brief:true ~message:" <if -- then branch>" ~loc ()];
+              match [%e callback then_] with
+              | if_then__result ->
+                  Debug_runtime.close_log ();
+                  if_then__result
+              | exception e ->
+                  Debug_runtime.close_log ();
+                  raise e]
+          in
+          let else_ =
+            Option.map
+              (fun else_ ->
+                let loc = else_.pexp_loc in
+                [%expr
+                  [%e open_log_preamble ~brief:true ~message:" <if -- else branch>" ~loc ()];
+                  match [%e callback else_] with
+                  | if_else__result ->
+                      Debug_runtime.close_log ();
+                      if_else__result
+                  | exception e ->
+                      Debug_runtime.close_log ();
+                      raise e])
+              else_
+          in
+          { e with pexp_desc = Pexp_ifthenelse (callback if_, then_, else_) }
       | _ -> super#expression e
 
     method! structure_item si =
@@ -292,40 +346,49 @@ let str_expander ~loc payload =
           pincl_attributes = [];
         }
 
-let debug_this_expander_sexp ~ctxt:_ payload =
+let debug_this_expander_sexp ~tracking ~ctxt:_ payload =
   log_value := log_value_sexp;
+  track_branches := tracking;
   debug_this_expander payload
 
-let debug_expander_sexp ~ctxt:_ payload =
+let debug_expander_sexp ~tracking ~ctxt:_ payload =
   log_value := log_value_sexp;
+  track_branches := tracking;
   debug_expander payload
 
-let str_expander_sexp ~loc ~path:_ payload =
+let str_expander_sexp ~tracking ~loc ~path:_ payload =
   log_value := log_value_sexp;
+  track_branches := tracking;
   str_expander ~loc payload
 
-let debug_this_expander_pp ~ctxt:_ payload =
+let debug_this_expander_pp ~tracking ~ctxt:_ payload =
   log_value := log_value_pp;
+  track_branches := tracking;
   debug_this_expander payload
 
-let debug_expander_pp ~ctxt:_ payload =
+let debug_expander_pp ~tracking ~ctxt:_ payload =
   log_value := log_value_pp;
+  track_branches := tracking;
   debug_expander payload
 
-let str_expander_pp ~loc ~path:_ payload =
+let str_expander_pp ~tracking ~loc ~path:_ payload =
   log_value := log_value_pp;
+  track_branches := tracking;
   str_expander ~loc payload
 
-let debug_this_expander_show ~ctxt:_ payload =
+let debug_this_expander_show ~tracking ~ctxt:_ payload =
   log_value := log_value_show;
+  track_branches := tracking;
   debug_this_expander payload
 
-let debug_expander_show ~ctxt:_ payload =
+let debug_expander_show ~tracking ~ctxt:_ payload =
   log_value := log_value_show;
+  track_branches := tracking;
   debug_expander payload
 
-let str_expander_show ~loc ~path:_ payload =
+let str_expander_show ~tracking ~loc ~path:_ payload =
   log_value := log_value_show;
+  track_branches := tracking;
   str_expander ~loc payload
 
 let rules =
@@ -333,39 +396,75 @@ let rules =
     Ppxlib.Context_free.Rule.extension
     @@ Extension.V3.declare "debug_sexp" Extension.Context.expression
          Ast_pattern.(single_expr_payload __)
-         debug_expander_sexp;
+         (debug_expander_sexp ~tracking:false);
     Ppxlib.Context_free.Rule.extension
     @@ Extension.V3.declare "debug_this_sexp" Extension.Context.expression
          Ast_pattern.(single_expr_payload __)
-         debug_this_expander_sexp;
+         (debug_this_expander_sexp ~tracking:false);
     Ppxlib.Context_free.Rule.extension
     @@ Extension.declare "debug_sexp" Extension.Context.structure_item
          Ast_pattern.(pstr __)
-         str_expander_sexp;
+         (str_expander_sexp ~tracking:false);
     Ppxlib.Context_free.Rule.extension
     @@ Extension.V3.declare "debug_pp" Extension.Context.expression
          Ast_pattern.(single_expr_payload __)
-         debug_expander_pp;
+         (debug_expander_pp ~tracking:false);
     Ppxlib.Context_free.Rule.extension
     @@ Extension.V3.declare "debug_this_pp" Extension.Context.expression
          Ast_pattern.(single_expr_payload __)
-         debug_this_expander_pp;
+         (debug_this_expander_pp ~tracking:false);
     Ppxlib.Context_free.Rule.extension
     @@ Extension.declare "debug_pp" Extension.Context.structure_item
          Ast_pattern.(pstr __)
-         str_expander_pp;
+         (str_expander_pp ~tracking:false);
     Ppxlib.Context_free.Rule.extension
     @@ Extension.V3.declare "debug_show" Extension.Context.expression
          Ast_pattern.(single_expr_payload __)
-         debug_expander_show;
+         (debug_expander_show ~tracking:false);
     Ppxlib.Context_free.Rule.extension
     @@ Extension.V3.declare "debug_this_show" Extension.Context.expression
          Ast_pattern.(single_expr_payload __)
-         debug_this_expander_show;
+         (debug_this_expander_show ~tracking:false);
     Ppxlib.Context_free.Rule.extension
     @@ Extension.declare "debug_show" Extension.Context.structure_item
          Ast_pattern.(pstr __)
-         str_expander_show;
+         (str_expander_show ~tracking:false);
+    Ppxlib.Context_free.Rule.extension
+    @@ Extension.V3.declare "track_sexp" Extension.Context.expression
+         Ast_pattern.(single_expr_payload __)
+         (debug_expander_sexp ~tracking:true);
+    Ppxlib.Context_free.Rule.extension
+    @@ Extension.V3.declare "track_this_sexp" Extension.Context.expression
+         Ast_pattern.(single_expr_payload __)
+         (debug_this_expander_sexp ~tracking:true);
+    Ppxlib.Context_free.Rule.extension
+    @@ Extension.declare "track_sexp" Extension.Context.structure_item
+         Ast_pattern.(pstr __)
+         (str_expander_sexp ~tracking:true);
+    Ppxlib.Context_free.Rule.extension
+    @@ Extension.V3.declare "track_pp" Extension.Context.expression
+         Ast_pattern.(single_expr_payload __)
+         (debug_expander_pp ~tracking:true);
+    Ppxlib.Context_free.Rule.extension
+    @@ Extension.V3.declare "track_this_pp" Extension.Context.expression
+         Ast_pattern.(single_expr_payload __)
+         (debug_this_expander_pp ~tracking:true);
+    Ppxlib.Context_free.Rule.extension
+    @@ Extension.declare "track_pp" Extension.Context.structure_item
+         Ast_pattern.(pstr __)
+         (str_expander_pp ~tracking:true);
+    Ppxlib.Context_free.Rule.extension
+    @@ Extension.V3.declare "track_show" Extension.Context.expression
+         Ast_pattern.(single_expr_payload __)
+         (debug_expander_show ~tracking:true);
+    Ppxlib.Context_free.Rule.extension
+    @@ Extension.V3.declare "track_this_show" Extension.Context.expression
+         Ast_pattern.(single_expr_payload __)
+         (debug_this_expander_show ~tracking:true);
+    Ppxlib.Context_free.Rule.extension
+    @@ Extension.declare "track_show" Extension.Context.structure_item
+         Ast_pattern.(pstr __)
+         (str_expander_show ~tracking:true);
   ]
 
 let () = Driver.register_transformation ~rules "ppx_minidebug"
