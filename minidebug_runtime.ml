@@ -252,7 +252,7 @@ module PrintBox (Log_to : Debug_ch) = struct
           }
           :: bs3
       | { cond = false; _ } :: bs -> bs
-      | { highlight = false; _ } :: bs when !highlighted_roots -> bs
+      | [ { highlight = false; _ } ] when !highlighted_roots -> []
       | [ ({ cond = true; _ } as entry) ] ->
           let box = stack_to_tree entry in
           if !to_html then
