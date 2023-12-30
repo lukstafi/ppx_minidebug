@@ -235,6 +235,34 @@ let debug_binding callback vb =
       { vb with pvb_expr = exp }
   | _ -> raise Not_transforming
 
+type rule = {
+  ext_point : string;
+  tracking : bool;
+  expander : [ `Debug | `Debug_this | `Str ];
+  printer : [ `Pp | `Sexp | `Show ];
+}
+
+let rules =
+  List.concat_map
+    (fun tracking ->
+      List.concat_map
+        (fun expander ->
+          List.map
+            (fun printer ->
+              let ext_point = if tracking then "track" else "debug" in
+              let ext_point =
+                ext_point
+                ^ match expander with `Debug_this -> "_this" | `Debug | `Str -> ""
+              in
+              let ext_point =
+                ext_point ^ "_"
+                ^ match printer with `Pp -> "pp" | `Sexp -> "sexp" | `Show -> "show"
+              in
+              { ext_point; tracking; expander; printer })
+            [ `Pp; `Sexp; `Show ])
+        [ `Debug; `Debug_this; `Str ])
+    [ false; true ]
+
 let traverse =
   object (self)
     inherit Ast_traverse.map as super
@@ -361,125 +389,39 @@ let str_expander ~loc payload =
           pincl_attributes = [];
         }
 
-let debug_this_expander_sexp ~tracking ~ctxt:_ payload =
-  log_value := log_value_sexp;
-  track_branches := tracking;
-  debug_this_expander payload
-
-let debug_expander_sexp ~tracking ~ctxt:_ payload =
-  log_value := log_value_sexp;
-  track_branches := tracking;
-  debug_expander payload
-
-let str_expander_sexp ~tracking ~loc ~path:_ payload =
-  log_value := log_value_sexp;
-  track_branches := tracking;
-  str_expander ~loc payload
-
-let debug_this_expander_pp ~tracking ~ctxt:_ payload =
-  log_value := log_value_pp;
-  track_branches := tracking;
-  debug_this_expander payload
-
-let debug_expander_pp ~tracking ~ctxt:_ payload =
-  log_value := log_value_pp;
-  track_branches := tracking;
-  debug_expander payload
-
-let str_expander_pp ~tracking ~loc ~path:_ payload =
-  log_value := log_value_pp;
-  track_branches := tracking;
-  str_expander ~loc payload
-
-let debug_this_expander_show ~tracking ~ctxt:_ payload =
-  log_value := log_value_show;
-  track_branches := tracking;
-  debug_this_expander payload
-
-let debug_expander_show ~tracking ~ctxt:_ payload =
-  log_value := log_value_show;
-  track_branches := tracking;
-  debug_expander payload
-
-let str_expander_show ~tracking ~loc ~path:_ payload =
-  log_value := log_value_show;
-  track_branches := tracking;
-  str_expander ~loc payload
-
 let rules =
-  [
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.V3.declare "debug_sexp" Extension.Context.expression
-         Ast_pattern.(single_expr_payload __)
-         (debug_expander_sexp ~tracking:false);
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.V3.declare "debug_this_sexp" Extension.Context.expression
-         Ast_pattern.(single_expr_payload __)
-         (debug_this_expander_sexp ~tracking:false);
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.declare "debug_sexp" Extension.Context.structure_item
-         Ast_pattern.(pstr __)
-         (str_expander_sexp ~tracking:false);
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.V3.declare "debug_pp" Extension.Context.expression
-         Ast_pattern.(single_expr_payload __)
-         (debug_expander_pp ~tracking:false);
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.V3.declare "debug_this_pp" Extension.Context.expression
-         Ast_pattern.(single_expr_payload __)
-         (debug_this_expander_pp ~tracking:false);
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.declare "debug_pp" Extension.Context.structure_item
-         Ast_pattern.(pstr __)
-         (str_expander_pp ~tracking:false);
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.V3.declare "debug_show" Extension.Context.expression
-         Ast_pattern.(single_expr_payload __)
-         (debug_expander_show ~tracking:false);
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.V3.declare "debug_this_show" Extension.Context.expression
-         Ast_pattern.(single_expr_payload __)
-         (debug_this_expander_show ~tracking:false);
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.declare "debug_show" Extension.Context.structure_item
-         Ast_pattern.(pstr __)
-         (str_expander_show ~tracking:false);
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.V3.declare "track_sexp" Extension.Context.expression
-         Ast_pattern.(single_expr_payload __)
-         (debug_expander_sexp ~tracking:true);
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.V3.declare "track_this_sexp" Extension.Context.expression
-         Ast_pattern.(single_expr_payload __)
-         (debug_this_expander_sexp ~tracking:true);
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.declare "track_sexp" Extension.Context.structure_item
-         Ast_pattern.(pstr __)
-         (str_expander_sexp ~tracking:true);
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.V3.declare "track_pp" Extension.Context.expression
-         Ast_pattern.(single_expr_payload __)
-         (debug_expander_pp ~tracking:true);
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.V3.declare "track_this_pp" Extension.Context.expression
-         Ast_pattern.(single_expr_payload __)
-         (debug_this_expander_pp ~tracking:true);
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.declare "track_pp" Extension.Context.structure_item
-         Ast_pattern.(pstr __)
-         (str_expander_pp ~tracking:true);
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.V3.declare "track_show" Extension.Context.expression
-         Ast_pattern.(single_expr_payload __)
-         (debug_expander_show ~tracking:true);
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.V3.declare "track_this_show" Extension.Context.expression
-         Ast_pattern.(single_expr_payload __)
-         (debug_this_expander_show ~tracking:true);
-    Ppxlib.Context_free.Rule.extension
-    @@ Extension.declare "track_show" Extension.Context.structure_item
-         Ast_pattern.(pstr __)
-         (str_expander_show ~tracking:true);
-  ]
+  List.map
+    (fun { ext_point; tracking; expander; printer } ->
+      let logf =
+        match printer with
+        | `Show -> log_value_show
+        | `Pp -> log_value_pp
+        | `Sexp -> log_value_sexp
+      in
+      let expanderf expander =
+        log_value := logf;
+        track_branches := tracking;
+        expander
+      in
+      let declaration =
+        match expander with
+        | `Debug ->
+            Extension.V3.declare ext_point Extension.Context.expression
+              Ast_pattern.(single_expr_payload __)
+              (fun ~ctxt:_ -> expanderf debug_expander)
+        | `Debug_this ->
+            Extension.V3.declare ext_point Extension.Context.expression
+              Ast_pattern.(single_expr_payload __)
+              (fun ~ctxt:_ -> expanderf debug_this_expander)
+        | `Str ->
+            Extension.V3.declare ext_point Extension.Context.structure_item
+              Ast_pattern.(pstr __)
+              (fun ~ctxt ->
+                expanderf
+                  (str_expander
+                     ~loc:(Expansion_context.Extension.extension_point_loc ctxt)))
+      in
+      Ppxlib.Context_free.Rule.extension declaration)
+    rules
 
 let () = Driver.register_transformation ~rules "ppx_minidebug"
