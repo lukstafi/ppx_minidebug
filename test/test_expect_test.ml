@@ -454,3 +454,48 @@ let%expect_test "%debug_show PrintBox tracking with debug_notrace" =
           └─track_branches = 3
           3
               |}]
+
+let%expect_test "nested extension points are no-ops" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
+  let%track_this_show track_branches (x : int) : int =
+    if x < 6 then
+      match%debug_notrace x with
+      | 0 -> 1
+      | 1 -> 0
+      | _ ->
+          let%debug_sexp result : int = if x > 2 then x else ~-x in
+          result
+    else
+      match%debug_pp x with
+      | 6 -> 5
+      | 7 -> 4
+      | _ ->
+          let%track_pp result : int = if x < 10 then x else ~-x in
+          result
+  in
+  let () =
+    try
+      print_endline @@ Int.to_string @@ track_branches 8;
+      print_endline @@ Int.to_string @@ track_branches 3
+    with _ -> print_endline "Raised exception."
+  in
+  [%expect
+    {|
+        BEGIN DEBUG SESSION
+        "test/test_expect_test.ml":460:37-474:16: track_branches
+        ├─x = 8
+        ├─"test/test_expect_test.ml":469:6: <if -- else branch>
+        │ └─"test/test_expect_test.ml":472:8: <match -- branch 2>
+        │   └─"test/test_expect_test.ml":473:23:
+        │     ├─"test/test_expect_test.ml":473:53: <if -- then branch>
+        │     └─result = 8
+        └─track_branches = 8
+        8
+        "test/test_expect_test.ml":460:37-474:16: track_branches
+        ├─x = 3
+        ├─"test/test_expect_test.ml":462:6: <if -- then branch>
+        │ └─"test/test_expect_test.ml":466:25:
+        │   └─result = 3
+        └─track_branches = 3
+        3
+            |}]

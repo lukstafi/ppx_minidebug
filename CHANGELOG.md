@@ -8,6 +8,10 @@
 - A set of extension points `%track_sexp`, `%track_pp` etc. that parallel `%debug_sexp`, `%debug_pp` etc. but additionally log which `if` and `match` branch got executed.
   - An extension point `%debug_notrace` that turns off logging the branch of the specific `if` or `match` expression. It is ignored by the `%debug_` extension points.
 
+### Fixed
+
+- Issue [#8](https://github.com/lukstafi/ppx_minidebug/issues/8): ignore nested debug scope indications (don't re-process them).
+
 ## [0.6.2] -- 2023-12-21
 
 ### Fixed

@@ -36,6 +36,7 @@
   (printbox-html
    (>= 0.7))
   ptime
+  re
   sexplib0
   (ppx_expect
    (and

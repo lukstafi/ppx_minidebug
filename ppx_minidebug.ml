@@ -263,6 +263,11 @@ let rules =
         [ `Debug; `Debug_this; `Str ])
     [ false; true ]
 
+let is_ext_point =
+  let points = List.map (fun r -> Re.str r.ext_point) rules in
+  let regex = Re.(compile @@ seq [ start; alt points; stop ]) in
+  Re.execp regex
+
 let traverse =
   object (self)
     inherit Ast_traverse.map as super
@@ -280,6 +285,9 @@ let traverse =
               bindings
           in
           { e with pexp_desc = Pexp_let (rec_flag, bindings, callback body) }
+      | { pexp_desc = Pexp_extension ({ loc = _; txt }, PStr [%str [%e? body]]); _ }
+        when is_ext_point txt ->
+          callback body
       | {
        pexp_desc =
          Pexp_extension ({ loc = _; txt = "debug_notrace" }, PStr [%str [%e? body]]);

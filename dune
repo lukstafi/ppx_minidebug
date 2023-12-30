@@ -3,7 +3,7 @@
  (name ppx_minidebug)
  (kind ppx_rewriter)
  (modules ppx_minidebug)
- (libraries ppxlib)
+ (libraries ppxlib re)
  (ppx_runtime_libraries ppx_minidebug.runtime)
  (preprocess (pps ppxlib.metaquot)))
 
@@ -11,7 +11,7 @@
  (public_name ppx_minidebug.runtime)
  (name minidebug_runtime)
  (modules minidebug_runtime)
- (libraries printbox printbox-text printbox-html ptime.clock.os sexplib0))
+ (libraries printbox printbox-text printbox-html ptime.clock.os re sexplib0))
 
 (documentation
  (package ppx_minidebug)
