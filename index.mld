@@ -2,7 +2,7 @@
 
 [ppx_minidebug] traces selected code if it has type annotations. [ppx_minidebug] offers three ways
 of instrumenting the code: [%debug_pp] (also [%track_pp]) and [%debug_show] (also [%track_show])
-based on [deriving.show], and [%debug_sexp] (also [%track_sexp) based on [sexplib0] and [ppx_sexp_conv].
+based on [deriving.show], and [%debug_sexp] (also [%track_sexp]) based on [sexplib0] and [ppx_sexp_conv].
 The syntax extension expects a module [Debug_runtime] in the scope. The [ppx_minidebug.runtime]
 library offers three ways of logging the traces, as functors generating [Debug_runtime] modules
 given an output channel (e.g. for a file).
