@@ -413,10 +413,20 @@ let%expect_test "%debug_show PrintBox tracking" =
 let%expect_test "%debug_show PrintBox tracking with debug_notrace" =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let%track_this_show track_branches (x : int) : int =
-    if x < 6 then match%debug_notrace x with 0 -> 1 | 1 -> 0 | _ ->
-      let result : int = ~-x in result
-    else match x with 6 -> 5 | 7 -> 4 | _ ->
-      let result : int = x in result
+    if x < 6 then
+      match%debug_notrace x with
+      | 0 -> 1
+      | 1 -> 0
+      | _ ->
+          let result : int = if x > 2 then x else ~-x in
+          result
+    else
+      match x with
+      | 6 -> 5
+      | 7 -> 4
+      | _ ->
+          let result : int = if x < 10 then x else ~-x in
+          result
   in
   let () =
     try
@@ -427,19 +437,20 @@ let%expect_test "%debug_show PrintBox tracking with debug_notrace" =
   [%expect
     {|
           BEGIN DEBUG SESSION
-          "test/test_expect_test.ml":415:37-419:36: track_branches
+          "test/test_expect_test.ml":415:37-429:16: track_branches
           ├─x = 8
-          ├─"test/test_expect_test.ml":418:9: <if -- else branch>
-          │ └─"test/test_expect_test.ml":418:40: <match -- branch 2>
-          │   └─"test/test_expect_test.ml":419:10:
+          ├─"test/test_expect_test.ml":424:6: <if -- else branch>
+          │ └─"test/test_expect_test.ml":427:8: <match -- branch 2>
+          │   └─"test/test_expect_test.ml":428:14:
+          │     ├─"test/test_expect_test.ml":428:44: <if -- then branch>
           │     └─result = 8
           └─track_branches = 8
           8
-          "test/test_expect_test.ml":415:37-419:36: track_branches
+          "test/test_expect_test.ml":415:37-429:16: track_branches
           ├─x = 3
-          ├─"test/test_expect_test.ml":416:18: <if -- then branch>
-          │ └─"test/test_expect_test.ml":417:10:
-          │   └─result = -3
-          └─track_branches = -3
-          -3
+          ├─"test/test_expect_test.ml":417:6: <if -- then branch>
+          │ └─"test/test_expect_test.ml":421:14:
+          │   └─result = 3
+          └─track_branches = 3
+          3
               |}]

@@ -2,7 +2,7 @@
 
 ## `ppx_minidebug`: A poor man's version of [`ppx_debug`](https://github.com/dariusf/ppx_debug)
 
-`ppx_minidebug` traces selected code if it has type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` based on `deriving.show`, and `%debug_sexp` based on `sexplib0` and `ppx_sexp_conv`. The syntax extension expects a module `Debug_runtime` in the scope. The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers three ways of logging the traces, as functors generating `Debug_runtime` modules given an output channel (e.g. for a file).
+`ppx_minidebug` traces selected code if it has type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` (also `%track_pp` and `%track_show`), based on `deriving.show`, and `%debug_sexp` (also `%track_sexp`) based on `sexplib0` and `ppx_sexp_conv`. The syntax extension expects a module `Debug_runtime` in the scope. The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers three ways of logging the traces, as functors generating `Debug_runtime` modules given an output channel (e.g. for a file).
 
 Take a look at [`ppx_debug`](https://github.com/dariusf/ppx_debug) which is significantly more powerful!
 
@@ -12,9 +12,9 @@ Try `opam install ppx_minidebug` to install from the opam repository. To install
 
 To use `ppx_minidebug` in a Dune project, add/modify these stanzas: `(preprocess (pps ... ppx_minidebug))`, and `(libraries ... ppx_minidebug.runtime)`.
 
-### `Pp_format`-based traces
+### `Pp_format`-based traces -- more bare-bones
 
-Define a `Debug_runtime` using the `Pp_format` functor. The helper functor `Debug_ch` opens a file for appending.
+This backend relies on the `Format` module from the standard library. Define a `Debug_runtime` using the `Pp_format` functor. The helper functor `Debug_ch` opens a file for appending.
 E.g. either `module Debug_runtime = Minidebug_runtime.Pp_format(struct let debug_ch = stdout let time_tagged = true end)`, or:
 
 ```ocaml
@@ -24,7 +24,7 @@ module Debug_runtime =
 
 The logged traces will be indented using OCaml's `Format` module. Truncated example (using `%debug_pp`):
 
-```ocaml
+```shell
 BEGIN DEBUG SESSION at time 2023-03-02 22:20:39.302 +01:00
 "test/test_debug_pp.ml":4:17-4:71 at time 2023-03-02 22:20:39.302 +01:00: bar
 x = { Test_debug_pp.first = 7; second = 42 }  bar = 336  
@@ -42,9 +42,9 @@ depth = 0  x = { Test_debug_pp.first = 7; second = 42 }  "test/test_debug_pp.ml"
               "test/test_debug_pp.ml":12:22-18:9 at time 2023-03-02 22:20:39.302 +01:00: loop
 ```
 
-### `PrintBox`-based traces
+### `PrintBox`-based traces -- full feature set
 
-This runtime has the most features.
+This runtime relies on the `printbox` library; it has the most features.
 Here we define a `Debug_runtime` either using the entrypoint `module Debug_runtime = (val Minidebug_runtime.debug ())`,
 or using the `PrintBox` functor, e.g.:
 
@@ -55,7 +55,7 @@ module Debug_runtime =
 
 The logged traces will be pretty-printed as trees using the `printbox` package. Truncated example (using `%debug_sexp`):
 
-```ocaml
+```shell
 BEGIN DEBUG SESSION at time 2023-03-02 22:20:39.305 +01:00
 "test/test_debug_sexp.ml":4:19-6:15 at time
 2023-03-02 22:20:39.305 +01:00: foo
@@ -89,7 +89,7 @@ BEGIN DEBUG SESSION at time 2023-03-02 22:20:39.305 +01:00
 │ │ │ │ │ ├─x = ((first 44) (second 4))
 ```
 
-This runtime also allows disabling the logging of specified subtrees, when the output is irrelevant or would be a distraction.
+This runtime also allows disabling the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space.
 The test suite example:
 
 ```ocaml
@@ -104,7 +104,7 @@ The test suite example:
 
 leads to:
 
-```ocaml
+```shell
   "test/test_expect_test.ml":96:43-100:58: fixpoint_changes
   ├─x = 7
   ├─"test/test_expect_test.ml":97:8:
@@ -123,6 +123,8 @@ leads to:
   9
 ```
 
+At the "top level", there is another mechanism for disabling logging: `highlighted_roots` -- see below.
+
 #### Traces in HTML as collapsible trees
 
 The `PrintBox` runtime can be configured to output logs using HTML. The logs then become collapsible trees, so that you can expose only the relevant information when debugging. Example configuration:
@@ -137,6 +139,8 @@ let () = Debug_runtime.boxify_sexp_from_size := 50
 Here we also convert the logged `sexp` values (with at least 50 atoms) to trees. Example result:
 ![PrintBox runtime with collapsible/foldable trees](docs/ppx_minidebug-foldable_trees.png)
 
+#### Highlighting search terms
+
 The `PrintBox` runtime also supports highlighting paths to logs that match a `highlight_terms`
 regular expression. For example:
 ![PrintBox runtime with collapsible/foldable trees](docs/ppx_minidebug-highlight_term_169.png)
@@ -144,7 +148,6 @@ regular expression. For example:
 To limit the highlight noise, some log entries can be excluded from propagating the highlight status
 using the `exclude_on_path` setting. To trim excessive logging while still providing all the context,
 you can set `highlighted_roots:true`, which only outputs highlighted toplevel boxes.
-
 
 #### `PrintBox` creating helpers with defaults: `debug` and `debug_html`
 
@@ -159,6 +162,20 @@ Similarly, `debug` returns a `PrintBox` module, which by default logs to `stdout
 ```ocaml
 module Debug_runtime = (val Minidebug_runtime.debug ())
 ```
+
+## Usage
+
+To trace a function, you have to type-annotate the function result. To trace an argument of a traced function, or a `let`-binding, you need to type-annotate it. You can control how much gets logged by adding or removing type annotations.
+
+Tracing only happens in explicitly marked scopes, using the extension points: `%debug_pp`, `%debug_this_pp`, `%debug_show`, `%debug_this_show` (based on printing functionality provided by `deriving.show`), `%debug_sexp`, `%debug_this_sexp` (using functionality provided by `sexplib0` and `ppx_sexp_conv`). See examples in [the test directory](test/).
+
+The `%debug_this` variants are intended only for `let`-bindings: `let%debug_this v: t = compute value in body` will trace `v` and the type-annotated bindings and functions inside `compute value`, but it will not trace `body`.
+
+To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.Flushing(struct let debug_ch = thread_specific_ch let time_tagged = true end) in ...` In particular, when performing `dune runtest` in the `ppx_minidebug` directory, the `test_debug_n` and the `test_debug_n_expected` pairs of programs will interfere with each other, unless you adjust the log file names in them.
+
+The `PrintBox` logs are the prettiest, I could not get the `Pp_format`-functor-based output look the way I wanted. The `Flushing` logs enable [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond) flame graphs. One should be able to get other logging styles to work with `Log Inspector` by configuring its regexp patterns.
+
+`ppx_minidebug` can be installed using `opam`. `ppx_minidebug.runtime` depends on `printbox`, `ptime`, `sexplib0`.
 
 ### Breaking infinite recursion with `max_nesting_depth` and looping with `max_num_children`; `Flushing`-based traces
 
@@ -198,7 +215,7 @@ module Debug_runtime =
 
 The logged traces are still indented, but if the values to print are multi-line, their formatting might be messy. The benefit of `Flushing` traces is that the output is flushed line-at-a-time, so no output should be lost if the traced program crashes. But in recent versions of `ppx_minidebug`, uncaught exceptions no longer break logging in the `PrintBox` and `Pp_format` runtimes. The indentation is also smaller (half of `PrintBox`). Truncated example (using `%debug_show`):
 
-```ocaml
+```shell
 BEGIN DEBUG SESSION at time 2023-03-02 23:19:40.763950 +01:00
 2023-03-02 23:19:40.763980 +01:00 - foo begin "test/test_debug_show.ml":3:19-5:15
  x = 7
@@ -230,19 +247,55 @@ BEGIN DEBUG SESSION at time 2023-03-02 23:19:40.763950 +01:00
         "test/test_debug_show.ml":21:8: 
 ```
 
-## Usage
+### Tracking `if` and `match` case branches
 
-To trace a function, you have to type-annotate the function result. To trace an argument of a traced function, or a `let`-binding, you need to type-annotate it. You can control how much gets logged by adding or removing type annotations.
+Using the `%track_`-prefix rather than `%debug_`-prefix to start a debug scope, or using the `%debug_trace` extension point inside a debug scope, enables tracking of which `if` and `match` is taken. To selectively disable these `if` and `match` branch logs, use `%debug_notrace`. Note that it disables the logs on a lexical scope, not just on the annotated syntax node (i.e. a specific `if` or `match` expression).
 
-Tracing only happens in explicitly marked scopes, using the extension points: `%debug_pp`, `%debug_this_pp`, `%debug_show`, `%debug_this_show` (based on printing functionality provided by `deriving.show`), `%debug_sexp`, `%debug_this_sexp` (using functionality provided by `sexplib0` and `ppx_sexp_conv`). See examples in [the test directory](test/).
+For example:
 
-The `%debug_this` variants are intended only for `let`-bindings: `let%debug_this v: t = compute value in body` will trace `v` and the type-annotated bindings and functions inside `compute value`, but it will not trace `body`.
+```ocaml
+  let%track_this_show track_branches (x : int) : int =
+    if x < 6 then
+      match%debug_notrace x with
+      | 0 -> 1
+      | 1 -> 0
+      | _ ->
+          let result : int = if x > 2 then x else ~-x in
+          result
+    else
+      match x with
+      | 6 -> 5
+      | 7 -> 4
+      | _ ->
+          let result : int = if x < 10 then x else ~-x in
+          result
 
-To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.Flushing(struct let debug_ch = thread_specific_ch let time_tagged = true end) in ...` In particular, when performing `dune runtest` in the `ppx_minidebug` directory, the `test_debug_n` and the `test_debug_n_expected` pairs of programs will interfere with each other, unless you adjust the log file names in them.
+  let () =
+    print_endline @@ Int.to_string @@ track_branches 8;
+    print_endline @@ Int.to_string @@ track_branches 3
+```
 
-The `PrintBox` logs are the prettiest, I could not get the `Pp_format`-functor-based output look the way I wanted. The `Flushing` logs enable [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond) flame graphs. One should be able to get other logging styles to work with `Log Inspector` by configuring its regexp patterns.
+gives:
 
-`ppx_minidebug` can be installed using `opam`. `ppx_minidebug.runtime` depends on `printbox`, `ptime`, `sexplib0`.
+```shell
+BEGIN DEBUG SESSION
+"test/test_expect_test.ml":415:37-429:16: track_branches
+├─x = 8
+├─"test/test_expect_test.ml":424:6: <if -- else branch>
+│ └─"test/test_expect_test.ml":427:8: <match -- branch 2>
+│   └─"test/test_expect_test.ml":428:14:
+│     ├─"test/test_expect_test.ml":428:44: <if -- then branch>
+│     └─result = 8
+└─track_branches = 8
+8
+"test/test_expect_test.ml":415:37-429:16: track_branches
+├─x = 3
+├─"test/test_expect_test.ml":417:6: <if -- then branch>
+│ └─"test/test_expect_test.ml":421:14:
+│   └─result = 3
+└─track_branches = 3
+3
+```
 
 ## VS Code suggestions
 

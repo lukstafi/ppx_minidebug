@@ -1,10 +1,11 @@
 {1 [ppx_minidebug] usage}
 
 [ppx_minidebug] traces selected code if it has type annotations. [ppx_minidebug] offers three ways
-of instrumenting the code: [%debug_pp] and [%debug_show] based on [deriving.show], and [%debug_sexp]
-based on [sexplib0] and [ppx_sexp_conv]. The syntax extension expects a module [Debug_runtime]
-in the scope. The [ppx_minidebug.runtime] library offers three ways of logging the traces,
-as functors generating [Debug_runtime] modules given an output channel (e.g. for a file).
+of instrumenting the code: [%debug_pp] (also [%track_pp]) and [%debug_show] (also [%track_show])
+based on [deriving.show], and [%debug_sexp] (also [%track_sexp) based on [sexplib0] and [ppx_sexp_conv].
+The syntax extension expects a module [Debug_runtime] in the scope. The [ppx_minidebug.runtime]
+library offers three ways of logging the traces, as functors generating [Debug_runtime] modules
+given an output channel (e.g. for a file).
 
 Take a look at {{:https://github.com/dariusf/ppx_debug} [ppx_debug]} which is significantly
 more powerful!
@@ -87,6 +88,56 @@ regardless of children. Therefore, `exclude_on_path` stops the propagation of hi
 There is also an optional flag [highlighted_roots], to only output highlighted toplevel boxes.
 This makes it simpler to trim excessive logging while still providing all the context.
 
+{3 Tracking [if] and [match] case branches}
+
+Using the [%track_]-prefix rather than [%debug_]-prefix to start a debug scope, or using the
+[%debug_trace] extension point inside a debug scope, enables tracking of which [if] and [match]
+is taken. To selectively disable these [if] and [match] branch logs, use [%debug_notrace]. Note that
+it disables the logs on a lexical scope, not just on the annotated syntax node (i.e. a specific [if]
+or [match] expression).
+
+For example:
+{[
+  let%track_this_show track_branches (x : int) : int =
+    if x < 6 then
+      match%debug_notrace x with
+      | 0 -> 1
+      | 1 -> 0
+      | _ ->
+          let result : int = if x > 2 then x else ~-x in
+          result
+    else
+      match x with
+      | 6 -> 5
+      | 7 -> 4
+      | _ ->
+          let result : int = if x < 10 then x else ~-x in
+          result
+
+  let () =
+    print_endline @@ Int.to_string @@ track_branches 8;
+    print_endline @@ Int.to_string @@ track_branches 3
+]}
+gives:
+{[
+BEGIN DEBUG SESSION
+"test/test_expect_test.ml":415:37-429:16: track_branches
+├─x = 8
+├─"test/test_expect_test.ml":424:6: <if -- else branch>
+│ └─"test/test_expect_test.ml":427:8: <match -- branch 2>
+│   └─"test/test_expect_test.ml":428:14:
+│     ├─"test/test_expect_test.ml":428:44: <if -- then branch>
+│     └─result = 8
+└─track_branches = 8
+8
+"test/test_expect_test.ml":415:37-429:16: track_branches
+├─x = 3
+├─"test/test_expect_test.ml":417:6: <if -- then branch>
+│ └─"test/test_expect_test.ml":421:14:
+│   └─result = 3
+└─track_branches = 3
+3
+]}
 
 {2 VS Code suggestions}
 
