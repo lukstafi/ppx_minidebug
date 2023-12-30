@@ -1,30 +1,170 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml"><head><title>index (ppx_minidebug.index)</title><meta charset="utf-8"/><link rel="stylesheet" href="../odoc.support/odoc.css"/><meta name="generator" content="odoc 2.4.0"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../odoc.support/highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body class="odoc"><nav class="odoc-nav"><a href="../index.html">Up</a> – ppx_minidebug</nav><header class="odoc-preamble"><h2 id="ppx_minidebug-usage"><a href="#ppx_minidebug-usage" class="anchor"></a><code>ppx_minidebug</code> usage</h2><p><code>ppx_minidebug</code> traces selected code if it has type annotations. <code>ppx_minidebug</code> offers three ways of instrumenting the code: <code>%debug_pp</code> and <code>%debug_show</code> based on <code>deriving.show</code>, and <code>%debug_sexp</code> based on <code>sexplib0</code> and <code>ppx_sexp_conv</code>. The syntax extension expects a module <code>Debug_runtime</code> in the scope. The <code>ppx_minidebug.runtime</code> library offers three ways of logging the traces, as functors generating <code>Debug_runtime</code> modules given an output channel (e.g. for a file).</p><p>Take a look at <a href="https://github.com/dariusf/ppx_debug"><code>ppx_debug</code></a> which is significantly more powerful!</p><p>See <a href="http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html"><code>Minidebug_runtime</code></a> for the provided loggers.</p></header><nav class="odoc-toc"><ul><li><a href="#usage">Usage</a><ul><li><a href="#debugging-infinite-loops">Debugging infinite loops</a></li><li><a href="#searching-and-navigating-the-logs">Searching and navigating the logs</a></li></ul></li><li><a href="#vs-code-suggestions">VS Code suggestions</a><ul><li><a href="#add-/-remove-type-annotations-and-visit-files-using-vocaml">Add / remove type annotations and visit files using <em>VOCaml</em></a></li><li><a href="#visualize-the-flame-graph-using-log-inspector">Visualize the flame graph using <em>Log Inspector</em></a></li><li><a href="#go-to-file-location-using-find-and-transform">Go to file location using <em>Find and Transform</em></a></li></ul></li></ul></nav><div class="odoc-content"><h3 id="usage"><a href="#usage" class="anchor"></a>Usage</h3><p>Try <code>opam install ppx_minidebug</code> to install from the opam repository. To install `ppx_minidebug` from sources, download it with e.g. <code>gh repo clone lukstafi/ppx_minidebug; cd ppx_minidebug</code> and then either <code>dune install</code> or <code>opam install .</code>.</p><p>To use <code>ppx_minidebug</code> in a Dune project, add/modify these stanzas: <code>(preprocess (pps ... ppx_minidebug))</code>, and <code>(libraries ... ppx_minidebug.runtime)</code>.</p><p>To trace a function, you have to type-annotate the function result. To trace an argument of a traced function, or a <code>let</code>-binding, you need to type-annotate it. You can control how much gets logged by adding or removing type annotations.</p><p>Tracing only happens in explicitly marked scopes, using the extension points: <code>%debug_pp</code>, <code>%debug_this_pp</code>, <code>%debug_show</code>, <code>%debug_this_show</code> (based on printing functionality provided by <code>deriving.show</code>), <code>%debug_sexp</code>, <code>%debug_this_sexp</code> (using functionality provided by <code>sexplib0</code> and <code>ppx_sexp_conv</code>). See examples in <a href="https://github.com/lukstafi/ppx_minidebug/tree/main/test">the test directory</a>.</p><p>The <code>%debug_this</code> variants are intended only for <code>let</code>-bindings: <code>let%debug_this v: t = compute value in body</code> will trace <code>v</code> and the type-annotated bindings and functions inside <code>compute value</code>, but it will not trace <code>body</code>.</p><p>Example setting up a logger printing to the screen:</p><pre class="language-ocaml"><code>module Debug_runtime = (val Minidebug_runtime.debug_flushing ())
-let%debug_show test_logging: string = &quot;Hello World&quot;</code></pre><p>Example setting up a logger printing to a file:</p><pre class="language-ocaml"><code>module Debug_runtime =
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>index (ppx_minidebug.index)</title><meta charset="utf-8"/><link rel="stylesheet" href="../odoc.support/odoc.css"/><meta name="generator" content="odoc 2.4.0"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../odoc.support/highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body class="odoc"><nav class="odoc-nav"><a href="../index.html">Up</a> – ppx_minidebug</nav><header class="odoc-preamble"><h2 id="ppx_minidebug-usage"><a href="#ppx_minidebug-usage" class="anchor"></a><code>ppx_minidebug</code> usage</h2><p><code>ppx_minidebug</code> traces selected code if it has type annotations. <code>ppx_minidebug</code> offers three ways of instrumenting the code: <code>%debug_pp</code> (also <code>%track_pp</code>) and <code>%debug_show</code> (also <code>%track_show</code>) based on <code>deriving.show</code>, and <code>%debug_sexp</code> (also <code>%track_sexp) based on [sexplib0] and [ppx_sexp_conv].
+The syntax extension expects a module [Debug_runtime] in the scope. The [ppx_minidebug.runtime]
+library offers three ways of logging the traces, as functors generating [Debug_runtime] modules
+given an output channel (e.g. for a file).
+Take a look at {{:https://github.com/dariusf/ppx_debug} [ppx_debug]} which is significantly
+more powerful!
+See {{:http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html}
+[Minidebug_runtime]} for the provided loggers.
+{2 Usage}
+Try [opam install ppx_minidebug] to install from the opam repository. To install `ppx_minidebug`
+from sources, download it with e.g.
+[gh repo clone lukstafi/ppx_minidebug; cd ppx_minidebug] and then either [dune install] or
+[opam install .].
+To use [ppx_minidebug] in a Dune project, add/modify these stanzas:
+[(preprocess (pps ... ppx_minidebug))], and [(libraries ... ppx_minidebug.runtime)].
+To trace a function, you have to type-annotate the function result. To trace an argument of a traced
+function, or a [let]-binding, you need to type-annotate it. You can control how much gets logged by
+adding or removing type annotations.
+Tracing only happens in explicitly marked scopes, using the extension points: [%debug_pp],
+[%debug_this_pp], [%debug_show], [%debug_this_show] (based on printing functionality provided by
+[deriving.show]), [%debug_sexp], [%debug_this_sexp] (using functionality provided by [sexplib0] and
+[ppx_sexp_conv]). See examples in {{:https://github.com/lukstafi/ppx_minidebug/tree/main/test}
+the test directory}.
+The [%debug_this] variants are intended only for [let]-bindings:
+[let%debug_this v: t = compute value in body] will trace [v] and the type-annotated bindings and
+functions inside [compute value], but it will not trace [body].
+Example setting up a logger printing to the screen:
+{[
+module Debug_runtime = (val Minidebug_runtime.debug_flushing ())
+let%debug_show test_logging: string = &quot;Hello World&quot;
+]}
+Example setting up a logger printing to a file:
+{[
+module Debug_runtime =
   Minidebug_runtime.Flushing((val Minidebug_runtime.debug_ch &quot;debugger_flushing.log&quot;))
-let%debug_show test_logging: string = &quot;Hello World&quot;</code></pre><p>Example setting up a logger printing to an HTML file -- this is only possible with the <code>PrintBox</code> runtime. In this example, we also configure the converting the <code>sexp</code>-based logs to the <code>PrintBox</code> format (when they have at least 50 atoms). This means that both the log tree structure and the structure of large values can be incrementally explored using collapsible trees in an HTML renderer.</p><pre class="language-ocaml"><code>module Debug_runtime =
+let%debug_show test_logging: string = &quot;Hello World&quot;
+]}
+Example setting up a logger printing to an HTML file -- this is only possible with the [PrintBox]
+runtime. In this example, we also configure the converting the [sexp]-based logs to the [PrintBox]
+format (when they have at least 50 atoms). This means that both the log tree structure and the
+structure of large values can be incrementally explored using collapsible trees in an HTML renderer.
+{[
+module Debug_runtime =
   Minidebug_runtime.PrintBox ((val Minidebug_runtime.debug_ch &quot;debug.html&quot;))
 let () = Debug_runtime.to_html := true
-let () = Debug_runtime.boxify_sexp_from_size := 50</code></pre><p><code>debug_html</code> is a configurable shorthand for the above setup:</p><pre class="language-ocaml"><code>module Debug_runtime = (val Minidebug_runtime.debug_html &quot;debug.html&quot;)</code></pre><p>Similarly, <code>debug</code> and <code>debug_flushing</code> are configurable shorthands that default to logging to <code>stdout</code> (but accept a `~debug_ch` argument).</p><h4 id="debugging-infinite-loops"><a href="#debugging-infinite-loops" class="anchor"></a>Debugging infinite loops</h4><p>Computation can be optionally interruped using the <code>~max_nesting_depth</code> and <code>~max_num_children</code> settings. The first raises a failure when the nesting of logs exceeds the given threshold, the second raises a failure when the number of log entries under a single parent exceeds the threshold. E.g.:</p><pre class="language-ocaml"><code>module Debug_runtime =
-  (val Minidebug_runtime.debug_html ~max_nesting_depth:20 ~max_num_children:50 &quot;debug.html&quot;)</code></pre><p>The cutoff points are indicated in the logs.</p><h4 id="searching-and-navigating-the-logs"><a href="#searching-and-navigating-the-logs" class="anchor"></a>Searching and navigating the logs</h4><p>Currently (since 0.7.0) there is just one support mechanism for taming complex logs: a <code>highlight_terms</code> regular expression in the PrintBox runtime. Paths to logs that match <code>highlight_terms</code> are printed with a frame / border: around the log and around summaries on the path to the log. A corresponding setting `exclude_on_path` will disable highlighting on logs (summaries) this regular expression matches on, regardless of children. Therefore, `exclude_on_path` stops the propagation of highlights upward. There is also an optional flag <code>highlighted_roots</code>, to only output highlighted toplevel boxes. This makes it simpler to trim excessive logging while still providing all the context.</p><h3 id="vs-code-suggestions"><a href="#vs-code-suggestions" class="anchor"></a>VS Code suggestions</h3><h4 id="add-/-remove-type-annotations-and-visit-files-using-vocaml"><a href="#add-/-remove-type-annotations-and-visit-files-using-vocaml" class="anchor"></a>Add / remove type annotations and visit files using <em>VOCaml</em></h4><p><a href="https://marketplace.visualstudio.com/items?itemName=lukstafi.vocaml">VOCaml helpers for coding in OCaml</a> provide commands to add and remove annotations on selected bindings. They can be used to introduce logging, tune it, and cleanup afterward. It also has a command to populate the _Quick Open_ dialog with a file name and location from a line under cursor. It can be used to jump to the source code from a log file.</p><p>Note that you can add and remove type annotations using VSCode OCaml Platform's code actions, and the <em>Find and Transform</em> suggestion below is a more flexible go-to-file solution -- so VOCaml is somewhat redundant. But, it is still valuable: (1) it annotates multiple <code>let</code>-bindings at once in a selection, and (2) it annotates the argument types and the return type of a function (as required by <code>ppx_debug</code>) when invoked on a function definition.</p><h4 id="visualize-the-flame-graph-using-log-inspector"><a href="#visualize-the-flame-graph-using-log-inspector" class="anchor"></a>Visualize the flame graph using <em>Log Inspector</em></h4><p><a href="https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond">Log Inspector (sub-millisecond)</a>'s main feature is visualizing timestamped logs as flame graphs. To invoke it in VS Code, go to the <code>Minidebug_runtime.Flushing</code>-style logs file, press <em>crtl+shift+P</em>, and execute the command <em>Log Inspector: Draw</em>.</p><p>The sub-millisecond functionality is now upstreamed to <a href="https://marketplace.visualstudio.com/items?itemName=LogInspector.loginspector">Log Inspector</a>.</p><h4 id="go-to-file-location-using-find-and-transform"><a href="#go-to-file-location-using-find-and-transform" class="anchor"></a>Go to file location using <em>Find and Transform</em></h4><p>This will expand your general-purpose VS Code toolbox!</p><p><a href="https://marketplace.visualstudio.com/items?itemName=ArturoDent.find-and-transform">Find and Transform</a> is a powerful VS Code extension. I put the following in my `keybindings.json` file (command: <em>Open Keyboard Shortcuts (JSON)</em>):</p><pre class="language-json"><code>{
-  &quot;key&quot;: &quot;alt+q&quot;,
-  &quot;command&quot;: &quot;findInCurrentFile&quot;,
-  &quot;args&quot;: {
-    &quot;description&quot;: &quot;Open file at cursor&quot;,
-    &quot;find&quot;: &quot;\&quot;([^\&quot;]+)\&quot;:([0-9]+)&quot;,
-    &quot;run&quot;: [
-      &quot;$${&quot;,
-        &quot;const pos = new vscode.Position($2, 0);&quot;,
-        &quot;const range = new vscode.Range(pos, pos);&quot;,
-        &quot;const options = {selection: range};&quot;,
-        &quot;const wsFolderUri = vscode.workspace.workspaceFolders[0].uri;&quot;,
-        &quot;const uri = await vscode.Uri.joinPath(wsFolderUri, '$1');&quot;,
-        &quot;await vscode.commands.executeCommand('vscode.open', uri, options);&quot;,
-        
-        // &quot;await vscode.commands.executeCommand('workbench.action.quickOpen', `$1:$2`);&quot;,
-      &quot;}$$&quot;,
-    ],
-    &quot;isRegex&quot;: true,
-    &quot;restrictFind&quot;: &quot;line&quot;,
+let () = Debug_runtime.boxify_sexp_from_size := 50
+]}
+[debug_html] is a configurable shorthand for the above setup:
+{[
+module Debug_runtime = (val Minidebug_runtime.debug_html &quot;debug.html&quot;)
+]}
+Similarly, [debug] and [debug_flushing] are configurable shorthands that default to logging to [stdout]
+(but accept a `~debug_ch` argument).
+{3 Debugging infinite loops}
+Computation can be optionally interruped using the [~max_nesting_depth] and [~max_num_children] settings.
+The first raises a failure when the nesting of logs exceeds the given threshold, the second raises
+a failure when the number of log entries under a single parent exceeds the threshold. E.g.:
+{[
+module Debug_runtime =
+  (val Minidebug_runtime.debug_html ~max_nesting_depth:20 ~max_num_children:50 &quot;debug.html&quot;)
+]}
+The cutoff points are indicated in the logs.
+{3 Searching and navigating the logs}
+Currently (since 0.7.0) there is just one support mechanism for taming complex logs: a [highlight_terms]
+regular expression in the PrintBox runtime. Paths to logs that match [highlight_terms] are printed with
+a frame / border: around the log and around summaries on the path to the log. A corresponding setting
+`exclude_on_path` will disable highlighting on logs (summaries) this regular expression matches on,
+regardless of children. Therefore, `exclude_on_path` stops the propagation of highlights upward.
+There is also an optional flag [highlighted_roots], to only output highlighted toplevel boxes.
+This makes it simpler to trim excessive logging while still providing all the context.
+{3 Tracking [if] and [match] case branches}
+Using the [%track_]-prefix rather than [%debug_]-prefix to start a debug scope, or using the
+[%debug_trace] extension point inside a debug scope, enables tracking of which [if] and [match]
+is taken. To selectively disable these [if] and [match] branch logs, use [%debug_notrace]. Note that
+it disables the logs on a lexical scope, not just on the annotated syntax node (i.e. a specific [if]
+or [match] expression).
+For example:
+{[
+  let%track_this_show track_branches (x : int) : int =
+    if x &lt; 6 then
+      match%debug_notrace x with
+      | 0 -&gt; 1
+      | 1 -&gt; 0
+      | _ -&gt;
+          let result : int = if x &gt; 2 then x else ~-x in
+          result
+    else
+      match x with
+      | 6 -&gt; 5
+      | 7 -&gt; 4
+      | _ -&gt;
+          let result : int = if x &lt; 10 then x else ~-x in
+          result
+  let () =
+    print_endline @@ Int.to_string @@ track_branches 8;
+    print_endline @@ Int.to_string @@ track_branches 3
+]}
+gives:
+{[
+BEGIN DEBUG SESSION
+&quot;test/test_expect_test.ml&quot;:415:37-429:16: track_branches
+├─x = 8
+├─&quot;test/test_expect_test.ml&quot;:424:6: &lt;if -- else branch&gt;
+│ └─&quot;test/test_expect_test.ml&quot;:427:8: &lt;match -- branch 2&gt;
+│   └─&quot;test/test_expect_test.ml&quot;:428:14:
+│     ├─&quot;test/test_expect_test.ml&quot;:428:44: &lt;if -- then branch&gt;
+│     └─result = 8
+└─track_branches = 8
+8
+&quot;test/test_expect_test.ml&quot;:415:37-429:16: track_branches
+├─x = 3
+├─&quot;test/test_expect_test.ml&quot;:417:6: &lt;if -- then branch&gt;
+│ └─&quot;test/test_expect_test.ml&quot;:421:14:
+│   └─result = 3
+└─track_branches = 3
+3
+]}
+{2 VS Code suggestions}
+{3 Add / remove type annotations and visit files using {e VOCaml}}
+{{:https://marketplace.visualstudio.com/items?itemName=lukstafi.vocaml}VOCaml helpers for coding in OCaml}
+provide commands to add and remove annotations on selected bindings. They can be used to introduce
+logging, tune it, and cleanup afterward. It also has a command to populate the _Quick Open_ dialog
+with a file name and location from a line under cursor. It can be used to jump to the source code
+from a log file.
+Note that you can add and remove type annotations using VSCode OCaml Platform's code actions,
+and the {e Find and Transform} suggestion below is a more flexible go-to-file solution -- so VOCaml
+is somewhat redundant. But, it is still valuable: (1) it annotates multiple [let]-bindings at once
+in a selection, and (2) it annotates the argument types and the return type of a function
+(as required by [ppx_debug]) when invoked on a function definition.
+{3 Visualize the flame graph using {e Log Inspector}}
+{{:https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond}
+Log Inspector (sub-millisecond)}'s main feature is visualizing timestamped logs as flame graphs.
+To invoke it in VS Code, go to the [Minidebug_runtime.Flushing]-style logs file,
+press {e crtl+shift+P}, and execute the command {e Log Inspector: Draw}.
+The sub-millisecond functionality is now upstreamed to
+{{:https://marketplace.visualstudio.com/items?itemName=LogInspector.loginspector} Log Inspector}.
+{3 Go to file location using {e Find and Transform}}
+This will expand your general-purpose VS Code toolbox!
+{{:https://marketplace.visualstudio.com/items?itemName=ArturoDent.find-and-transform}Find and Transform}
+is a powerful VS Code extension. I put the following in my `keybindings.json` file (command:
+{e Open Keyboard Shortcuts (JSON)}):
+{@json[
+  {
+    &quot;key&quot;: &quot;alt+q&quot;,
+    &quot;command&quot;: &quot;findInCurrentFile&quot;,
+    &quot;args&quot;: {
+      &quot;description&quot;: &quot;Open file at cursor&quot;,
+      &quot;find&quot;: &quot;\&quot;([^\&quot;]+)\&quot;:([0-9]+)&quot;,
+      &quot;run&quot;: [
+        &quot;$${&quot;,
+          &quot;const pos = new vscode.Position($2, 0);&quot;,
+          &quot;const range = new vscode.Range(pos, pos);&quot;,
+          &quot;const options = {selection: range};&quot;,
+          &quot;const wsFolderUri = vscode.workspace.workspaceFolders[0].uri;&quot;,
+          &quot;const uri = await vscode.Uri.joinPath(wsFolderUri, '$1');&quot;,
+          &quot;await vscode.commands.executeCommand('vscode.open', uri, options);&quot;,
+          
+          // &quot;await vscode.commands.executeCommand('workbench.action.quickOpen', `$1:$2`);&quot;,
+        &quot;}$$&quot;,
+      ],
+      &quot;isRegex&quot;: true,
+      &quot;restrictFind&quot;: &quot;line&quot;,
+    }
   }
-}</code></pre><p>Then, pressing `alt+q` will open a pre-populated dialog, and `enter` will get me to the file location. The file-and-location detection above matches the default one from the <code>Flushing</code> module, you can adjust the <code>find</code> pattern to match other formats.</p></div></body></html>
+]}
+Then, pressing `alt+q` will open a pre-populated dialog, and `enter` will get me to the
+file location. The file-and-location detection above matches the default one from the [Flushing]
+module, you can adjust the [find] pattern to match other formats.
+</code></p></header><div class="odoc-content"></div></body></html>
