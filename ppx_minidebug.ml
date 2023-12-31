@@ -243,9 +243,9 @@ type rule = {
 }
 
 let rules =
-  List.concat_map
+  List.concat @@ List.map
     (fun tracking ->
-      List.concat_map
+      List.concat @@ List.map
         (fun expander ->
           List.map
             (fun printer ->
