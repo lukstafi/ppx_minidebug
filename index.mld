@@ -7,8 +7,7 @@ The syntax extension expects a module [Debug_runtime] in the scope. The [ppx_min
 library offers three ways of logging the traces, as functors generating [Debug_runtime] modules
 given an output channel (e.g. for a file).
 
-Take a look at {{:https://github.com/dariusf/ppx_debug} [ppx_debug]} which is significantly
-more powerful!
+Take a look at {{:https://github.com/dariusf/ppx_debug} [ppx_debug]} which has complementary strengths!
 
 See {{:http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html}
 [Minidebug_runtime]} for the provided loggers.

@@ -15,13 +15,13 @@
 
 (documentation https://lukstafi.github.io/ppx_minidebug/ppx_minidebug)
 
-(version 0.7.0)
+(version 0.8.0)
 
 (package
  (name ppx_minidebug)
  (synopsis "Debug logs for selected functions and let-bindings")
  (description
-  "A poor man's `ppx_debug` with formatted logs of let-bound values, function arguments and results.")
+  "Formatted logs of let-bound values, function arguments and results; `if` and `match` branches taken. Optionally, as collapsible HTML trees with highlights.")
  (depends
   (ocaml
    (>= 4.08))

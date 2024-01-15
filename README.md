@@ -1,10 +1,10 @@
 # ppx_minidebug
 
-## `ppx_minidebug`: A poor man's version of [`ppx_debug`](https://github.com/dariusf/ppx_debug)
+## `ppx_minidebug`: Debug logs for selected functions and let-bindings
 
 `ppx_minidebug` traces selected code if it has type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` (also `%track_pp` and `%track_show`), based on `deriving.show`, and `%debug_sexp` (also `%track_sexp`) based on `sexplib0` and `ppx_sexp_conv`. The syntax extension expects a module `Debug_runtime` in the scope. The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers three ways of logging the traces, as functors generating `Debug_runtime` modules given an output channel (e.g. for a file).
 
-Take a look at [`ppx_debug`](https://github.com/dariusf/ppx_debug) which is significantly more powerful!
+Take a look at [`ppx_debug`](https://github.com/dariusf/ppx_debug) which has complementary strengths!
 
 See also [the generated documentation](https://lukstafi.github.io/ppx_minidebug/).
 
