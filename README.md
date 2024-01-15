@@ -184,7 +184,7 @@ The `PrintBox` and `Pp_format` backends only produce any output when a top-level
 ```ocaml
 module Debug_runtime = (val Minidebug_runtime.debug ~max_nesting_depth:5 ())
 
-let%debug_this_show rec loop_exceeded (x : int) : int =
+let%debug_show rec loop_exceeded (x : int) : int =
   let z : int = (x - 1) / 2 in
   if x <= 0 then 0 else z + loop_exceeded (z + (x / 2))
 
@@ -198,7 +198,7 @@ Similarly, `max_num_children` raises a failure when the given number of logs wit
 ```ocaml
 module Debug_runtime = (val Minidebug_runtime.debug ~max_num_children:50 ())
 
-let%debug_this_show _bar : unit =
+let%debug_show _bar : unit =
   for i = 0 to 100 do
     let _baz : int = i * 2 in
     ()
@@ -247,14 +247,16 @@ BEGIN DEBUG SESSION at time 2023-03-02 23:19:40.763950 +01:00
         "test/test_debug_show.ml":21:8: 
 ```
 
-### Tracking `if` and `match` case branches
+### Tracking: `if` and `match` case branches, anonymous and insufficiently annotated functions
 
-Using the `%track_`-prefix rather than `%debug_`-prefix to start a debug scope, or using the `%debug_trace` extension point inside a debug scope, enables tracking of which `if` and `match` is taken. To selectively disable these `if` and `match` branch logs, use `%debug_notrace`. Note that it disables the logs on a lexical scope, not just on the annotated syntax node (i.e. a specific `if` or `match` expression).
+Using the `%track_`-prefix rather than `%debug_`-prefix to start a debug scope, or using the `%debug_trace` extension point inside a debug scope, enables more elaborate tracking of the execution path. It logs which `if` and `match` branch is taken. It logs functions even if the return type is not annotated, including anonymous functions; in particular, it logs type-annotated arguments of anonymous functions. To selectively disable these logs, use `%debug_notrace`. Note that it disables the logs on a lexical scope, not just on the annotated syntax node (e.g. a specific `if` or `match` expression).
+
+If you get fewer logs than you expected, try converting `%debug_` to `%track_`.
 
 For example:
 
 ```ocaml
-  let%track_this_show track_branches (x : int) : int =
+  let%track_show track_branches (x : int) : int =
     if x < 6 then
       match%debug_notrace x with
       | 0 -> 1
@@ -295,6 +297,32 @@ BEGIN DEBUG SESSION
 │   └─result = 3
 └─track_branches = 3
 3
+```
+
+and
+
+```ocaml
+  let%track_this_show anonymous (x : int) =
+    Array.fold_left ( + ) 0 @@ Array.init (x + 1) (fun (i : int) -> i)
+  in
+  print_endline @@ Int.to_string @@ anonymous 3
+```
+
+gives:
+
+```shell
+BEGIN DEBUG SESSION
+"test/test_expect_test.ml":516:32-517:70: anonymous
+├─x = 3
+├─"test/test_expect_test.ml":517:50-517:70: __fun
+│ └─i = 0
+├─"test/test_expect_test.ml":517:50-517:70: __fun
+│ └─i = 1
+├─"test/test_expect_test.ml":517:50-517:70: __fun
+│ └─i = 2
+└─"test/test_expect_test.ml":517:50-517:70: __fun
+  └─i = 3
+6
 ```
 
 ## VS Code suggestions

@@ -88,13 +88,16 @@ regardless of children. Therefore, `exclude_on_path` stops the propagation of hi
 There is also an optional flag [highlighted_roots], to only output highlighted toplevel boxes.
 This makes it simpler to trim excessive logging while still providing all the context.
 
-{3 Tracking [if] and [match] case branches}
+{3 Tracking [if] and [match] case branches, and insufficiently annotated or anonymous functions}
 
 Using the [%track_]-prefix rather than [%debug_]-prefix to start a debug scope, or using the
-[%debug_trace] extension point inside a debug scope, enables tracking of which [if] and [match]
-is taken. To selectively disable these [if] and [match] branch logs, use [%debug_notrace]. Note that
-it disables the logs on a lexical scope, not just on the annotated syntax node (i.e. a specific [if]
+[%debug_trace] extension point inside a debug scope, enables enhanced logging. It tracks which
+[if] and [match] branch is taken. It logs calls of insufficiently annotated functions, including
+anonymous functions. To selectively disable the enhanced tracking, use [%debug_notrace]. Note that
+it disables the logs on a lexical scope, not just on the annotated syntax node (e.g. a specific [if]
 or [match] expression).
+
+If you get fewer logs than you expected, try converting [%debug_] to [%track_].
 
 For example:
 {[
@@ -137,6 +140,28 @@ BEGIN DEBUG SESSION
 │   └─result = 3
 └─track_branches = 3
 3
+]}
+and
+{[
+  let%track_this_show anonymous (x : int) =
+    Array.fold_left ( + ) 0 @@ Array.init (x + 1) (fun (i : int) -> i)
+  in
+  print_endline @@ Int.to_string @@ anonymous 3
+]}
+gives:
+{[
+BEGIN DEBUG SESSION
+"test/test_expect_test.ml":516:32-517:70: anonymous
+├─x = 3
+├─"test/test_expect_test.ml":517:50-517:70: __fun
+│ └─i = 0
+├─"test/test_expect_test.ml":517:50-517:70: __fun
+│ └─i = 1
+├─"test/test_expect_test.ml":517:50-517:70: __fun
+│ └─i = 2
+└─"test/test_expect_test.ml":517:50-517:70: __fun
+  └─i = 3
+6
 ]}
 
 {2 VS Code suggestions}

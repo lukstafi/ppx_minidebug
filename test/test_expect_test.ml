@@ -395,20 +395,20 @@ let%expect_test "%debug_show PrintBox tracking" =
   in
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":386:37-388:46: track_branches
-    ├─x = 7
-    ├─"test/test_expect_test.ml":388:9: <if -- else branch>
-    │ └─"test/test_expect_test.ml":388:31: <match -- branch 1>
-    └─track_branches = 4
-    4
-    "test/test_expect_test.ml":386:37-388:46: track_branches
-    ├─x = 3
-    ├─"test/test_expect_test.ml":387:18: <if -- then branch>
-    │ └─"test/test_expect_test.ml":387:49: <match -- branch 2>
-    └─track_branches = -3
-    -3
-        |}]
+      BEGIN DEBUG SESSION
+      "test/test_expect_test.ml":386:37-388:46: track_branches
+      ├─x = 7
+      ├─"test/test_expect_test.ml":388:9: <if -- else branch>
+      │ └─"test/test_expect_test.ml":388:31: <match -- branch 1>
+      └─track_branches = 4
+      4
+      "test/test_expect_test.ml":386:37-388:46: track_branches
+      ├─x = 3
+      ├─"test/test_expect_test.ml":387:18: <if -- then branch>
+      │ └─"test/test_expect_test.ml":387:49: <match -- branch 2>
+      └─track_branches = -3
+      -3
+    |}]
 
 let%expect_test "%debug_show PrintBox tracking with debug_notrace" =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
@@ -436,24 +436,24 @@ let%expect_test "%debug_show PrintBox tracking with debug_notrace" =
   in
   [%expect
     {|
-          BEGIN DEBUG SESSION
-          "test/test_expect_test.ml":415:37-429:16: track_branches
-          ├─x = 8
-          ├─"test/test_expect_test.ml":424:6: <if -- else branch>
-          │ └─"test/test_expect_test.ml":427:8: <match -- branch 2>
-          │   └─"test/test_expect_test.ml":428:14:
-          │     ├─"test/test_expect_test.ml":428:44: <if -- then branch>
-          │     └─result = 8
-          └─track_branches = 8
-          8
-          "test/test_expect_test.ml":415:37-429:16: track_branches
-          ├─x = 3
-          ├─"test/test_expect_test.ml":417:6: <if -- then branch>
-          │ └─"test/test_expect_test.ml":421:14:
-          │   └─result = 3
-          └─track_branches = 3
-          3
-              |}]
+      BEGIN DEBUG SESSION
+      "test/test_expect_test.ml":415:37-429:16: track_branches
+      ├─x = 8
+      ├─"test/test_expect_test.ml":424:6: <if -- else branch>
+      │ └─"test/test_expect_test.ml":427:8: <match -- branch 2>
+      │   └─"test/test_expect_test.ml":428:14:
+      │     ├─"test/test_expect_test.ml":428:44: <if -- then branch>
+      │     └─result = 8
+      └─track_branches = 8
+      8
+      "test/test_expect_test.ml":415:37-429:16: track_branches
+      ├─x = 3
+      ├─"test/test_expect_test.ml":417:6: <if -- then branch>
+      │ └─"test/test_expect_test.ml":421:14:
+      │   └─result = 3
+      └─track_branches = 3
+      3
+    |}]
 
 let%expect_test "nested extension points are no-ops" =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
@@ -481,21 +481,150 @@ let%expect_test "nested extension points are no-ops" =
   in
   [%expect
     {|
-        BEGIN DEBUG SESSION
-        "test/test_expect_test.ml":460:37-474:16: track_branches
-        ├─x = 8
-        ├─"test/test_expect_test.ml":469:6: <if -- else branch>
-        │ └─"test/test_expect_test.ml":472:8: <match -- branch 2>
-        │   └─"test/test_expect_test.ml":473:23:
-        │     ├─"test/test_expect_test.ml":473:53: <if -- then branch>
-        │     └─result = 8
-        └─track_branches = 8
-        8
-        "test/test_expect_test.ml":460:37-474:16: track_branches
-        ├─x = 3
-        ├─"test/test_expect_test.ml":462:6: <if -- then branch>
-        │ └─"test/test_expect_test.ml":466:25:
-        │   └─result = 3
-        └─track_branches = 3
-        3
-            |}]
+      BEGIN DEBUG SESSION
+      "test/test_expect_test.ml":460:37-474:16: track_branches
+      ├─x = 8
+      ├─"test/test_expect_test.ml":469:6: <if -- else branch>
+      │ └─"test/test_expect_test.ml":472:8: <match -- branch 2>
+      │   └─"test/test_expect_test.ml":473:23:
+      │     ├─"test/test_expect_test.ml":473:53: <if -- then branch>
+      │     └─result = 8
+      └─track_branches = 8
+      8
+      "test/test_expect_test.ml":460:37-474:16: track_branches
+      ├─x = 3
+      ├─"test/test_expect_test.ml":462:6: <if -- then branch>
+      │ └─"test/test_expect_test.ml":466:25:
+      │   └─result = 3
+      └─track_branches = 3
+      3
+    |}]
+
+let%expect_test "%track_show PrintBox to stdout no return type anonymous fun" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~max_num_children:10 ()) in
+  let%debug_this_show anonymous (x : int) =
+    Array.fold_left ( + ) 0 @@ Array.init (x + 1) (fun (i : int) -> i)
+  in
+  let () =
+    try print_endline @@ Int.to_string @@ anonymous 3
+    with Failure s -> print_endline @@ "Raised exception: " ^ s
+  in
+  [%expect {|
+    BEGIN DEBUG SESSION
+    6
+  |}];
+  let%track_this_show anonymous (x : int) =
+    Array.fold_left ( + ) 0 @@ Array.init (x + 1) (fun (i : int) -> i)
+  in
+  let () =
+    try print_endline @@ Int.to_string @@ anonymous 3
+    with Failure s -> print_endline @@ "Raised exception: " ^ s
+  in
+  [%expect
+    {|
+      "test/test_expect_test.ml":516:32-517:70: anonymous
+      ├─x = 3
+      ├─"test/test_expect_test.ml":517:50-517:70: __fun
+      │ └─i = 0
+      ├─"test/test_expect_test.ml":517:50-517:70: __fun
+      │ └─i = 1
+      ├─"test/test_expect_test.ml":517:50-517:70: __fun
+      │ └─i = 2
+      └─"test/test_expect_test.ml":517:50-517:70: __fun
+        └─i = 3
+      6
+    |}]
+
+let%expect_test "%track_show PrintBox to stdout anonymous fun, num children exceeded" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~max_num_children:10 ()) in
+  let%track_this_show rec loop_exceeded (x : int) : int =
+    Array.fold_left ( + ) 0
+    @@ Array.init
+         (100 / (x + 1))
+         (fun (i : int) ->
+           let z : int = i + ((x - 1) / 2) in
+           if x <= 0 then i else i + loop_exceeded (z + (x / 2) - i))
+  in
+  let () =
+    try print_endline @@ Int.to_string @@ loop_exceeded 3
+    with Failure s -> print_endline @@ "Raised exception: " ^ s
+  in
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      "test/test_expect_test.ml":540:40-546:69: loop_exceeded
+      ├─x = 3
+      └─"test/test_expect_test.ml":544:9-546:69: __fun
+        ├─i = 0
+        ├─"test/test_expect_test.ml":545:15:
+        │ └─z = 1
+        └─"test/test_expect_test.ml":546:33: <if -- else branch>
+          └─"test/test_expect_test.ml":540:40-546:69: loop_exceeded
+            ├─x = 2
+            └─"test/test_expect_test.ml":544:9-546:69: __fun
+              ├─i = 0
+              ├─"test/test_expect_test.ml":545:15:
+              │ └─z = 0
+              └─"test/test_expect_test.ml":546:33: <if -- else branch>
+                └─"test/test_expect_test.ml":540:40-546:69: loop_exceeded
+                  ├─x = 1
+                  └─"test/test_expect_test.ml":544:9-546:69: __fun
+                    ├─i = 0
+                    ├─"test/test_expect_test.ml":545:15:
+                    │ └─z = 0
+                    └─"test/test_expect_test.ml":546:33: <if -- else branch>
+                      └─"test/test_expect_test.ml":540:40-546:69: loop_exceeded
+                        ├─x = 0
+                        ├─"test/test_expect_test.ml":544:9-546:69: __fun
+                        │ ├─i = 0
+                        │ ├─"test/test_expect_test.ml":545:15:
+                        │ │ └─z = 0
+                        │ └─"test/test_expect_test.ml":546:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":544:9-546:69: __fun
+                        │ ├─i = 1
+                        │ ├─"test/test_expect_test.ml":545:15:
+                        │ │ └─z = 1
+                        │ └─"test/test_expect_test.ml":546:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":544:9-546:69: __fun
+                        │ ├─i = 2
+                        │ ├─"test/test_expect_test.ml":545:15:
+                        │ │ └─z = 2
+                        │ └─"test/test_expect_test.ml":546:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":544:9-546:69: __fun
+                        │ ├─i = 3
+                        │ ├─"test/test_expect_test.ml":545:15:
+                        │ │ └─z = 3
+                        │ └─"test/test_expect_test.ml":546:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":544:9-546:69: __fun
+                        │ ├─i = 4
+                        │ ├─"test/test_expect_test.ml":545:15:
+                        │ │ └─z = 4
+                        │ └─"test/test_expect_test.ml":546:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":544:9-546:69: __fun
+                        │ ├─i = 5
+                        │ ├─"test/test_expect_test.ml":545:15:
+                        │ │ └─z = 5
+                        │ └─"test/test_expect_test.ml":546:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":544:9-546:69: __fun
+                        │ ├─i = 6
+                        │ ├─"test/test_expect_test.ml":545:15:
+                        │ │ └─z = 6
+                        │ └─"test/test_expect_test.ml":546:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":544:9-546:69: __fun
+                        │ ├─i = 7
+                        │ ├─"test/test_expect_test.ml":545:15:
+                        │ │ └─z = 7
+                        │ └─"test/test_expect_test.ml":546:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":544:9-546:69: __fun
+                        │ ├─i = 8
+                        │ ├─"test/test_expect_test.ml":545:15:
+                        │ │ └─z = 8
+                        │ └─"test/test_expect_test.ml":546:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":544:9-546:69: __fun
+                        │ ├─i = 9
+                        │ ├─"test/test_expect_test.ml":545:15:
+                        │ │ └─z = 9
+                        │ └─"test/test_expect_test.ml":546:26: <if -- then branch>
+                        └─__fun = <max_num_children exceeded>
+      Raised exception: ppx_minidebug: max_num_children exceeded
+    |}]

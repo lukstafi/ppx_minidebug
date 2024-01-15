@@ -1,3 +1,13 @@
+## [0.8.0] -- current
+
+### Added
+
+- When in an active `%track_` scope:
+  - Log `for` loop indices at the beginning of a loop.
+  - Log `function` branches (similar to `match` branches).
+  - Log all functions. Doing it only for `%track_` to reduce noise.
+    - This will log type-annotated arguments of anonymous functions (even when the function result type is not annotated).
+
 ## [0.7.0] -- 2023-12-31
 
 ### Added

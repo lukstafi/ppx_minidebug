@@ -129,13 +129,25 @@ let rec expand_fun body = function
         pexp_attributes;
       }
 
-let debug_fun callback bind descr_loc typ_opt1 exp =
+let debug_fun callback ?bind ?descr_loc ?typ_opt exp =
   let args, body, typ_opt2 = collect_fun [] exp in
   let loc = exp.pexp_loc in
   let typ =
-    match (typ_opt1, typ_opt2) with
-    | Some typ, _ | None, Some typ -> typ
+    match (typ_opt, typ_opt2) with
+    | Some typ, _ | None, Some typ -> Some typ
+    | None, None when !track_branches -> None
     | None, None -> raise Not_transforming
+  in
+  let descr_loc =
+    match descr_loc with
+    | None when !track_branches -> { txt = "__fun"; loc }
+    | None -> raise Not_transforming
+    | Some descr_loc -> descr_loc
+  in
+  let bind =
+    match bind with
+    | None -> pat2pat_res (Ast_builder.Default.ppat_var ~loc descr_loc)
+    | Some bind -> bind
   in
   let arg_logs =
     List.filter_map
@@ -177,7 +189,10 @@ let debug_fun callback bind descr_loc typ_opt1 exp =
         else
           match [%e callback body] with
           | [%p result] ->
-              [%e !log_value ~loc ~typ ~descr_loc (pat2expr result)];
+              [%e
+                match typ with
+                | None -> [%expr ()]
+                | Some typ -> !log_value ~loc ~typ ~descr_loc (pat2expr result)];
               Debug_runtime.close_log ();
               [%e pat2expr result]
           | exception e ->
@@ -208,7 +223,10 @@ let debug_binding callback vb =
   in
   match (vb.pvb_expr.pexp_desc, typ_opt) with
   | Pexp_fun _, _ ->
-      { vb with pvb_expr = debug_fun callback vb.pvb_pat descr_loc typ_opt vb.pvb_expr }
+      {
+        vb with
+        pvb_expr = debug_fun callback ~bind:vb.pvb_pat ~descr_loc ?typ_opt vb.pvb_expr;
+      }
   | _, Some typ ->
       let result = pat2pat_res pat in
       let exp =
@@ -302,6 +320,10 @@ let traverse =
           | exception e ->
               track_branches := old_track_branches;
               raise e)
+      | { pexp_desc = Pexp_fun (arg_label, guard, pat, exp); _ } -> (
+          try debug_fun callback e
+          with Not_transforming ->
+            { e with pexp_desc = Pexp_fun (arg_label, guard, pat, self#expression exp) })
       | { pexp_desc = Pexp_match (expr, cases); _ } when !track_branches ->
           let cases =
             List.mapi
@@ -380,7 +402,14 @@ let debug_this_expander payload =
   match payload with
   | { pexp_desc = Pexp_let (recflag, bindings, body); _ } ->
       (* This is the [let%debug_this ... in] use-case: do not debug the whole body. *)
-      let bindings = List.map (debug_binding callback) bindings in
+      let bindings =
+        List.map
+          (fun vb ->
+            try debug_binding callback vb
+            with Not_transforming ->
+              { vb with pvb_expr = traverse#expression vb.pvb_expr })
+          bindings
+      in
       { payload with pexp_desc = Pexp_let (recflag, bindings, body) }
   | expr -> expr
 
