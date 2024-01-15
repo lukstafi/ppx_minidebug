@@ -261,25 +261,28 @@ type rule = {
 }
 
 let rules =
-  List.concat @@ List.map
-    (fun tracking ->
-      List.concat @@ List.map
-        (fun expander ->
-          List.map
-            (fun printer ->
-              let ext_point = if tracking then "track" else "debug" in
-              let ext_point =
-                ext_point
-                ^ match expander with `Debug_this -> "_this" | `Debug | `Str -> ""
-              in
-              let ext_point =
-                ext_point ^ "_"
-                ^ match printer with `Pp -> "pp" | `Sexp -> "sexp" | `Show -> "show"
-              in
-              { ext_point; tracking; expander; printer })
-            [ `Pp; `Sexp; `Show ])
-        [ `Debug; `Debug_this; `Str ])
-    [ false; true ]
+  List.concat
+  @@ List.map
+       (fun tracking ->
+         List.concat
+         @@ List.map
+              (fun expander ->
+                List.map
+                  (fun printer ->
+                    let ext_point = if tracking then "track" else "debug" in
+                    let ext_point =
+                      ext_point
+                      ^ match expander with `Debug_this -> "_this" | `Debug | `Str -> ""
+                    in
+                    let ext_point =
+                      ext_point ^ "_"
+                      ^
+                      match printer with `Pp -> "pp" | `Sexp -> "sexp" | `Show -> "show"
+                    in
+                    { ext_point; tracking; expander; printer })
+                  [ `Pp; `Sexp; `Show ])
+              [ `Debug; `Debug_this; `Str ])
+       [ false; true ]
 
 let is_ext_point =
   let points = List.map (fun r -> Re.str r.ext_point) rules in
