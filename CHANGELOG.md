@@ -3,7 +3,7 @@
 ### Added
 
 - When in an active `%track_` scope:
-  - Log `for` loop indices at the beginning of a loop.
+  - Log `for` loop indices at the beginning of a loop body.
   - Log `function` branches (similar to `match` branches).
   - Log all functions. Doing it only for `%track_` to reduce noise.
     - This will log type-annotated arguments of anonymous functions (even when the function result type is not annotated).

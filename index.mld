@@ -87,14 +87,14 @@ regardless of children. Therefore, `exclude_on_path` stops the propagation of hi
 There is also an optional flag [highlighted_roots], to only output highlighted toplevel boxes.
 This makes it simpler to trim excessive logging while still providing all the context.
 
-{3 Tracking [if] and [match] case branches, and insufficiently annotated or anonymous functions}
+{3 Tracking control flow branches, and insufficiently annotated or anonymous functions}
 
 Using the [%track_]-prefix rather than [%debug_]-prefix to start a debug scope, or using the
 [%debug_trace] extension point inside a debug scope, enables enhanced logging. It tracks which
-[if] and [match] branch is taken. It logs calls of insufficiently annotated functions, including
-anonymous functions. To selectively disable the enhanced tracking, use [%debug_notrace]. Note that
-it disables the logs on a lexical scope, not just on the annotated syntax node (e.g. a specific [if]
-or [match] expression).
+[if], [match], [function] branch is taken. It logs the loop index of `for` loops. It logs calls of
+functions insufficiently annotated for [%debug_] logging, including anonymous functions. To selectively
+disable the enhanced tracking, use [%debug_notrace]. Note that it disables the logs on a lexical scope,
+not just on the annotated syntax node (e.g. a specific [if] or [match] expression).
 
 If you get fewer logs than you expected, try converting [%debug_] to [%track_].
 
