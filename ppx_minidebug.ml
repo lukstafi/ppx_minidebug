@@ -106,6 +106,11 @@ let log_string ~loc ~descr_loc s =
       ~descr:[%e A.estring ~loc:descr_loc.loc descr_loc.txt]
       ~v:[%e A.estring ~loc s]]
 
+type fun_arg =
+  | Pexp_fun_arg of
+      arg_label * expression option * pattern * location * location_stack * attributes
+  | Pexp_newtype_arg of label loc * location * location_stack * attributes
+
 let rec collect_fun accu = function
   | {
       pexp_desc = Pexp_fun (arg_label, arg, opt_val, body);
@@ -114,16 +119,34 @@ let rec collect_fun accu = function
       pexp_attributes;
     } ->
       collect_fun
-        ((arg_label, arg, opt_val, pexp_loc, pexp_loc_stack, pexp_attributes) :: accu)
+        (Pexp_fun_arg (arg_label, arg, opt_val, pexp_loc, pexp_loc_stack, pexp_attributes)
+        :: accu)
+        body
+  | {
+      pexp_desc = Pexp_newtype (type_label, body);
+      pexp_loc;
+      pexp_loc_stack;
+      pexp_attributes;
+    } ->
+      collect_fun
+        (Pexp_newtype_arg (type_label, pexp_loc, pexp_loc_stack, pexp_attributes) :: accu)
         body
   | [%expr ([%e? body] : [%t? typ])] -> (List.rev accu, body, Some typ)
   | body -> (List.rev accu, body, None)
 
 let rec expand_fun body = function
   | [] -> body
-  | (arg_label, arg, opt_val, pexp_loc, pexp_loc_stack, pexp_attributes) :: args ->
+  | Pexp_fun_arg (arg_label, arg, opt_val, pexp_loc, pexp_loc_stack, pexp_attributes)
+    :: args ->
       {
         pexp_desc = Pexp_fun (arg_label, arg, opt_val, expand_fun body args);
+        pexp_loc;
+        pexp_loc_stack;
+        pexp_attributes;
+      }
+  | Pexp_newtype_arg (type_label, pexp_loc, pexp_loc_stack, pexp_attributes) :: args ->
+      {
+        pexp_desc = Pexp_newtype (type_label, expand_fun body args);
         pexp_loc;
         pexp_loc_stack;
         pexp_attributes;
@@ -152,15 +175,17 @@ let debug_fun callback ?bind ?descr_loc ?typ_opt exp =
   let arg_logs =
     List.filter_map
       (function
-        | ( _arg_label,
-            _opt_val,
-            [%pat?
-              ([%p?
-                 { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat] :
-                [%t? typ])],
-            pexp_loc,
-            _pexp_loc_stack,
-            _pexp_attributes ) ->
+        | Pexp_fun_arg
+            ( _arg_label,
+              _opt_val,
+              [%pat?
+                ([%p?
+                   { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as
+                   pat] :
+                  [%t? typ])],
+              pexp_loc,
+              _pexp_loc_stack,
+              _pexp_attributes ) ->
             Some (!log_value ~loc:pexp_loc ~typ ~descr_loc (pat2expr pat))
         | _ -> None)
       args
@@ -222,7 +247,7 @@ let debug_binding callback vb =
     | _ -> raise Not_transforming
   in
   match (vb.pvb_expr.pexp_desc, typ_opt) with
-  | Pexp_fun _, _ ->
+  | Pexp_newtype _, _ | Pexp_fun _, _ ->
       {
         vb with
         pvb_expr = debug_fun callback ~bind:vb.pvb_pat ~descr_loc ?typ_opt vb.pvb_expr;
@@ -323,6 +348,10 @@ let traverse =
           | exception e ->
               track_branches := old_track_branches;
               raise e)
+      | { pexp_desc = Pexp_newtype (type_label, exp); _ } -> (
+          try debug_fun callback e
+          with Not_transforming ->
+            { e with pexp_desc = Pexp_newtype (type_label, self#expression exp) })
       | { pexp_desc = Pexp_fun (arg_label, guard, pat, exp); _ } -> (
           try debug_fun callback e
           with Not_transforming ->

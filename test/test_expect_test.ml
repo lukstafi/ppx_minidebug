@@ -628,3 +628,34 @@ let%expect_test "%track_show PrintBox to stdout anonymous fun, num children exce
                         └─__fun = <max_num_children exceeded>
       Raised exception: ppx_minidebug: max_num_children exceeded
     |}]
+
+module type T = sig
+  type c
+
+  val c : c
+end
+
+let%expect_test "%track_show PrintBox to stdout function with abstract type" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
+  let%debug_this_show foo (type d) (module D : T with type c = d) ~a (c : int) : int =
+    if c = 0 then 0 else List.length [ a; D.c ]
+  in
+  let () =
+    try
+      print_endline @@ Int.to_string
+      @@ foo
+           (module struct
+             type c = int
+
+             let c = 7
+           end)
+           ~a:3 1
+    with Failure s -> print_endline @@ "Raised exception: " ^ s
+  in
+  [%expect {|
+      BEGIN DEBUG SESSION
+      "test/test_expect_test.ml":640:26-641:47: foo
+      ├─c = 1
+      └─foo = 2
+      2
+    |}]
