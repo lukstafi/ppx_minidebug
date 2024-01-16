@@ -320,6 +320,27 @@ let traverse =
 
     method! expression e =
       let callback e = self#expression e in
+      let track_cases kind =
+        List.mapi (fun i { pc_lhs; pc_guard; pc_rhs } ->
+            let pc_guard = Option.map callback pc_guard in
+            let loc = pc_rhs.pexp_loc in
+            let i = string_of_int i in
+            let pc_rhs =
+              [%expr
+                [%e
+                  open_log_preamble ~brief:true
+                    ~message:(" <" ^ kind ^ " -- branch " ^ i ^ ">")
+                    ~loc:pc_lhs.ppat_loc ()];
+                match [%e callback pc_rhs] with
+                | match__result ->
+                    Debug_runtime.close_log ();
+                    match__result
+                | exception e ->
+                    Debug_runtime.close_log ();
+                    raise e]
+            in
+            { pc_lhs; pc_guard; pc_rhs })
+      in
       match e with
       | { pexp_desc = Pexp_let (rec_flag, bindings, body); _ } ->
           let bindings =
@@ -357,30 +378,9 @@ let traverse =
           with Not_transforming ->
             { e with pexp_desc = Pexp_fun (arg_label, guard, pat, self#expression exp) })
       | { pexp_desc = Pexp_match (expr, cases); _ } when !track_branches ->
-          let cases =
-            List.mapi
-              (fun i { pc_lhs; pc_guard; pc_rhs } ->
-                let pc_guard = Option.map callback pc_guard in
-                let loc = pc_rhs.pexp_loc in
-                let i = string_of_int i in
-                let pc_rhs =
-                  [%expr
-                    [%e
-                      open_log_preamble ~brief:true
-                        ~message:(" <match -- branch " ^ i ^ ">")
-                        ~loc:pc_lhs.ppat_loc ()];
-                    match [%e callback pc_rhs] with
-                    | match__result ->
-                        Debug_runtime.close_log ();
-                        match__result
-                    | exception e ->
-                        Debug_runtime.close_log ();
-                        raise e]
-                in
-                { pc_lhs; pc_guard; pc_rhs })
-              cases
-          in
-          { e with pexp_desc = Pexp_match (callback expr, cases) }
+          { e with pexp_desc = Pexp_match (callback expr, track_cases "match" cases) }
+      | { pexp_desc = Pexp_function cases; _ } when !track_branches ->
+          { e with pexp_desc = Pexp_function (track_cases "function" cases) }
       | { pexp_desc = Pexp_ifthenelse (if_, then_, else_); _ } when !track_branches ->
           let then_ =
             let loc = then_.pexp_loc in
