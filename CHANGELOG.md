@@ -1,9 +1,10 @@
-## [0.8.0] -- current
+## [0.8.0] -- 2024-01-16
 
 ### Added
 
 - When in an active `%track_` scope:
-  - Log `for` loop indices at the beginning of a loop body.
+  - Log `for` loop nesting and indices at the beginning of a loop body.
+  - Log `while` loop nesting.
   - Log `function` branches (similar to `match` branches).
   - Log all functions. Doing it only for `%track_` to reduce noise.
     - This will log type-annotated arguments of anonymous functions (even when the function result type is not annotated).

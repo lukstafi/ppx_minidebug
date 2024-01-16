@@ -91,10 +91,11 @@ This makes it simpler to trim excessive logging while still providing all the co
 
 Using the [%track_]-prefix rather than [%debug_]-prefix to start a debug scope, or using the
 [%debug_trace] extension point inside a debug scope, enables enhanced logging. It tracks which
-[if], [match], [function] branch is taken. It logs the loop index of `for` loops. It logs calls of
-functions insufficiently annotated for [%debug_] logging, including anonymous functions. To selectively
-disable the enhanced tracking, use [%debug_notrace]. Note that it disables the logs on a lexical scope,
-not just on the annotated syntax node (e.g. a specific [if] or [match] expression).
+[if], [match], [function] branch is taken. It logs the nesting and loop index of [for] loops,
+and the nesting of [while] loops. It logs calls of functions insufficiently annotated for [%debug_]
+logging, including anonymous functions. To selectively disable the enhanced tracking, use [%debug_notrace].
+Note that it disables the logs on a lexical scope, not just on the annotated syntax node (e.g. a specific
+[if] or [match] expression).
 
 If you get fewer logs than you expected, try converting [%debug_] to [%track_].
 

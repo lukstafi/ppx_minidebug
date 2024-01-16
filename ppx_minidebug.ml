@@ -453,6 +453,35 @@ let traverse =
             | exception e ->
                 Debug_runtime.close_log ();
                 raise e]
+      | { pexp_desc = Pexp_while (cond, body); _ } when !track_branches ->
+          let body =
+            let loc = body.pexp_loc in
+            let descr_loc = { txt = "<while body>"; loc } in
+            [%expr
+              if Debug_runtime.exceeds_max_children () then (
+                [%e log_string ~loc ~descr_loc "<max_num_children exceeded>"];
+                failwith "ppx_minidebug: max_num_children exceeded")
+              else (
+                [%e open_log_preamble ~brief:true ~message:" " ~loc:descr_loc.loc ()];
+                if Debug_runtime.exceeds_max_nesting () then (
+                  [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
+                  Debug_runtime.close_log ();
+                  failwith "ppx_minidebug: max_nesting_depth exceeded")
+                else
+                  match [%e callback body] with
+                  | () -> Debug_runtime.close_log ()
+                  | exception e ->
+                      Debug_runtime.close_log ();
+                      raise e)]
+          in
+          let loc = e.pexp_loc in
+          [%expr
+            [%e open_log_preamble ~brief:true ~message:" <while loop>" ~loc ()];
+            match [%e { e with pexp_desc = Pexp_while (cond, body) }] with
+            | () -> Debug_runtime.close_log ()
+            | exception e ->
+                Debug_runtime.close_log ();
+                raise e]
       | _ -> super#expression e
 
     method! structure_item si =
