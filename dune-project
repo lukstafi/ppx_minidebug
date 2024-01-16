@@ -34,7 +34,7 @@
    (>= 0.7))
   printbox-text
   (printbox-html
-   (>= 0.7))
+   (>= 0.8))
   ptime
   re
   sexplib0

@@ -19,7 +19,7 @@ depends: [
   "ppxlib" {>= "0.25.0"}
   "printbox" {>= "0.7"}
   "printbox-text"
-  "printbox-html" {>= "0.7"}
+  "printbox-html" {>= "0.8"}
   "ptime"
   "re"
   "sexplib0"
