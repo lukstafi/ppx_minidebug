@@ -54,7 +54,7 @@ structure of large values can be incrementally explored using collapsible trees 
 {[
 module Debug_runtime =
   Minidebug_runtime.PrintBox ((val Minidebug_runtime.debug_ch "debug.html"))
-let () = Debug_runtime.to_html := true
+let () = Debug_runtime.html_config := `Html
 let () = Debug_runtime.boxify_sexp_from_size := 50
 ]}
 
@@ -163,6 +163,21 @@ BEGIN DEBUG SESSION
   └─i = 3
 6
 ]}
+
+{3 Setting up hyperlinks to source locations}
+
+The PrintBox HTML output supports emitting file locations as hyperlinks. For example:
+
+{[
+module Debug_runtime = (val Minidebug_runtime.debug_html ~hyperlink:"" "debug.html")
+]}
+
+where [~hyperlink] is the prefix to let you tune the file path and select a browsing option. For illustration,
+the prefixes I might use at the time of writing:
+- [~hyperlink:"vscode://file//wsl.localhost/ubuntu23/home/lukstafi/ppx_minidebug/"]
+- [~hyperlink:"https://github.com/lukstafi/ppx_minidebug/tree/main/"]
+
+See {!Minidebug_runtime.PrintBox.html_config} for details.
 
 {2 VS Code suggestions}
 

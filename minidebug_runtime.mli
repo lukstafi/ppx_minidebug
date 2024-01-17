@@ -68,8 +68,16 @@ end
 module PrintBox : functor (_ : Debug_ch) -> sig
   include Debug_runtime_cond
 
-  val to_html : bool ref
-  (** While [true], logs are generated as html; if [false], as monospaced text. *)
+  val html_config : [ `Text | `Html | `Hyperlink of string ] ref
+  (** If the content is [`Text], logs are generated as monospaced text; for other settings as html.
+      If the content is [`Hyperlink prefix], code pointers are rendered as hyperlinks.
+      When [prefix] is either empty, starts with a dot, or starts with ["http:"] or ["https:"],
+      the link address has the form [sprintf "%s#L%d" fname start_lnum], allowing browsing in HTML directly.
+      Otherwise, it has the form [sprintf "%s:%d:%d" fname start_lnum (start_colnum + 1)], intended for
+      editor-specific prefixes such as ["vscode://file/"].
+
+      Note that rendering a link on a node will make the node non-foldable, therefore it is best
+      to combine [`Hyperlink prefix] with [values_first_mode]. *)
 
   val boxify_sexp_from_size : int ref
   (** If positive, [Sexp.t]-based logs with this many or more atoms are converted to print-boxes
@@ -96,11 +104,15 @@ val debug_html :
   ?highlighted_roots:bool ->
   ?for_append:bool ->
   ?boxify_sexp_from_size:int ->
+  ?hyperlink:string ->
   string ->
   (module Debug_runtime_cond)
 (** Creates a PrintBox-based debug runtime configured to output html to a file with the given name.
     By default the logging will not be time tagged and the file will be created or erased
-    by this function. The default [boxify_sexp_from_size] value is 50. *)
+    by this function. The default [boxify_sexp_from_size] value is 50.
+    
+    By default {!html_config} will be set to [`Html], unless [~hyperlink] is passed, then
+    [html_config := `Hyperlink hyperlink]. See {!html_config} for details. *)
 
 val debug :
   ?debug_ch:out_channel ->

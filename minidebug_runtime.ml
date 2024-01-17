@@ -194,7 +194,7 @@ end
 module PrintBox (Log_to : Debug_ch) = struct
   open Log_to
 
-  let to_html = ref false
+  let html_config = ref `Text
   let boxify_sexp_from_size = ref (-1)
   let highlight_terms = ref None
   let highlighted_roots = ref false
@@ -255,35 +255,41 @@ module PrintBox (Log_to : Debug_ch) = struct
       | [ { highlight = false; _ } ] when !highlighted_roots -> []
       | [ ({ cond = true; _ } as entry) ] ->
           let box = stack_to_tree entry in
-          if !to_html then
-            output_string debug_ch
-            @@ PrintBox_html.(to_string ~config:Config.(tree_summary true default) box)
-          else PrintBox_text.output debug_ch box;
+          (match !html_config with
+          | `Text -> PrintBox_text.output debug_ch box
+          | _ ->
+              output_string debug_ch
+              @@ PrintBox_html.(to_string ~config:Config.(tree_summary true default) box));
           output_string debug_ch "\n";
           []
           (* CFormat.fprintf ppf "@\n%!"; [] *)
       | _ -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
 
-  let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
-    let header = B.sprintf "\"%s\":%d:%d:%s" fname pos_lnum pos_colnum message in
-    let exclude =
-      match !exclude_on_path with Some r -> Re.execp r message | None -> false
+  let open_log_preamble ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message
+      ~brief =
+    let path_str =
+      match !html_config with
+      | `Hyperlink prefix
+        when String.length prefix = 0
+             || Char.equal prefix.[0] '.'
+             || String.starts_with ~prefix:"http:" prefix
+             || String.starts_with ~prefix:"https:" prefix ->
+          Printf.sprintf "%s#L%d" fname start_lnum
+      | _ -> Printf.sprintf "%s:%d:%d" fname start_lnum (start_colnum + 1)
     in
-    (* Design choice: we don't self-exclude from a log. *)
-    let highlight =
-      match !highlight_terms with Some r -> Re.execp r message | None -> false
-    in
-    stack := { cond = true; header; body = []; highlight; exclude } :: !stack
-
-  let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
-      ~message =
     let header =
-      if Log_to.time_tagged then
+      if brief then B.sprintf "\"%s\":%d:%d:%s" fname start_lnum start_colnum message
+      else if Log_to.time_tagged then
         B.asprintf "@[\"%s\":%d:%d-%d:%d@ at time@ %a: %s@]" fname start_lnum start_colnum
           end_lnum end_colnum pp_timestamp () message
       else
         B.asprintf "@[\"%s\":%d:%d-%d:%d: %s@]" fname start_lnum start_colnum end_lnum
           end_colnum message
+    in
+    let header =
+      match !html_config with
+      | `Text | `Html -> header
+      | `Hyperlink prefix -> B.link ~uri:(prefix ^ path_str) header
     in
     let exclude =
       match !exclude_on_path with Some r -> Re.execp r message | None -> false
@@ -292,6 +298,15 @@ module PrintBox (Log_to : Debug_ch) = struct
       match !highlight_terms with Some r -> Re.execp r message | None -> false
     in
     stack := { cond = true; highlight; exclude; header; body = [] } :: !stack
+
+  let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
+      ~message =
+    open_log_preamble ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message
+      ~brief:false
+
+  let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
+    open_log_preamble ~fname ~start_lnum:pos_lnum ~start_colnum:pos_colnum
+      ~end_lnum:pos_lnum ~end_colnum:pos_colnum ~message ~brief:true
 
   let sexp_size sexp =
     let open Sexplib0.Sexp in
@@ -377,12 +392,13 @@ end
 
 let debug_html ?(time_tagged = false) ?max_nesting_depth ?max_num_children
     ?highlight_terms ?exclude_on_path ?(highlighted_roots = false) ?(for_append = false)
-    ?(boxify_sexp_from_size = 50) filename : (module Debug_runtime_cond) =
+    ?(boxify_sexp_from_size = 50) ?hyperlink filename : (module Debug_runtime_cond) =
   let module Debug =
     PrintBox
       ((val debug_ch ~time_tagged ~for_append ?max_nesting_depth ?max_num_children
               filename)) in
-  Debug.to_html := true;
+  (Debug.html_config :=
+     match hyperlink with None -> `Html | Some prefix -> `Hyperlink prefix);
   Debug.boxify_sexp_from_size := boxify_sexp_from_size;
   Debug.highlight_terms := Option.map Re.compile highlight_terms;
   Debug.highlighted_roots := highlighted_roots;

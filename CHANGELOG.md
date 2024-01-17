@@ -1,3 +1,10 @@
+## [0.9.0] -- current
+
+## Added
+
+- Optionally output source locations as hyperlinks -- requires an address prefix.
+
+
 ## [0.8.0] -- 2024-01-16
 
 ### Added

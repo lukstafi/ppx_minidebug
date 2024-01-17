@@ -1,5 +1,7 @@
 open Sexplib0.Sexp_conv
-module Debug_runtime = (val Minidebug_runtime.debug_html "debugger_sexp_html.html")
+
+module Debug_runtime =
+  (val Minidebug_runtime.debug_html ~hyperlink:"../" "debugger_sexp_html.html")
 
 let%debug_sexp foo (x : int) : int list =
   let y : int = x + 1 in

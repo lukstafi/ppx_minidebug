@@ -132,7 +132,7 @@ The `PrintBox` runtime can be configured to output logs using HTML. The logs the
 ```ocaml
 module Debug_runtime =
   Minidebug_runtime.PrintBox ((val Minidebug_runtime.debug_ch "debug.html"))
-let () = Debug_runtime.to_html := true
+let () = Debug_runtime.html_config := `Html
 let () = Debug_runtime.boxify_sexp_from_size := 50
 ```
 
@@ -162,6 +162,20 @@ Similarly, `debug` returns a `PrintBox` module, which by default logs to `stdout
 ```ocaml
 module Debug_runtime = (val Minidebug_runtime.debug ())
 ```
+
+#### Hyperlinks to source locations
+
+The HTML output supports emitting file locations as hyperlinks. For example:
+
+```ocaml
+module Debug_runtime = (val Minidebug_runtime.debug_html ~hyperlink:"" "debug.html")
+```
+
+where `~hyperlink` is the prefix to let you tune the file path and select a browsing option. For illustration,
+the prefixes I might use at the time of writing:
+
+- `~hyperlink:"vscode://file//wsl.localhost/ubuntu23/home/lukstafi/ppx_minidebug/"`
+- `~hyperlink:"https://github.com/lukstafi/ppx_minidebug/tree/main/"`
 
 ## Usage
 
