@@ -25,21 +25,20 @@ module Debug_runtime =
 The logged traces will be indented using OCaml's `Format` module. Truncated example (using `%debug_pp`):
 
 ```shell
-BEGIN DEBUG SESSION at time 2023-03-02 22:20:39.302 +01:00
-"test/test_debug_pp.ml":4:17-4:71 at time 2023-03-02 22:20:39.302 +01:00: bar
-x = { Test_debug_pp.first = 7; second = 42 }  bar = 336  
-"test/test_debug_pp.ml":8:17-9:89 at time 2023-03-02 22:20:39.302 +01:00: baz
-x = { Test_debug_pp.first = 7; second = 42 }  baz = 339  
-"test/test_debug_pp.ml":12:22-18:9 at time 2023-03-02 22:20:39.302 +01:00: loop
-depth = 0  x = { Test_debug_pp.first = 7; second = 42 }  "test/test_debug_pp.ml":16:8: 
-  "test/test_debug_pp.ml":12:22-18:9 at time 2023-03-02 22:20:39.302 +01:00: loop
-    depth = 1  x = { Test_debug_pp.first = 41; second = 9 }  "test/test_debug_pp.ml":16:8: 
-      "test/test_debug_pp.ml":12:22-18:9 at time 2023-03-02 22:20:39.302 +01:00: loop
-        depth = 2  x = { Test_debug_pp.first = 8; second = 43 }  "test/test_debug_pp.ml":16:8: 
-          "test/test_debug_pp.ml":12:22-18:9 at time 2023-03-02 22:20:39.302 +01:00: loop
+BEGIN DEBUG SESSION
+"test/test_debug_pp.ml":7:17-9:14: bar
+x = { Test_debug_pp.first = 7; second = 42 }  "test/test_debug_pp.ml":8:6: y y = 8  bar = 336  
+"test/test_debug_pp.ml":13:17-15:20: baz
+x = { Test_debug_pp.first = 7; second = 42 }  "test/test_debug_pp.ml":14:36: _yz
+  _yz = { Test_debug_pp.first = 8; second = 3 }  baz = 339  
+"test/test_debug_pp.ml":19:22-25:9: loop
+depth = 0  x = { Test_debug_pp.first = 7; second = 42 }  "test/test_debug_pp.ml":23:8: y
+  "test/test_debug_pp.ml":19:22-25:9: loop
+    depth = 1  x = { Test_debug_pp.first = 41; second = 9 }  "test/test_debug_pp.ml":23:8: y
+      "test/test_debug_pp.ml":19:22-25:9: loop
+        depth = 2  x = { Test_debug_pp.first = 8; second = 43 }  "test/test_debug_pp.ml":23:8: y
+          "test/test_debug_pp.ml":19:22-25:9: loop
             depth = 3  x = { Test_debug_pp.first = 42; second = 10 } 
-              "test/test_debug_pp.ml":16:8: 
-              "test/test_debug_pp.ml":12:22-18:9 at time 2023-03-02 22:20:39.302 +01:00: loop
 ```
 
 ### `PrintBox`-based traces -- full feature set
@@ -56,37 +55,50 @@ module Debug_runtime =
 The logged traces will be pretty-printed as trees using the `printbox` package. Truncated example (using `%debug_sexp`):
 
 ```shell
-BEGIN DEBUG SESSION at time 2023-03-02 22:20:39.305 +01:00
-"test/test_debug_sexp.ml":4:19-6:15 at time
-2023-03-02 22:20:39.305 +01:00: foo
+BEGIN DEBUG SESSION
+"test/test_debug_sexp.ml":7:19-9:17: foo
 ├─x = 7
+├─"test/test_debug_sexp.ml":8:6: y
+│ └─y = 8
 └─foo = (7 8 16)
-"test/test_debug_sexp.ml":11:19-11:73 at time
-2023-03-02 22:20:39.305 +01:00: bar
+"test/test_debug_sexp.ml":15:19-17:14: bar
 ├─x = ((first 7) (second 42))
+├─"test/test_debug_sexp.ml":16:6: y
+│ └─y = 8
 └─bar = 336
-"test/test_debug_sexp.ml":14:19-15:67 at time
-2023-03-02 22:20:39.305 +01:00: baz
+"test/test_debug_sexp.ml":21:19-24:28: baz
 ├─x = ((first 7) (second 42))
-└─baz = 339
-"test/test_debug_sexp.ml":18:24-24:9 at time
-2023-03-02 22:20:39.305 +01:00: loop
+├─"test/test_debug_sexp.ml":22:17: _yz
+│ └─_yz = (8 3)
+├─"test/test_debug_sexp.ml":23:17: _uw
+│ └─_uw = (7 13)
+└─baz = 359
+"test/test_debug_sexp.ml":28:19-30:17: lab
+├─x = 7
+├─"test/test_debug_sexp.ml":29:6: y
+│ └─y = 8
+└─lab = (7 8 16)
+"test/test_debug_sexp.ml":34:24-40:9: loop
 ├─depth = 0
 ├─x = ((first 7) (second 42))
-├─"test/test_debug_sexp.ml":22:8: 
-│ ├─"test/test_debug_sexp.ml":18:24-24:9 at time
-│ │ 2023-03-02 22:20:39.305 +01:00: loop
+├─"test/test_debug_sexp.ml":38:8: y
+│ ├─"test/test_debug_sexp.ml":34:24-40:9: loop
 │ │ ├─depth = 1
 │ │ ├─x = ((first 41) (second 9))
-│ │ ├─"test/test_debug_sexp.ml":22:8: 
-│ │ │ ├─"test/test_debug_sexp.ml":18:24-24:9 at time
-│ │ │ │ 2023-03-02 22:20:39.305 +01:00: loop
+│ │ ├─"test/test_debug_sexp.ml":38:8: y
+│ │ │ ├─"test/test_debug_sexp.ml":34:24-40:9: loop
 │ │ │ │ ├─depth = 2
 │ │ │ │ ├─x = ((first 8) (second 43))
-│ │ │ │ ├─"test/test_debug_sexp.ml":18:24-24:9 at time
-│ │ │ │ │ 2023-03-02 22:20:39.305 +01:00: loop
+│ │ │ │ ├─"test/test_debug_sexp.ml":34:24-40:9: loop
 │ │ │ │ │ ├─depth = 3
 │ │ │ │ │ ├─x = ((first 44) (second 4))
+│ │ │ │ │ ├─"test/test_debug_sexp.ml":34:24-40:9: loop
+│ │ │ │ │ │ ├─depth = 4
+│ │ │ │ │ │ ├─x = ((first 5) (second 22))
+│ │ │ │ │ │ ├─"test/test_debug_sexp.ml":34:24-40:9: loop
+│ │ │ │ │ │ │ ├─depth = 5
+│ │ │ │ │ │ │ ├─x = ((first 23) (second 2))
+│ │ │ │ │ │ │ └─loop = 25
 ```
 
 This runtime also allows disabling the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space.
@@ -107,15 +119,15 @@ leads to:
 ```shell
   "test/test_expect_test.ml":96:43-100:58: fixpoint_changes
   ├─x = 7
-  ├─"test/test_expect_test.ml":97:8:
+  ├─"test/test_expect_test.ml":97:8: z
   │ └─z = 3
   ├─"test/test_expect_test.ml":96:43-100:58: fixpoint_changes
   │ ├─x = 6
-  │ ├─"test/test_expect_test.ml":97:8:
+  │ ├─"test/test_expect_test.ml":97:8: z
   │ │ └─z = 2
   │ ├─"test/test_expect_test.ml":96:43-100:58: fixpoint_changes
   │ │ ├─x = 5
-  │ │ ├─"test/test_expect_test.ml":97:8:
+  │ │ ├─"test/test_expect_test.ml":97:8: z
   │ │ │ └─z = 2
   │ │ └─fixpoint_changes = 4
   │ └─fixpoint_changes = 6
@@ -299,7 +311,7 @@ BEGIN DEBUG SESSION
 ├─x = 8
 ├─"test/test_expect_test.ml":424:6: <if -- else branch>
 │ └─"test/test_expect_test.ml":427:8: <match -- branch 2>
-│   └─"test/test_expect_test.ml":428:14:
+│   └─"test/test_expect_test.ml":428:14: result
 │     ├─"test/test_expect_test.ml":428:44: <if -- then branch>
 │     └─result = 8
 └─track_branches = 8
@@ -307,7 +319,7 @@ BEGIN DEBUG SESSION
 "test/test_expect_test.ml":415:37-429:16: track_branches
 ├─x = 3
 ├─"test/test_expect_test.ml":417:6: <if -- then branch>
-│ └─"test/test_expect_test.ml":421:14:
+│ └─"test/test_expect_test.ml":421:14: result
 │   └─result = 3
 └─track_branches = 3
 3

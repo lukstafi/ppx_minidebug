@@ -31,7 +31,7 @@ let bar (x : t) =
                  else
                    (Debug_runtime.open_log_preamble_brief
                       ~fname:"test_debug_pp.ml" ~pos_lnum:8 ~pos_colnum:6
-                      ~message:" ";
+                      ~message:"y";
                     if Debug_runtime.exceeds_max_nesting ()
                     then
                       (Debug_runtime.log_value_show ~descr:"y"
@@ -81,7 +81,7 @@ let baz (x : t) =
                  else
                    (Debug_runtime.open_log_preamble_brief
                       ~fname:"test_debug_pp.ml" ~pos_lnum:14 ~pos_colnum:36
-                      ~message:" ";
+                      ~message:"_yz";
                     if Debug_runtime.exceeds_max_nesting ()
                     then
                       (Debug_runtime.log_value_show ~descr:"_yz"
@@ -140,7 +140,7 @@ let rec loop (depth : num) (x : t) =
                       else
                         (Debug_runtime.open_log_preamble_brief
                            ~fname:"test_debug_pp.ml" ~pos_lnum:23
-                           ~pos_colnum:8 ~message:" ";
+                           ~pos_colnum:8 ~message:"y";
                          if Debug_runtime.exceeds_max_nesting ()
                          then
                            (Debug_runtime.log_value_show ~descr:"y"
@@ -171,7 +171,7 @@ let rec loop (depth : num) (x : t) =
                       else
                         (Debug_runtime.open_log_preamble_brief
                            ~fname:"test_debug_pp.ml" ~pos_lnum:24
-                           ~pos_colnum:8 ~message:" ";
+                           ~pos_colnum:8 ~message:"z";
                          if Debug_runtime.exceeds_max_nesting ()
                          then
                            (Debug_runtime.log_value_show ~descr:"z"

@@ -86,7 +86,7 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
     stack := 0 :: !stack;
-    CFormat.fprintf ppf "\"%s\":%d:%d:%s@ @[<hov 2>" fname pos_lnum pos_colnum message
+    CFormat.fprintf ppf "\"%s\":%d:%d: %s@ @[<hov 2>" fname pos_lnum pos_colnum message
 
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
       ~message =
@@ -149,7 +149,7 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
     stack := (None, 0) :: !stack;
-    Printf.fprintf debug_ch "%s\"%s\":%d:%d:%s\n%!" (indent ()) fname pos_lnum pos_colnum
+    Printf.fprintf debug_ch "%s\"%s\":%d:%d: %s\n%!" (indent ()) fname pos_lnum pos_colnum
       message
 
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
@@ -278,7 +278,7 @@ module PrintBox (Log_to : Debug_ch) = struct
       | _ -> Printf.sprintf "%s:%d:%d" fname start_lnum (start_colnum + 1)
     in
     let header =
-      if brief then B.sprintf "\"%s\":%d:%d:%s" fname start_lnum start_colnum message
+      if brief then B.sprintf "\"%s\":%d:%d: %s" fname start_lnum start_colnum message
       else if Log_to.time_tagged then
         B.asprintf "@[\"%s\":%d:%d-%d:%d@ at time@ %a: %s@]" fname start_lnum start_colnum
           end_lnum end_colnum pp_timestamp () message

@@ -4,6 +4,9 @@
 
 - Optionally output source locations as hyperlinks -- requires an address prefix.
 
+### Changed
+
+- Include the variable name in the open-log line (just as function name for functions).
 
 ## [0.8.0] -- 2024-01-16
 

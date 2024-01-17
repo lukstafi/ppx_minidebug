@@ -2,38 +2,38 @@
 BEGIN DEBUG SESSION
 foo begin "test/test_debug_show.ml":5:19-7:17
  x = 7
-  "test/test_debug_show.ml":6:6: 
+  "test/test_debug_show.ml":6:6: y
   y = 8
  foo = [7; 8; 16]
 foo end
 bar begin "test/test_debug_show.ml":13:19-15:14
  x = { Test_debug_show.first = 7; second = 42 }
-  "test/test_debug_show.ml":14:6: 
+  "test/test_debug_show.ml":14:6: y
   y = 8
  bar = 336
 bar end
 baz begin "test/test_debug_show.ml":19:19-21:20
  x = { Test_debug_show.first = 7; second = 42 }
-  "test/test_debug_show.ml":20:17: 
+  "test/test_debug_show.ml":20:17: _yz
   _yz = (8, 3)
  baz = 339
 baz end
 loop begin "test/test_debug_show.ml":25:24-31:9
  depth = 0
  x = { Test_debug_show.first = 7; second = 42 }
-  "test/test_debug_show.ml":29:8: 
+  "test/test_debug_show.ml":29:8: y
   loop begin "test/test_debug_show.ml":25:24-31:9
    depth = 1
    x = { Test_debug_show.first = 41; second = 9 }
-    "test/test_debug_show.ml":29:8: 
+    "test/test_debug_show.ml":29:8: y
     loop begin "test/test_debug_show.ml":25:24-31:9
      depth = 2
      x = { Test_debug_show.first = 8; second = 43 }
-      "test/test_debug_show.ml":29:8: 
+      "test/test_debug_show.ml":29:8: y
       loop begin "test/test_debug_show.ml":25:24-31:9
        depth = 3
        x = { Test_debug_show.first = 42; second = 10 }
-        "test/test_debug_show.ml":29:8: 
+        "test/test_debug_show.ml":29:8: y
         loop begin "test/test_debug_show.ml":25:24-31:9
          depth = 4
          x = { Test_debug_show.first = 9; second = 44 }
@@ -55,7 +55,7 @@ loop begin "test/test_debug_show.ml":25:24-31:9
          loop = 25
         loop end
         y = 25
-        "test/test_debug_show.ml":30:8: 
+        "test/test_debug_show.ml":30:8: z
         loop begin "test/test_debug_show.ml":25:24-31:9
          depth = 4
          x = { Test_debug_show.first = 11; second = 25 }
@@ -80,11 +80,11 @@ loop begin "test/test_debug_show.ml":25:24-31:9
        loop = 24
       loop end
       y = 24
-      "test/test_debug_show.ml":30:8: 
+      "test/test_debug_show.ml":30:8: z
       loop begin "test/test_debug_show.ml":25:24-31:9
        depth = 3
        x = { Test_debug_show.first = 44; second = 24 }
-        "test/test_debug_show.ml":29:8: 
+        "test/test_debug_show.ml":29:8: y
         loop begin "test/test_debug_show.ml":25:24-31:9
          depth = 4
          x = { Test_debug_show.first = 23; second = 46 }
@@ -106,7 +106,7 @@ loop begin "test/test_debug_show.ml":25:24-31:9
          loop = 30
         loop end
         y = 30
-        "test/test_debug_show.ml":30:8: 
+        "test/test_debug_show.ml":30:8: z
         loop begin "test/test_debug_show.ml":25:24-31:9
          depth = 4
          x = { Test_debug_show.first = 25; second = 30 }
@@ -134,15 +134,15 @@ loop begin "test/test_debug_show.ml":25:24-31:9
      loop = 36
     loop end
     y = 36
-    "test/test_debug_show.ml":30:8: 
+    "test/test_debug_show.ml":30:8: z
     loop begin "test/test_debug_show.ml":25:24-31:9
      depth = 2
      x = { Test_debug_show.first = 10; second = 36 }
-      "test/test_debug_show.ml":29:8: 
+      "test/test_debug_show.ml":29:8: y
       loop begin "test/test_debug_show.ml":25:24-31:9
        depth = 3
        x = { Test_debug_show.first = 35; second = 12 }
-        "test/test_debug_show.ml":29:8: 
+        "test/test_debug_show.ml":29:8: y
         loop begin "test/test_debug_show.ml":25:24-31:9
          depth = 4
          x = { Test_debug_show.first = 11; second = 37 }
@@ -164,7 +164,7 @@ loop begin "test/test_debug_show.ml":25:24-31:9
          loop = 23
         loop end
         y = 23
-        "test/test_debug_show.ml":30:8: 
+        "test/test_debug_show.ml":30:8: z
         loop begin "test/test_debug_show.ml":25:24-31:9
          depth = 4
          x = { Test_debug_show.first = 13; second = 23 }
@@ -189,11 +189,11 @@ loop begin "test/test_debug_show.ml":25:24-31:9
        loop = 23
       loop end
       y = 23
-      "test/test_debug_show.ml":30:8: 
+      "test/test_debug_show.ml":30:8: z
       loop begin "test/test_debug_show.ml":25:24-31:9
        depth = 3
        x = { Test_debug_show.first = 37; second = 23 }
-        "test/test_debug_show.ml":29:8: 
+        "test/test_debug_show.ml":29:8: y
         loop begin "test/test_debug_show.ml":25:24-31:9
          depth = 4
          x = { Test_debug_show.first = 22; second = 39 }
@@ -215,7 +215,7 @@ loop begin "test/test_debug_show.ml":25:24-31:9
          loop = 27
         loop end
         y = 27
-        "test/test_debug_show.ml":30:8: 
+        "test/test_debug_show.ml":30:8: z
         loop begin "test/test_debug_show.ml":25:24-31:9
          depth = 4
          x = { Test_debug_show.first = 24; second = 27 }
@@ -246,19 +246,19 @@ loop begin "test/test_debug_show.ml":25:24-31:9
    loop = 42
   loop end
   y = 42
-  "test/test_debug_show.ml":30:8: 
+  "test/test_debug_show.ml":30:8: z
   loop begin "test/test_debug_show.ml":25:24-31:9
    depth = 1
    x = { Test_debug_show.first = 43; second = 42 }
-    "test/test_debug_show.ml":29:8: 
+    "test/test_debug_show.ml":29:8: y
     loop begin "test/test_debug_show.ml":25:24-31:9
      depth = 2
      x = { Test_debug_show.first = 41; second = 45 }
-      "test/test_debug_show.ml":29:8: 
+      "test/test_debug_show.ml":29:8: y
       loop begin "test/test_debug_show.ml":25:24-31:9
        depth = 3
        x = { Test_debug_show.first = 44; second = 43 }
-        "test/test_debug_show.ml":29:8: 
+        "test/test_debug_show.ml":29:8: y
         loop begin "test/test_debug_show.ml":25:24-31:9
          depth = 4
          x = { Test_debug_show.first = 42; second = 46 }
@@ -280,7 +280,7 @@ loop begin "test/test_debug_show.ml":25:24-31:9
          loop = 35
         loop end
         y = 35
-        "test/test_debug_show.ml":30:8: 
+        "test/test_debug_show.ml":30:8: z
         loop begin "test/test_debug_show.ml":25:24-31:9
          depth = 4
          x = { Test_debug_show.first = 44; second = 35 }
@@ -305,11 +305,11 @@ loop begin "test/test_debug_show.ml":25:24-31:9
        loop = 37
       loop end
       y = 37
-      "test/test_debug_show.ml":30:8: 
+      "test/test_debug_show.ml":30:8: z
       loop begin "test/test_debug_show.ml":25:24-31:9
        depth = 3
        x = { Test_debug_show.first = 46; second = 37 }
-        "test/test_debug_show.ml":29:8: 
+        "test/test_debug_show.ml":29:8: y
         loop begin "test/test_debug_show.ml":25:24-31:9
          depth = 4
          x = { Test_debug_show.first = 36; second = 48 }
@@ -331,7 +331,7 @@ loop begin "test/test_debug_show.ml":25:24-31:9
          loop = 34
         loop end
         y = 34
-        "test/test_debug_show.ml":30:8: 
+        "test/test_debug_show.ml":30:8: z
         loop begin "test/test_debug_show.ml":25:24-31:9
          depth = 4
          x = { Test_debug_show.first = 38; second = 34 }
@@ -359,15 +359,15 @@ loop begin "test/test_debug_show.ml":25:24-31:9
      loop = 42
     loop end
     y = 42
-    "test/test_debug_show.ml":30:8: 
+    "test/test_debug_show.ml":30:8: z
     loop begin "test/test_debug_show.ml":25:24-31:9
      depth = 2
      x = { Test_debug_show.first = 43; second = 42 }
-      "test/test_debug_show.ml":29:8: 
+      "test/test_debug_show.ml":29:8: y
       loop begin "test/test_debug_show.ml":25:24-31:9
        depth = 3
        x = { Test_debug_show.first = 41; second = 45 }
-        "test/test_debug_show.ml":29:8: 
+        "test/test_debug_show.ml":29:8: y
         loop begin "test/test_debug_show.ml":25:24-31:9
          depth = 4
          x = { Test_debug_show.first = 44; second = 43 }
@@ -389,7 +389,7 @@ loop begin "test/test_debug_show.ml":25:24-31:9
          loop = 34
         loop end
         y = 34
-        "test/test_debug_show.ml":30:8: 
+        "test/test_debug_show.ml":30:8: z
         loop begin "test/test_debug_show.ml":25:24-31:9
          depth = 4
          x = { Test_debug_show.first = 46; second = 34 }
@@ -414,11 +414,11 @@ loop begin "test/test_debug_show.ml":25:24-31:9
        loop = 37
       loop end
       y = 37
-      "test/test_debug_show.ml":30:8: 
+      "test/test_debug_show.ml":30:8: z
       loop begin "test/test_debug_show.ml":25:24-31:9
        depth = 3
        x = { Test_debug_show.first = 43; second = 37 }
-        "test/test_debug_show.ml":29:8: 
+        "test/test_debug_show.ml":29:8: y
         loop begin "test/test_debug_show.ml":25:24-31:9
          depth = 4
          x = { Test_debug_show.first = 36; second = 45 }
@@ -440,7 +440,7 @@ loop begin "test/test_debug_show.ml":25:24-31:9
          loop = 33
         loop end
         y = 33
-        "test/test_debug_show.ml":30:8: 
+        "test/test_debug_show.ml":30:8: z
         loop begin "test/test_debug_show.ml":25:24-31:9
          depth = 4
          x = { Test_debug_show.first = 38; second = 33 }

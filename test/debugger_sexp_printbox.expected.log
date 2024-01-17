@@ -2,34 +2,34 @@
 BEGIN DEBUG SESSION
 "test/test_debug_sexp.ml":7:19-9:17: foo
 ├─x = 7
-├─"test/test_debug_sexp.ml":8:6: 
+├─"test/test_debug_sexp.ml":8:6: y
 │ └─y = 8
 └─foo = (7 8 16)
 "test/test_debug_sexp.ml":15:19-17:14: bar
 ├─x = ((first 7) (second 42))
-├─"test/test_debug_sexp.ml":16:6: 
+├─"test/test_debug_sexp.ml":16:6: y
 │ └─y = 8
 └─bar = 336
 "test/test_debug_sexp.ml":21:19-24:28: baz
 ├─x = ((first 7) (second 42))
-├─"test/test_debug_sexp.ml":22:17: 
+├─"test/test_debug_sexp.ml":22:17: _yz
 │ └─_yz = (8 3)
-├─"test/test_debug_sexp.ml":23:17: 
+├─"test/test_debug_sexp.ml":23:17: _uw
 │ └─_uw = (7 13)
 └─baz = 359
 "test/test_debug_sexp.ml":28:19-30:17: lab
 ├─x = 7
-├─"test/test_debug_sexp.ml":29:6: 
+├─"test/test_debug_sexp.ml":29:6: y
 │ └─y = 8
 └─lab = (7 8 16)
 "test/test_debug_sexp.ml":34:24-40:9: loop
 ├─depth = 0
 ├─x = ((first 7) (second 42))
-├─"test/test_debug_sexp.ml":38:8: 
+├─"test/test_debug_sexp.ml":38:8: y
 │ ├─"test/test_debug_sexp.ml":34:24-40:9: loop
 │ │ ├─depth = 1
 │ │ ├─x = ((first 41) (second 9))
-│ │ ├─"test/test_debug_sexp.ml":38:8: 
+│ │ ├─"test/test_debug_sexp.ml":38:8: y
 │ │ │ ├─"test/test_debug_sexp.ml":34:24-40:9: loop
 │ │ │ │ ├─depth = 2
 │ │ │ │ ├─x = ((first 8) (second 43))
@@ -47,7 +47,7 @@ BEGIN DEBUG SESSION
 │ │ │ │ │ └─loop = 25
 │ │ │ │ └─loop = 25
 │ │ │ └─y = 25
-│ │ ├─"test/test_debug_sexp.ml":39:8: 
+│ │ ├─"test/test_debug_sexp.ml":39:8: z
 │ │ │ ├─"test/test_debug_sexp.ml":34:24-40:9: loop
 │ │ │ │ ├─depth = 2
 │ │ │ │ ├─x = ((first 10) (second 25))
@@ -67,11 +67,11 @@ BEGIN DEBUG SESSION
 │ │ │ └─z = 17
 │ │ └─loop = 24
 │ └─y = 24
-├─"test/test_debug_sexp.ml":39:8: 
+├─"test/test_debug_sexp.ml":39:8: z
 │ ├─"test/test_debug_sexp.ml":34:24-40:9: loop
 │ │ ├─depth = 1
 │ │ ├─x = ((first 43) (second 24))
-│ │ ├─"test/test_debug_sexp.ml":38:8: 
+│ │ ├─"test/test_debug_sexp.ml":38:8: y
 │ │ │ ├─"test/test_debug_sexp.ml":34:24-40:9: loop
 │ │ │ │ ├─depth = 2
 │ │ │ │ ├─x = ((first 23) (second 45))
@@ -89,7 +89,7 @@ BEGIN DEBUG SESSION
 │ │ │ │ │ └─loop = 30
 │ │ │ │ └─loop = 30
 │ │ │ └─y = 30
-│ │ ├─"test/test_debug_sexp.ml":39:8: 
+│ │ ├─"test/test_debug_sexp.ml":39:8: z
 │ │ │ ├─"test/test_debug_sexp.ml":34:24-40:9: loop
 │ │ │ │ ├─depth = 2
 │ │ │ │ ├─x = ((first 25) (second 30))

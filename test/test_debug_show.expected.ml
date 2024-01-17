@@ -27,7 +27,7 @@ let foo (x : int) =
                  else
                    (Debug_runtime.open_log_preamble_brief
                       ~fname:"test_debug_show.ml" ~pos_lnum:6 ~pos_colnum:6
-                      ~message:" ";
+                      ~message:"y";
                     if Debug_runtime.exceeds_max_nesting ()
                     then
                       (Debug_runtime.log_value_show ~descr:"y"
@@ -81,7 +81,7 @@ let bar (x : t) =
                  else
                    (Debug_runtime.open_log_preamble_brief
                       ~fname:"test_debug_show.ml" ~pos_lnum:14 ~pos_colnum:6
-                      ~message:" ";
+                      ~message:"y";
                     if Debug_runtime.exceeds_max_nesting ()
                     then
                       (Debug_runtime.log_value_show ~descr:"y"
@@ -132,7 +132,7 @@ let baz (x : t) =
                  else
                    (Debug_runtime.open_log_preamble_brief
                       ~fname:"test_debug_show.ml" ~pos_lnum:20 ~pos_colnum:17
-                      ~message:" ";
+                      ~message:"_yz";
                     if Debug_runtime.exceeds_max_nesting ()
                     then
                       (Debug_runtime.log_value_show ~descr:"_yz"
@@ -193,7 +193,7 @@ let rec loop (depth : int) (x : t) =
                       else
                         (Debug_runtime.open_log_preamble_brief
                            ~fname:"test_debug_show.ml" ~pos_lnum:29
-                           ~pos_colnum:8 ~message:" ";
+                           ~pos_colnum:8 ~message:"y";
                          if Debug_runtime.exceeds_max_nesting ()
                          then
                            (Debug_runtime.log_value_show ~descr:"y"
@@ -224,7 +224,7 @@ let rec loop (depth : int) (x : t) =
                       else
                         (Debug_runtime.open_log_preamble_brief
                            ~fname:"test_debug_show.ml" ~pos_lnum:30
-                           ~pos_colnum:8 ~message:" ";
+                           ~pos_colnum:8 ~message:"z";
                          if Debug_runtime.exceeds_max_nesting ()
                          then
                            (Debug_runtime.log_value_show ~descr:"z"

@@ -267,7 +267,7 @@ let debug_binding callback vb =
             [%e log_string ~loc ~descr_loc "<max_num_children exceeded>"];
             failwith "ppx_minidebug: max_num_children exceeded")
           else (
-            [%e open_log_preamble ~brief:true ~message:" " ~loc:descr_loc.loc ()];
+            [%e open_log_preamble ~brief:true ~message:descr_loc.txt ~loc:descr_loc.loc ()];
             if Debug_runtime.exceeds_max_nesting () then (
               [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
               Debug_runtime.close_log ();
@@ -336,7 +336,7 @@ let traverse =
               [%expr
                 [%e
                   open_log_preamble ~brief:true
-                    ~message:(" <" ^ kind ^ " -- branch " ^ i ^ ">")
+                    ~message:("<" ^ kind ^ " -- branch " ^ i ^ ">")
                     ~loc:pc_lhs.ppat_loc ()];
                 match [%e callback pc_rhs] with
                 | match__result ->
@@ -392,7 +392,7 @@ let traverse =
           let then_ =
             let loc = then_.pexp_loc in
             [%expr
-              [%e open_log_preamble ~brief:true ~message:" <if -- then branch>" ~loc ()];
+              [%e open_log_preamble ~brief:true ~message:"<if -- then branch>" ~loc ()];
               match [%e callback then_] with
               | if_then__result ->
                   Debug_runtime.close_log ();
@@ -407,7 +407,7 @@ let traverse =
                 let loc = else_.pexp_loc in
                 [%expr
                   [%e
-                    open_log_preamble ~brief:true ~message:" <if -- else branch>" ~loc ()];
+                    open_log_preamble ~brief:true ~message:"<if -- else branch>" ~loc ()];
                   match [%e callback else_] with
                   | if_else__result ->
                       Debug_runtime.close_log ();
@@ -433,7 +433,7 @@ let traverse =
                 [%e log_string ~loc ~descr_loc "<max_num_children exceeded>"];
                 failwith "ppx_minidebug: max_num_children exceeded")
               else (
-                [%e open_log_preamble ~brief:true ~message:" " ~loc:descr_loc.loc ()];
+                [%e open_log_preamble ~brief:true ~message:descr_loc.txt ~loc:descr_loc.loc ()];
                 if Debug_runtime.exceeds_max_nesting () then (
                   [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
                   Debug_runtime.close_log ();
@@ -447,7 +447,7 @@ let traverse =
           in
           let loc = e.pexp_loc in
           [%expr
-            [%e open_log_preamble ~brief:true ~message:" <for loop>" ~loc ()];
+            [%e open_log_preamble ~brief:true ~message:"<for loop>" ~loc ()];
             match [%e { e with pexp_desc = Pexp_for (pat, from, to_, dir, body) }] with
             | () -> Debug_runtime.close_log ()
             | exception e ->
@@ -476,7 +476,7 @@ let traverse =
           in
           let loc = e.pexp_loc in
           [%expr
-            [%e open_log_preamble ~brief:true ~message:" <while loop>" ~loc ()];
+            [%e open_log_preamble ~brief:true ~message:"<while loop>" ~loc ()];
             match [%e { e with pexp_desc = Pexp_while (cond, body) }] with
             | () -> Debug_runtime.close_log ()
             | exception e ->
