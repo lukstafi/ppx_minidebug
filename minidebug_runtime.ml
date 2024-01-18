@@ -405,7 +405,7 @@ module PrintBox (Log_to : Debug_ch) = struct
 
   let boxify descr sexp =
     let open Sexplib0.Sexp in
-    let rec loop_atom ?(as_tree = false) sexp =
+    let rec loop ?(as_tree = false) sexp =
       if (not as_tree) && sexp_size sexp < !boxify_sexp_from_size then
         highlight_box
         @@ B.asprintf_with_style B.Style.preformatted "%a" Sexplib0.Sexp.pp_hum sexp
@@ -413,23 +413,23 @@ module PrintBox (Log_to : Debug_ch) = struct
         match sexp with
         | Atom s -> highlight_box @@ B.text_with_style B.Style.preformatted s
         | List [] -> (false, B.empty)
-        | List [ s ] -> loop_atom s
+        | List [ s ] -> loop s
         | List (Atom s :: l) ->
-            let hl_body, bs = List.split @@ List.map loop_atom l in
+            let hl_body, bs = List.split @@ List.map loop l in
             let hl_body = List.exists (fun x -> x) hl_body in
             let hl, b =
               highlight_box ~hl_body @@ B.text_with_style B.Style.preformatted s
             in
             (hl, B.tree b bs)
         | List l ->
-            let hls, bs = List.split @@ List.map loop_atom l in
+            let hls, bs = List.split @@ List.map loop l in
             (List.exists (fun x -> x) hls, B.vlist bs)
     in
     match sexp with
     | Atom s | List [ Atom s ] ->
         highlight_box @@ B.text_with_style B.Style.preformatted (descr ^ " = " ^ s)
-    | List [] -> (false, B.empty)
-    | List l -> loop_atom ~as_tree:true @@ List (Atom (descr ^ " =") :: l)
+    | List [] -> highlight_box @@ B.line descr
+    | List l -> loop ~as_tree:true @@ List (Atom (descr ^ " =") :: l)
 
   let num_children () = match !stack with [] -> 0 | { body; _ } :: _ -> List.length body
 
