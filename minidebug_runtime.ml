@@ -341,8 +341,8 @@ module PrintBox (Log_to : Debug_ch) = struct
       | `Hyperlink prefix
         when String.length prefix = 0
              || Char.equal prefix.[0] '.'
-             || String.starts_with ~prefix:"http:" prefix
-             || String.starts_with ~prefix:"https:" prefix ->
+             || String.equal (String.sub prefix 0 5) "http:"
+             || String.equal (String.sub prefix 0 6) "https:" ->
           Printf.sprintf "%s#L%d" fname start_lnum
       | _ -> Printf.sprintf "%s:%d:%d" fname start_lnum (start_colnum + 1)
     in
