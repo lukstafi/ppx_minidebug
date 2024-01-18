@@ -452,6 +452,9 @@ let debug_html ?(time_tagged = false) ?max_nesting_depth ?max_num_children
   Debug.highlighted_roots := highlighted_roots;
   Debug.exclude_on_path := Option.map Re.compile exclude_on_path;
   Debug.values_first_mode := values_first_mode;
+  CFormat.fprintf Debug.ppf "@.HTML CONFIG: values_first_mode=%b hyperlink=%s\n@."
+    values_first_mode
+    (Option.value hyperlink ~default:"<no-links>");
   (module Debug)
 
 let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_num_children
@@ -467,6 +470,7 @@ let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_nu
   Debug.highlighted_roots := highlighted_roots;
   Debug.exclude_on_path := Option.map Re.compile exclude_on_path;
   Debug.values_first_mode := values_first_mode;
+  CFormat.fprintf Debug.ppf "@.TEXT CONFIG: values_first_mode=%b\n@." values_first_mode;
   (module Debug)
 
 let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth
