@@ -433,7 +433,10 @@ let traverse =
                 [%e log_string ~loc ~descr_loc "<max_num_children exceeded>"];
                 failwith "ppx_minidebug: max_num_children exceeded")
               else (
-                [%e open_log_preamble ~brief:true ~message:descr_loc.txt ~loc:descr_loc.loc ()];
+                [%e
+                  open_log_preamble ~brief:true
+                    ~message:("<for " ^ descr_loc.txt ^ ">")
+                    ~loc:descr_loc.loc ()];
                 if Debug_runtime.exceeds_max_nesting () then (
                   [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
                   Debug_runtime.close_log ();

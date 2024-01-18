@@ -276,23 +276,23 @@ let%expect_test "%debug_show PrintBox to stdout track for-loop num children exce
     "test/test_expect_test.ml":264:26: _bar
     └─"test/test_expect_test.ml":265:8: <for loop>
       ├─i = 0
-      ├─"test/test_expect_test.ml":265:12: i
+      ├─"test/test_expect_test.ml":265:12: <for i>
       │ └─"test/test_expect_test.ml":266:14: _baz
       │   └─_baz = 0
       ├─i = 1
-      ├─"test/test_expect_test.ml":265:12: i
+      ├─"test/test_expect_test.ml":265:12: <for i>
       │ └─"test/test_expect_test.ml":266:14: _baz
       │   └─_baz = 2
       ├─i = 2
-      ├─"test/test_expect_test.ml":265:12: i
+      ├─"test/test_expect_test.ml":265:12: <for i>
       │ └─"test/test_expect_test.ml":266:14: _baz
       │   └─_baz = 4
       ├─i = 3
-      ├─"test/test_expect_test.ml":265:12: i
+      ├─"test/test_expect_test.ml":265:12: <for i>
       │ └─"test/test_expect_test.ml":266:14: _baz
       │   └─_baz = 6
       ├─i = 4
-      ├─"test/test_expect_test.ml":265:12: i
+      ├─"test/test_expect_test.ml":265:12: <for i>
       │ └─"test/test_expect_test.ml":266:14: _baz
       │   └─_baz = 8
       ├─i = 5
@@ -318,31 +318,31 @@ let%expect_test "%debug_show PrintBox to stdout track for-loop" =
       "test/test_expect_test.ml":306:26: _bar
       ├─"test/test_expect_test.ml":307:8: <for loop>
       │ ├─i = 0
-      │ ├─"test/test_expect_test.ml":307:12: i
+      │ ├─"test/test_expect_test.ml":307:12: <for i>
       │ │ └─"test/test_expect_test.ml":308:14: _baz
       │ │   └─_baz = 0
       │ ├─i = 1
-      │ ├─"test/test_expect_test.ml":307:12: i
+      │ ├─"test/test_expect_test.ml":307:12: <for i>
       │ │ └─"test/test_expect_test.ml":308:14: _baz
       │ │   └─_baz = 2
       │ ├─i = 2
-      │ ├─"test/test_expect_test.ml":307:12: i
+      │ ├─"test/test_expect_test.ml":307:12: <for i>
       │ │ └─"test/test_expect_test.ml":308:14: _baz
       │ │   └─_baz = 4
       │ ├─i = 3
-      │ ├─"test/test_expect_test.ml":307:12: i
+      │ ├─"test/test_expect_test.ml":307:12: <for i>
       │ │ └─"test/test_expect_test.ml":308:14: _baz
       │ │   └─_baz = 6
       │ ├─i = 4
-      │ ├─"test/test_expect_test.ml":307:12: i
+      │ ├─"test/test_expect_test.ml":307:12: <for i>
       │ │ └─"test/test_expect_test.ml":308:14: _baz
       │ │   └─_baz = 8
       │ ├─i = 5
-      │ ├─"test/test_expect_test.ml":307:12: i
+      │ ├─"test/test_expect_test.ml":307:12: <for i>
       │ │ └─"test/test_expect_test.ml":308:14: _baz
       │ │   └─_baz = 10
       │ ├─i = 6
-      │ └─"test/test_expect_test.ml":307:12: i
+      │ └─"test/test_expect_test.ml":307:12: <for i>
       │   └─"test/test_expect_test.ml":308:14: _baz
       │     └─_baz = 12
       └─_bar = () |}]
@@ -361,7 +361,8 @@ let%expect_test "%debug_show PrintBox to stdout track while-loop" =
       ()
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
-  [%expect {|
+  [%expect
+    {|
     BEGIN DEBUG SESSION
     "test/test_expect_test.ml":354:26: _bar
     ├─"test/test_expect_test.ml":356:8: <while loop>
@@ -403,39 +404,39 @@ let%expect_test "%debug_show PrintBox to stdout num children exceeded nested" =
   [%expect
     {|
       BEGIN DEBUG SESSION
-      "test/test_expect_test.ml":391:40-397:69: loop_exceeded
+      "test/test_expect_test.ml":392:40-398:69: loop_exceeded
       ├─x = 3
-      ├─"test/test_expect_test.ml":396:15: z
+      ├─"test/test_expect_test.ml":397:15: z
       │ └─z = 1
-      └─"test/test_expect_test.ml":391:40-397:69: loop_exceeded
+      └─"test/test_expect_test.ml":392:40-398:69: loop_exceeded
         ├─x = 2
-        ├─"test/test_expect_test.ml":396:15: z
+        ├─"test/test_expect_test.ml":397:15: z
         │ └─z = 0
-        └─"test/test_expect_test.ml":391:40-397:69: loop_exceeded
+        └─"test/test_expect_test.ml":392:40-398:69: loop_exceeded
           ├─x = 1
-          ├─"test/test_expect_test.ml":396:15: z
+          ├─"test/test_expect_test.ml":397:15: z
           │ └─z = 0
-          └─"test/test_expect_test.ml":391:40-397:69: loop_exceeded
+          └─"test/test_expect_test.ml":392:40-398:69: loop_exceeded
             ├─x = 0
-            ├─"test/test_expect_test.ml":396:15: z
+            ├─"test/test_expect_test.ml":397:15: z
             │ └─z = 0
-            ├─"test/test_expect_test.ml":396:15: z
+            ├─"test/test_expect_test.ml":397:15: z
             │ └─z = 1
-            ├─"test/test_expect_test.ml":396:15: z
+            ├─"test/test_expect_test.ml":397:15: z
             │ └─z = 2
-            ├─"test/test_expect_test.ml":396:15: z
+            ├─"test/test_expect_test.ml":397:15: z
             │ └─z = 3
-            ├─"test/test_expect_test.ml":396:15: z
+            ├─"test/test_expect_test.ml":397:15: z
             │ └─z = 4
-            ├─"test/test_expect_test.ml":396:15: z
+            ├─"test/test_expect_test.ml":397:15: z
             │ └─z = 5
-            ├─"test/test_expect_test.ml":396:15: z
+            ├─"test/test_expect_test.ml":397:15: z
             │ └─z = 6
-            ├─"test/test_expect_test.ml":396:15: z
+            ├─"test/test_expect_test.ml":397:15: z
             │ └─z = 7
-            ├─"test/test_expect_test.ml":396:15: z
+            ├─"test/test_expect_test.ml":397:15: z
             │ └─z = 8
-            ├─"test/test_expect_test.ml":396:15: z
+            ├─"test/test_expect_test.ml":397:15: z
             │ └─z = 9
             └─z = <max_num_children exceeded>
       Raised exception: ppx_minidebug: max_num_children exceeded |}]
@@ -453,52 +454,52 @@ let%expect_test "%debug_show PrintBox to stdout highlight" =
     {|
       BEGIN DEBUG SESSION
       ┌────────────────────────────────────────────────────────┐
-      │"test/test_expect_test.ml":447:41-449:58: loop_highlight│
+      │"test/test_expect_test.ml":448:41-450:58: loop_highlight│
       ├────────────────────────────────────────────────────────┘
       ├─x = 7
       ├─┬───────────────────────────────────┐
-      │ │"test/test_expect_test.ml":448:8: z│
+      │ │"test/test_expect_test.ml":449:8: z│
       │ ├───────────────────────────────────┘
       │ └─┬─────┐
       │   │z = 3│
       │   └─────┘
       ├─┬────────────────────────────────────────────────────────┐
-      │ │"test/test_expect_test.ml":447:41-449:58: loop_highlight│
+      │ │"test/test_expect_test.ml":448:41-450:58: loop_highlight│
       │ ├────────────────────────────────────────────────────────┘
       │ ├─x = 6
-      │ ├─"test/test_expect_test.ml":448:8: z
+      │ ├─"test/test_expect_test.ml":449:8: z
       │ │ └─z = 2
       │ ├─┬────────────────────────────────────────────────────────┐
-      │ │ │"test/test_expect_test.ml":447:41-449:58: loop_highlight│
+      │ │ │"test/test_expect_test.ml":448:41-450:58: loop_highlight│
       │ │ ├────────────────────────────────────────────────────────┘
       │ │ ├─x = 5
-      │ │ ├─"test/test_expect_test.ml":448:8: z
+      │ │ ├─"test/test_expect_test.ml":449:8: z
       │ │ │ └─z = 2
       │ │ ├─┬────────────────────────────────────────────────────────┐
-      │ │ │ │"test/test_expect_test.ml":447:41-449:58: loop_highlight│
+      │ │ │ │"test/test_expect_test.ml":448:41-450:58: loop_highlight│
       │ │ │ ├────────────────────────────────────────────────────────┘
       │ │ │ ├─x = 4
-      │ │ │ ├─"test/test_expect_test.ml":448:8: z
+      │ │ │ ├─"test/test_expect_test.ml":449:8: z
       │ │ │ │ └─z = 1
       │ │ │ ├─┬────────────────────────────────────────────────────────┐
-      │ │ │ │ │"test/test_expect_test.ml":447:41-449:58: loop_highlight│
+      │ │ │ │ │"test/test_expect_test.ml":448:41-450:58: loop_highlight│
       │ │ │ │ ├────────────────────────────────────────────────────────┘
       │ │ │ │ ├─┬─────┐
       │ │ │ │ │ │x = 3│
       │ │ │ │ │ └─────┘
-      │ │ │ │ ├─"test/test_expect_test.ml":448:8: z
+      │ │ │ │ ├─"test/test_expect_test.ml":449:8: z
       │ │ │ │ │ └─z = 1
-      │ │ │ │ ├─"test/test_expect_test.ml":447:41-449:58: loop_highlight
+      │ │ │ │ ├─"test/test_expect_test.ml":448:41-450:58: loop_highlight
       │ │ │ │ │ ├─x = 2
-      │ │ │ │ │ ├─"test/test_expect_test.ml":448:8: z
+      │ │ │ │ │ ├─"test/test_expect_test.ml":449:8: z
       │ │ │ │ │ │ └─z = 0
-      │ │ │ │ │ ├─"test/test_expect_test.ml":447:41-449:58: loop_highlight
+      │ │ │ │ │ ├─"test/test_expect_test.ml":448:41-450:58: loop_highlight
       │ │ │ │ │ │ ├─x = 1
-      │ │ │ │ │ │ ├─"test/test_expect_test.ml":448:8: z
+      │ │ │ │ │ │ ├─"test/test_expect_test.ml":449:8: z
       │ │ │ │ │ │ │ └─z = 0
-      │ │ │ │ │ │ ├─"test/test_expect_test.ml":447:41-449:58: loop_highlight
+      │ │ │ │ │ │ ├─"test/test_expect_test.ml":448:41-450:58: loop_highlight
       │ │ │ │ │ │ │ ├─x = 0
-      │ │ │ │ │ │ │ ├─"test/test_expect_test.ml":448:8: z
+      │ │ │ │ │ │ │ ├─"test/test_expect_test.ml":449:8: z
       │ │ │ │ │ │ │ │ └─z = 0
       │ │ │ │ │ │ │ └─loop_highlight = 0
       │ │ │ │ │ │ └─loop_highlight = 0
@@ -525,16 +526,16 @@ let%expect_test "%debug_show PrintBox tracking" =
   [%expect
     {|
       BEGIN DEBUG SESSION
-      "test/test_expect_test.ml":515:37-517:46: track_branches
+      "test/test_expect_test.ml":516:37-518:46: track_branches
       ├─x = 7
-      ├─"test/test_expect_test.ml":517:9: <if -- else branch>
-      │ └─"test/test_expect_test.ml":517:31: <match -- branch 1>
+      ├─"test/test_expect_test.ml":518:9: <if -- else branch>
+      │ └─"test/test_expect_test.ml":518:31: <match -- branch 1>
       └─track_branches = 4
       4
-      "test/test_expect_test.ml":515:37-517:46: track_branches
+      "test/test_expect_test.ml":516:37-518:46: track_branches
       ├─x = 3
-      ├─"test/test_expect_test.ml":516:18: <if -- then branch>
-      │ └─"test/test_expect_test.ml":516:49: <match -- branch 2>
+      ├─"test/test_expect_test.ml":517:18: <if -- then branch>
+      │ └─"test/test_expect_test.ml":517:49: <match -- branch 2>
       └─track_branches = -3
       -3
     |}]
@@ -558,9 +559,9 @@ let%expect_test "%debug_show PrintBox tracking <function>" =
   [%expect
     {|
       BEGIN DEBUG SESSION
-      "test/test_expect_test.ml":548:6: <function -- branch 3>
+      "test/test_expect_test.ml":549:6: <function -- branch 3>
       4
-      "test/test_expect_test.ml":550:6: <function -- branch 5>
+      "test/test_expect_test.ml":551:6: <function -- branch 5>
       -3
     |}]
 
@@ -591,19 +592,19 @@ let%expect_test "%debug_show PrintBox tracking with debug_notrace" =
   [%expect
     {|
       BEGIN DEBUG SESSION
-      "test/test_expect_test.ml":569:37-583:16: track_branches
+      "test/test_expect_test.ml":570:37-584:16: track_branches
       ├─x = 8
-      ├─"test/test_expect_test.ml":578:6: <if -- else branch>
-      │ └─"test/test_expect_test.ml":581:8: <match -- branch 2>
-      │   └─"test/test_expect_test.ml":582:14: result
-      │     ├─"test/test_expect_test.ml":582:44: <if -- then branch>
+      ├─"test/test_expect_test.ml":579:6: <if -- else branch>
+      │ └─"test/test_expect_test.ml":582:8: <match -- branch 2>
+      │   └─"test/test_expect_test.ml":583:14: result
+      │     ├─"test/test_expect_test.ml":583:44: <if -- then branch>
       │     └─result = 8
       └─track_branches = 8
       8
-      "test/test_expect_test.ml":569:37-583:16: track_branches
+      "test/test_expect_test.ml":570:37-584:16: track_branches
       ├─x = 3
-      ├─"test/test_expect_test.ml":571:6: <if -- then branch>
-      │ └─"test/test_expect_test.ml":575:14: result
+      ├─"test/test_expect_test.ml":572:6: <if -- then branch>
+      │ └─"test/test_expect_test.ml":576:14: result
       │   └─result = 3
       └─track_branches = 3
       3
@@ -636,19 +637,19 @@ let%expect_test "nested extension points are no-ops" =
   [%expect
     {|
       BEGIN DEBUG SESSION
-      "test/test_expect_test.ml":614:37-628:16: track_branches
+      "test/test_expect_test.ml":615:37-629:16: track_branches
       ├─x = 8
-      ├─"test/test_expect_test.ml":623:6: <if -- else branch>
-      │ └─"test/test_expect_test.ml":626:8: <match -- branch 2>
-      │   └─"test/test_expect_test.ml":627:23: result
-      │     ├─"test/test_expect_test.ml":627:53: <if -- then branch>
+      ├─"test/test_expect_test.ml":624:6: <if -- else branch>
+      │ └─"test/test_expect_test.ml":627:8: <match -- branch 2>
+      │   └─"test/test_expect_test.ml":628:23: result
+      │     ├─"test/test_expect_test.ml":628:53: <if -- then branch>
       │     └─result = 8
       └─track_branches = 8
       8
-      "test/test_expect_test.ml":614:37-628:16: track_branches
+      "test/test_expect_test.ml":615:37-629:16: track_branches
       ├─x = 3
-      ├─"test/test_expect_test.ml":616:6: <if -- then branch>
-      │ └─"test/test_expect_test.ml":620:25: result
+      ├─"test/test_expect_test.ml":617:6: <if -- then branch>
+      │ └─"test/test_expect_test.ml":621:25: result
       │   └─result = 3
       └─track_branches = 3
       3
@@ -676,15 +677,15 @@ let%expect_test "%track_show PrintBox to stdout no return type anonymous fun" =
   in
   [%expect
     {|
-      "test/test_expect_test.ml":670:32-671:70: anonymous
+      "test/test_expect_test.ml":671:32-672:70: anonymous
       ├─x = 3
-      ├─"test/test_expect_test.ml":671:50-671:70: __fun
+      ├─"test/test_expect_test.ml":672:50-672:70: __fun
       │ └─i = 0
-      ├─"test/test_expect_test.ml":671:50-671:70: __fun
+      ├─"test/test_expect_test.ml":672:50-672:70: __fun
       │ └─i = 1
-      ├─"test/test_expect_test.ml":671:50-671:70: __fun
+      ├─"test/test_expect_test.ml":672:50-672:70: __fun
       │ └─i = 2
-      └─"test/test_expect_test.ml":671:50-671:70: __fun
+      └─"test/test_expect_test.ml":672:50-672:70: __fun
         └─i = 3
       6
     |}]
@@ -706,79 +707,79 @@ let%expect_test "%track_show PrintBox to stdout anonymous fun, num children exce
   [%expect
     {|
       BEGIN DEBUG SESSION
-      "test/test_expect_test.ml":694:40-700:69: loop_exceeded
+      "test/test_expect_test.ml":695:40-701:69: loop_exceeded
       ├─x = 3
-      └─"test/test_expect_test.ml":698:9-700:69: __fun
+      └─"test/test_expect_test.ml":699:9-701:69: __fun
         ├─i = 0
-        ├─"test/test_expect_test.ml":699:15: z
+        ├─"test/test_expect_test.ml":700:15: z
         │ └─z = 1
-        └─"test/test_expect_test.ml":700:33: <if -- else branch>
-          └─"test/test_expect_test.ml":694:40-700:69: loop_exceeded
+        └─"test/test_expect_test.ml":701:33: <if -- else branch>
+          └─"test/test_expect_test.ml":695:40-701:69: loop_exceeded
             ├─x = 2
-            └─"test/test_expect_test.ml":698:9-700:69: __fun
+            └─"test/test_expect_test.ml":699:9-701:69: __fun
               ├─i = 0
-              ├─"test/test_expect_test.ml":699:15: z
+              ├─"test/test_expect_test.ml":700:15: z
               │ └─z = 0
-              └─"test/test_expect_test.ml":700:33: <if -- else branch>
-                └─"test/test_expect_test.ml":694:40-700:69: loop_exceeded
+              └─"test/test_expect_test.ml":701:33: <if -- else branch>
+                └─"test/test_expect_test.ml":695:40-701:69: loop_exceeded
                   ├─x = 1
-                  └─"test/test_expect_test.ml":698:9-700:69: __fun
+                  └─"test/test_expect_test.ml":699:9-701:69: __fun
                     ├─i = 0
-                    ├─"test/test_expect_test.ml":699:15: z
+                    ├─"test/test_expect_test.ml":700:15: z
                     │ └─z = 0
-                    └─"test/test_expect_test.ml":700:33: <if -- else branch>
-                      └─"test/test_expect_test.ml":694:40-700:69: loop_exceeded
+                    └─"test/test_expect_test.ml":701:33: <if -- else branch>
+                      └─"test/test_expect_test.ml":695:40-701:69: loop_exceeded
                         ├─x = 0
-                        ├─"test/test_expect_test.ml":698:9-700:69: __fun
+                        ├─"test/test_expect_test.ml":699:9-701:69: __fun
                         │ ├─i = 0
-                        │ ├─"test/test_expect_test.ml":699:15: z
+                        │ ├─"test/test_expect_test.ml":700:15: z
                         │ │ └─z = 0
-                        │ └─"test/test_expect_test.ml":700:26: <if -- then branch>
-                        ├─"test/test_expect_test.ml":698:9-700:69: __fun
+                        │ └─"test/test_expect_test.ml":701:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":699:9-701:69: __fun
                         │ ├─i = 1
-                        │ ├─"test/test_expect_test.ml":699:15: z
+                        │ ├─"test/test_expect_test.ml":700:15: z
                         │ │ └─z = 1
-                        │ └─"test/test_expect_test.ml":700:26: <if -- then branch>
-                        ├─"test/test_expect_test.ml":698:9-700:69: __fun
+                        │ └─"test/test_expect_test.ml":701:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":699:9-701:69: __fun
                         │ ├─i = 2
-                        │ ├─"test/test_expect_test.ml":699:15: z
+                        │ ├─"test/test_expect_test.ml":700:15: z
                         │ │ └─z = 2
-                        │ └─"test/test_expect_test.ml":700:26: <if -- then branch>
-                        ├─"test/test_expect_test.ml":698:9-700:69: __fun
+                        │ └─"test/test_expect_test.ml":701:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":699:9-701:69: __fun
                         │ ├─i = 3
-                        │ ├─"test/test_expect_test.ml":699:15: z
+                        │ ├─"test/test_expect_test.ml":700:15: z
                         │ │ └─z = 3
-                        │ └─"test/test_expect_test.ml":700:26: <if -- then branch>
-                        ├─"test/test_expect_test.ml":698:9-700:69: __fun
+                        │ └─"test/test_expect_test.ml":701:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":699:9-701:69: __fun
                         │ ├─i = 4
-                        │ ├─"test/test_expect_test.ml":699:15: z
+                        │ ├─"test/test_expect_test.ml":700:15: z
                         │ │ └─z = 4
-                        │ └─"test/test_expect_test.ml":700:26: <if -- then branch>
-                        ├─"test/test_expect_test.ml":698:9-700:69: __fun
+                        │ └─"test/test_expect_test.ml":701:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":699:9-701:69: __fun
                         │ ├─i = 5
-                        │ ├─"test/test_expect_test.ml":699:15: z
+                        │ ├─"test/test_expect_test.ml":700:15: z
                         │ │ └─z = 5
-                        │ └─"test/test_expect_test.ml":700:26: <if -- then branch>
-                        ├─"test/test_expect_test.ml":698:9-700:69: __fun
+                        │ └─"test/test_expect_test.ml":701:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":699:9-701:69: __fun
                         │ ├─i = 6
-                        │ ├─"test/test_expect_test.ml":699:15: z
+                        │ ├─"test/test_expect_test.ml":700:15: z
                         │ │ └─z = 6
-                        │ └─"test/test_expect_test.ml":700:26: <if -- then branch>
-                        ├─"test/test_expect_test.ml":698:9-700:69: __fun
+                        │ └─"test/test_expect_test.ml":701:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":699:9-701:69: __fun
                         │ ├─i = 7
-                        │ ├─"test/test_expect_test.ml":699:15: z
+                        │ ├─"test/test_expect_test.ml":700:15: z
                         │ │ └─z = 7
-                        │ └─"test/test_expect_test.ml":700:26: <if -- then branch>
-                        ├─"test/test_expect_test.ml":698:9-700:69: __fun
+                        │ └─"test/test_expect_test.ml":701:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":699:9-701:69: __fun
                         │ ├─i = 8
-                        │ ├─"test/test_expect_test.ml":699:15: z
+                        │ ├─"test/test_expect_test.ml":700:15: z
                         │ │ └─z = 8
-                        │ └─"test/test_expect_test.ml":700:26: <if -- then branch>
-                        ├─"test/test_expect_test.ml":698:9-700:69: __fun
+                        │ └─"test/test_expect_test.ml":701:26: <if -- then branch>
+                        ├─"test/test_expect_test.ml":699:9-701:69: __fun
                         │ ├─i = 9
-                        │ ├─"test/test_expect_test.ml":699:15: z
+                        │ ├─"test/test_expect_test.ml":700:15: z
                         │ │ └─z = 9
-                        │ └─"test/test_expect_test.ml":700:26: <if -- then branch>
+                        │ └─"test/test_expect_test.ml":701:26: <if -- then branch>
                         └─__fun = <max_num_children exceeded>
       Raised exception: ppx_minidebug: max_num_children exceeded
     |}]
@@ -809,7 +810,7 @@ let%expect_test "%track_show PrintBox to stdout function with abstract type" =
   [%expect
     {|
       BEGIN DEBUG SESSION
-      "test/test_expect_test.ml":794:26-795:47: foo
+      "test/test_expect_test.ml":795:26-796:47: foo
       ├─c = 1
       └─foo = 2
       2

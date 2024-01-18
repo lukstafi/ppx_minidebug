@@ -7,6 +7,7 @@
 ### Changed
 
 - Include the variable name in the open-log line (just as function name for functions).
+- Output the description of a for loop body as `<for [identifier]>` rather than just `[identifier]`.
 
 ## [0.8.0] -- 2024-01-16
 
