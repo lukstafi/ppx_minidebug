@@ -387,22 +387,22 @@ let%expect_test "%debug_show PrintBox to stdout track while-loop" =
 
     "test/test_expect_test.ml":372:26: _bar
     ├─"test/test_expect_test.ml":374:8: <while loop>
-    │ ├─"test/test_expect_test.ml":375:10:
+    │ ├─"test/test_expect_test.ml":375:10: <while loop>
     │ │ └─"test/test_expect_test.ml":375:14: _baz
     │ │   └─_baz = 0
-    │ ├─"test/test_expect_test.ml":375:10:
+    │ ├─"test/test_expect_test.ml":375:10: <while loop>
     │ │ └─"test/test_expect_test.ml":375:14: _baz
     │ │   └─_baz = 2
-    │ ├─"test/test_expect_test.ml":375:10:
+    │ ├─"test/test_expect_test.ml":375:10: <while loop>
     │ │ └─"test/test_expect_test.ml":375:14: _baz
     │ │   └─_baz = 4
-    │ ├─"test/test_expect_test.ml":375:10:
+    │ ├─"test/test_expect_test.ml":375:10: <while loop>
     │ │ └─"test/test_expect_test.ml":375:14: _baz
     │ │   └─_baz = 6
-    │ ├─"test/test_expect_test.ml":375:10:
+    │ ├─"test/test_expect_test.ml":375:10: <while loop>
     │ │ └─"test/test_expect_test.ml":375:14: _baz
     │ │   └─_baz = 8
-    │ └─"test/test_expect_test.ml":375:10:
+    │ └─"test/test_expect_test.ml":375:10: <while loop>
     │   └─"test/test_expect_test.ml":375:14: _baz
     │     └─_baz = 10
     └─_bar = ()
@@ -1223,17 +1223,13 @@ let%expect_test "%track_show PrintBox values_first_mode to stdout no return type
       anonymous
       ├─"test/test_expect_test.ml":1210:32-1211:70
       ├─x = 3
-      ├─__fun
-      │ ├─"test/test_expect_test.ml":1211:50-1211:70
-      │ └─i = 0
-      ├─__fun
-      │ ├─"test/test_expect_test.ml":1211:50-1211:70
-      │ └─i = 1
-      ├─__fun
-      │ ├─"test/test_expect_test.ml":1211:50-1211:70
-      │ └─i = 2
-      └─__fun
-        ├─"test/test_expect_test.ml":1211:50-1211:70
-        └─i = 3
+      ├─i = 0
+      │ └─"test/test_expect_test.ml":1211:50-1211:70
+      ├─i = 1
+      │ └─"test/test_expect_test.ml":1211:50-1211:70
+      ├─i = 2
+      │ └─"test/test_expect_test.ml":1211:50-1211:70
+      └─i = 3
+        └─"test/test_expect_test.ml":1211:50-1211:70
       6
     |}]

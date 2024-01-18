@@ -34,7 +34,12 @@ module type Debug_runtime = sig
   val close_log : unit -> unit
 
   val open_log_preamble_brief :
-    fname:string -> pos_lnum:int -> pos_colnum:int -> message:string -> unit
+    fname:string ->
+    pos_lnum:int ->
+    pos_colnum:int ->
+    message:string ->
+    entry_id:int ->
+    unit
 
   val open_log_preamble_full :
     fname:string ->
@@ -43,13 +48,18 @@ module type Debug_runtime = sig
     end_lnum:int ->
     end_colnum:int ->
     message:string ->
+    entry_id:int ->
     unit
 
-  val log_value_sexp : descr:string -> sexp:Sexplib0.Sexp.t -> unit
-  val log_value_pp : descr:string -> pp:(Format.formatter -> 'a -> unit) -> v:'a -> unit
-  val log_value_show : descr:string -> v:string -> unit
+  val log_value_sexp : descr:string -> entry_id:int -> sexp:Sexplib0.Sexp.t -> unit
+
+  val log_value_pp :
+    descr:string -> entry_id:int -> pp:(Format.formatter -> 'a -> unit) -> v:'a -> unit
+
+  val log_value_show : descr:string -> entry_id:int -> v:string -> unit
   val exceeds_max_nesting : unit -> bool
   val exceeds_max_children : unit -> bool
+  val get_entry_id : unit -> int
 end
 
 module type Debug_runtime_cond = sig
@@ -84,31 +94,31 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
     | _ :: tl -> stack := tl);
     CFormat.pp_close_box ppf ()
 
-  let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
+  let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message ~entry_id:_ =
     stack := 0 :: !stack;
     CFormat.fprintf ppf "\"%s\":%d:%d: %s@ @[<hov 2>" fname pos_lnum pos_colnum message
 
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
-      ~message =
+      ~message ~entry_id:_ =
     stack := 0 :: !stack;
     CFormat.fprintf ppf "@[\"%s\":%d:%d-%d:%d" fname start_lnum start_colnum end_lnum
       end_colnum;
     if Log_to.time_tagged then CFormat.fprintf ppf "@ at time@ %a" pp_timestamp ();
     CFormat.fprintf ppf ": %s@]@ @[<hov 2>" message
 
-  let log_value_sexp ~descr ~sexp =
+  let log_value_sexp ~descr ~entry_id:_ ~sexp =
     (match !stack with
     | num_children :: tl -> stack := (num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
     CFormat.fprintf ppf "%s = %a@ @ " descr Sexplib0.Sexp.pp_hum sexp
 
-  let log_value_pp ~descr ~pp ~v =
+  let log_value_pp ~descr ~entry_id:_ ~pp ~v =
     (match !stack with
     | num_children :: tl -> stack := (num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
     CFormat.fprintf ppf "%s = %a@ @ " descr pp v
 
-  let log_value_show ~descr ~v =
+  let log_value_show ~descr ~entry_id:_ ~v =
     (match !stack with
     | num_children :: tl -> stack := (num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
@@ -121,6 +131,12 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
     match !stack with
     | [] -> false
     | num_children :: _ -> exceeds ~value:num_children ~limit:max_num_children
+
+  let get_entry_id =
+    let global_id = ref 0 in
+    fun () ->
+      incr global_id;
+      !global_id
 end
 
 module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
@@ -147,27 +163,27 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
         Printf.fprintf debug_ch "%s end\n%!" message;
         flush debug_ch
 
-  let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
+  let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message ~entry_id:_ =
     stack := (None, 0) :: !stack;
     Printf.fprintf debug_ch "%s\"%s\":%d:%d: %s\n%!" (indent ()) fname pos_lnum pos_colnum
       message
 
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
-      ~message =
+      ~message ~entry_id:_ =
     Printf.fprintf debug_ch "%s%!" (indent ());
     if Log_to.time_tagged then Printf.fprintf debug_ch "%s - %!" (timestamp_to_string ());
     Printf.fprintf debug_ch "%s begin \"%s\":%d:%d-%d:%d\n%!" message fname start_lnum
       start_colnum end_lnum end_colnum;
     stack := (Some message, 0) :: !stack
 
-  let log_value_sexp ~descr ~sexp =
+  let log_value_sexp ~descr ~entry_id:_ ~sexp =
     (match !stack with
     | (hd, num_children) :: tl -> stack := (hd, num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
     Printf.fprintf debug_ch "%s%s = %s\n%!" (indent ()) descr
       (Sexplib0.Sexp.to_string_hum sexp)
 
-  let log_value_pp ~descr ~pp ~v =
+  let log_value_pp ~descr ~entry_id:_ ~pp ~v =
     (match !stack with
     | (hd, num_children) :: tl -> stack := (hd, num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
@@ -176,7 +192,7 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
     let v_str = CFormat.flush_str_formatter () in
     Printf.fprintf debug_ch "%s%s = %s\n%!" (indent ()) descr v_str
 
-  let log_value_show ~descr ~v =
+  let log_value_show ~descr ~entry_id:_ ~v =
     (match !stack with
     | (hd, num_children) :: tl -> stack := (hd, num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
@@ -189,6 +205,12 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
     match !stack with
     | [] -> false
     | (_, num_children) :: _ -> exceeds ~value:num_children ~limit:max_num_children
+
+  let get_entry_id =
+    let global_id = ref 0 in
+    fun () ->
+      incr global_id;
+      !global_id
 end
 
 module PrintBox (Log_to : Debug_ch) = struct
@@ -208,22 +230,35 @@ module PrintBox (Log_to : Debug_ch) = struct
     CFormat.pp_set_geometry ppf ~max_indent:50 ~margin:100;
     ppf
 
+  type subentry = { result_id : int; subtree : B.t }
+
   type entry = {
     cond : bool;
     highlight : bool;
     exclude : bool;
-    header : B.t;
-    body : B.t list;
+    uri : string;
+    path : string;
+    entry_message : string;
+    entry_id : int;
+    body : subentry list;
   }
 
   let stack : entry list ref = ref []
 
-  let stack_next ~descr (hl, b) =
-    let b = if !values_first_mode then B.hlist [ B.line descr; b ] else b in
+  let hyperlink_path ~uri ~inner =
+    match !html_config with
+    | `Hyperlink prefix -> B.link ~uri:(prefix ^ uri) inner
+    | _ -> inner
+
+  let stack_next ~entry_id (hl, b) =
     stack :=
       match !stack with
       | ({ highlight; exclude; body; _ } as entry) :: bs2 ->
-          { entry with highlight = highlight || ((not exclude) && hl); body = b :: body }
+          {
+            entry with
+            highlight = highlight || ((not exclude) && hl);
+            body = { result_id = entry_id; subtree = b } :: body;
+          }
           :: bs2
       | _ ->
           failwith
@@ -234,56 +269,51 @@ module PrintBox (Log_to : Debug_ch) = struct
       CFormat.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
     else CFormat.fprintf ppf "@.BEGIN DEBUG SESSION@."
 
-  let equal_boxed_line b1 b2 =
-    match (B.view b1, B.view b2) with
-    | B.Text { l = [ s1 ]; _ }, B.Text { l = [ s2 ]; _ } -> String.equal s1 s2
-    | _ -> false
-
-  let remove_result_message b =
-    match B.view b with
-    | B.Grid (_, [| [| _result_message; result |] |]) -> result
-    | _ -> b
-
   let apply_highlight hl b =
     match B.view b with B.Frame _ -> b | _ -> if hl then B.frame b else b
 
-  let remove_result_messages = List.map remove_result_message
-
-  let stack_to_tree { cond = _; highlight; exclude = _; header; body } =
-    let hl_header = apply_highlight highlight header in
+  let stack_to_tree
+      { cond = _; highlight; exclude = _; uri; path; entry_message; entry_id; body } =
+    let hl_header =
+      apply_highlight highlight @@ B.line
+      @@ if !values_first_mode then entry_message else path ^ ": " ^ entry_message
+    in
+    let b_path =
+      B.line @@ if !values_first_mode then path else path ^ ": " ^ entry_message
+    in
+    let b_path = hyperlink_path ~uri ~inner:b_path in
+    let b_body = List.map (fun { subtree; _ } -> subtree) body in
     if !values_first_mode then
-      match B.view header with
-      | B.Grid (_, [| [| path; path_message |] |]) -> (
-          let hl_message = apply_highlight highlight path_message in
-          match body with
-          | [] -> B.tree hl_message [ path ]
-          | result :: body -> (
-              let body = remove_result_messages body in
-              match B.view result with
-              | B.Grid (_, [| [| result_message; result |] |])
-                when equal_boxed_line result_message path_message ->
-                  B.tree (apply_highlight highlight result) (path :: List.rev body)
-              | _ ->
-                  (* [result] could have a message for a function argument. *)
-                  B.tree hl_message
-                    (path :: List.rev (remove_result_message result :: body))))
-      | _ -> B.tree hl_header (remove_result_messages @@ List.rev body)
-    else B.tree hl_header (List.rev body)
+      match body with
+      | [] -> B.tree hl_header [ b_path ]
+      | { result_id; subtree } :: body when result_id = entry_id -> (
+          let body = List.map (fun { subtree; _ } -> subtree) body in
+          match B.view subtree with
+          | B.Tree (_ident, result_header, result_body) ->
+              B.tree
+                (apply_highlight highlight result_header)
+                (b_path :: List.rev (Array.to_list result_body @ body))
+          | _ -> B.tree (apply_highlight highlight subtree) (b_path :: List.rev body))
+      | _ -> B.tree hl_header (b_path :: List.rev b_body)
+    else B.tree hl_header (List.rev b_body)
 
   let close_log () =
     (* Note: we treat a tree under a box as part of that box. *)
     stack :=
       (* Design choice: exclude does not apply to its own entry -- its about propagating children. *)
       match !stack with
-      | ({ cond = true; highlight = hl; exclude = _; _ } as entry)
-        :: { cond; highlight; exclude; header; body }
+      | ({ cond = true; highlight = hl; exclude = _; entry_id = result_id; _ } as entry)
+        :: { cond; highlight; exclude; uri; path; entry_message; entry_id; body }
         :: bs3 ->
           {
             cond;
             highlight = highlight || ((not exclude) && hl);
             exclude;
-            header;
-            body = stack_to_tree entry :: body;
+            uri;
+            path;
+            entry_message;
+            entry_id;
+            body = { result_id; subtree = stack_to_tree entry } :: body;
           }
           :: bs3
       | { cond = false; _ } :: bs -> bs
@@ -301,8 +331,8 @@ module PrintBox (Log_to : Debug_ch) = struct
       | _ -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
 
   let open_log_preamble ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message
-      ~brief =
-    let path_str =
+      ~entry_id ~brief =
+    let uri =
       match !html_config with
       | `Hyperlink prefix
         when String.length prefix = 0
@@ -312,31 +342,15 @@ module PrintBox (Log_to : Debug_ch) = struct
           Printf.sprintf "%s#L%d" fname start_lnum
       | _ -> Printf.sprintf "%s:%d:%d" fname start_lnum (start_colnum + 1)
     in
-    let header =
-      if !values_first_mode then
-        let path =
-          if brief then B.sprintf "\"%s\":%d:%d" fname start_lnum start_colnum
-          else if Log_to.time_tagged then
-            B.asprintf "@[\"%s\":%d:%d-%d:%d@ at time@ %a@]" fname start_lnum start_colnum
-              end_lnum end_colnum pp_timestamp ()
-          else
-            B.asprintf "@[\"%s\":%d:%d-%d:%d@]" fname start_lnum start_colnum end_lnum
-              end_colnum
-        in
-        B.hlist [ path; B.line message ]
-      else if brief then
-        B.sprintf "\"%s\":%d:%d: %s" fname start_lnum start_colnum message
+
+    let path =
+      if brief then Printf.sprintf "\"%s\":%d:%d" fname start_lnum start_colnum
       else if Log_to.time_tagged then
-        B.asprintf "@[\"%s\":%d:%d-%d:%d@ at time@ %a: %s@]" fname start_lnum start_colnum
-          end_lnum end_colnum pp_timestamp () message
+        Format.asprintf "@[\"%s\":%d:%d-%d:%d@ at time@ %a@]" fname start_lnum
+          start_colnum end_lnum end_colnum pp_timestamp ()
       else
-        B.asprintf "@[\"%s\":%d:%d-%d:%d: %s@]" fname start_lnum start_colnum end_lnum
-          end_colnum message
-    in
-    let header =
-      match !html_config with
-      | `Text | `Html -> header
-      | `Hyperlink prefix -> B.link ~uri:(prefix ^ path_str) header
+        Format.asprintf "@[\"%s\":%d:%d-%d:%d@]" fname start_lnum start_colnum end_lnum
+          end_colnum
     in
     let exclude =
       match !exclude_on_path with Some r -> Re.execp r message | None -> false
@@ -344,16 +358,25 @@ module PrintBox (Log_to : Debug_ch) = struct
     let highlight =
       match !highlight_terms with Some r -> Re.execp r message | None -> false
     in
-    stack := { cond = true; highlight; exclude; header; body = [] } :: !stack
+    stack :=
+      {
+        cond = true;
+        highlight;
+        exclude;
+        uri;
+        path;
+        entry_message = message;
+        entry_id;
+        body = [];
+      }
+      :: !stack
 
-  let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
-      ~message =
-    open_log_preamble ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message
-      ~brief:false
+  let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum =
+    open_log_preamble ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~brief:false
 
-  let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message =
+  let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum =
     open_log_preamble ~fname ~start_lnum:pos_lnum ~start_colnum:pos_colnum
-      ~end_lnum:pos_lnum ~end_colnum:pos_colnum ~message ~brief:true
+      ~end_lnum:pos_lnum ~end_colnum:pos_colnum ~brief:true
 
   let sexp_size sexp =
     let open Sexplib0.Sexp in
@@ -410,19 +433,19 @@ module PrintBox (Log_to : Debug_ch) = struct
 
   let num_children () = match !stack with [] -> 0 | { body; _ } :: _ -> List.length body
 
-  let log_value_sexp ~descr ~sexp =
-    if !boxify_sexp_from_size >= 0 then stack_next ~descr @@ boxify descr sexp
+  let log_value_sexp ~descr ~entry_id ~sexp =
+    if !boxify_sexp_from_size >= 0 then stack_next ~entry_id @@ boxify descr sexp
     else
-      stack_next ~descr @@ highlight_box
+      stack_next ~entry_id @@ highlight_box
       @@ B.asprintf_with_style B.Style.preformatted "%s = %a" descr Sexplib0.Sexp.pp_hum
            sexp
 
-  let log_value_pp ~descr ~pp ~v =
-    stack_next ~descr @@ highlight_box
+  let log_value_pp ~descr ~entry_id ~pp ~v =
+    stack_next ~entry_id @@ highlight_box
     @@ B.asprintf_with_style B.Style.preformatted "%s = %a" descr pp v
 
-  let log_value_show ~descr ~v =
-    stack_next ~descr @@ highlight_box
+  let log_value_show ~descr ~entry_id ~v =
+    stack_next ~entry_id @@ highlight_box
     @@ B.sprintf_with_style B.Style.preformatted "%s = %s" descr v
 
   let no_debug_if cond =
@@ -435,6 +458,12 @@ module PrintBox (Log_to : Debug_ch) = struct
     exceeds ~value:(List.length !stack) ~limit:max_nesting_depth
 
   let exceeds_max_children () = exceeds ~value:(num_children ()) ~limit:max_num_children
+
+  let get_entry_id =
+    let global_id = ref 0 in
+    fun () ->
+      incr global_id;
+      !global_id
 end
 
 let debug_html ?(time_tagged = false) ?max_nesting_depth ?max_num_children

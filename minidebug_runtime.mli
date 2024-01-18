@@ -27,7 +27,12 @@ module type Debug_runtime = sig
   val close_log : unit -> unit
 
   val open_log_preamble_brief :
-    fname:string -> pos_lnum:int -> pos_colnum:int -> message:string -> unit
+    fname:string ->
+    pos_lnum:int ->
+    pos_colnum:int ->
+    message:string ->
+    entry_id:int ->
+    unit
 
   val open_log_preamble_full :
     fname:string ->
@@ -36,13 +41,18 @@ module type Debug_runtime = sig
     end_lnum:int ->
     end_colnum:int ->
     message:string ->
+    entry_id:int ->
     unit
 
-  val log_value_sexp : descr:string -> sexp:Sexplib0.Sexp.t -> unit
-  val log_value_pp : descr:string -> pp:(Format.formatter -> 'a -> unit) -> v:'a -> unit
-  val log_value_show : descr:string -> v:string -> unit
+  val log_value_sexp : descr:string -> entry_id:int -> sexp:Sexplib0.Sexp.t -> unit
+
+  val log_value_pp :
+    descr:string -> entry_id:int -> pp:(Format.formatter -> 'a -> unit) -> v:'a -> unit
+
+  val log_value_show : descr:string -> entry_id:int -> v:string -> unit
   val exceeds_max_nesting : unit -> bool
   val exceeds_max_children : unit -> bool
+  val get_entry_id : unit -> int
 end
 
 (** The logged traces will be indented using OCaml's `Format` module. *)
