@@ -292,7 +292,9 @@ module PrintBox (Log_to : Debug_ch) = struct
           | B.Tree (_ident, result_header, result_body) ->
               B.tree
                 (apply_highlight highlight result_header)
-                (b_path :: List.rev (Array.to_list result_body @ body))
+                (b_path
+                :: B.tree (B.line "<returns>") (Array.to_list result_body)
+                :: List.rev body)
           | _ -> B.tree (apply_highlight highlight subtree) (b_path :: List.rev body))
       | _ -> B.tree hl_header (b_path :: List.rev b_body)
     else B.tree hl_header (List.rev b_body)
@@ -418,7 +420,7 @@ module PrintBox (Log_to : Debug_ch) = struct
             let hl_body, bs = List.split @@ List.map loop l in
             let hl_body = List.exists (fun x -> x) hl_body in
             let hl, b =
-            (* Design choice: Don't render headers of multiline values as monospace, to emphasize them. *)
+              (* Design choice: Don't render headers of multiline values as monospace, to emphasize them. *)
               highlight_box ~hl_body
               @@ if as_tree then B.text s else B.text_with_style B.Style.preformatted s
             in
