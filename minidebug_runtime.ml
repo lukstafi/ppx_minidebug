@@ -222,6 +222,8 @@ module PrintBox (Log_to : Debug_ch) = struct
   let highlighted_roots = ref false
   let exclude_on_path = ref None
   let values_first_mode = ref false
+  let max_inline_sexp_size = ref 20
+  let max_inline_sexp_length = ref 50
 
   module B = PrintBox
 
@@ -429,11 +431,19 @@ module PrintBox (Log_to : Debug_ch) = struct
             let hls, bs = List.split @@ List.map loop l in
             (List.exists (fun x -> x) hls, B.vlist bs)
     in
-    match sexp with
-    | Atom s | List [ Atom s ] ->
-        highlight_box @@ B.text_with_style B.Style.preformatted (descr ^ " = " ^ s)
-    | List [] -> highlight_box @@ B.line descr
-    | List l -> loop ~as_tree:true @@ List (Atom (descr ^ " =") :: l)
+    let str =
+      if sexp_size sexp < min !boxify_sexp_from_size !max_inline_sexp_size then
+        Sexplib0.Sexp.to_string_hum sexp
+      else ""
+    in
+    if String.length str > 0 && String.length str < !max_inline_sexp_length then
+      highlight_box @@ B.text_with_style B.Style.preformatted (descr ^ " = " ^ str)
+    else
+      match sexp with
+      | Atom s | List [ Atom s ] ->
+          highlight_box @@ B.text_with_style B.Style.preformatted (descr ^ " = " ^ s)
+      | List [] -> highlight_box @@ B.line descr
+      | List l -> loop ~as_tree:true @@ List (Atom (descr ^ " =") :: l)
 
   let num_children () = match !stack with [] -> 0 | { body; _ } :: _ -> List.length body
 

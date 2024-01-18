@@ -106,6 +106,12 @@ module PrintBox : functor (_ : Debug_ch) -> sig
 
   val values_first_mode : bool ref
   (**  *)
+
+  val max_inline_sexp_size : int ref
+  (**  *)
+
+  val max_inline_sexp_length : int ref
+  (**  *)
 end
 
 val debug_html :
