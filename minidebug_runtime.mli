@@ -115,8 +115,8 @@ val debug_html :
     By default the logging will not be time tagged and the file will be created or erased
     by this function. The default [boxify_sexp_from_size] value is 50.
     
-    By default {!html_config} will be set to [`Html], unless [~hyperlink] is passed, then
-    [html_config := `Hyperlink hyperlink]. See {!html_config} for details. *)
+    By default {!PrintBox.html_config} will be set to [`Html], unless [~hyperlink] is passed, then
+    [html_config := `Hyperlink hyperlink]. See {!PrintBox.html_config} for details. *)
 
 val debug :
   ?debug_ch:out_channel ->
