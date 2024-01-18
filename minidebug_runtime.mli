@@ -105,13 +105,17 @@ module PrintBox : functor (_ : Debug_ch) -> sig
       excessive logging while still providing all the context. Defaults to [false]. *)
 
   val values_first_mode : bool ref
-  (**  *)
+  (** If set to true, does not put the source code location of a computation as a header of its subtree.
+      Rather, puts the result of the computation as the header of a computation subtree,
+      if rendered as a single line -- or just the name, and puts the result near the top.
+      If false, puts the result at the end of the computation subtree, i.e. preserves the order
+      of the computation. *)
 
   val max_inline_sexp_size : int ref
-  (**  *)
+  (** Maximal size (in atoms) up to which a sexp value can be inlined during "boxification". *)
 
   val max_inline_sexp_length : int ref
-  (**  *)
+  (** Maximal length (in characters/bytes) up to which a sexp value can be inlined during "boxification". *)
 end
 
 val debug_html :
