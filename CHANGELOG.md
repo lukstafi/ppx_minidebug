@@ -1,8 +1,9 @@
-## [0.9.0] -- current
+## [0.9.0] -- 2024-01-18
 
 ## Added
 
 - Optionally output source locations as hyperlinks -- requires an address prefix.
+- A setting `values_first_mode` for the PrintBox runtime, to put results of computation as headers, and push paths beneath headers (friendly for HTML-backed foldable output).
 
 ### Changed
 

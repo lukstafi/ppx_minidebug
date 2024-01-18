@@ -199,6 +199,7 @@ module PrintBox (Log_to : Debug_ch) = struct
   let highlight_terms = ref None
   let highlighted_roots = ref false
   let exclude_on_path = ref None
+  let values_first_mode = ref false
 
   module B = PrintBox
 
@@ -217,7 +218,8 @@ module PrintBox (Log_to : Debug_ch) = struct
 
   let stack : entry list ref = ref []
 
-  let stack_next (hl, b) =
+  let stack_next ~descr (hl, b) =
+    let b = if !values_first_mode then B.hlist [ B.line descr; b ] else b in
     stack :=
       match !stack with
       | ({ highlight; exclude; body; _ } as entry) :: bs2 ->
@@ -232,8 +234,41 @@ module PrintBox (Log_to : Debug_ch) = struct
       CFormat.fprintf ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
     else CFormat.fprintf ppf "@.BEGIN DEBUG SESSION@."
 
+  let equal_boxed_line b1 b2 =
+    match (B.view b1, B.view b2) with
+    | B.Text { l = [ s1 ]; _ }, B.Text { l = [ s2 ]; _ } -> String.equal s1 s2
+    | _ -> false
+
+  let remove_result_message b =
+    match B.view b with
+    | B.Grid (_, [| [| _result_message; result |] |]) -> result
+    | _ -> b
+
+  let apply_highlight hl b =
+    match B.view b with B.Frame _ -> b | _ -> if hl then B.frame b else b
+
+  let remove_result_messages = List.map remove_result_message
+
   let stack_to_tree { cond = _; highlight; exclude = _; header; body } =
-    B.tree (if highlight then B.frame header else header) (List.rev body)
+    let hl_header = apply_highlight highlight header in
+    if !values_first_mode then
+      match B.view header with
+      | B.Grid (_, [| [| path; path_message |] |]) -> (
+          let hl_message = apply_highlight highlight path_message in
+          match body with
+          | [] -> B.tree hl_message [ path ]
+          | result :: body -> (
+              let body = remove_result_messages body in
+              match B.view result with
+              | B.Grid (_, [| [| result_message; result |] |])
+                when equal_boxed_line result_message path_message ->
+                  B.tree (apply_highlight highlight result) (path :: List.rev body)
+              | _ ->
+                  (* [result] could have a message for a function argument. *)
+                  B.tree hl_message
+                    (path :: List.rev (remove_result_message result :: body))))
+      | _ -> B.tree hl_header (remove_result_messages @@ List.rev body)
+    else B.tree hl_header (List.rev body)
 
   let close_log () =
     (* Note: we treat a tree under a box as part of that box. *)
@@ -278,7 +313,19 @@ module PrintBox (Log_to : Debug_ch) = struct
       | _ -> Printf.sprintf "%s:%d:%d" fname start_lnum (start_colnum + 1)
     in
     let header =
-      if brief then B.sprintf "\"%s\":%d:%d: %s" fname start_lnum start_colnum message
+      if !values_first_mode then
+        let path =
+          if brief then B.sprintf "\"%s\":%d:%d" fname start_lnum start_colnum
+          else if Log_to.time_tagged then
+            B.asprintf "@[\"%s\":%d:%d-%d:%d@ at time@ %a@]" fname start_lnum start_colnum
+              end_lnum end_colnum pp_timestamp ()
+          else
+            B.asprintf "@[\"%s\":%d:%d-%d:%d@]" fname start_lnum start_colnum end_lnum
+              end_colnum
+        in
+        B.hlist [ path; B.line message ]
+      else if brief then
+        B.sprintf "\"%s\":%d:%d: %s" fname start_lnum start_colnum message
       else if Log_to.time_tagged then
         B.asprintf "@[\"%s\":%d:%d-%d:%d@ at time@ %a: %s@]" fname start_lnum start_colnum
           end_lnum end_colnum pp_timestamp () message
@@ -331,7 +378,7 @@ module PrintBox (Log_to : Debug_ch) = struct
           let message = PrintBox_text.to_string_with ~style:false b in
           Re.execp r message
     in
-    (hl, if hl then B.frame b else b)
+    (hl, apply_highlight hl b)
 
   let boxify descr sexp =
     let open Sexplib0.Sexp in
@@ -364,18 +411,18 @@ module PrintBox (Log_to : Debug_ch) = struct
   let num_children () = match !stack with [] -> 0 | { body; _ } :: _ -> List.length body
 
   let log_value_sexp ~descr ~sexp =
-    if !boxify_sexp_from_size >= 0 then stack_next @@ boxify descr sexp
+    if !boxify_sexp_from_size >= 0 then stack_next ~descr @@ boxify descr sexp
     else
-      stack_next @@ highlight_box
+      stack_next ~descr @@ highlight_box
       @@ B.asprintf_with_style B.Style.preformatted "%s = %a" descr Sexplib0.Sexp.pp_hum
            sexp
 
   let log_value_pp ~descr ~pp ~v =
-    stack_next @@ highlight_box
+    stack_next ~descr @@ highlight_box
     @@ B.asprintf_with_style B.Style.preformatted "%s = %a" descr pp v
 
   let log_value_show ~descr ~v =
-    stack_next @@ highlight_box
+    stack_next ~descr @@ highlight_box
     @@ B.sprintf_with_style B.Style.preformatted "%s = %s" descr v
 
   let no_debug_if cond =
@@ -392,7 +439,8 @@ end
 
 let debug_html ?(time_tagged = false) ?max_nesting_depth ?max_num_children
     ?highlight_terms ?exclude_on_path ?(highlighted_roots = false) ?(for_append = false)
-    ?(boxify_sexp_from_size = 50) ?hyperlink filename : (module Debug_runtime_cond) =
+    ?(boxify_sexp_from_size = 50) ?hyperlink ?(values_first_mode = false) filename :
+    (module Debug_runtime_cond) =
   let module Debug =
     PrintBox
       ((val debug_ch ~time_tagged ~for_append ?max_nesting_depth ?max_num_children
@@ -403,11 +451,12 @@ let debug_html ?(time_tagged = false) ?max_nesting_depth ?max_num_children
   Debug.highlight_terms := Option.map Re.compile highlight_terms;
   Debug.highlighted_roots := highlighted_roots;
   Debug.exclude_on_path := Option.map Re.compile exclude_on_path;
+  Debug.values_first_mode := values_first_mode;
   (module Debug)
 
 let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_num_children
-    ?highlight_terms ?exclude_on_path ?(highlighted_roots = false) () :
-    (module Debug_runtime_cond) =
+    ?highlight_terms ?exclude_on_path ?(highlighted_roots = false)
+    ?(values_first_mode = false) () : (module Debug_runtime_cond) =
   let module Debug = PrintBox (struct
     let debug_ch = debug_ch
     let time_tagged = time_tagged
@@ -417,6 +466,7 @@ let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_nu
   Debug.highlight_terms := Option.map Re.compile highlight_terms;
   Debug.highlighted_roots := highlighted_roots;
   Debug.exclude_on_path := Option.map Re.compile exclude_on_path;
+  Debug.values_first_mode := values_first_mode;
   (module Debug)
 
 let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth

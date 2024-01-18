@@ -815,3 +815,356 @@ let%expect_test "%track_show PrintBox to stdout function with abstract type" =
       └─foo = 2
       2
     |}]
+
+let%expect_test "%debug_show PrintBox values_first_mode to stdout with exception" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let%debug_this_show rec loop_truncated (x : int) : int =
+    let z : int = (x - 1) / 2 in
+    if x <= 0 then failwith "the log as for loop_complete but without return values";
+    z + loop_truncated (z + (x / 2))
+  in
+  let () =
+    try print_endline @@ Int.to_string @@ loop_truncated 7
+    with _ -> print_endline "Raised exception."
+  in
+  [%expect
+    {|
+  BEGIN DEBUG SESSION
+  loop_truncated
+  ├─"test/test_expect_test.ml":821:41-824:36
+  ├─x = 7
+  ├─z = 3
+  │ └─"test/test_expect_test.ml":822:8
+  └─loop_truncated
+    ├─"test/test_expect_test.ml":821:41-824:36
+    ├─x = 6
+    ├─z = 2
+    │ └─"test/test_expect_test.ml":822:8
+    └─loop_truncated
+      ├─"test/test_expect_test.ml":821:41-824:36
+      ├─x = 5
+      ├─z = 2
+      │ └─"test/test_expect_test.ml":822:8
+      └─loop_truncated
+        ├─"test/test_expect_test.ml":821:41-824:36
+        ├─x = 4
+        ├─z = 1
+        │ └─"test/test_expect_test.ml":822:8
+        └─loop_truncated
+          ├─"test/test_expect_test.ml":821:41-824:36
+          ├─x = 3
+          ├─z = 1
+          │ └─"test/test_expect_test.ml":822:8
+          └─loop_truncated
+            ├─"test/test_expect_test.ml":821:41-824:36
+            ├─x = 2
+            ├─z = 0
+            │ └─"test/test_expect_test.ml":822:8
+            └─loop_truncated
+              ├─"test/test_expect_test.ml":821:41-824:36
+              ├─x = 1
+              ├─z = 0
+              │ └─"test/test_expect_test.ml":822:8
+              └─loop_truncated
+                ├─"test/test_expect_test.ml":821:41-824:36
+                ├─x = 0
+                └─z = 0
+                  └─"test/test_expect_test.ml":822:8
+  Raised exception. |}]
+
+let%expect_test "%debug_show PrintBox values_first_mode to stdout num children exceeded \
+                 linear" =
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug ~max_num_children:10 ~values_first_mode:true ())
+  in
+  let () =
+    try
+      let%debug_this_show _bar : unit =
+        for i = 0 to 100 do
+          let _baz : int = i * 2 in
+          ()
+        done
+      in
+      ()
+    with Failure s -> print_endline @@ "Raised exception: " ^ s
+  in
+  [%expect
+    {|
+    BEGIN DEBUG SESSION
+    _bar
+    ├─"test/test_expect_test.ml":882:26
+    ├─_baz = 0
+    │ └─"test/test_expect_test.ml":884:14
+    ├─_baz = 2
+    │ └─"test/test_expect_test.ml":884:14
+    ├─_baz = 4
+    │ └─"test/test_expect_test.ml":884:14
+    ├─_baz = 6
+    │ └─"test/test_expect_test.ml":884:14
+    ├─_baz = 8
+    │ └─"test/test_expect_test.ml":884:14
+    ├─_baz = 10
+    │ └─"test/test_expect_test.ml":884:14
+    ├─_baz = 12
+    │ └─"test/test_expect_test.ml":884:14
+    ├─_baz = 14
+    │ └─"test/test_expect_test.ml":884:14
+    ├─_baz = 16
+    │ └─"test/test_expect_test.ml":884:14
+    ├─_baz = 18
+    │ └─"test/test_expect_test.ml":884:14
+    ├─_baz = 20
+    │ └─"test/test_expect_test.ml":884:14
+    └─_baz = <max_num_children exceeded>
+    Raised exception: ppx_minidebug: max_num_children exceeded |}]
+
+let%expect_test "%debug_show PrintBox values_first_mode to stdout track for-loop" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let () =
+    try
+      let%track_this_show _bar : unit =
+        for i = 0 to 6 do
+          let _baz : int = i * 2 in
+          ()
+        done
+      in
+      ()
+    with Failure s -> print_endline @@ "Raised exception: " ^ s
+  in
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      _bar = ()
+      ├─"test/test_expect_test.ml":925:26
+      └─<for loop>
+        ├─"test/test_expect_test.ml":926:8
+        ├─i = 0
+        ├─<for i>
+        │ ├─"test/test_expect_test.ml":926:12
+        │ └─_baz = 0
+        │   └─"test/test_expect_test.ml":927:14
+        ├─i = 1
+        ├─<for i>
+        │ ├─"test/test_expect_test.ml":926:12
+        │ └─_baz = 2
+        │   └─"test/test_expect_test.ml":927:14
+        ├─i = 2
+        ├─<for i>
+        │ ├─"test/test_expect_test.ml":926:12
+        │ └─_baz = 4
+        │   └─"test/test_expect_test.ml":927:14
+        ├─i = 3
+        ├─<for i>
+        │ ├─"test/test_expect_test.ml":926:12
+        │ └─_baz = 6
+        │   └─"test/test_expect_test.ml":927:14
+        ├─i = 4
+        ├─<for i>
+        │ ├─"test/test_expect_test.ml":926:12
+        │ └─_baz = 8
+        │   └─"test/test_expect_test.ml":927:14
+        ├─i = 5
+        ├─<for i>
+        │ ├─"test/test_expect_test.ml":926:12
+        │ └─_baz = 10
+        │   └─"test/test_expect_test.ml":927:14
+        ├─i = 6
+        └─<for i>
+          ├─"test/test_expect_test.ml":926:12
+          └─_baz = 12
+            └─"test/test_expect_test.ml":927:14 |}]
+
+let%expect_test "%debug_show PrintBox values_first_mode to stdout num children exceeded \
+                 nested" =
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug ~max_num_children:10 ~values_first_mode:true ())
+  in
+  let%debug_this_show rec loop_exceeded (x : int) : int =
+    Array.fold_left ( + ) 0
+    @@ Array.init
+         (100 / (x + 1))
+         (fun i ->
+           let z : int = i + ((x - 1) / 2) in
+           if x <= 0 then i else i + loop_exceeded (z + (x / 2) - i))
+  in
+  let () =
+    try print_endline @@ Int.to_string @@ loop_exceeded 3
+    with Failure s -> print_endline @@ "Raised exception: " ^ s
+  in
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      loop_exceeded
+      ├─"test/test_expect_test.ml":982:40-988:69
+      ├─x = 3
+      ├─z = 1
+      │ └─"test/test_expect_test.ml":987:15
+      └─loop_exceeded
+        ├─"test/test_expect_test.ml":982:40-988:69
+        ├─x = 2
+        ├─z = 0
+        │ └─"test/test_expect_test.ml":987:15
+        └─loop_exceeded
+          ├─"test/test_expect_test.ml":982:40-988:69
+          ├─x = 1
+          ├─z = 0
+          │ └─"test/test_expect_test.ml":987:15
+          └─loop_exceeded
+            ├─"test/test_expect_test.ml":982:40-988:69
+            ├─x = 0
+            ├─z = 0
+            │ └─"test/test_expect_test.ml":987:15
+            ├─z = 1
+            │ └─"test/test_expect_test.ml":987:15
+            ├─z = 2
+            │ └─"test/test_expect_test.ml":987:15
+            ├─z = 3
+            │ └─"test/test_expect_test.ml":987:15
+            ├─z = 4
+            │ └─"test/test_expect_test.ml":987:15
+            ├─z = 5
+            │ └─"test/test_expect_test.ml":987:15
+            ├─z = 6
+            │ └─"test/test_expect_test.ml":987:15
+            ├─z = 7
+            │ └─"test/test_expect_test.ml":987:15
+            ├─z = 8
+            │ └─"test/test_expect_test.ml":987:15
+            ├─z = 9
+            │ └─"test/test_expect_test.ml":987:15
+            └─z = <max_num_children exceeded>
+      Raised exception: ppx_minidebug: max_num_children exceeded |}]
+
+let%expect_test "%debug_show PrintBox values_first_mode to stdout highlight" =
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug ~highlight_terms:(Re.str "3") ~values_first_mode:true ())
+  in
+  let%debug_this_show rec loop_highlight (x : int) : int =
+    let z : int = (x - 1) / 2 in
+    if x <= 0 then 0 else z + loop_highlight (z + (x / 2))
+  in
+  print_endline @@ Int.to_string @@ loop_highlight 7;
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      ┌──────────────────┐
+      │loop_highlight = 9│
+      ├──────────────────┘
+      ├─"test/test_expect_test.ml":1042:41-1044:58
+      ├─x = 7
+      ├─┬─────┐
+      │ │z = 3│
+      │ ├─────┘
+      │ └─"test/test_expect_test.ml":1043:8
+      └─┬──────────────────┐
+        │loop_highlight = 6│
+        ├──────────────────┘
+        ├─"test/test_expect_test.ml":1042:41-1044:58
+        ├─x = 6
+        ├─z = 2
+        │ └─"test/test_expect_test.ml":1043:8
+        └─┬──────────────────┐
+          │loop_highlight = 4│
+          ├──────────────────┘
+          ├─"test/test_expect_test.ml":1042:41-1044:58
+          ├─x = 5
+          ├─z = 2
+          │ └─"test/test_expect_test.ml":1043:8
+          └─┬──────────────────┐
+            │loop_highlight = 2│
+            ├──────────────────┘
+            ├─"test/test_expect_test.ml":1042:41-1044:58
+            ├─x = 4
+            ├─z = 1
+            │ └─"test/test_expect_test.ml":1043:8
+            └─┬──────────────────┐
+              │loop_highlight = 1│
+              ├──────────────────┘
+              ├─"test/test_expect_test.ml":1042:41-1044:58
+              ├─┬─────┐
+              │ │x = 3│
+              │ └─────┘
+              ├─z = 1
+              │ └─"test/test_expect_test.ml":1043:8
+              └─loop_highlight = 0
+                ├─"test/test_expect_test.ml":1042:41-1044:58
+                ├─x = 2
+                ├─z = 0
+                │ └─"test/test_expect_test.ml":1043:8
+                └─loop_highlight = 0
+                  ├─"test/test_expect_test.ml":1042:41-1044:58
+                  ├─x = 1
+                  ├─z = 0
+                  │ └─"test/test_expect_test.ml":1043:8
+                  └─loop_highlight = 0
+                    ├─"test/test_expect_test.ml":1042:41-1044:58
+                    ├─x = 0
+                    └─z = 0
+                      └─"test/test_expect_test.ml":1043:8
+      9 |}]
+
+let%expect_test "%debug_show PrintBox values_first_mode tracking" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let%track_this_show track_branches (x : int) : int =
+    if x < 6 then match x with 0 -> 1 | 1 -> 0 | _ -> ~-x
+    else match x with 6 -> 5 | 7 -> 4 | _ -> x
+  in
+  let () =
+    try
+      print_endline @@ Int.to_string @@ track_branches 7;
+      print_endline @@ Int.to_string @@ track_branches 3
+    with _ -> print_endline "Raised exception."
+  in
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      track_branches = 4
+      ├─"test/test_expect_test.ml":1108:37-1110:46
+      ├─x = 7
+      └─<if -- else branch>
+        ├─"test/test_expect_test.ml":1110:9
+        └─<match -- branch 1>
+          └─"test/test_expect_test.ml":1110:31
+      4
+      track_branches = -3
+      ├─"test/test_expect_test.ml":1108:37-1110:46
+      ├─x = 3
+      └─<if -- then branch>
+        ├─"test/test_expect_test.ml":1109:18
+        └─<match -- branch 2>
+          └─"test/test_expect_test.ml":1109:49
+      -3
+    |}]
+
+let%expect_test "%track_show PrintBox values_first_mode to stdout no return type \
+                 anonymous fun" =
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug ~max_num_children:10 ~values_first_mode:true ())
+  in
+  let%track_this_show anonymous (x : int) =
+    Array.fold_left ( + ) 0 @@ Array.init (x + 1) (fun (i : int) -> i)
+  in
+  let () =
+    try print_endline @@ Int.to_string @@ anonymous 3
+    with Failure s -> print_endline @@ "Raised exception: " ^ s
+  in
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      anonymous
+      ├─"test/test_expect_test.ml":1144:32-1145:70
+      ├─x = 3
+      ├─__fun
+      │ ├─"test/test_expect_test.ml":1145:50-1145:70
+      │ └─i = 0
+      ├─__fun
+      │ ├─"test/test_expect_test.ml":1145:50-1145:70
+      │ └─i = 1
+      ├─__fun
+      │ ├─"test/test_expect_test.ml":1145:50-1145:70
+      │ └─i = 2
+      └─__fun
+        ├─"test/test_expect_test.ml":1145:50-1145:70
+        └─i = 3
+      6
+    |}]

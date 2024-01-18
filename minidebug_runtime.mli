@@ -93,6 +93,9 @@ module PrintBox : functor (_ : Debug_ch) -> sig
   val highlighted_roots : bool ref
   (** If set to true, only ouptputs highlighted toplevel boxes. This makes it simpler to trim
       excessive logging while still providing all the context. Defaults to [false]. *)
+
+  val values_first_mode : bool ref
+  (**  *)
 end
 
 val debug_html :
@@ -105,6 +108,7 @@ val debug_html :
   ?for_append:bool ->
   ?boxify_sexp_from_size:int ->
   ?hyperlink:string ->
+  ?values_first_mode:bool ->
   string ->
   (module Debug_runtime_cond)
 (** Creates a PrintBox-based debug runtime configured to output html to a file with the given name.
@@ -122,6 +126,7 @@ val debug :
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
   ?highlighted_roots:bool ->
+  ?values_first_mode:bool ->
   unit ->
   (module Debug_runtime_cond)
 (** Creates a PrintBox-based debug runtime. By default it will log to [stdout] and will not be

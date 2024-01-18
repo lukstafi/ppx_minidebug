@@ -12,7 +12,7 @@ Try `opam install ppx_minidebug` to install from the opam repository. To install
 
 To use `ppx_minidebug` in a Dune project, add/modify these stanzas: `(preprocess (pps ... ppx_minidebug))`, and `(libraries ... ppx_minidebug.runtime)`.
 
-### `Pp_format`-based traces -- more bare-bones
+### `Pp_format`-based traces -- bare-bones
 
 This backend relies on the `Format` module from the standard library. Define a `Debug_runtime` using the `Pp_format` functor. The helper functor `Debug_ch` opens a file for appending.
 E.g. either `module Debug_runtime = Minidebug_runtime.Pp_format(struct let debug_ch = stdout let time_tagged = true end)`, or:
@@ -184,10 +184,52 @@ module Debug_runtime = (val Minidebug_runtime.debug_html ~hyperlink:"" "debug.ht
 ```
 
 where `~hyperlink` is the prefix to let you tune the file path and select a browsing option. For illustration,
-the prefixes I might use at the time of writing:
+the prefixes for HTML outputs I might use at the time of writing:
 
+- `~hyperlink:"./"` or `~hyperlink:"../"` depending on the relative locations of the log file and the binary
 - `~hyperlink:"vscode://file//wsl.localhost/ubuntu23/home/lukstafi/ppx_minidebug/"`
 - `~hyperlink:"https://github.com/lukstafi/ppx_minidebug/tree/main/"`
+
+#### Recommended: `values_first_mode`
+
+This setting puts the result of the computation as the header of a computation subtree, rather than the source code location of the computation. I recommend using this setting as it reduces noise and makes the important information easier to find and visible with less unfolding. Another important benefit is that it makes hyperlinks usable, by pushing them from the summary line to under the fold. I decided to not make it the default setting, because it is not available in the bare-bones runtimes, and can be confusing.
+
+For example:
+
+```ocaml
+module Debug_runtime =
+  (val Minidebug_runtime.debug ~highlight_terms:(Re.str "3") ~values_first_mode:true ())
+let%debug_this_show rec loop_highlight (x : int) : int =
+  let z : int = (x - 1) / 2 in
+  if x <= 0 then 0 else z + loop_highlight (z + (x / 2))
+let () = print_endline @@ Int.to_string @@ loop_highlight 7
+```
+
+Truncated results:
+
+```shell
+BEGIN DEBUG SESSION
+┌──────────────────┐
+│loop_highlight = 9│
+├──────────────────┘
+├─"test/test_expect_test.ml":1042:41-1044:58
+├─x = 7
+├─┬─────┐
+│ │z = 3│
+│ ├─────┘
+│ └─"test/test_expect_test.ml":1043:8
+└─┬──────────────────┐
+  │loop_highlight = 6│
+  ├──────────────────┘
+  ├─"test/test_expect_test.ml":1042:41-1044:58
+  ├─x = 6
+  ├─z = 2
+  │ └─"test/test_expect_test.ml":1043:8
+  └─┬──────────────────┐
+    │loop_highlight = 4│
+    ├──────────────────┘
+    ├─"test/test_expect_test.ml":1042:41-1044:58
+```
 
 ## Usage
 

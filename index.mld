@@ -179,6 +179,14 @@ the prefixes I might use at the time of writing:
 
 See {!Minidebug_runtime.PrintBox.html_config} for details.
 
+{3 Recommended: PrintBox runtime's [values_first_mode]}
+
+This setting puts the result of the computation as the header of a computation subtree, rather than
+the source code location of the computation. I recommend using this setting as it reduces noise and makes
+the important information easier to find and visible with less unfolding. Another important benefit
+is that it makes hyperlinks usable, by pushing them from the summary line to under the fold. I decided
+to not make it the default setting, because it is not available in other runtimes, and can be confusing.
+
 {2 VS Code suggestions}
 
 {3 Add / remove type annotations and visit files using {e VOCaml}}
