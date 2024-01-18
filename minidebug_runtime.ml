@@ -418,7 +418,9 @@ module PrintBox (Log_to : Debug_ch) = struct
             let hl_body, bs = List.split @@ List.map loop l in
             let hl_body = List.exists (fun x -> x) hl_body in
             let hl, b =
-              highlight_box ~hl_body @@ B.text_with_style B.Style.preformatted s
+            (* Design choice: Don't render headers of multiline values as monospace, to emphasize them. *)
+              highlight_box ~hl_body
+              @@ if as_tree then B.text s else B.text_with_style B.Style.preformatted s
             in
             (hl, B.tree b bs)
         | List l ->
