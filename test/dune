@@ -99,13 +99,29 @@
  (preprocess
   (pps ppx_minidebug ppx_sexp_conv)))
 
+(executable
+ (name test_debug_md)
+ (modules test_debug_md)
+ (libraries sexplib0 minidebug_runtime)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_sexp_conv)))
+
 (rule
  (target debugger_sexp_html.html)
  (action (run %{dep:test_debug_html.exe})))
 
 (rule
+ (target debugger_sexp_md.md)
+ (action (run %{dep:test_debug_md.exe})))
+
+(rule
  (alias runtest)
  (action (diff debugger_sexp_html.expected.html debugger_sexp_html.html)))
+
+(rule
+ (alias runtest)
+ (action (diff debugger_sexp_md.expected.md debugger_sexp_md.md)))
 
 (library
  (name test_inline_tests)

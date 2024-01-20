@@ -35,6 +35,7 @@
   printbox-text
   (printbox-html
    (>= 0.8))
+  printbox-md
   ptime
   re
   sexplib0

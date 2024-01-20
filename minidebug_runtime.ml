@@ -249,7 +249,7 @@ module PrintBox (Log_to : Debug_ch) = struct
 
   let hyperlink_path ~uri ~inner =
     match !html_config with
-    | `Hyperlink prefix -> B.link ~uri:(prefix ^ uri) inner
+    | `Hyperlink prefix | `Hyperlink_md prefix -> B.link ~uri:(prefix ^ uri) inner
     | _ -> inner
 
   let stack_next ~entry_id (hl, b) =
@@ -326,9 +326,12 @@ module PrintBox (Log_to : Debug_ch) = struct
           let box = stack_to_tree entry in
           (match !html_config with
           | `Text -> PrintBox_text.output debug_ch box
-          | _ ->
+          | `Html | `Hyperlink _ ->
               output_string debug_ch
-              @@ PrintBox_html.(to_string ~config:Config.(tree_summary true default) box));
+              @@ PrintBox_html.(to_string ~config:Config.(tree_summary true default) box)
+          | `Markdown | `Hyperlink_md _ ->
+              output_string debug_ch
+              @@ PrintBox_md.(to_string ~tables:`Html ~foldable_trees:true box));
           output_string debug_ch "\n";
           []
           (* CFormat.fprintf ppf "@\n%!"; [] *)
@@ -338,7 +341,7 @@ module PrintBox (Log_to : Debug_ch) = struct
       ~entry_id ~brief =
     let uri =
       match !html_config with
-      | `Hyperlink prefix
+      | (`Hyperlink prefix | `Hyperlink_md prefix)
         when String.length prefix = 0
              || Char.equal prefix.[0] '.'
              || String.equal (String.sub prefix 0 5) "http:"
@@ -481,16 +484,21 @@ module PrintBox (Log_to : Debug_ch) = struct
       !global_id
 end
 
-let debug_html ?(time_tagged = false) ?max_nesting_depth ?max_num_children
+let debug_file ?(time_tagged = false) ?max_nesting_depth ?max_num_children
     ?highlight_terms ?exclude_on_path ?(highlighted_roots = false) ?(for_append = false)
-    ?(boxify_sexp_from_size = 50) ?hyperlink ?(values_first_mode = false) filename :
-    (module Debug_runtime_cond) =
+    ?(boxify_sexp_from_size = 50) ?(markdown = false) ?hyperlink
+    ?(values_first_mode = false) filename : (module Debug_runtime_cond) =
+  let filename = if markdown then filename ^ ".md" else filename ^ ".html" in
   let module Debug =
     PrintBox
       ((val debug_ch ~time_tagged ~for_append ?max_nesting_depth ?max_num_children
               filename)) in
   (Debug.html_config :=
-     match hyperlink with None -> `Html | Some prefix -> `Hyperlink prefix);
+     match (hyperlink, markdown) with
+     | None, false -> `Html
+     | None, true -> `Markdown
+     | Some prefix, false -> `Hyperlink prefix
+     | Some prefix, true -> `Hyperlink_md prefix);
   Debug.boxify_sexp_from_size := boxify_sexp_from_size;
   Debug.highlight_terms := Option.map Re.compile highlight_terms;
   Debug.highlighted_roots := highlighted_roots;

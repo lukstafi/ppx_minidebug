@@ -161,12 +161,12 @@ To limit the highlight noise, some log entries can be excluded from propagating 
 using the `exclude_on_path` setting. To trim excessive logging while still providing all the context,
 you can set `highlighted_roots:true`, which only outputs highlighted toplevel boxes.
 
-#### `PrintBox` creating helpers with defaults: `debug` and `debug_html`
+#### `PrintBox` creating helpers with defaults: `debug` and `debug_file`
 
 The configuration for the above example is more concisely just:
 
 ```ocaml
-module Debug_runtime = (val Minidebug_runtime.debug_html ~highlight_terms:(Re.str "169") "debug.html")
+module Debug_runtime = (val Minidebug_runtime.debug_file ~highlight_terms:(Re.str "169") "debug")
 ```
 
 Similarly, `debug` returns a `PrintBox` module, which by default logs to `stdout`:
@@ -180,7 +180,7 @@ module Debug_runtime = (val Minidebug_runtime.debug ())
 The HTML output supports emitting file locations as hyperlinks. For example:
 
 ```ocaml
-module Debug_runtime = (val Minidebug_runtime.debug_html ~hyperlink:"" "debug.html")
+module Debug_runtime = (val Minidebug_runtime.debug_file ~hyperlink:"" "debug")
 ```
 
 where `~hyperlink` is the prefix to let you tune the file path and select a browsing option. For illustration,

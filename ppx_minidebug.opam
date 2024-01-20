@@ -20,6 +20,7 @@ depends: [
   "printbox" {>= "0.7"}
   "printbox-text"
   "printbox-html" {>= "0.8"}
+  "printbox-md"
   "ptime"
   "re"
   "sexplib0"

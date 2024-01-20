@@ -58,9 +58,9 @@ let () = Debug_runtime.html_config := `Html
 let () = Debug_runtime.boxify_sexp_from_size := 50
 ]}
 
-[debug_html] is a configurable shorthand for the above setup:
+[debug_file] is a configurable shorthand for the above setup:
 {[
-module Debug_runtime = (val Minidebug_runtime.debug_html "debug.html")
+module Debug_runtime = (val Minidebug_runtime.debug_file "debug")
 ]}
 Similarly, [debug] and [debug_flushing] are configurable shorthands that default to logging to [stdout]
 (but accept a `~debug_ch` argument).
@@ -72,7 +72,7 @@ The first raises a failure when the nesting of logs exceeds the given threshold,
 a failure when the number of log entries under a single parent exceeds the threshold. E.g.:
 {[
 module Debug_runtime =
-  (val Minidebug_runtime.debug_html ~max_nesting_depth:20 ~max_num_children:50 "debug.html")
+  (val Minidebug_runtime.debug_file ~max_nesting_depth:20 ~max_num_children:50 "debug")
 ]}
 
 The cutoff points are indicated in the logs.
@@ -169,7 +169,7 @@ BEGIN DEBUG SESSION
 The PrintBox HTML output supports emitting file locations as hyperlinks. For example:
 
 {[
-module Debug_runtime = (val Minidebug_runtime.debug_html ~hyperlink:"" "debug.html")
+module Debug_runtime = (val Minidebug_runtime.debug_file ~hyperlink:"" "debug")
 ]}
 
 where [~hyperlink] is the prefix to let you tune the file path and select a browsing option. For illustration,

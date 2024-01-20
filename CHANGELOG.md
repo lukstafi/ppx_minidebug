@@ -1,8 +1,19 @@
+## [1.0.0] -- current
+
+### Added
+
+- PrintBox Markdown backend.
+
+### Changed
+
+- Rename `debug_html` to `debug_file`, since it now supports both HTML and Markdown. Take file name/path without a suffix.
+- TODO: Fixes #9: handle tuple and record patterns by automatically wrapping in an alias pattern.
+
 ## [0.9.0] -- 2024-01-18
 
-## Added
+### Added
 
-- Optionally output source locations as hyperlinks -- requires an address prefix.
+- Optionally output source locations as hyperlinks -- requires a (potentially empty) address prefix.
 - A setting `values_first_mode` for the PrintBox runtime, to put results of computation as headers, and push paths beneath headers (friendly for HTML-backed foldable output).
 
 ### Changed

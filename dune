@@ -11,7 +11,7 @@
  (public_name ppx_minidebug.runtime)
  (name minidebug_runtime)
  (modules minidebug_runtime)
- (libraries printbox printbox-text printbox-html ptime.clock.os re sexplib0))
+ (libraries printbox printbox-text printbox-html printbox-md ptime.clock.os re sexplib0))
 
 (documentation
  (package ppx_minidebug)
