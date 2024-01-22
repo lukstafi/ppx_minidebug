@@ -452,7 +452,7 @@ module PrintBox (Log_to : Debug_ch) = struct
             (hl, B.tree b bs)
         | List l ->
             let hls, bs = List.split @@ List.map loop l in
-            (List.exists (fun x -> x) hls, B.vlist bs)
+            (List.exists (fun x -> x) hls, B.tree B.empty bs)
     in
     match sexp with
     | Atom s | List [ Atom s ] ->
