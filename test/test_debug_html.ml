@@ -1,7 +1,9 @@
 open Sexplib0.Sexp_conv
 
 module Debug_runtime =
-  (val Minidebug_runtime.debug_file ~hyperlink:"../" "debugger_sexp_html")
+  (val Minidebug_runtime.debug_file ~hyperlink:"../"
+         ~backend:(`Html PrintBox_html.Config.(tree_summary true default))
+         "debugger_sexp_html")
 
 let%debug_sexp foo (x : int) : int list =
   let y : int = x + 1 in

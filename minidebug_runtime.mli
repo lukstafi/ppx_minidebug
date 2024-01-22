@@ -78,45 +78,47 @@ end
 module PrintBox : functor (_ : Debug_ch) -> sig
   include Debug_runtime_cond
 
-  val html_config : [ `Text | `Html | `Markdown | `Hyperlink of string | `Hyperlink_md of string ] ref
-  (** If the content is [`Text], logs are generated as monospaced text; for other settings as html
-      or markdown. If the content is [`Hyperlink prefix] or [`Hyperlink_md prefix], code pointers
-      are rendered as hyperlinks.
-      When [prefix] is either empty, starts with a dot, or starts with ["http:"] or ["https:"],
-      the link address has the form [sprintf "%s#L%d" fname start_lnum], allowing browsing in HTML directly.
-      Otherwise, it has the form [sprintf "%s:%d:%d" fname start_lnum (start_colnum + 1)], intended for
-      editor-specific prefixes such as ["vscode://file/"].
+  val default_html_config : PrintBox_html.Config.t
+  val default_md_config : PrintBox_md.Config.t
 
-      Note that rendering a link on a node will make the node non-foldable, therefore it is best
-      to combine [`Hyperlink prefix] and [`Hyperlink_md prefix] with [values_first_mode]. *)
+  type config = {
+    mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
+        (** If [hyperlink] is [`Prefix prefix], code pointers are rendered as hyperlinks.
+            When [prefix] is either empty, starts with a dot, or starts with ["http:"] or ["https:"],
+            the link address has the form [sprintf "%s#L%d" fname start_lnum], allowing browsing in HTML directly.
+            Otherwise, it has the form [sprintf "%s:%d:%d" fname start_lnum (start_colnum + 1)],
+            intended for editor-specific prefixes such as ["vscode://file/"].
 
-  val boxify_sexp_from_size : int ref
-  (** If positive, [Sexp.t]-based logs with this many or more atoms are converted to print-boxes
-      before logging. *)
+            Note that rendering a link on a node will make the node non-foldable, therefore it is best
+            to combine [`prefix prefix] with [values_first_mode]. *)
+    mutable backend :
+      [ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ];
+        (** If the content is [`Text], logs are generated as monospaced text; for other settings as html
+            or markdown. *)
+    mutable boxify_sexp_from_size : int;
+        (** If positive, [Sexp.t]-based logs with this many or more atoms are converted to print-boxes
+            before logging. *)
+    mutable highlight_terms : Re.re option;
+        (** Uses a highlight style for logs on paths ending with a log matching the regular expression. *)
+    mutable exclude_on_path : Re.re option;
+        (** Does not propagate the highlight status from child logs through log headers matching
+            the given regular expression. *)
+    mutable highlighted_roots : bool;
+        (** If set to true, only ouptputs highlighted toplevel boxes. This makes it simpler to trim
+          excessive logging while still providing all the context. Defaults to [false]. *)
+    mutable values_first_mode : bool;
+        (** If set to true, does not put the source code location of a computation as a header of its subtree.
+            Rather, puts the result of the computation as the header of a computation subtree,
+            if rendered as a single line -- or just the name, and puts the result near the top.
+            If false, puts the result at the end of the computation subtree, i.e. preserves the order
+            of the computation. *)
+    mutable max_inline_sexp_size : int;
+        (** Maximal size (in atoms) up to which a sexp value can be inlined during "boxification". *)
+    mutable max_inline_sexp_length : int;
+        (** Maximal length (in characters/bytes) up to which a sexp value can be inlined during "boxification". *)
+  }
 
-  val highlight_terms : Re.re option ref
-  (** Uses a highlight style for logs on paths ending with a log matching the regular expression. *)
-
-  val exclude_on_path : Re.re option ref
-  (** Does not propagate the highlight status from child logs through log headers matching
-      the given regular expression. *)
-
-  val highlighted_roots : bool ref
-  (** If set to true, only ouptputs highlighted toplevel boxes. This makes it simpler to trim
-      excessive logging while still providing all the context. Defaults to [false]. *)
-
-  val values_first_mode : bool ref
-  (** If set to true, does not put the source code location of a computation as a header of its subtree.
-      Rather, puts the result of the computation as the header of a computation subtree,
-      if rendered as a single line -- or just the name, and puts the result near the top.
-      If false, puts the result at the end of the computation subtree, i.e. preserves the order
-      of the computation. *)
-
-  val max_inline_sexp_size : int ref
-  (** Maximal size (in atoms) up to which a sexp value can be inlined during "boxification". *)
-
-  val max_inline_sexp_length : int ref
-  (** Maximal length (in characters/bytes) up to which a sexp value can be inlined during "boxification". *)
+  val config : config
 end
 
 val debug_file :
@@ -128,17 +130,17 @@ val debug_file :
   ?highlighted_roots:bool ->
   ?for_append:bool ->
   ?boxify_sexp_from_size:int ->
-  ?markdown:bool ->
+  ?backend:[ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ] ->
   ?hyperlink:string ->
   ?values_first_mode:bool ->
   string ->
   (module Debug_runtime_cond)
 (** Creates a PrintBox-based debug runtime configured to output html or markdown to a file with
-    the given name suffixed with [".html"] resp. [".md"]. By default the logging will not be time tagged
-    and the file will be created or erased by this function. The default [boxify_sexp_from_size] value is 50.
+    the given name suffixed with [".log"], [".html"] or [".md"] depending on the backend.
+    By default the logging will not be time tagged and the file will be created or erased by
+    this function. The default [boxify_sexp_from_size] value is 50.
     
-    By default {!PrintBox.html_config} will be set to [`Html], unless [~hyperlink] is passed, then
-    [html_config := `Hyperlink hyperlink]. See {!PrintBox.html_config} for details. *)
+    By default [backend] is [`Markdown PrintBox.default_md_config]. See {type:!PrintBox.config} for details. *)
 
 val debug :
   ?debug_ch:out_channel ->
@@ -151,8 +153,8 @@ val debug :
   ?values_first_mode:bool ->
   unit ->
   (module Debug_runtime_cond)
-(** Creates a PrintBox-based debug runtime. By default it will log to [stdout] and will not be
-    time tagged. *)
+(** Creates a PrintBox-based debug runtime for the [`Text] backend. By default it will log to [stdout]
+    and will not be time tagged. *)
 
 val debug_flushing :
   ?debug_ch:out_channel ->

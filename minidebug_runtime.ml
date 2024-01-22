@@ -216,14 +216,36 @@ end
 module PrintBox (Log_to : Debug_ch) = struct
   open Log_to
 
-  let html_config = ref `Text
-  let boxify_sexp_from_size = ref (-1)
-  let highlight_terms = ref None
-  let highlighted_roots = ref false
-  let exclude_on_path = ref None
-  let values_first_mode = ref false
-  let max_inline_sexp_size = ref 20
-  let max_inline_sexp_length = ref 50
+  let default_html_config = PrintBox_html.Config.(tree_summary true default)
+
+  (* let default_md_config = PrintBox_html.Config.(foldable_trees true default) *)
+  let default_md_config = PrintBox_md.Config.uniform
+
+  type config = {
+    mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
+    mutable backend :
+      [ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ];
+    mutable boxify_sexp_from_size : int;
+    mutable highlight_terms : Re.re option;
+    mutable exclude_on_path : Re.re option;
+    mutable highlighted_roots : bool;
+    mutable values_first_mode : bool;
+    mutable max_inline_sexp_size : int;
+    mutable max_inline_sexp_length : int;
+  }
+
+  let config =
+    {
+      hyperlink = `No_hyperlinks;
+      backend = `Text;
+      boxify_sexp_from_size = -1;
+      highlight_terms = None;
+      highlighted_roots = false;
+      exclude_on_path = None;
+      values_first_mode = false;
+      max_inline_sexp_size = 20;
+      max_inline_sexp_length = 50;
+    }
 
   module B = PrintBox
 
@@ -248,9 +270,9 @@ module PrintBox (Log_to : Debug_ch) = struct
   let stack : entry list ref = ref []
 
   let hyperlink_path ~uri ~inner =
-    match !html_config with
-    | `Hyperlink prefix | `Hyperlink_md prefix -> B.link ~uri:(prefix ^ uri) inner
-    | _ -> inner
+    match config.hyperlink with
+    | `Prefix prefix -> B.link ~uri:(prefix ^ uri) inner
+    | `No_hyperlinks -> inner
 
   let stack_next ~entry_id (hl, b) =
     stack :=
@@ -278,14 +300,14 @@ module PrintBox (Log_to : Debug_ch) = struct
       { cond = _; highlight; exclude = _; uri; path; entry_message; entry_id; body } =
     let hl_header =
       apply_highlight highlight @@ B.line
-      @@ if !values_first_mode then entry_message else path ^ ": " ^ entry_message
+      @@ if config.values_first_mode then entry_message else path ^ ": " ^ entry_message
     in
     let b_path =
-      B.line @@ if !values_first_mode then path else path ^ ": " ^ entry_message
+      B.line @@ if config.values_first_mode then path else path ^ ": " ^ entry_message
     in
     let b_path = hyperlink_path ~uri ~inner:b_path in
     let b_body = List.map (fun { subtree; _ } -> subtree) body in
-    if !values_first_mode then
+    if config.values_first_mode then
       match body with
       | [] -> B.tree hl_header [ b_path ]
       | { result_id; subtree } :: body when result_id = entry_id -> (
@@ -321,17 +343,16 @@ module PrintBox (Log_to : Debug_ch) = struct
           }
           :: bs3
       | { cond = false; _ } :: bs -> bs
-      | [ { highlight = false; _ } ] when !highlighted_roots -> []
+      | [ { highlight = false; _ } ] when config.highlighted_roots -> []
       | [ ({ cond = true; _ } as entry) ] ->
           let box = stack_to_tree entry in
-          (match !html_config with
+          (match config.backend with
           | `Text -> PrintBox_text.output debug_ch box
-          | `Html | `Hyperlink _ ->
+          | `Html config ->
+              output_string debug_ch @@ PrintBox_html.(to_string ~config box)
+          | `Markdown config ->
               output_string debug_ch
-              @@ PrintBox_html.(to_string ~config:Config.(tree_summary true default) box)
-          | `Markdown | `Hyperlink_md _ ->
-              output_string debug_ch
-              @@ PrintBox_md.(to_string ~tables:`Html ~foldable_trees:true box));
+              @@ PrintBox_md.(to_string Config.(foldable_trees config) box));
           output_string debug_ch "\n";
           []
           (* CFormat.fprintf ppf "@\n%!"; [] *)
@@ -340,8 +361,8 @@ module PrintBox (Log_to : Debug_ch) = struct
   let open_log_preamble ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message
       ~entry_id ~brief =
     let uri =
-      match !html_config with
-      | (`Hyperlink prefix | `Hyperlink_md prefix)
+      match config.hyperlink with
+      | `Prefix prefix
         when String.length prefix = 0
              || Char.equal prefix.[0] '.'
              || String.equal (String.sub prefix 0 5) "http:"
@@ -360,10 +381,10 @@ module PrintBox (Log_to : Debug_ch) = struct
           end_colnum
     in
     let exclude =
-      match !exclude_on_path with Some r -> Re.execp r message | None -> false
+      match config.exclude_on_path with Some r -> Re.execp r message | None -> false
     in
     let highlight =
-      match !highlight_terms with Some r -> Re.execp r message | None -> false
+      match config.highlight_terms with Some r -> Re.execp r message | None -> false
     in
     stack :=
       {
@@ -397,7 +418,7 @@ module PrintBox (Log_to : Debug_ch) = struct
     (* Recall the design choice: [exclude] does not apply to its own entry.
        Therefore, an entry "propagates its highlight". *)
     let hl =
-      match (!exclude_on_path, !highlight_terms, hl_body) with
+      match (config.exclude_on_path, config.highlight_terms, hl_body) with
       | None, None, _ | Some _, None, false -> false
       | Some e, hl_terms, true -> (
           let message = PrintBox_text.to_string_with ~style:false b in
@@ -413,7 +434,7 @@ module PrintBox (Log_to : Debug_ch) = struct
   let boxify descr sexp =
     let open Sexplib0.Sexp in
     let rec loop ?(as_tree = false) sexp =
-      if (not as_tree) && sexp_size sexp < !boxify_sexp_from_size then
+      if (not as_tree) && sexp_size sexp < config.boxify_sexp_from_size then
         highlight_box
         @@ B.asprintf_with_style B.Style.preformatted "%a" Sexplib0.Sexp.pp_hum sexp
       else
@@ -440,11 +461,11 @@ module PrintBox (Log_to : Debug_ch) = struct
     | List [] -> highlight_box @@ B.line descr
     | List l ->
         let str =
-          if sexp_size sexp < min !boxify_sexp_from_size !max_inline_sexp_size then
-            Sexplib0.Sexp.to_string_hum sexp
+          if sexp_size sexp < min config.boxify_sexp_from_size config.max_inline_sexp_size
+          then Sexplib0.Sexp.to_string_hum sexp
           else ""
         in
-        if String.length str > 0 && String.length str < !max_inline_sexp_length then
+        if String.length str > 0 && String.length str < config.max_inline_sexp_length then
           (* TODO: Desing choice: consider not using monospace, at least for descr.  *)
           highlight_box @@ B.text_with_style B.Style.preformatted (descr ^ " = " ^ str)
         else loop ~as_tree:true @@ List (Atom (descr ^ " =") :: l)
@@ -452,7 +473,7 @@ module PrintBox (Log_to : Debug_ch) = struct
   let num_children () = match !stack with [] -> 0 | { body; _ } :: _ -> List.length body
 
   let log_value_sexp ~descr ~entry_id ~sexp =
-    if !boxify_sexp_from_size >= 0 then stack_next ~entry_id @@ boxify descr sexp
+    if config.boxify_sexp_from_size >= 0 then stack_next ~entry_id @@ boxify descr sexp
     else
       stack_next ~entry_id @@ highlight_box
       @@ B.asprintf_with_style B.Style.preformatted "%s = %a" descr Sexplib0.Sexp.pp_hum
@@ -486,24 +507,27 @@ end
 
 let debug_file ?(time_tagged = false) ?max_nesting_depth ?max_num_children
     ?highlight_terms ?exclude_on_path ?(highlighted_roots = false) ?(for_append = false)
-    ?(boxify_sexp_from_size = 50) ?(markdown = false) ?hyperlink
-    ?(values_first_mode = false) filename : (module Debug_runtime_cond) =
-  let filename = if markdown then filename ^ ".md" else filename ^ ".html" in
+    ?(boxify_sexp_from_size = 50) ?backend ?hyperlink ?(values_first_mode = false)
+    filename : (module Debug_runtime_cond) =
+  let filename =
+    match backend with
+    | None | Some (`Markdown _) -> filename ^ ".md"
+    | Some (`Html _) -> filename ^ ".html"
+    | Some `Text -> filename ^ ".log"
+  in
   let module Debug =
     PrintBox
       ((val debug_ch ~time_tagged ~for_append ?max_nesting_depth ?max_num_children
               filename)) in
-  (Debug.html_config :=
-     match (hyperlink, markdown) with
-     | None, false -> `Html
-     | None, true -> `Markdown
-     | Some prefix, false -> `Hyperlink prefix
-     | Some prefix, true -> `Hyperlink_md prefix);
-  Debug.boxify_sexp_from_size := boxify_sexp_from_size;
-  Debug.highlight_terms := Option.map Re.compile highlight_terms;
-  Debug.highlighted_roots := highlighted_roots;
-  Debug.exclude_on_path := Option.map Re.compile exclude_on_path;
-  Debug.values_first_mode := values_first_mode;
+  Debug.config.backend <-
+    Option.value backend ~default:(`Markdown Debug.default_md_config);
+  Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
+  Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
+  Debug.config.highlighted_roots <- highlighted_roots;
+  Debug.config.exclude_on_path <- Option.map Re.compile exclude_on_path;
+  Debug.config.values_first_mode <- values_first_mode;
+  Debug.config.hyperlink <-
+    (match hyperlink with None -> `No_hyperlinks | Some prefix -> `Prefix prefix);
   CFormat.fprintf Debug.ppf "@.HTML CONFIG: values_first_mode=%b hyperlink=%s\n@."
     values_first_mode
     (Option.value hyperlink ~default:"<no-links>");
@@ -518,10 +542,10 @@ let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_nu
     let max_nesting_depth = max_nesting_depth
     let max_num_children = max_num_children
   end) in
-  Debug.highlight_terms := Option.map Re.compile highlight_terms;
-  Debug.highlighted_roots := highlighted_roots;
-  Debug.exclude_on_path := Option.map Re.compile exclude_on_path;
-  Debug.values_first_mode := values_first_mode;
+  Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
+  Debug.config.highlighted_roots <- highlighted_roots;
+  Debug.config.exclude_on_path <- Option.map Re.compile exclude_on_path;
+  Debug.config.values_first_mode <- values_first_mode;
   CFormat.fprintf Debug.ppf "@.TEXT CONFIG: values_first_mode=%b\n@." values_first_mode;
   (module Debug)
 
