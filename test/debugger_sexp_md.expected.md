@@ -1,8 +1,5 @@
 
 BEGIN DEBUG SESSION
-
-HTML CONFIG: values_first_mode=true hyperlink=../
-
 <details><summary><span style="font-family: monospace">foo = (7 8 16)</span></summary>
 
 - ["test/test_debug_md.ml":8:19-10:17](../test/test_debug_md.ml#L8)
