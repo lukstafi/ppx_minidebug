@@ -298,16 +298,13 @@ module PrintBox (Log_to : Debug_ch) = struct
 
   let stack_to_tree
       { cond = _; highlight; exclude = _; uri; path; entry_message; entry_id; body } =
-    let hl_header =
-      apply_highlight highlight @@ B.line
-      @@ if config.values_first_mode then entry_message else path ^ ": " ^ entry_message
-    in
     let b_path =
       B.line @@ if config.values_first_mode then path else path ^ ": " ^ entry_message
     in
     let b_path = hyperlink_path ~uri ~inner:b_path in
     let b_body = List.map (fun { subtree; _ } -> subtree) body in
     if config.values_first_mode then
+      let hl_header = apply_highlight highlight @@ B.line entry_message in
       match body with
       | [] -> B.tree hl_header [ b_path ]
       | { result_id; subtree } :: body when result_id = entry_id -> (
@@ -321,7 +318,9 @@ module PrintBox (Log_to : Debug_ch) = struct
                 :: List.rev body)
           | _ -> B.tree (apply_highlight highlight subtree) (b_path :: List.rev body))
       | _ -> B.tree hl_header (b_path :: List.rev b_body)
-    else B.tree hl_header (List.rev b_body)
+    else
+      let hl_header = apply_highlight highlight b_path in
+      B.tree hl_header (List.rev b_body)
 
   let close_log () =
     (* Note: we treat a tree under a box as part of that box. *)
