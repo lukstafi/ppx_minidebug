@@ -31,7 +31,9 @@ let debug_ch ?(time_tagged = false) ?max_nesting_depth ?max_num_children
           let dirname = Filename.remove_extension filename in
           let suffix = Filename.extension filename in
           if not (Sys.file_exists dirname) then Sys.mkdir dirname 0o777;
-          if not for_append then Array.iter Sys.remove @@ Sys.readdir dirname;
+          if not for_append then
+            Array.iter (fun file -> Sys.remove @@ Filename.concat dirname file)
+            @@ Sys.readdir dirname;
           let rec find i =
             let fname = Filename.concat dirname @@ Int.to_string i in
             if
@@ -584,9 +586,9 @@ let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_nu
 let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth
     ?max_num_children () : (module Debug_runtime) =
   (module Flushing (struct
-  let refresh_ch () = false
-  let debug_ch () = debug_ch
-  let time_tagged = time_tagged
+    let refresh_ch () = false
+    let debug_ch () = debug_ch
+    let time_tagged = time_tagged
     let max_nesting_depth = max_nesting_depth
     let max_num_children = max_num_children
     let split_files_after = None
