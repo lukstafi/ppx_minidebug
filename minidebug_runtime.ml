@@ -138,7 +138,10 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
     | [] -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
     | _ :: tl -> stack := tl);
     CFormat.pp_close_box !ppf ();
-    if List.is_empty !stack && refresh_ch () then ppf := get_ppf ()
+    if List.is_empty !stack then (
+      (* Importantly, pp_print_newline invokes pp_print_flush, flushes the out channel. *)
+      CFormat.pp_print_newline !ppf ();
+      if refresh_ch () then ppf := get_ppf ())
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message ~entry_id:_ =
     stack := 0 :: !stack;
