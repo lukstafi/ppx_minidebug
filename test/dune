@@ -53,11 +53,13 @@
 
 (rule
  (target debugger_sexp_printbox.log)
- (action (run %{dep:test_debug_sexp.exe})))
+ (action
+  (run %{dep:test_debug_sexp.exe})))
 
 (rule
  (alias runtest)
- (action (diff debugger_sexp_printbox.expected.log debugger_sexp_printbox.log)))
+ (action
+  (diff debugger_sexp_printbox.expected.log debugger_sexp_printbox.log)))
 
 (executable
  (name test_debug_pp)
@@ -69,11 +71,13 @@
 
 (rule
  (target debugger_pp_format.log)
- (action (run %{dep:test_debug_pp.exe})))
+ (action
+  (run %{dep:test_debug_pp.exe})))
 
 (rule
  (alias runtest)
- (action (diff debugger_pp_format.expected.log debugger_pp_format.log)))
+ (action
+  (diff debugger_pp_format.expected.log debugger_pp_format.log)))
 
 (executable
  (name test_debug_show)
@@ -85,11 +89,13 @@
 
 (rule
  (target debugger_show_flushing.log)
- (action (run %{dep:test_debug_show.exe})))
+ (action
+  (run %{dep:test_debug_show.exe})))
 
 (rule
  (alias runtest)
- (action (diff debugger_show_flushing.expected.log debugger_show_flushing.log)))
+ (action
+  (diff debugger_show_flushing.expected.log debugger_show_flushing.log)))
 
 (executable
  (name test_debug_html)
@@ -107,7 +113,7 @@
  (preprocess
   (pps ppx_minidebug ppx_sexp_conv)))
 
-(test
+(executable
  (name test_debug_multifile)
  (modules test_debug_multifile)
  (libraries sexplib0 minidebug_runtime)
@@ -117,19 +123,47 @@
 
 (rule
  (target debugger_sexp_html.html)
- (action (run %{dep:test_debug_html.exe})))
+ (action
+  (run %{dep:test_debug_html.exe})))
 
 (rule
  (target debugger_sexp_md.md)
- (action (run %{dep:test_debug_md.exe})))
+ (action
+  (run %{dep:test_debug_md.exe})))
+
+(rule
+ (targets debugger_multifile_1.md debugger_multifile_2.md)
+ (enabled_if
+  (= %{system} linux))
+ (action
+  (progn
+   (run %{dep:test_debug_multifile.exe})
+   (system "cp -f debugger_multifile/1.md debugger_multifile_1.md")
+   (system "cp -f debugger_multifile/2.md debugger_multifile_2.md"))))
 
 (rule
  (alias runtest)
- (action (diff debugger_sexp_html.expected.html debugger_sexp_html.html)))
+ (action
+  (diff debugger_sexp_html.expected.html debugger_sexp_html.html)))
 
 (rule
  (alias runtest)
- (action (diff debugger_sexp_md.expected.md debugger_sexp_md.md)))
+ (action
+  (diff debugger_sexp_md.expected.md debugger_sexp_md.md)))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (= %{system} linux))
+ (action
+  (diff debugger_multifile_1.expected.md debugger_multifile_1.md)))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (= %{system} linux))
+ (action
+  (diff debugger_multifile_2.expected.md debugger_multifile_2.md)))
 
 (library
  (name test_inline_tests)

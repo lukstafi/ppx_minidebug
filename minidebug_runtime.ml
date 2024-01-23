@@ -22,6 +22,15 @@ end
 let debug_ch ?(time_tagged = false) ?max_nesting_depth ?max_num_children
     ?split_files_after ?(for_append = true) filename : (module Debug_ch) =
   let module Result = struct
+    let () =
+      match split_files_after with
+      | Some _ when not for_append ->
+          let dirname = Filename.remove_extension filename in
+          if not (Sys.file_exists dirname) then Sys.mkdir dirname 0o777;
+          Array.iter (fun file -> Sys.remove @@ Filename.concat dirname file)
+          @@ Sys.readdir dirname
+      | _ -> ()
+
     let find_ch () =
       match split_files_after with
       | None ->
@@ -31,9 +40,6 @@ let debug_ch ?(time_tagged = false) ?max_nesting_depth ?max_num_children
           let dirname = Filename.remove_extension filename in
           let suffix = Filename.extension filename in
           if not (Sys.file_exists dirname) then Sys.mkdir dirname 0o777;
-          if not for_append then
-            Array.iter (fun file -> Sys.remove @@ Filename.concat dirname file)
-            @@ Sys.readdir dirname;
           let rec find i =
             let fname = Filename.concat dirname @@ Int.to_string i in
             if
@@ -53,7 +59,9 @@ let debug_ch ?(time_tagged = false) ?max_nesting_depth ?max_num_children
     let refresh_ch () =
       match split_files_after with
       | None -> false
-      | Some split_after -> Out_channel.length !current_ch > Int64.of_int split_after
+      | Some split_after ->
+          Out_channel.flush !current_ch;
+          Int64.to_int (Out_channel.length !current_ch) > split_after
 
     let debug_ch () =
       if refresh_ch () then current_ch := find_ch ();
@@ -383,14 +391,15 @@ module PrintBox (Log_to : Debug_ch) = struct
       | [ { highlight = false; _ } ] when config.highlighted_roots -> []
       | [ ({ cond = true; _ } as entry) ] ->
           let box = stack_to_tree entry in
+          let ch = debug_ch () in
           (match config.backend with
-          | `Text -> PrintBox_text.output (debug_ch ()) box
-          | `Html config ->
-              output_string (debug_ch ()) @@ PrintBox_html.(to_string ~config box)
+          | `Text -> PrintBox_text.output ch box
+          | `Html config -> output_string ch @@ PrintBox_html.(to_string ~config box)
           | `Markdown config ->
-              output_string (debug_ch ())
+              output_string ch
               @@ PrintBox_md.(to_string Config.(foldable_trees config) box));
-          output_string (debug_ch ()) "\n";
+          output_string ch "\n";
+          Out_channel.flush ch;
           []
       | _ -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
 
