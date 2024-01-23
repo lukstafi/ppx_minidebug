@@ -135,7 +135,7 @@ leads to:
   9
 ```
 
-At the "top level", there is another mechanism for disabling logging: `highlighted_roots` -- see below.
+There is another mechanism for disabling logging: `prune_upto` -- see below.
 
 #### Traces in HTML as collapsible trees
 
@@ -158,8 +158,8 @@ regular expression. For example:
 ![PrintBox runtime with collapsible/foldable trees](docs/ppx_minidebug-highlight_term_169.png)
 
 To limit the highlight noise, some log entries can be excluded from propagating the highlight status
-using the `exclude_on_path` setting. To trim excessive logging while still providing all the context,
-you can set `highlighted_roots:true`, which only outputs highlighted toplevel boxes.
+using the `exclude_on_path` setting. To trim excessive logging while still providing some context,
+you can set `prune_upto` to a level greater than 0, which only outputs highlighted boxes below that level.
 
 #### `PrintBox` creating helpers with defaults: `debug` and `debug_file`
 

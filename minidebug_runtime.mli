@@ -109,9 +109,10 @@ module PrintBox : functor (_ : Debug_ch) -> sig
     mutable exclude_on_path : Re.re option;
         (** Does not propagate the highlight status from child logs through log headers matching
             the given regular expression. *)
-    mutable highlighted_roots : bool;
-        (** If set to true, only ouptputs highlighted toplevel boxes. This makes it simpler to trim
-          excessive logging while still providing all the context. Defaults to [false]. *)
+    mutable prune_upto : int;
+        (** At depths lower than [prune_upto] (or equal if counting from 1) only ouptputs highlighted boxes.
+            This makes it simpler to trim excessive logging while still providing some context.
+            Defaults to [0] -- no pruning. *)
     mutable values_first_mode : bool;
         (** If set to true, does not put the source code location of a computation as a header of its subtree.
             Rather, puts the result of the computation as the header of a computation subtree,
@@ -134,7 +135,7 @@ val debug_file :
   ?split_files_after:int ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
-  ?highlighted_roots:bool ->
+  ?prune_upto:int ->
   ?for_append:bool ->
   ?boxify_sexp_from_size:int ->
   ?backend:[ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ] ->
@@ -158,7 +159,7 @@ val debug :
   ?max_num_children:int ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
-  ?highlighted_roots:bool ->
+  ?prune_upto:int ->
   ?values_first_mode:bool ->
   unit ->
   (module Debug_runtime_cond)

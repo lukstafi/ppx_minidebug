@@ -279,7 +279,7 @@ module PrintBox (Log_to : Debug_ch) = struct
     mutable boxify_sexp_from_size : int;
     mutable highlight_terms : Re.re option;
     mutable exclude_on_path : Re.re option;
-    mutable highlighted_roots : bool;
+    mutable prune_upto : int;
     mutable values_first_mode : bool;
     mutable max_inline_sexp_size : int;
     mutable max_inline_sexp_length : int;
@@ -291,7 +291,7 @@ module PrintBox (Log_to : Debug_ch) = struct
       backend = `Text;
       boxify_sexp_from_size = -1;
       highlight_terms = None;
-      highlighted_roots = false;
+      prune_upto = 0;
       exclude_on_path = None;
       values_first_mode = false;
       max_inline_sexp_size = 20;
@@ -376,6 +376,7 @@ module PrintBox (Log_to : Debug_ch) = struct
     stack :=
       (* Design choice: exclude does not apply to its own entry -- its about propagating children. *)
       match !stack with
+      |  { highlight = false; _ } :: bs when config.prune_upto >= List.length !stack -> bs
       | ({ cond = true; highlight = hl; exclude = _; entry_id = result_id; _ } as entry)
         :: { cond; highlight; exclude; uri; path; entry_message; entry_id; body }
         :: bs3 ->
@@ -391,7 +392,6 @@ module PrintBox (Log_to : Debug_ch) = struct
           }
           :: bs3
       | { cond = false; _ } :: bs -> bs
-      | [ { highlight = false; _ } ] when config.highlighted_roots -> []
       | [ ({ cond = true; _ } as entry) ] ->
           let box = stack_to_tree entry in
           let ch = debug_ch () in
@@ -554,7 +554,7 @@ module PrintBox (Log_to : Debug_ch) = struct
 end
 
 let debug_file ?(time_tagged = false) ?max_nesting_depth ?max_num_children
-    ?split_files_after ?highlight_terms ?exclude_on_path ?(highlighted_roots = false)
+    ?split_files_after ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
     ?(for_append = false) ?(boxify_sexp_from_size = 50) ?backend ?hyperlink
     ?(values_first_mode = false) filename : (module Debug_runtime_cond) =
   let filename =
@@ -571,7 +571,7 @@ let debug_file ?(time_tagged = false) ?max_nesting_depth ?max_num_children
     Option.value backend ~default:(`Markdown Debug.default_md_config);
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
   Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
-  Debug.config.highlighted_roots <- highlighted_roots;
+  Debug.config.prune_upto <- prune_upto;
   Debug.config.exclude_on_path <- Option.map Re.compile exclude_on_path;
   Debug.config.values_first_mode <- values_first_mode;
   Debug.config.hyperlink <-
@@ -579,7 +579,7 @@ let debug_file ?(time_tagged = false) ?max_nesting_depth ?max_num_children
   (module Debug)
 
 let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_num_children
-    ?highlight_terms ?exclude_on_path ?(highlighted_roots = false)
+    ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
     ?(values_first_mode = false) () : (module Debug_runtime_cond) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
@@ -590,7 +590,7 @@ let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_nu
     let split_files_after = None
   end) in
   Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
-  Debug.config.highlighted_roots <- highlighted_roots;
+  Debug.config.prune_upto <- prune_upto;
   Debug.config.exclude_on_path <- Option.map Re.compile exclude_on_path;
   Debug.config.values_first_mode <- values_first_mode;
   (module Debug)
