@@ -28,21 +28,17 @@ let debug_ch ?(time_tagged = false) ?max_nesting_depth ?max_num_children
           if for_append then open_out_gen [ Open_creat; Open_append ] 0o640 filename
           else open_out filename
       | Some _ ->
-          let dirname, suffix =
-            match String.rindex_opt filename '.' with
-            | None -> (filename, "")
-            | Some spos ->
-                ( String.sub filename 0 spos,
-                  String.sub filename spos (String.length filename - spos) )
-          in
+          let dirname = Filename.remove_extension filename in
+          let suffix = Filename.extension filename in
           if not (Sys.file_exists dirname) then Sys.mkdir dirname 0o640;
           if not for_append then Array.iter Sys.remove @@ Sys.readdir dirname;
           let rec find i =
-            let fname = dirname ^ Int.to_string i in
+            let fname = Filename.concat dirname @@ Int.to_string i in
             if
               Sys.file_exists (fname ^ ".log")
               || Sys.file_exists (fname ^ ".html")
               || Sys.file_exists (fname ^ ".md")
+              || Sys.file_exists fname
             then find (i + 1)
             else fname ^ suffix
           in
