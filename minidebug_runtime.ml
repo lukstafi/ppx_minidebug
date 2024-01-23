@@ -30,7 +30,7 @@ let debug_ch ?(time_tagged = false) ?max_nesting_depth ?max_num_children
       | Some _ ->
           let dirname = Filename.remove_extension filename in
           let suffix = Filename.extension filename in
-          if not (Sys.file_exists dirname) then Sys.mkdir dirname 0o640;
+          if not (Sys.file_exists dirname) then Sys.mkdir dirname 0o777;
           if not for_append then Array.iter Sys.remove @@ Sys.readdir dirname;
           let rec find i =
             let fname = Filename.concat dirname @@ Int.to_string i in
