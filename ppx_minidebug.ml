@@ -20,17 +20,6 @@ let rec pat2expr pat =
       @@ Location.error_extensionf ~loc
            "ppx_minidebug requires a pattern identifier here: try using an `as` alias."
 
-let rec pat2pat_res pat =
-  let loc = pat.ppat_loc in
-  match pat.ppat_desc with
-  | Ppat_constraint (pat', _) -> pat2pat_res pat'
-  | Ppat_alias (_, ident) | Ppat_var ident ->
-      Ast_builder.Default.ppat_var ~loc { ident with txt = ident.txt ^ "__res" }
-  | _ ->
-      Ast_builder.Default.ppat_extension ~loc
-      @@ Location.error_extensionf ~loc
-           "ppx_minidebug requires a pattern identifier here: try using an `as` alias."
-
 let open_log_preamble ?(brief = false) ?(message = "") ~loc () =
   if brief then
     [%expr
@@ -113,8 +102,7 @@ let log_string ~loc ~descr_loc s =
   [%expr
     Debug_runtime.log_value_show
       ~descr:[%e A.estring ~loc:descr_loc.loc descr_loc.txt]
-      ~entry_id:__entry_id
-      ~v:[%e A.estring ~loc s]]
+      ~entry_id:__entry_id ~v:[%e A.estring ~loc s]]
 
 type fun_arg =
   | Pexp_fun_arg of
@@ -162,11 +150,27 @@ let rec expand_fun body = function
         pexp_attributes;
       }
 
-let debug_fun callback ?bind ?descr_loc ?typ_opt exp =
+let bound_patterns ~alt_typ pat =
+  let bind_pat, bound =
+    match (alt_typ, pat) with
+    | ( _,
+        [%pat?
+          ([%p? { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat] :
+            [%t? typ])] ) ->
+        (A.ppat_var ~loc:pat.ppat_loc descr_loc, [ (descr_loc, pat, typ) ])
+    | Some typ, ({ ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat)
+      ->
+        (A.ppat_var ~loc:pat.ppat_loc descr_loc, [ (descr_loc, pat, typ) ])
+    | _ -> (A.ppat_any ~loc:pat.ppat_loc, [])
+  in
+  let loc = pat.ppat_loc in
+  A.ppat_alias ~loc bind_pat { txt = "__res"; loc }, bound
+
+let debug_fun callback ?descr_loc ?alt_typ exp =
   let args, body, typ_opt2 = collect_fun [] exp in
   let loc = exp.pexp_loc in
   let typ =
-    match (typ_opt, typ_opt2) with
+    match (alt_typ, typ_opt2) with
     | Some typ, _ | None, Some typ -> Some typ
     | None, None when !track_branches -> None
     | None, None -> raise Not_transforming
@@ -177,28 +181,19 @@ let debug_fun callback ?bind ?descr_loc ?typ_opt exp =
     | None -> raise Not_transforming
     | Some descr_loc -> descr_loc
   in
-  let bind =
-    match bind with
-    | None -> pat2pat_res (Ast_builder.Default.ppat_var ~loc descr_loc)
-    | Some bind -> bind
-  in
   let arg_logs =
-    List.filter_map
-      (function
-        | Pexp_fun_arg
-            ( _arg_label,
-              _opt_val,
-              [%pat?
-                ([%p?
-                   { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as
-                   pat] :
-                  [%t? typ])],
-              pexp_loc,
-              _pexp_loc_stack,
-              _pexp_attributes ) ->
-            Some (!log_value ~loc:pexp_loc ~typ ~descr_loc (pat2expr pat))
-        | _ -> None)
-      args
+    List.concat
+    @@ List.map
+         (function
+           | Pexp_fun_arg
+               (_arg_label, _opt_val, pat, pexp_loc, _pexp_loc_stack, _pexp_attributes) ->
+               let _, bound = bound_patterns ~alt_typ:None pat in
+               List.map
+                 (fun (descr_loc, pat, typ) ->
+                   !log_value ~loc:pexp_loc ~typ ~descr_loc (pat2expr pat))
+                 bound
+           | _ -> [])
+         args
   in
   let preamble = open_log_preamble ~message:descr_loc.txt ~loc () in
   let arg_logs =
@@ -209,7 +204,10 @@ let debug_fun callback ?bind ?descr_loc ?typ_opt exp =
           [%e e2]])
       preamble arg_logs
   in
-  let result = pat2pat_res bind in
+  let result =
+    let loc = descr_loc.loc in
+    Ast_builder.Default.ppat_var ~loc { loc; txt = "__res" }
+  in
   let body =
     [%expr
       let __entry_id = Debug_runtime.get_entry_id () in
@@ -242,7 +240,7 @@ let debug_fun callback ?bind ?descr_loc ?typ_opt exp =
 let debug_binding callback vb =
   let pat = vb.pvb_pat in
   let loc = vb.pvb_loc in
-  let descr_loc, typ_opt =
+  let descr_loc, alt_typ =
     match (vb.pvb_pat, vb.pvb_expr) with
     | ( [%pat?
           ([%p? { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ }] :
@@ -256,14 +254,24 @@ let debug_binding callback vb =
         (descr_loc, None)
     | _ -> raise Not_transforming
   in
-  match (vb.pvb_expr.pexp_desc, typ_opt) with
-  | Pexp_newtype _, _ | Pexp_fun _, _ ->
-      {
-        vb with
-        pvb_expr = debug_fun callback ~bind:vb.pvb_pat ~descr_loc ?typ_opt vb.pvb_expr;
-      }
-  | _, Some typ ->
-      let result = pat2pat_res pat in
+  match vb.pvb_expr.pexp_desc with
+  | Pexp_newtype _ | Pexp_fun _ ->
+      { vb with pvb_expr = debug_fun callback ~descr_loc ?alt_typ vb.pvb_expr }
+  | _ ->
+      let result, bound = bound_patterns ~alt_typ pat in
+      if bound = [] then raise Not_transforming;
+      let logs_expr =
+        List.map
+          (fun (descr_loc, pat, typ) ->
+            !log_value ~loc:vb.pvb_expr.pexp_loc ~typ ~descr_loc (pat2expr pat))
+          bound
+        |> List.fold_left
+             (fun e1 e2 ->
+               [%expr
+                 [%e e1];
+                 [%e e2]])
+             [%expr ()]
+      in
       let exp =
         [%expr
           let __entry_id = Debug_runtime.get_entry_id () in
@@ -280,7 +288,7 @@ let debug_binding callback vb =
             else
               match [%e callback vb.pvb_expr] with
               | [%p result] ->
-                  [%e !log_value ~loc ~typ ~descr_loc (pat2expr result)];
+                  [%e logs_expr];
                   Debug_runtime.close_log ();
                   [%e pat2expr result]
               | exception e ->
@@ -288,7 +296,6 @@ let debug_binding callback vb =
                   raise e)]
       in
       { vb with pvb_expr = exp }
-  | _ -> raise Not_transforming
 
 type rule = {
   ext_point : string;

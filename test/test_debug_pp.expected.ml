@@ -42,19 +42,20 @@ let bar (x : t) =
                     failwith "ppx_minidebug: max_nesting_depth exceeded")
                  else
                    (match (x.first + 1 : num) with
-                    | y__res ->
-                        (Debug_runtime.log_value_pp ~descr:"y"
-                           ~entry_id:__entry_id ~pp:pp_num ~v:y__res;
+                    | y as __res ->
+                        ((();
+                          Debug_runtime.log_value_pp ~descr:"y"
+                            ~entry_id:__entry_id ~pp:pp_num ~v:y);
                          Debug_runtime.close_log ();
-                         y__res)
+                         __res)
                     | exception e -> (Debug_runtime.close_log (); raise e))) in
             x.second * y
       with
-      | bar__res ->
+      | __res ->
           (Debug_runtime.log_value_pp ~descr:"bar" ~entry_id:__entry_id
-             ~pp:pp_num ~v:bar__res;
+             ~pp:pp_num ~v:__res;
            Debug_runtime.close_log ();
-           bar__res)
+           __res)
       | exception e -> (Debug_runtime.close_log (); raise e)) : num)
 let () = ignore @@ (bar { first = 7; second = 42 })
 let baz (x : t) =
@@ -95,19 +96,20 @@ let baz (x : t) =
                     failwith "ppx_minidebug: max_nesting_depth exceeded")
                  else
                    (match { first = (x.first + 1); second = 3 } with
-                    | _yz__res ->
-                        (Debug_runtime.log_value_pp ~descr:"_yz"
-                           ~entry_id:__entry_id ~pp ~v:_yz__res;
+                    | _yz as __res ->
+                        ((();
+                          Debug_runtime.log_value_pp ~descr:"_yz"
+                            ~entry_id:__entry_id ~pp ~v:_yz);
                          Debug_runtime.close_log ();
-                         _yz__res)
+                         __res)
                     | exception e -> (Debug_runtime.close_log (); raise e))) in
             (x.second * y) + z
       with
-      | baz__res ->
+      | __res ->
           (Debug_runtime.log_value_pp ~descr:"baz" ~entry_id:__entry_id
-             ~pp:pp_num ~v:baz__res;
+             ~pp:pp_num ~v:__res;
            Debug_runtime.close_log ();
-           baz__res)
+           __res)
       | exception e -> (Debug_runtime.close_log (); raise e)) : num)
 let () = ignore @@ (baz { first = 7; second = 42 })
 let rec loop (depth : num) (x : t) =
@@ -164,11 +166,12 @@ let rec loop (depth : num) (x : t) =
                                     second = (x.first + 2)
                                   } : num)
                          with
-                         | y__res ->
-                             (Debug_runtime.log_value_pp ~descr:"y"
-                                ~entry_id:__entry_id ~pp:pp_num ~v:y__res;
+                         | y as __res ->
+                             ((();
+                               Debug_runtime.log_value_pp ~descr:"y"
+                                 ~entry_id:__entry_id ~pp:pp_num ~v:y);
                               Debug_runtime.close_log ();
-                              y__res)
+                              __res)
                          | exception e ->
                              (Debug_runtime.close_log (); raise e))) in
                  let z : num =
@@ -194,19 +197,20 @@ let rec loop (depth : num) (x : t) =
                                   { first = (x.second + 1); second = y } : 
                            num)
                          with
-                         | z__res ->
-                             (Debug_runtime.log_value_pp ~descr:"z"
-                                ~entry_id:__entry_id ~pp:pp_num ~v:z__res;
+                         | z as __res ->
+                             ((();
+                               Debug_runtime.log_value_pp ~descr:"z"
+                                 ~entry_id:__entry_id ~pp:pp_num ~v:z);
                               Debug_runtime.close_log ();
-                              z__res)
+                              __res)
                          | exception e ->
                              (Debug_runtime.close_log (); raise e))) in
                  z + 7)
       with
-      | loop__res ->
+      | __res ->
           (Debug_runtime.log_value_pp ~descr:"loop" ~entry_id:__entry_id
-             ~pp:pp_num ~v:loop__res;
+             ~pp:pp_num ~v:__res;
            Debug_runtime.close_log ();
-           loop__res)
+           __res)
       | exception e -> (Debug_runtime.close_log (); raise e)) : num)
 let () = ignore @@ (loop 0 { first = 7; second = 42 })

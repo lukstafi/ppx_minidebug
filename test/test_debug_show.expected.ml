@@ -39,19 +39,20 @@ let foo (x : int) =
                     failwith "ppx_minidebug: max_nesting_depth exceeded")
                  else
                    (match (x + 1 : int) with
-                    | y__res ->
-                        (Debug_runtime.log_value_show ~descr:"y"
-                           ~entry_id:__entry_id ~v:(([%show : int]) y__res);
+                    | y as __res ->
+                        ((();
+                          Debug_runtime.log_value_show ~descr:"y"
+                            ~entry_id:__entry_id ~v:(([%show : int]) y));
                          Debug_runtime.close_log ();
-                         y__res)
+                         __res)
                     | exception e -> (Debug_runtime.close_log (); raise e))) in
             [x; y; 2 * y]
       with
-      | foo__res ->
+      | __res ->
           (Debug_runtime.log_value_show ~descr:"foo" ~entry_id:__entry_id
-             ~v:(([%show : int list]) foo__res);
+             ~v:(([%show : int list]) __res);
            Debug_runtime.close_log ();
-           foo__res)
+           __res)
       | exception e -> (Debug_runtime.close_log (); raise e)) : int list)
 let () = ignore @@ (List.hd @@ (foo 7))
 type t = {
@@ -96,19 +97,20 @@ let bar (x : t) =
                     failwith "ppx_minidebug: max_nesting_depth exceeded")
                  else
                    (match (x.first + 1 : int) with
-                    | y__res ->
-                        (Debug_runtime.log_value_show ~descr:"y"
-                           ~entry_id:__entry_id ~v:(([%show : int]) y__res);
+                    | y as __res ->
+                        ((();
+                          Debug_runtime.log_value_show ~descr:"y"
+                            ~entry_id:__entry_id ~v:(([%show : int]) y));
                          Debug_runtime.close_log ();
-                         y__res)
+                         __res)
                     | exception e -> (Debug_runtime.close_log (); raise e))) in
             x.second * y
       with
-      | bar__res ->
+      | __res ->
           (Debug_runtime.log_value_show ~descr:"bar" ~entry_id:__entry_id
-             ~v:(([%show : int]) bar__res);
+             ~v:(([%show : int]) __res);
            Debug_runtime.close_log ();
-           bar__res)
+           __res)
       | exception e -> (Debug_runtime.close_log (); raise e)) : int)
 let () = ignore @@ (bar { first = 7; second = 42 })
 let baz (x : t) =
@@ -150,20 +152,21 @@ let baz (x : t) =
                     failwith "ppx_minidebug: max_nesting_depth exceeded")
                  else
                    (match ((x.first + 1), 3) with
-                    | _yz__res ->
-                        (Debug_runtime.log_value_show ~descr:"_yz"
-                           ~entry_id:__entry_id
-                           ~v:(([%show : (int * int)]) _yz__res);
+                    | _yz as __res ->
+                        ((();
+                          Debug_runtime.log_value_show ~descr:"_yz"
+                            ~entry_id:__entry_id
+                            ~v:(([%show : (int * int)]) _yz));
                          Debug_runtime.close_log ();
-                         _yz__res)
+                         __res)
                     | exception e -> (Debug_runtime.close_log (); raise e))) in
             (x.second * y) + z
       with
-      | baz__res ->
+      | __res ->
           (Debug_runtime.log_value_show ~descr:"baz" ~entry_id:__entry_id
-             ~v:(([%show : int]) baz__res);
+             ~v:(([%show : int]) __res);
            Debug_runtime.close_log ();
-           baz__res)
+           __res)
       | exception e -> (Debug_runtime.close_log (); raise e)) : int)
 let () = ignore @@ (baz { first = 7; second = 42 })
 let rec loop (depth : int) (x : t) =
@@ -221,12 +224,12 @@ let rec loop (depth : int) (x : t) =
                                     second = (x.first + 2)
                                   } : int)
                          with
-                         | y__res ->
-                             (Debug_runtime.log_value_show ~descr:"y"
-                                ~entry_id:__entry_id
-                                ~v:(([%show : int]) y__res);
+                         | y as __res ->
+                             ((();
+                               Debug_runtime.log_value_show ~descr:"y"
+                                 ~entry_id:__entry_id ~v:(([%show : int]) y));
                               Debug_runtime.close_log ();
-                              y__res)
+                              __res)
                          | exception e ->
                              (Debug_runtime.close_log (); raise e))) in
                  let z : int =
@@ -252,20 +255,20 @@ let rec loop (depth : int) (x : t) =
                                   { first = (x.second + 1); second = y } : 
                            int)
                          with
-                         | z__res ->
-                             (Debug_runtime.log_value_show ~descr:"z"
-                                ~entry_id:__entry_id
-                                ~v:(([%show : int]) z__res);
+                         | z as __res ->
+                             ((();
+                               Debug_runtime.log_value_show ~descr:"z"
+                                 ~entry_id:__entry_id ~v:(([%show : int]) z));
                               Debug_runtime.close_log ();
-                              z__res)
+                              __res)
                          | exception e ->
                              (Debug_runtime.close_log (); raise e))) in
                  z + 7)
       with
-      | loop__res ->
+      | __res ->
           (Debug_runtime.log_value_show ~descr:"loop" ~entry_id:__entry_id
-             ~v:(([%show : int]) loop__res);
+             ~v:(([%show : int]) __res);
            Debug_runtime.close_log ();
-           loop__res)
+           __res)
       | exception e -> (Debug_runtime.close_log (); raise e)) : int)
 let () = ignore @@ (loop 0 { first = 7; second = 42 })

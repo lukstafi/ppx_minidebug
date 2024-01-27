@@ -40,20 +40,20 @@ let foo (x : int) =
                     failwith "ppx_minidebug: max_nesting_depth exceeded")
                  else
                    (match (x + 1 : int) with
-                    | y__res ->
-                        (Debug_runtime.log_value_sexp ~descr:"y"
-                           ~entry_id:__entry_id
-                           ~sexp:(([%sexp_of : int]) y__res);
+                    | y as __res ->
+                        ((();
+                          Debug_runtime.log_value_sexp ~descr:"y"
+                            ~entry_id:__entry_id ~sexp:(([%sexp_of : int]) y));
                          Debug_runtime.close_log ();
-                         y__res)
+                         __res)
                     | exception e -> (Debug_runtime.close_log (); raise e))) in
             [x; y; 2 * y]
       with
-      | foo__res ->
+      | __res ->
           (Debug_runtime.log_value_sexp ~descr:"foo" ~entry_id:__entry_id
-             ~sexp:(([%sexp_of : int list]) foo__res);
+             ~sexp:(([%sexp_of : int list]) __res);
            Debug_runtime.close_log ();
-           foo__res)
+           __res)
       | exception e -> (Debug_runtime.close_log (); raise e)) : int list)
 let () = ignore @@ (List.hd @@ (foo 7))
 type t = {
@@ -98,20 +98,20 @@ let bar (x : t) =
                     failwith "ppx_minidebug: max_nesting_depth exceeded")
                  else
                    (match (x.first + 1 : int) with
-                    | y__res ->
-                        (Debug_runtime.log_value_sexp ~descr:"y"
-                           ~entry_id:__entry_id
-                           ~sexp:(([%sexp_of : int]) y__res);
+                    | y as __res ->
+                        ((();
+                          Debug_runtime.log_value_sexp ~descr:"y"
+                            ~entry_id:__entry_id ~sexp:(([%sexp_of : int]) y));
                          Debug_runtime.close_log ();
-                         y__res)
+                         __res)
                     | exception e -> (Debug_runtime.close_log (); raise e))) in
             x.second * y
       with
-      | bar__res ->
+      | __res ->
           (Debug_runtime.log_value_sexp ~descr:"bar" ~entry_id:__entry_id
-             ~sexp:(([%sexp_of : int]) bar__res);
+             ~sexp:(([%sexp_of : int]) __res);
            Debug_runtime.close_log ();
-           bar__res)
+           __res)
       | exception e -> (Debug_runtime.close_log (); raise e)) : int)
 let () = ignore @@ (bar { first = 7; second = 42 })
 let baz (x : t) =
@@ -153,12 +153,13 @@ let baz (x : t) =
                     failwith "ppx_minidebug: max_nesting_depth exceeded")
                  else
                    (match ((x.first + 1), 3) with
-                    | _yz__res ->
-                        (Debug_runtime.log_value_sexp ~descr:"_yz"
-                           ~entry_id:__entry_id
-                           ~sexp:(([%sexp_of : (int * int)]) _yz__res);
+                    | _yz as __res ->
+                        ((();
+                          Debug_runtime.log_value_sexp ~descr:"_yz"
+                            ~entry_id:__entry_id
+                            ~sexp:(([%sexp_of : (int * int)]) _yz));
                          Debug_runtime.close_log ();
-                         _yz__res)
+                         __res)
                     | exception e -> (Debug_runtime.close_log (); raise e))) in
             let (((u, w) as _uw) : (int * int)) =
               let __entry_id = Debug_runtime.get_entry_id () in
@@ -179,20 +180,21 @@ let baz (x : t) =
                     failwith "ppx_minidebug: max_nesting_depth exceeded")
                  else
                    (match (7, 13) with
-                    | _uw__res ->
-                        (Debug_runtime.log_value_sexp ~descr:"_uw"
-                           ~entry_id:__entry_id
-                           ~sexp:(([%sexp_of : (int * int)]) _uw__res);
+                    | _uw as __res ->
+                        ((();
+                          Debug_runtime.log_value_sexp ~descr:"_uw"
+                            ~entry_id:__entry_id
+                            ~sexp:(([%sexp_of : (int * int)]) _uw));
                          Debug_runtime.close_log ();
-                         _uw__res)
+                         __res)
                     | exception e -> (Debug_runtime.close_log (); raise e))) in
             (((x.second * y) + z) + u) + w
       with
-      | baz__res ->
+      | __res ->
           (Debug_runtime.log_value_sexp ~descr:"baz" ~entry_id:__entry_id
-             ~sexp:(([%sexp_of : int]) baz__res);
+             ~sexp:(([%sexp_of : int]) __res);
            Debug_runtime.close_log ();
-           baz__res)
+           __res)
       | exception e -> (Debug_runtime.close_log (); raise e)) : int)
 let () = ignore @@ (baz { first = 7; second = 42 })
 let lab ~x:(x : int)  =
@@ -234,20 +236,20 @@ let lab ~x:(x : int)  =
                     failwith "ppx_minidebug: max_nesting_depth exceeded")
                  else
                    (match (x + 1 : int) with
-                    | y__res ->
-                        (Debug_runtime.log_value_sexp ~descr:"y"
-                           ~entry_id:__entry_id
-                           ~sexp:(([%sexp_of : int]) y__res);
+                    | y as __res ->
+                        ((();
+                          Debug_runtime.log_value_sexp ~descr:"y"
+                            ~entry_id:__entry_id ~sexp:(([%sexp_of : int]) y));
                          Debug_runtime.close_log ();
-                         y__res)
+                         __res)
                     | exception e -> (Debug_runtime.close_log (); raise e))) in
             [x; y; 2 * y]
       with
-      | lab__res ->
+      | __res ->
           (Debug_runtime.log_value_sexp ~descr:"lab" ~entry_id:__entry_id
-             ~sexp:(([%sexp_of : int list]) lab__res);
+             ~sexp:(([%sexp_of : int list]) __res);
            Debug_runtime.close_log ();
-           lab__res)
+           __res)
       | exception e -> (Debug_runtime.close_log (); raise e)) : int list)
 let () = ignore @@ (List.hd @@ (lab ~x:7))
 let rec loop (depth : int) (x : t) =
@@ -305,12 +307,13 @@ let rec loop (depth : int) (x : t) =
                                     second = (x.first + 2)
                                   } : int)
                          with
-                         | y__res ->
-                             (Debug_runtime.log_value_sexp ~descr:"y"
-                                ~entry_id:__entry_id
-                                ~sexp:(([%sexp_of : int]) y__res);
+                         | y as __res ->
+                             ((();
+                               Debug_runtime.log_value_sexp ~descr:"y"
+                                 ~entry_id:__entry_id
+                                 ~sexp:(([%sexp_of : int]) y));
                               Debug_runtime.close_log ();
-                              y__res)
+                              __res)
                          | exception e ->
                              (Debug_runtime.close_log (); raise e))) in
                  let z : int =
@@ -336,20 +339,21 @@ let rec loop (depth : int) (x : t) =
                                   { first = (x.second + 1); second = y } : 
                            int)
                          with
-                         | z__res ->
-                             (Debug_runtime.log_value_sexp ~descr:"z"
-                                ~entry_id:__entry_id
-                                ~sexp:(([%sexp_of : int]) z__res);
+                         | z as __res ->
+                             ((();
+                               Debug_runtime.log_value_sexp ~descr:"z"
+                                 ~entry_id:__entry_id
+                                 ~sexp:(([%sexp_of : int]) z));
                               Debug_runtime.close_log ();
-                              z__res)
+                              __res)
                          | exception e ->
                              (Debug_runtime.close_log (); raise e))) in
                  z + 7)
       with
-      | loop__res ->
+      | __res ->
           (Debug_runtime.log_value_sexp ~descr:"loop" ~entry_id:__entry_id
-             ~sexp:(([%sexp_of : int]) loop__res);
+             ~sexp:(([%sexp_of : int]) __res);
            Debug_runtime.close_log ();
-           loop__res)
+           __res)
       | exception e -> (Debug_runtime.close_log (); raise e)) : int)
 let () = ignore @@ (loop 0 { first = 7; second = 42 })

@@ -12,6 +12,7 @@
 - Refactored PrintBox configuration, smaller footprint and allowing control over the backends.
 - Changed `highlighted_roots` to a more general `prune_upto`: prune to only the highlighted boxes up to the given depth.
 - TODO: Fixes #9: handle tuple and record patterns by automatically wrapping in an alias pattern.
+- TODO: Adresses #5: less reliance on the concrete AST data structures.
 
 ## [0.9.0] -- 2024-01-18
 
