@@ -1164,3 +1164,83 @@ let%expect_test "%track_show PrintBox values_first_mode to stdout no return type
         └─"test/test_expect_test.ml":1145:50-1145:70
       6
     |}]
+
+let%expect_test "%debug_show PrintBox to stdout records" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:false ()) in
+  let%debug_show bar { first : int; second : int } : int =
+  let { first : int = a; second : int = b } = { first; second = second + 3 } in
+  let y : int = a + 1 in
+    (b - 3) * y
+  in
+  let () = print_endline @@ Int.to_string @@ bar { first = 7; second = 42 } in
+  let baz { first : int; second : int } : int =
+    let { first : int; second : int } = { first = first + 1; second = second + 3 } in
+    (first * first) + second
+  in
+  let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
+  (* With [~values_first_mode:true], [second] would become a sub-header
+     while its sibling field [first] would remain at the bottom. *)
+  [%expect
+    {|
+    BEGIN DEBUG SESSION
+    "test/test_expect_test.ml":1170:21-1173:15: bar
+    ├─first = 7
+    ├─second = 42
+    ├─"test/test_expect_test.ml":1171:6: {first=a; second=b}
+    │ ├─a = 7
+    │ └─b = 45
+    ├─"test/test_expect_test.ml":1172:6: y
+    │ └─y = 8
+    └─bar = 336
+    336
+    "test/test_expect_test.ml":1176:10-1178:28: baz
+    ├─first = 7
+    ├─second = 42
+    ├─"test/test_expect_test.ml":1177:8: {first; second}
+    │ ├─first = 8
+    │ └─second = 45
+    └─baz = 109
+    109 |}]
+
+let%expect_test "%debug_show PrintBox to stdout tuples" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:false ()) in
+  let%debug_show bar ((first : int), (second : int)) : int =
+    let y : int = first + 1 in
+    second * y
+  in
+  let () = print_endline @@ Int.to_string @@ bar (7, 42) in
+  let baz ((first, second) : int * int) : int * int =
+    let (y, z) : int * int = (first + 1, 3) in
+    let (a : int), (b : int) = (first + 1, second + 3) in
+    ((second * y) + z, (a * a) + b)
+  in
+  let r1, r2 = (baz (7, 42) : int * int) in
+  let () = print_endline @@ Int.to_string r1 in
+  let () = print_endline @@ Int.to_string r2 in
+  (* With [~values_first_mode:true], only [r2] would move to the header
+     for the result of [baz]. *)
+  [%expect
+    {|
+    BEGIN DEBUG SESSION
+    "test/test_expect_test.ml":1207:21-1209:14: bar
+    ├─first = 7
+    ├─second = 42
+    ├─"test/test_expect_test.ml":1208:8: y
+    │ └─y = 8
+    └─bar = 336
+    336
+    "test/test_expect_test.ml":1217:6: (r1, r2)
+    ├─"test/test_expect_test.ml":1212:10-1215:35: baz
+    │ ├─first = 7
+    │ ├─second = 42
+    │ ├─"test/test_expect_test.ml":1213:8: (y, z)
+    │ │ ├─y = 8
+    │ │ └─z = 3
+    │ ├─"test/test_expect_test.ml":1214:8: (a, b)
+    │ │ ├─a = 8
+    │ │ └─b = 45
+    │ └─baz = (339, 109)
+    ├─r1 = 339
+    └─r2 = 109
+    339
+    109 |}]

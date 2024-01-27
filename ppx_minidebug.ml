@@ -1,11 +1,29 @@
 open Ppxlib
 module A = Ast_builder.Default
 
+let rec last_ident = function
+  | Lident id -> id
+  | Ldot (_, id) -> id
+  | Lapply (_, lid) -> last_ident lid
+
 let rec pat2descr ~default pat =
   let loc = pat.ppat_loc in
   match pat.ppat_desc with
   | Ppat_constraint (pat', _) -> pat2descr ~default pat'
   | Ppat_alias (_, ident) | Ppat_var ident -> ident
+  | Ppat_tuple tups ->
+      let dscrs = List.map (fun p -> (pat2descr ~default:"_" p).txt) tups in
+      { txt = "(" ^ String.concat ", " dscrs ^ ")"; loc }
+  | Ppat_record (fields, _) ->
+      let dscrs =
+        List.map
+          (fun (id, p) ->
+            let label = last_ident id.txt in
+            let pat = (pat2descr ~default:"_" p).txt in
+            if String.equal label pat then pat else label ^ "=" ^ pat)
+          fields
+      in
+      { txt = "{" ^ String.concat "; " dscrs ^ "}"; loc }
   | _ -> { txt = default; loc }
 
 let rec pat2expr pat =
@@ -151,7 +169,7 @@ let rec expand_fun body = function
       }
 
 let bound_patterns ~alt_typ pat =
-  let bind_pat, bound =
+  let rec loop ~alt_typ pat =
     match (alt_typ, pat) with
     | ( _,
         [%pat?
@@ -161,10 +179,37 @@ let bound_patterns ~alt_typ pat =
     | Some typ, ({ ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat)
       ->
         (A.ppat_var ~loc:pat.ppat_loc descr_loc, [ (descr_loc, pat, typ) ])
+    | ( _,
+        [%pat?
+          ([%p? { ppat_desc = Ppat_tuple pats; ppat_loc; _ }] :
+            [%t? { ptyp_desc = Ptyp_tuple typs; _ }])] ) ->
+        (* TODO: ideally we should combine with the alt_typ information if present. *)
+        let pats, bindings =
+          List.split @@ List.map2 (fun pat typ -> loop ~alt_typ:(Some typ) pat) pats typs
+        in
+        (A.ppat_tuple ~loc:ppat_loc pats, List.concat bindings)
+    | ( Some { ptyp_desc = Ptyp_tuple typs; _ },
+        { ppat_desc = Ppat_tuple pats; ppat_loc; _ } ) ->
+        let pats, bindings =
+          List.split @@ List.map2 (fun pat typ -> loop ~alt_typ:(Some typ) pat) pats typs
+        in
+        (A.ppat_tuple ~loc:ppat_loc pats, List.concat bindings)
+    | _, { ppat_desc = Ppat_tuple pats; ppat_loc; _ } ->
+        let pats, bindings =
+          List.split @@ List.map (fun pat -> loop ~alt_typ:None pat) pats
+        in
+        (A.ppat_tuple ~loc:ppat_loc pats, List.concat bindings)
+    | _, { ppat_desc = Ppat_record (fields, closed); ppat_loc; _ } ->
+        let pats, bindings =
+          List.split @@ List.map (fun (_, pat) -> loop ~alt_typ:None pat) fields
+        in
+        let fields = List.map2 (fun (id, _) pat -> (id, pat)) fields pats in
+        (A.ppat_record ~loc:ppat_loc fields closed, List.concat bindings)
     | _ -> (A.ppat_any ~loc:pat.ppat_loc, [])
   in
+  let bind_pat, bound = loop ~alt_typ pat in
   let loc = pat.ppat_loc in
-  A.ppat_alias ~loc bind_pat { txt = "__res"; loc }, bound
+  (A.ppat_alias ~loc bind_pat { txt = "__res"; loc }, bound)
 
 let debug_fun callback ?descr_loc ?alt_typ exp =
   let args, body, typ_opt2 = collect_fun [] exp in
@@ -240,22 +285,20 @@ let debug_fun callback ?descr_loc ?alt_typ exp =
 let debug_binding callback vb =
   let pat = vb.pvb_pat in
   let loc = vb.pvb_loc in
-  let descr_loc, alt_typ =
-    match (vb.pvb_pat, vb.pvb_expr) with
-    | ( [%pat?
-          ([%p? { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ }] :
-            [%t? typ])],
-        _ ) ->
-        (descr_loc, Some typ)
-    | ( { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ },
-        [%expr ([%e? _exp] : [%t? typ])] ) ->
-        (descr_loc, Some typ)
-    | { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ }, _ ->
-        (descr_loc, None)
-    | _ -> raise Not_transforming
+  let alt_typ =
+    match vb.pvb_expr with [%expr ([%e? _exp] : [%t? typ])] -> Some typ | _ -> None
   in
   match vb.pvb_expr.pexp_desc with
   | Pexp_newtype _ | Pexp_fun _ ->
+      let descr_loc =
+        match pat with
+        | [%pat?
+            ([%p? { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ }] :
+              [%t? _])] ->
+            descr_loc
+        | { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } -> descr_loc
+        | _ -> raise Not_transforming
+      in
       { vb with pvb_expr = debug_fun callback ~descr_loc ?alt_typ vb.pvb_expr }
   | _ ->
       let result, bound = bound_patterns ~alt_typ pat in
@@ -272,6 +315,7 @@ let debug_binding callback vb =
                  [%e e2]])
              [%expr ()]
       in
+      let descr_loc = pat2descr ~default:"__val" pat in
       let exp =
         [%expr
           let __entry_id = Debug_runtime.get_entry_id () in
