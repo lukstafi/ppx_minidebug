@@ -4,6 +4,7 @@
 
 - PrintBox Markdown backend.
 - Optionally, log to multiple files, opening a new file once a file size threshold is exceeded.
+- Continuous Integration tests.
 
 ### Changed
 
