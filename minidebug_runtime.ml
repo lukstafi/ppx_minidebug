@@ -345,8 +345,24 @@ module PrintBox (Log_to : Debug_ch) = struct
   let apply_highlight hl b =
     match B.view b with B.Frame _ -> b | _ -> if hl then B.frame b else b
 
+  let partition_at pos l =
+    let rec loop pos acc l =
+      if pos <= 0 then (List.rev acc, l)
+      else
+        match l with
+        | [] -> (List.rev acc, [])
+        | hd :: tl -> loop (pos - 1) (hd :: acc) tl
+    in
+    loop pos [] l
+
   let stack_to_tree
       { cond = _; highlight; exclude = _; uri; path; entry_message; entry_id; body } =
+    let tuple_elems = String.split_on_char ',' entry_message in
+    let record_elems = String.split_on_char ';' entry_message in
+    let n_tuple = List.length tuple_elems in
+    let n_record = List.length record_elems in
+    let is_struct = n_tuple > 1 || n_record > 1 in
+    let n_struct = max n_tuple n_record in
     let b_path =
       B.line @@ if config.values_first_mode then path else path ^ ": " ^ entry_message
     in
@@ -356,6 +372,12 @@ module PrintBox (Log_to : Debug_ch) = struct
       let hl_header = apply_highlight highlight @@ B.line entry_message in
       match body with
       | [] -> B.tree hl_header [ b_path ]
+      | { result_id; _ } :: _ as body when is_struct && result_id = entry_id ->
+          let body = List.map (fun { subtree; _ } -> subtree) body in
+          let result, body = partition_at n_struct body in
+          B.tree
+            (apply_highlight highlight hl_header)
+            (b_path :: B.tree (B.line "<returns>") (List.rev result) :: List.rev body)
       | { result_id; subtree } :: body when result_id = entry_id -> (
           let body = List.map (fun { subtree; _ } -> subtree) body in
           match B.view subtree with
@@ -376,7 +398,7 @@ module PrintBox (Log_to : Debug_ch) = struct
     stack :=
       (* Design choice: exclude does not apply to its own entry -- its about propagating children. *)
       match !stack with
-      |  { highlight = false; _ } :: bs when config.prune_upto >= List.length !stack -> bs
+      | { highlight = false; _ } :: bs when config.prune_upto >= List.length !stack -> bs
       | ({ cond = true; highlight = hl; exclude = _; entry_id = result_id; _ } as entry)
         :: { cond; highlight; exclude; uri; path; entry_message; entry_id; body }
         :: bs3 ->
@@ -579,8 +601,8 @@ let debug_file ?(time_tagged = false) ?max_nesting_depth ?max_num_children
   (module Debug)
 
 let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_num_children
-    ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
-    ?(values_first_mode = false) () : (module Debug_runtime_cond) =
+    ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(values_first_mode = false) () :
+    (module Debug_runtime_cond) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
     let debug_ch () = debug_ch
