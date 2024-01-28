@@ -106,15 +106,6 @@ module type Debug_runtime = sig
   val get_entry_id : unit -> int
 end
 
-module type Debug_runtime_cond = sig
-  include Debug_runtime
-
-  val no_debug_if : bool -> unit
-  (** When passed true within the scope of a log subtree, disables the logging of this subtree and its
-      subtrees. Does not do anything when passed false ([no_debug_if false] does {e not} re-enable
-      the log). *)
-end
-
 let exceeds ~value ~limit = match limit with None -> false | Some limit -> limit < value
 
 module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
@@ -262,6 +253,29 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
     fun () ->
       incr global_id;
       !global_id
+end
+
+module type PrintBox_runtime = sig
+  include Debug_runtime
+
+  val no_debug_if : bool -> unit
+  val default_html_config : PrintBox_html.Config.t
+  val default_md_config : PrintBox_md.Config.t
+
+  type config = {
+    mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
+    mutable backend :
+      [ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ];
+    mutable boxify_sexp_from_size : int;
+    mutable highlight_terms : Re.re option;
+    mutable exclude_on_path : Re.re option;
+    mutable prune_upto : int;
+    mutable values_first_mode : bool;
+    mutable max_inline_sexp_size : int;
+    mutable max_inline_sexp_length : int;
+  }
+
+  val config : config
 end
 
 module PrintBox (Log_to : Debug_ch) = struct
@@ -581,7 +595,7 @@ end
 let debug_file ?(time_tagged = false) ?max_nesting_depth ?max_num_children
     ?split_files_after ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
     ?(for_append = false) ?(boxify_sexp_from_size = 50) ?backend ?hyperlink
-    ?(values_first_mode = false) filename : (module Debug_runtime_cond) =
+    ?(values_first_mode = false) filename : (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename ^ ".md"
@@ -605,7 +619,7 @@ let debug_file ?(time_tagged = false) ?max_nesting_depth ?max_num_children
 
 let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_num_children
     ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(values_first_mode = false) () :
-    (module Debug_runtime_cond) =
+    (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
     let debug_ch () = debug_ch

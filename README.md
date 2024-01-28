@@ -2,7 +2,7 @@
 
 ## `ppx_minidebug`: Debug logs for selected functions and let-bindings
 
-`ppx_minidebug` traces selected code if it has type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` (also `%track_pp` and `%track_show`), based on `deriving.show`, and `%debug_sexp` (also `%track_sexp`) based on `sexplib0` and `ppx_sexp_conv`. The syntax extension expects a module `Debug_runtime` in the scope. The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers three ways of logging the traces, as functors generating `Debug_runtime` modules given an output channel (e.g. for a file).
+`ppx_minidebug` traces selected code if it has type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` (also `%track_pp` and `%track_show`), based on `deriving.show`, and `%debug_sexp` (also `%track_sexp`) based on `sexplib0` and `ppx_sexp_conv`. The syntax extension expects a module `Debug_runtime` in the scope. The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers three ways of logging the traces, as functors (or helper functions) generating `Debug_runtime` modules given an output channel (e.g. for a file).
 
 Take a look at [`ppx_debug`](https://github.com/dariusf/ppx_debug) which has complementary strengths!
 
@@ -137,14 +137,14 @@ leads to:
 
 There is another mechanism for disabling logging: `prune_upto` -- see below.
 
-#### Traces in HTML as collapsible trees
+#### Traces in HTML or Markdown as collapsible trees
 
-The `PrintBox` runtime can be configured to output logs using HTML. The logs then become collapsible trees, so that you can expose only the relevant information when debugging. Example configuration:
+The `PrintBox` runtime can be configured to output logs using HTML or Markdown. The logs then become collapsible trees, so that you can expose only the relevant information when debugging. Example configuration:
 
 ```ocaml
 module Debug_runtime =
   Minidebug_runtime.PrintBox ((val Minidebug_runtime.debug_ch "debug.html"))
-let () = Debug_runtime.html_config := `Html
+let () = Debug_runtime.(html_config := `Html default_html_config)
 let () = Debug_runtime.boxify_sexp_from_size := 50
 ```
 
