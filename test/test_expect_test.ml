@@ -1218,21 +1218,21 @@ let%expect_test "%debug_show PrintBox to stdout tuples" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1207:21-1209:14: bar
+    "test/test_expect_test.ml":1205:21-1207:14: bar
     ├─first = 7
     ├─second = 42
-    ├─"test/test_expect_test.ml":1208:8: y
+    ├─"test/test_expect_test.ml":1206:8: y
     │ └─y = 8
     └─bar = 336
     336
-    "test/test_expect_test.ml":1217:6: (r1, r2)
-    ├─"test/test_expect_test.ml":1212:10-1215:35: baz
+    "test/test_expect_test.ml":1215:6: (r1, r2)
+    ├─"test/test_expect_test.ml":1210:10-1213:35: baz
     │ ├─first = 7
     │ ├─second = 42
-    │ ├─"test/test_expect_test.ml":1213:8: (y, z)
+    │ ├─"test/test_expect_test.ml":1211:8: (y, z)
     │ │ ├─y = 8
     │ │ └─z = 3
-    │ ├─"test/test_expect_test.ml":1214:8: (a, b)
+    │ ├─"test/test_expect_test.ml":1212:8: (a, b)
     │ │ ├─a = 8
     │ │ └─b = 45
     │ └─baz = (339, 109)
@@ -1258,24 +1258,24 @@ let%expect_test "%debug_show PrintBox to stdout records values_first_mode" =
     {|
       BEGIN DEBUG SESSION
       bar = 336
-      ├─"test/test_expect_test.ml":1250:21-1253:15
+      ├─"test/test_expect_test.ml":1246:21-1249:15
       ├─first = 7
       ├─second = 42
       ├─{first=a; second=b}
-      │ ├─"test/test_expect_test.ml":1251:8
-      │ └─<returns>
+      │ ├─"test/test_expect_test.ml":1247:8
+      │ └─<values>
       │   ├─a = 7
       │   └─b = 45
       └─y = 8
-        └─"test/test_expect_test.ml":1252:8
+        └─"test/test_expect_test.ml":1248:8
       336
       baz = 109
-      ├─"test/test_expect_test.ml":1256:10-1258:28
+      ├─"test/test_expect_test.ml":1252:10-1254:28
       ├─first = 7
       ├─second = 42
       └─{first; second}
-        ├─"test/test_expect_test.ml":1257:8
-        └─<returns>
+        ├─"test/test_expect_test.ml":1253:8
+        └─<values>
           ├─first = 8
           └─second = 45
       109 |}]
@@ -1299,29 +1299,29 @@ let%expect_test "%debug_show PrintBox to stdout tuples values_first_mode" =
     {|
     BEGIN DEBUG SESSION
     bar = 336
-    ├─"test/test_expect_test.ml":1291:21-1293:14
+    ├─"test/test_expect_test.ml":1285:21-1287:14
     ├─first = 7
     ├─second = 42
     └─y = 8
-      └─"test/test_expect_test.ml":1292:8
+      └─"test/test_expect_test.ml":1286:8
     336
     (r1, r2)
-    ├─"test/test_expect_test.ml":1301:6
-    ├─<returns>
+    ├─"test/test_expect_test.ml":1295:6
+    ├─<values>
     │ ├─r1 = 339
     │ └─r2 = 109
     └─baz = (339, 109)
-      ├─"test/test_expect_test.ml":1296:10-1299:35
+      ├─"test/test_expect_test.ml":1290:10-1293:35
       ├─first = 7
       ├─second = 42
       ├─(y, z)
-      │ ├─"test/test_expect_test.ml":1297:8
-      │ └─<returns>
+      │ ├─"test/test_expect_test.ml":1291:8
+      │ └─<values>
       │   ├─y = 8
       │   └─z = 3
       └─(a, b)
-        ├─"test/test_expect_test.ml":1298:8
-        └─<returns>
+        ├─"test/test_expect_test.ml":1292:8
+        └─<values>
           ├─a = 8
           └─b = 45
     339

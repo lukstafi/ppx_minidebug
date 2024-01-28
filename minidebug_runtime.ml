@@ -357,12 +357,15 @@ module PrintBox (Log_to : Debug_ch) = struct
 
   let stack_to_tree
       { cond = _; highlight; exclude = _; uri; path; entry_message; entry_id; body } =
-    let tuple_elems = String.split_on_char ',' entry_message in
-    let record_elems = String.split_on_char ';' entry_message in
-    let n_tuple = List.length tuple_elems in
-    let n_record = List.length record_elems in
-    let is_struct = n_tuple > 1 || n_record > 1 in
-    let n_struct = max n_tuple n_record in
+    let is_struct, n_struct =
+      if String.contains entry_message ',' || String.contains entry_message ';' then
+        let tuple_elems = String.split_on_char ',' entry_message in
+        let record_elems = String.split_on_char ';' entry_message in
+        let n_tuple = List.length tuple_elems in
+        let n_record = List.length record_elems in
+        (n_tuple > 1 || n_record > 1, max n_tuple n_record)
+      else (false, 0)
+    in
     let b_path =
       B.line @@ if config.values_first_mode then path else path ^ ": " ^ entry_message
     in
@@ -377,7 +380,7 @@ module PrintBox (Log_to : Debug_ch) = struct
           let result, body = partition_at n_struct body in
           B.tree
             (apply_highlight highlight hl_header)
-            (b_path :: B.tree (B.line "<returns>") (List.rev result) :: List.rev body)
+            (b_path :: B.tree (B.line "<values>") (List.rev result) :: List.rev body)
       | { result_id; subtree } :: body when result_id = entry_id -> (
           let body = List.map (fun { subtree; _ } -> subtree) body in
           match B.view subtree with
