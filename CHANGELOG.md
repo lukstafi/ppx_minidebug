@@ -11,8 +11,8 @@
 - Rename `debug_html` to `debug_file`, since it now supports both HTML and Markdown. Take file name/path without a suffix.
 - Refactored PrintBox configuration, smaller footprint and allowing control over the backends.
 - Changed `highlighted_roots` to a more general `prune_upto`: prune to only the highlighted boxes up to the given depth.
-- TODO: Fixes #9: handle tuple and record patterns.
-- TODO: Adresses #5: less reliance on the concrete AST data structures.
+- Fixes #9: handle tuple and record patterns.
+- Exported `PrintBox_runtime` configuration for better flexibility (in-flight configuration changes).
 
 ## [0.9.0] -- 2024-01-18
 

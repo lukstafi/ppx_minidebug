@@ -69,20 +69,13 @@ module Pp_format : functor (_ : Debug_ch) -> Debug_runtime
     might be messy. The indentation is also smaller (half of PrintBox). *)
 module Flushing : functor (_ : Debug_ch) -> Debug_runtime
 
-module type Debug_runtime_cond = sig
+module type PrintBox_runtime = sig
   include Debug_runtime
 
   val no_debug_if : bool -> unit
   (** When passed true within the scope of a log subtree, disables the logging of this subtree and its
       subtrees. Does not do anything when passed false ([no_debug_if false] does {e not} re-enable
       the log). *)
-end
-
-(** The logged traces will be pretty-printed as trees using the `printbox` package. This logger
-    supports conditionally disabling a particular nesting of the logs, regardless of where
-    in the nesting level [no_debug_if] is called. *)
-module PrintBox : functor (_ : Debug_ch) -> sig
-  include Debug_runtime_cond
 
   val default_html_config : PrintBox_html.Config.t
   val default_md_config : PrintBox_md.Config.t
@@ -128,6 +121,11 @@ module PrintBox : functor (_ : Debug_ch) -> sig
   val config : config
 end
 
+(** The logged traces will be pretty-printed as trees using the `printbox` package. This logger
+    supports conditionally disabling a particular nesting of the logs, regardless of where
+    in the nesting level [no_debug_if] is called. *)
+module PrintBox : functor (_ : Debug_ch) -> PrintBox_runtime
+
 val debug_file :
   ?time_tagged:bool ->
   ?max_nesting_depth:int ->
@@ -142,7 +140,7 @@ val debug_file :
   ?hyperlink:string ->
   ?values_first_mode:bool ->
   string ->
-  (module Debug_runtime_cond)
+  (module PrintBox_runtime)
 (** Creates a PrintBox-based debug runtime configured to output html or markdown to a file with
     the given name suffixed with [".log"], [".html"] or [".md"] depending on the backend.
     By default the logging will not be time tagged and the file will be created or erased by
@@ -162,7 +160,7 @@ val debug :
   ?prune_upto:int ->
   ?values_first_mode:bool ->
   unit ->
-  (module Debug_runtime_cond)
+  (module PrintBox_runtime)
 (** Creates a PrintBox-based debug runtime for the [`Text] backend. By default it will log to [stdout]
     and will not be time tagged. *)
 
