@@ -25,13 +25,36 @@ let rec pat2descr ~default pat =
           fields
       in
       { txt = "{" ^ String.concat "; " dscrs ^ "}"; loc }
-  | _ -> { txt = default; loc }
+  | Ppat_construct (lid, None) -> { txt = last_ident lid.txt; loc }
+  | Ppat_construct (lid, Some (_abs_tys, pat)) ->
+      let dscr = pat2descr ~default pat in
+      { txt = last_ident lid.txt ^ " " ^ dscr.txt; loc }
+  | Ppat_variant (lid, None) -> { txt = lid; loc }
+  | Ppat_variant (lid, Some pat) ->
+      let dscr = pat2descr ~default pat in
+      { txt = lid ^ " " ^ dscr.txt; loc }
+  | Ppat_array tups ->
+      let dscrs = List.map (fun p -> (pat2descr ~default:"_" p).txt) tups in
+      { txt = "[|" ^ String.concat ", " dscrs ^ "|]"; loc }
+  | Ppat_or (pat1, pat2) ->
+      let dscr1 = pat2descr ~default pat1 in
+      let dscr2 = pat2descr ~default pat2 in
+      { txt = dscr1.txt ^ "|" ^ dscr2.txt; loc }
+  | Ppat_exception pat ->
+      let dscr = pat2descr ~default pat in
+      { txt = "exception " ^ dscr.txt; loc }
+  | Ppat_lazy pat ->
+      let dscr = pat2descr ~default pat in
+      { txt = "lazy " ^ dscr.txt; loc }
+  | Ppat_open (_, pat) -> pat2descr ~default pat
+  | Ppat_type _ | Ppat_extension _ | Ppat_unpack _ | Ppat_any | Ppat_constant _
+  | Ppat_interval _ ->
+      { txt = default; loc }
 
 let rec pat2expr pat =
   let loc = pat.ppat_loc in
   match pat.ppat_desc with
-  | Ppat_constraint (pat', typ) ->
-      A.pexp_constraint ~loc (pat2expr pat') typ
+  | Ppat_constraint (pat', typ) -> A.pexp_constraint ~loc (pat2expr pat') typ
   | Ppat_alias (_, ident) | Ppat_var ident ->
       A.pexp_ident ~loc { ident with txt = Lident ident.txt }
   | _ ->
@@ -171,15 +194,16 @@ let rec expand_fun body = function
 
 let bound_patterns ~alt_typ pat =
   let rec loop ~alt_typ pat =
+    let loc = pat.ppat_loc in
     match (alt_typ, pat) with
     | ( _,
         [%pat?
           ([%p? { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat] :
             [%t? typ])] ) ->
-        (A.ppat_var ~loc:pat.ppat_loc descr_loc, [ (descr_loc, pat, typ) ])
+        (A.ppat_var ~loc descr_loc, [ (descr_loc, pat, typ) ])
     | Some typ, ({ ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat)
       ->
-        (A.ppat_var ~loc:pat.ppat_loc descr_loc, [ (descr_loc, pat, typ) ])
+        (A.ppat_var ~loc descr_loc, [ (descr_loc, pat, typ) ])
     | ( _,
         [%pat?
           ([%p? { ppat_desc = Ppat_tuple pats; ppat_loc; _ }] :
@@ -206,7 +230,71 @@ let bound_patterns ~alt_typ pat =
         in
         let fields = List.map2 (fun (id, _) pat -> (id, pat)) fields pats in
         (A.ppat_record ~loc:ppat_loc fields closed, List.concat bindings)
-    | _ -> (A.ppat_any ~loc:pat.ppat_loc, [])
+        (* FIXME: special-case some builtin types: option, list. *)
+    | _, { ppat_desc = Ppat_construct (_lid, None); _ } -> (pat, [])
+    | _, { ppat_desc = Ppat_construct (lid, Some (_abs_tys, pat)); _ } ->
+        let pat, bindings = loop ~alt_typ:None pat in
+        (A.ppat_construct ~loc lid (Some pat), bindings)
+    | _, { ppat_desc = Ppat_variant (_lid, None); _ } -> (pat, [])
+    | _, { ppat_desc = Ppat_variant (lid, Some pat); _ } ->
+        let pat, bindings = loop ~alt_typ:None pat in
+        (A.ppat_variant ~loc lid (Some pat), bindings)
+    | _, [%pat? ([%p? { ppat_desc = Ppat_array pats; ppat_loc; _ }] : [%t? typ] array)] ->
+        (* TODO: ideally we should combine with the alt_typ information if present. *)
+        let pats, bindings =
+          List.split @@ List.map (fun pat -> loop ~alt_typ:(Some typ) pat) pats
+        in
+        (A.ppat_array ~loc:ppat_loc pats, List.concat bindings)
+    | Some [%type: [%t? typ] array], { ppat_desc = Ppat_array pats; ppat_loc; _ } ->
+        let pats, bindings =
+          List.split @@ List.map (fun pat -> loop ~alt_typ:(Some typ) pat) pats
+        in
+        (A.ppat_array ~loc:ppat_loc pats, List.concat bindings)
+    | _, { ppat_desc = Ppat_array pats; ppat_loc; _ } ->
+        let pats, bindings =
+          List.split @@ List.map (fun pat -> loop ~alt_typ:None pat) pats
+        in
+        (A.ppat_array ~loc:ppat_loc pats, List.concat bindings)
+    | _, { ppat_desc = Ppat_or (pat1, pat2); _ } ->
+        let pat1, binds1 = loop ~alt_typ pat1 in
+        let binds1 =
+          List.map (fun (({ txt = descr; _ }, _, _) as b) -> (descr, b)) binds1
+        in
+        let pat2, binds2 = loop ~alt_typ pat2 in
+        let binds2 =
+          List.map (fun (({ txt = descr; _ }, _, _) as b) -> (descr, b)) binds2
+        in
+        let bindings =
+          List.sort_uniq (fun (k1, _) (k2, _) -> String.compare k1 k2) @@ binds1 @ binds2
+        in
+        (A.ppat_or ~loc pat1 pat2, List.map snd bindings)
+    | _, { ppat_desc = Ppat_exception pat; _ } ->
+        let pat, bindings = loop ~alt_typ:None pat in
+        (A.ppat_exception ~loc pat, bindings)
+    | Some [%type: [%t? typ] Lazy.t], { ppat_desc = Ppat_lazy pat; _ } ->
+        let pat, bindings = loop ~alt_typ:(Some typ) pat in
+        (A.ppat_lazy ~loc pat, bindings)
+    | _, [%pat? ([%p? { ppat_desc = Ppat_lazy pat; _ }] : [%t? typ] Lazy.t)] ->
+        let pat, bindings = loop ~alt_typ:(Some typ) pat in
+        (A.ppat_lazy ~loc pat, bindings)
+    | _, { ppat_desc = Ppat_lazy pat; _ } ->
+        let pat, bindings = loop ~alt_typ:None pat in
+        (A.ppat_lazy ~loc pat, bindings)
+    | _, { ppat_desc = Ppat_open (m, pat); _ } ->
+        let pat, bindings = loop ~alt_typ pat in
+        (A.ppat_open ~loc m pat, bindings)
+    | _, [%pat? ([%p? pat] : [%t? typ])] -> loop ~alt_typ:(Some typ) pat
+    | None, { ppat_desc = Ppat_var _ | Ppat_alias (_, _); _ } ->
+        (* Insufficient type information. *)
+        (pat, [])
+    | ( _,
+        {
+          ppat_desc =
+            ( Ppat_type _ | Ppat_extension _ | Ppat_unpack _ | Ppat_any | Ppat_constant _
+            | Ppat_interval _ );
+          _;
+        } ) ->
+        (A.ppat_any ~loc, [])
   in
   let bind_pat, bound = loop ~alt_typ pat in
   let loc = pat.ppat_loc in
@@ -404,7 +492,12 @@ let traverse =
                     Debug_runtime.close_log ();
                     raise e]
             in
-            { pc_lhs; pc_guard; pc_rhs })
+            try
+              let vb =
+                debug_binding callback @@ A.value_binding ~loc ~pat:pc_lhs ~expr:pc_rhs
+              in
+              { pc_lhs = vb.pvb_pat; pc_guard; pc_rhs = vb.pvb_expr }
+            with Not_transforming -> { pc_lhs; pc_guard; pc_rhs })
       in
       match e with
       | { pexp_desc = Pexp_let (rec_flag, bindings, body); _ } ->

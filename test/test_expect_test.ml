@@ -1326,3 +1326,25 @@ let%expect_test "%debug_show PrintBox to stdout tuples values_first_mode" =
           └─b = 45
     339
     109 |}]
+
+type 'a irrefutable = Zero of 'a [@@deriving show]
+type ('a, 'b) left_right = Left of 'a | Right of 'b [@@deriving show]
+type ('a, 'b, 'c) one_two_three = One of 'a | Two of 'b | Three of 'c [@@deriving show]
+
+let%expect_test "%debug_show PrintBox to stdout variants values_first_mode" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let%track_show bar (Zero (x : int)) : int =
+    let y = (x + 1 : int) in
+    2 * y
+  in
+  let () = print_endline @@ Int.to_string @@ bar (Zero 7) in
+  let baz : 'a -> int = function
+    | Left (x : int) -> x + 1
+    | Right (Two (y : int)) -> y * 2
+    | _ -> 3
+  in
+  let () = print_endline @@ Int.to_string @@ baz (Left 4) in
+  let () = print_endline @@ Int.to_string @@ baz (Right (Two 3)) in
+  let () = print_endline @@ Int.to_string @@ baz (Right (Three 0)) in
+  [%expect
+    {| |}]
