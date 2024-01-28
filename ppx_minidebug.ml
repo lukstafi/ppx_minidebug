@@ -1,5 +1,6 @@
 open Ppxlib
 module A = Ast_builder.Default
+(* module H = Ast_helper *)
 
 let rec last_ident = function
   | Lident id -> id
@@ -30,11 +31,11 @@ let rec pat2expr pat =
   let loc = pat.ppat_loc in
   match pat.ppat_desc with
   | Ppat_constraint (pat', typ) ->
-      Ast_builder.Default.pexp_constraint ~loc (pat2expr pat') typ
+      A.pexp_constraint ~loc (pat2expr pat') typ
   | Ppat_alias (_, ident) | Ppat_var ident ->
-      Ast_builder.Default.pexp_ident ~loc { ident with txt = Lident ident.txt }
+      A.pexp_ident ~loc { ident with txt = Lident ident.txt }
   | _ ->
-      Ast_builder.Default.pexp_extension ~loc
+      A.pexp_extension ~loc
       @@ Location.error_extensionf ~loc
            "ppx_minidebug requires a pattern identifier here: try using an `as` alias."
 
@@ -251,7 +252,7 @@ let debug_fun callback ?descr_loc ?alt_typ exp =
   in
   let result =
     let loc = descr_loc.loc in
-    Ast_builder.Default.ppat_var ~loc { loc; txt = "__res" }
+    A.ppat_var ~loc { loc; txt = "__res" }
   in
   let body =
     [%expr
