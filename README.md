@@ -101,42 +101,6 @@ BEGIN DEBUG SESSION
 │ │ │ │ │ │ │ └─loop = 25
 ```
 
-This runtime also allows disabling the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space.
-The test suite example:
-
-```ocaml
-  let%debug_this_show rec fixpoint_changes (x: int): int =
-    let z: int = (x - 1) / 2 in
-    (* The call [x = 2] is not printed because it is a descendant of
-       the no-debug call [x = 4]. *)
-    Debug_runtime.no_debug_if (x <> 6 && x <> 2 && (z + 1) * 2 = x);
-    if x <= 0 then 0 else z + fixpoint_changes (z + x / 2) in
-  print_endline @@ Int.to_string @@ fixpoint_changes 7
-```
-
-leads to:
-
-```shell
-  "test/test_expect_test.ml":96:43-100:58: fixpoint_changes
-  ├─x = 7
-  ├─"test/test_expect_test.ml":97:8: z
-  │ └─z = 3
-  ├─"test/test_expect_test.ml":96:43-100:58: fixpoint_changes
-  │ ├─x = 6
-  │ ├─"test/test_expect_test.ml":97:8: z
-  │ │ └─z = 2
-  │ ├─"test/test_expect_test.ml":96:43-100:58: fixpoint_changes
-  │ │ ├─x = 5
-  │ │ ├─"test/test_expect_test.ml":97:8: z
-  │ │ │ └─z = 2
-  │ │ └─fixpoint_changes = 4
-  │ └─fixpoint_changes = 6
-  └─fixpoint_changes = 9
-  9
-```
-
-There is another mechanism for disabling logging: `prune_upto` -- see below.
-
 #### Traces in HTML or Markdown as collapsible trees
 
 The `PrintBox` runtime can be configured to output logs using HTML or Markdown. The logs then become collapsible trees, so that you can expose only the relevant information when debugging. Example configuration:
@@ -233,15 +197,25 @@ BEGIN DEBUG SESSION
 
 ## Usage
 
-To trace a function, you have to type-annotate the function result. To trace an argument of a traced function, or a `let`-binding, you need to type-annotate it. You can control how much gets logged by adding or removing type annotations.
+Tracing only happens in explicitly marked lexical scopes. The extension points vary along three axes:
 
-Tracing only happens in explicitly marked scopes, using the extension points: `%debug_pp`, `%debug_this_pp`, `%debug_show`, `%debug_this_show` (based on printing functionality provided by `deriving.show`), `%debug_sexp`, `%debug_this_sexp` (using functionality provided by `sexplib0` and `ppx_sexp_conv`). See examples in [the test directory](test/).
+- `%debug_` vs. `%track_`
+  - The prefix `%debug_` means logging fewer things: only let-bound values and functions are logged, and functions only when their return type is annotated.
+  - `%track_` also logs: which `if` and `match` branch is taken, and all functions, including anonymous ones.
+- Optional infix `_this_` puts only the body of a `let` definition in scope for logging.
+  - `let%debug_this v: t = compute value in outer scope` will trace `v` and the type-annotated bindings and functions inside `compute value`, but it will not trace `outer scope`.
+- Representation and printing mechanism: `_pp`, `_show`, recommended: `_sexp`
+  - `_pp` is currently most restrictive as it requires the type of a value to be an identifier. The identifier is converted to a `pp_` printing function, e.g. `pp_int`.
+  - `_show` converts values to strings via the `%show` extension provided by `deriving.show`: e.g. `[%show: int list]`.
+  - `_sexp` converts values to sexp expressions first using `%sexp_of`, e.g. `[%sexp_of: int list]`. The runtime can decide how to print the sexp expressions. The `PrintBox` backend allows to convert the sexps to box structures first, with the `boxify_sexp_from_size` setting. This means large values can be unfolded gradually for inspection.
 
-The `%debug_this` variants are intended only for `let`-bindings: `let%debug_this v: t = compute value in body` will trace `v` and the type-annotated bindings and functions inside `compute value`, but it will not trace `body`.
+See examples in [the test directory](test/), and especially [the inline tests](test/test_expect_test.ml).
 
-To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.Flushing(struct let debug_ch = thread_specific_ch let time_tagged = true end) in ...` In particular, when performing `dune runtest` in the `ppx_minidebug` directory, the `test_debug_n` and the `test_debug_n_expected` pairs of programs will interfere with each other, unless you adjust the log file names in them.
+Only type-annotated let-bindings, function arguments, function results can be logged. However, the bindings and function arguments can be nested patterns! Variant patterns are not yet supported
 
-The `PrintBox` logs are the prettiest, I could not get the `Pp_format`-functor-based output look the way I wanted. The `Flushing` logs enable [Log Inspector (sub-millisecond)](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond) flame graphs. One should be able to get other logging styles to work with `Log Inspector` by configuring its regexp patterns.
+To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.debug_file thread_name in ...`
+
+The `PrintBox` logs are the prettiest, I could not get the `Pp_format`-functor-based output look the way I wanted. The `Flushing` logs enable [VS Code Log Inspector](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond) flame graphs. One should be able to get other logging styles to work with `Log Inspector` by configuring its regexp patterns.
 
 `ppx_minidebug` can be installed using `opam`. `ppx_minidebug.runtime` depends on `printbox`, `ptime`, `sexplib0`.
 
@@ -392,6 +366,57 @@ BEGIN DEBUG SESSION
   └─i = 3
 6
 ```
+
+### Reducing the size of generated logs
+
+In the PrintBox backend, you can disable the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space.
+The test suite example:
+
+```ocaml
+  let%debug_this_show rec fixpoint_changes (x: int): int =
+    let z: int = (x - 1) / 2 in
+    (* The call [x = 2] is not printed because it is a descendant of
+       the no-debug call [x = 4]. *)
+    Debug_runtime.no_debug_if (x <> 6 && x <> 2 && (z + 1) * 2 = x);
+    if x <= 0 then 0 else z + fixpoint_changes (z + x / 2) in
+  print_endline @@ Int.to_string @@ fixpoint_changes 7
+```
+
+leads to:
+
+```shell
+  "test/test_expect_test.ml":96:43-100:58: fixpoint_changes
+  ├─x = 7
+  ├─"test/test_expect_test.ml":97:8: z
+  │ └─z = 3
+  ├─"test/test_expect_test.ml":96:43-100:58: fixpoint_changes
+  │ ├─x = 6
+  │ ├─"test/test_expect_test.ml":97:8: z
+  │ │ └─z = 2
+  │ ├─"test/test_expect_test.ml":96:43-100:58: fixpoint_changes
+  │ │ ├─x = 5
+  │ │ ├─"test/test_expect_test.ml":97:8: z
+  │ │ │ └─z = 2
+  │ │ └─fixpoint_changes = 4
+  │ └─fixpoint_changes = 6
+  └─fixpoint_changes = 9
+  9
+```
+
+The `no_debug_if` mechanism requires modifying the logged sources, and since it's limited to cutting out subtrees of the logs, it can be tricky to select and preserve the context one wants. The highlighting mechanism with the `prune_upto` setting avoids these problems. You provide a search term without modifying the debugged sources. You can tune the pruning level to keep the context around the place the search term was found.
+
+If you provide the `split_files_after` setting, the logging will transition to a new file after the current file exceeds the given number of characters. However, the splits only happen at the "toplevel", to not interrupt laying out the log trees. If required, you can remove logging indicators from your high-level functions, to bring the deeper logic log trees to the toplevel. This matters when you prefer Markdown output over HTML output -- in my experience, Markdown renderers (VS Code Markdown Preview, GitHub Preview) fail for files larger than 2MB, while browsers easily handle HTML files of over 200MB (including via VS Code Live Preview).
+
+### Providing the necessary type information
+
+We only log values of identifiers, located inside patterns, for which the type is provided in the source code, in a syntactically close / related location. PPX rewriters do not have access to the results of type inference. We extract the available type information, but we don't do it perfectly, there is room for improvement.
+
+Here is a probably incomplete list of the restrictions:
+
+- When types for a (sub) pattern are specified in multiple places, they are not combined. The type that is closer to the (sub) pattern is inspected, even if inspecting a corresponding type in another place would be better.
+- When faced with a binding of a form: `let pattern = (expression : type_)`, we make use of `type_`, but we ignore all types nested inside `expression`, even if we decompose `pattern`.
+  - For example, `let%track_sexp (x, y) = ((5, 3) : int * int)` works -- logs both `x` and `y`. Also work: `let%track_sexp ((x, y) : int * int) = (5, 3)` and `let%track_sexp ((x : int), (y : int)) = (5, 3)`. But `let%track_sexp (x, y) = ((5 : int), (3 : int))` will not log anything!
+
 
 ## VS Code suggestions
 
