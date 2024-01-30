@@ -561,7 +561,7 @@ let%expect_test "%debug_show PrintBox tracking <function>" =
       BEGIN DEBUG SESSION
       "test/test_expect_test.ml":549:11-549:12: <function -- branch 3>
       4
-      "test/test_expect_test.ml":551:11-551:14: <function -- branch 5>
+      "test/test_expect_test.ml":551:11-551:14: <function -- branch 5> x
       -3
     |}]
 

@@ -383,8 +383,9 @@ let debug_case callback ~ret_descr ~ret_typ ~alt_typ kind i { pc_lhs; pc_guard; 
       (fun (descr_loc, pat, typ) -> !log_value ~loc ~typ ~descr_loc (pat2expr pat))
       bound
   in
-  (* let message = pat2descr ~default:"__case" pc_lhs in *)
-  let message = "<" ^ kind ^ " -- branch " ^ string_of_int i ^ ">" in
+  let message = pat2descr ~default:"_" pc_lhs in
+  let message = if String.equal message.txt "_" then "" else " " ^ message.txt in
+  let message = "<" ^ kind ^ " -- branch " ^ string_of_int i ^ ">" ^ message in
   let ret_descr =
     match ret_descr with
     | None -> { loc = pc_rhs.pexp_loc; txt = kind ^ "__res" }
