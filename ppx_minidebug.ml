@@ -476,6 +476,14 @@ let traverse =
         List.mapi (fun i { pc_lhs; pc_guard; pc_rhs } ->
             let pc_guard = Option.map callback pc_guard in
             let loc = pc_rhs.pexp_loc in
+            let pc_lhs, pc_rhs =
+              try
+                let vb =
+                  debug_binding callback @@ A.value_binding ~loc ~pat:pc_lhs ~expr:pc_rhs
+                in
+                (vb.pvb_pat, vb.pvb_expr)
+              with Not_transforming -> (pc_lhs, pc_rhs)
+            in
             let i = string_of_int i in
             let pc_rhs =
               [%expr
@@ -484,7 +492,7 @@ let traverse =
                   open_log_preamble ~brief:true
                     ~message:("<" ^ kind ^ " -- branch " ^ i ^ ">")
                     ~loc:pc_lhs.ppat_loc ()];
-                match [%e callback pc_rhs] with
+                match [%e pc_rhs] with
                 | match__result ->
                     Debug_runtime.close_log ();
                     match__result
@@ -492,12 +500,7 @@ let traverse =
                     Debug_runtime.close_log ();
                     raise e]
             in
-            try
-              let vb =
-                debug_binding callback @@ A.value_binding ~loc ~pat:pc_lhs ~expr:pc_rhs
-              in
-              { pc_lhs = vb.pvb_pat; pc_guard; pc_rhs = vb.pvb_expr }
-            with Not_transforming -> { pc_lhs; pc_guard; pc_rhs })
+            { pc_lhs; pc_guard; pc_rhs })
       in
       match e with
       | { pexp_desc = Pexp_let (rec_flag, bindings, body); _ } ->
