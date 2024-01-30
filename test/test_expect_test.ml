@@ -529,13 +529,13 @@ let%expect_test "%debug_show PrintBox tracking" =
       "test/test_expect_test.ml":516:37-518:46: track_branches
       ├─x = 7
       ├─"test/test_expect_test.ml":518:9: <if -- else branch>
-      │ └─"test/test_expect_test.ml":518:31: <match -- branch 1>
+      │ └─"test/test_expect_test.ml":518:36-518:37: <match -- branch 1>
       └─track_branches = 4
       4
       "test/test_expect_test.ml":516:37-518:46: track_branches
       ├─x = 3
       ├─"test/test_expect_test.ml":517:18: <if -- then branch>
-      │ └─"test/test_expect_test.ml":517:49: <match -- branch 2>
+      │ └─"test/test_expect_test.ml":517:54-517:57: <match -- branch 2>
       └─track_branches = -3
       -3
     |}]
@@ -559,9 +559,9 @@ let%expect_test "%debug_show PrintBox tracking <function>" =
   [%expect
     {|
       BEGIN DEBUG SESSION
-      "test/test_expect_test.ml":549:6: <function -- branch 3>
+      "test/test_expect_test.ml":549:11-549:12: <function -- branch 3>
       4
-      "test/test_expect_test.ml":551:6: <function -- branch 5>
+      "test/test_expect_test.ml":551:11-551:14: <function -- branch 5>
       -3
     |}]
 
@@ -595,7 +595,7 @@ let%expect_test "%debug_show PrintBox tracking with debug_notrace" =
       "test/test_expect_test.ml":570:37-584:16: track_branches
       ├─x = 8
       ├─"test/test_expect_test.ml":579:6: <if -- else branch>
-      │ └─"test/test_expect_test.ml":582:8: <match -- branch 2>
+      │ └─"test/test_expect_test.ml":583:10-584:16: <match -- branch 2>
       │   └─"test/test_expect_test.ml":583:14: result
       │     ├─"test/test_expect_test.ml":583:44: <if -- then branch>
       │     └─result = 8
@@ -640,7 +640,7 @@ let%expect_test "nested extension points are no-ops" =
       "test/test_expect_test.ml":615:37-629:16: track_branches
       ├─x = 8
       ├─"test/test_expect_test.ml":624:6: <if -- else branch>
-      │ └─"test/test_expect_test.ml":627:8: <match -- branch 2>
+      │ └─"test/test_expect_test.ml":628:10-629:16: <match -- branch 2>
       │   └─"test/test_expect_test.ml":628:23: result
       │     ├─"test/test_expect_test.ml":628:53: <if -- then branch>
       │     └─result = 8
@@ -1124,7 +1124,7 @@ let%expect_test "%debug_show PrintBox values_first_mode tracking" =
       └─<if -- else branch>
         ├─"test/test_expect_test.ml":1110:9
         └─<match -- branch 1>
-          └─"test/test_expect_test.ml":1110:31
+          └─"test/test_expect_test.ml":1110:36-1110:37
       4
       track_branches = -3
       ├─"test/test_expect_test.ml":1108:37-1110:46
@@ -1132,7 +1132,7 @@ let%expect_test "%debug_show PrintBox values_first_mode tracking" =
       └─<if -- then branch>
         ├─"test/test_expect_test.ml":1109:18
         └─<match -- branch 2>
-          └─"test/test_expect_test.ml":1109:49
+          └─"test/test_expect_test.ml":1109:54-1109:57
       -3
     |}]
 
@@ -1343,9 +1343,12 @@ let%expect_test "%debug_show PrintBox to stdout variants values_first_mode" =
     | Right (Two (y : int)) -> y * 2
     | _ -> 3
   in
+  let foo x : int =
+    match x with Left (x : int) -> x + 1 | Right (Two (y : int)) -> y * 2 | _ -> 3
+  in
   let () = print_endline @@ Int.to_string @@ baz (Left 4) in
   let () = print_endline @@ Int.to_string @@ baz (Right (Two 3)) in
-  let () = print_endline @@ Int.to_string @@ baz (Right (Three 0)) in
+  let () = print_endline @@ Int.to_string @@ foo (Right (Three 0)) in
   [%expect
     {|
       BEGIN DEBUG SESSION
@@ -1358,11 +1361,13 @@ let%expect_test "%debug_show PrintBox to stdout variants values_first_mode" =
       baz = <fun>
       └─"test/test_expect_test.ml":1341:6
       x = 4
-      └─"test/test_expect_test.ml":1342:6
+      └─"test/test_expect_test.ml":1342:24-1342:29
       5
       y = 3
-      └─"test/test_expect_test.ml":1343:6
+      └─"test/test_expect_test.ml":1343:31-1343:36
       6
-      <function -- branch 2>
-      └─"test/test_expect_test.ml":1344:6
+      foo = 3
+      ├─"test/test_expect_test.ml":1346:10-1347:82
+      └─<match -- branch 2>
+        └─"test/test_expect_test.ml":1347:81-1347:82
       3 |}]
