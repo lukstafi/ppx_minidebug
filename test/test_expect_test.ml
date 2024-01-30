@@ -1327,9 +1327,9 @@ let%expect_test "%debug_show PrintBox to stdout tuples values_first_mode" =
     339
     109 |}]
 
-type 'a irrefutable = Zero of 'a [@@deriving show]
-type ('a, 'b) left_right = Left of 'a | Right of 'b [@@deriving show]
-type ('a, 'b, 'c) one_two_three = One of 'a | Two of 'b | Three of 'c [@@deriving show]
+type 'a irrefutable = Zero of 'a
+type ('a, 'b) left_right = Left of 'a | Right of 'b
+type ('a, 'b, 'c) one_two_three = One of 'a | Two of 'b | Three of 'c
 
 let%expect_test "%debug_show PrintBox to stdout variants values_first_mode" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
@@ -1347,4 +1347,22 @@ let%expect_test "%debug_show PrintBox to stdout variants values_first_mode" =
   let () = print_endline @@ Int.to_string @@ baz (Right (Two 3)) in
   let () = print_endline @@ Int.to_string @@ baz (Right (Three 0)) in
   [%expect
-    {| |}]
+    {|
+      BEGIN DEBUG SESSION
+      bar = 16
+      ├─"test/test_expect_test.ml":1336:21-1338:9
+      ├─x = 7
+      └─y = 8
+        └─"test/test_expect_test.ml":1337:8
+      16
+      baz = <fun>
+      └─"test/test_expect_test.ml":1341:6
+      x = 4
+      └─"test/test_expect_test.ml":1342:6
+      5
+      y = 3
+      └─"test/test_expect_test.ml":1343:6
+      6
+      <function -- branch 2>
+      └─"test/test_expect_test.ml":1344:6
+      3 |}]
