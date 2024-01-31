@@ -409,18 +409,18 @@ If you provide the `split_files_after` setting, the logging will transition to a
 
 ### Providing the necessary type information
 
-We only log values of identifiers, located inside patterns, for which the type is provided in the source code, in a syntactically close / related location. PPX rewriters do not have access to the results of type inference. We extract the available type information, but we don't do it perfectly, there is room for improvement.
+We only log values of identifiers, located inside patterns, for which the type is provided in the source code, in a syntactically close / related location. PPX rewriters do not have access to the results of type inference. We extract the available type information, but we don't do it perfectly, there is room for improvement. We propagate type information top-down, merging it, but we do not unify or substitute type variables.
 
 Here is a probably incomplete list of the restrictions:
 
-- When types for a (sub) pattern are specified in multiple places, they are not combined. The type that is closer to the (sub) pattern is inspected, even if inspecting a corresponding type in another place would be better.
+- When types for a (sub) pattern are specified in multiple places, they are combined by matching syntactically, the type variable alternatives are discarded. The type that is closer to the (sub) pattern is preferred, even if selecting a corresponding type in another place would be better.
 - When faced with a binding of a form: `let pattern = (expression : type_)`, we make use of `type_`, but we ignore all types nested inside `expression`, even if we decompose `pattern`.
   - For example, `let%track_sexp (x, y) = ((5, 3) : int * int)` works -- logs both `x` and `y`. Also work: `let%track_sexp ((x, y) : int * int) = (5, 3)` and `let%track_sexp ((x : int), (y : int)) = (5, 3)`. But `let%track_sexp (x, y) = ((5 : int), (3 : int))` will not log anything!
 - We ignore record and variant datatypes when processing record and variant constructor cases. That's because there is no generic(*) way to extract the types of the arguments.
   - We do handle tuple types and the builtin array type (they are not records or variants).
-  - Hard-coded special cases: we do handle the option type and the list type.
-    - For example, this works: `let%track_sexp { first : int; second : int } = { first = 3; second =7 }` -- but compare with the tuple examples above, the alternatives provided above would not work for records.
-    - (*) Although polymorphic variant types can be provided inline, we decided it's not worth the effort supporting them.
+  - TODO: Hard-coded special cases: we do handle the option type and the list type.
+  - For example, this works: `let%track_sexp { first : int; second : int } = { first = 3; second =7 }` -- but compare with the tuple examples above, the alternatives provided above would not work for records.
+  - (*) Although polymorphic variant types can be provided inline, we decided it's not worth the effort supporting them.
 
 ## VS Code suggestions
 

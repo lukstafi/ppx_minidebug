@@ -1371,3 +1371,39 @@ let%expect_test "%debug_show PrintBox to stdout variants values_first_mode" =
       └─<match -- branch 2>
         └─"test/test_expect_test.ml":1347:81-1347:82
       3 |}]
+
+let%expect_test "%debug_show PrintBox to stdout tuples merge type info" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let%debug_show baz (((first : int), (second : 'a)) : 'b * int) : int * int =
+    let ((y : 'c), (z : int)) : int * 'd = (first + 1, 3) in
+    let (a : int), b = (first + 1, (second + 3 : int)) in
+    ((second * y) + z, (a * a) + b)
+  in
+  let (r1 : 'e), (r2 : int) = (baz (7, 42) : int * 'f) in
+  let () = print_endline @@ Int.to_string r1 in
+  let () = print_endline @@ Int.to_string r2 in
+  (* Note the missing value of [b]: the nested-in-expression type is not propagated. *)
+  [%expect
+    {|
+    BEGIN DEBUG SESSION
+    (r1, r2)
+    ├─"test/test_expect_test.ml":1382:6
+    ├─<values>
+    │ ├─r1 = 339
+    │ └─r2 = 109
+    └─baz = (339, 109)
+      ├─"test/test_expect_test.ml":1377:21-1380:35
+      ├─first = 7
+      ├─second = 42
+      ├─(y, z)
+      │ ├─"test/test_expect_test.ml":1378:8
+      │ └─<values>
+      │   ├─y = 8
+      │   └─z = 3
+      └─(a, b)
+        ├─"test/test_expect_test.ml":1379:8
+        └─<values>
+          └─a = 8
+    339
+    109 |}]
+

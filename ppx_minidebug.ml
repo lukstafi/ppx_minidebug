@@ -211,27 +211,59 @@ let rec expand_fun body = function
         pexp_attributes;
       }
 
+let rec pick ~typ ?alt_typ () =
+  let rec deref typ =
+    match typ.ptyp_desc with
+    | Ptyp_alias (typ, _) | Ptyp_poly (_, typ) -> deref typ
+    | _ -> typ
+  in
+  let typ = deref typ
+  and alt_typ = match alt_typ with None -> None | Some t -> Some (deref t) in
+  let alt_or_typ = match alt_typ with None -> typ | Some t -> t in
+  let loc = typ.ptyp_loc in
+  match typ.ptyp_desc with
+  | Ptyp_any -> alt_or_typ
+  | Ptyp_var _ -> alt_or_typ
+  | Ptyp_arrow (_, arg, ret) -> (
+      match alt_typ with
+      | Some { ptyp_desc = Ptyp_arrow (_, arg2, ret2); _ } ->
+          let arg = pick ~typ:arg ~alt_typ:arg2 () in
+          let ret = pick ~typ:ret ~alt_typ:ret2 () in
+          A.ptyp_arrow ~loc Nolabel arg ret
+      | _ -> typ)
+  | Ptyp_tuple args -> (
+      match alt_typ with
+      | Some { ptyp_desc = Ptyp_tuple args2; _ } when List.length args = List.length args2
+        ->
+          let args = List.map2 (fun typ alt_typ -> pick ~typ ~alt_typ ()) args args2 in
+          A.ptyp_tuple ~loc args
+      | _ -> typ)
+  | Ptyp_constr (c, args) -> (
+      match alt_typ with
+      | Some { ptyp_desc = Ptyp_constr (c2, args2); _ }
+        when String.equal (last_ident c.txt) (last_ident c2.txt)
+             && List.length args = List.length args2 ->
+          let args = List.map2 (fun typ alt_typ -> pick ~typ ~alt_typ ()) args args2 in
+          A.ptyp_constr ~loc c args
+      | _ -> typ)
+  | _ -> typ
+
 let bound_patterns ~alt_typ pat =
   let rec loop ~alt_typ pat =
     let loc = pat.ppat_loc in
-    match (alt_typ, pat) with
-    | ( _,
-        [%pat?
-          ([%p? { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat] :
-            [%t? typ])] ) ->
-        (A.ppat_var ~loc descr_loc, [ (descr_loc, pat, typ) ])
+    let typ, pat =
+      match pat with
+      | [%pat? ([%p? pat] : [%t? typ])] -> (Some (pick ~typ ?alt_typ ()), pat)
+      | _ -> (alt_typ, pat)
+    in
+    match (typ, pat) with
+    | ( Some { ptyp_desc = Ptyp_any | Ptyp_var _ | Ptyp_package _ | Ptyp_extension _; _ },
+        { ppat_desc = Ppat_var _ | Ppat_alias (_, _); _ } ) ->
+        (* Skip abstract types and types unlikely to have derivable printers. *)
+        (A.ppat_any ~loc, [])
     | Some typ, ({ ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat)
       ->
         (A.ppat_var ~loc descr_loc, [ (descr_loc, pat, typ) ])
-    | ( _,
-        [%pat?
-          ([%p? { ppat_desc = Ppat_tuple pats; ppat_loc; _ }] :
-            [%t? { ptyp_desc = Ptyp_tuple typs; _ }])] ) ->
-        (* TODO: ideally we should combine with the alt_typ information if present. *)
-        let pats, bindings =
-          List.split @@ List.map2 (fun pat typ -> loop ~alt_typ:(Some typ) pat) pats typs
-        in
-        (A.ppat_tuple ~loc:ppat_loc pats, List.concat bindings)
     | ( Some { ptyp_desc = Ptyp_tuple typs; _ },
         { ppat_desc = Ppat_tuple pats; ppat_loc; _ } ) ->
         let pats, bindings =
@@ -258,12 +290,6 @@ let bound_patterns ~alt_typ pat =
     | _, { ppat_desc = Ppat_variant (lid, Some pat); _ } ->
         let pat, bindings = loop ~alt_typ:None pat in
         (A.ppat_variant ~loc lid (Some pat), bindings)
-    | _, [%pat? ([%p? { ppat_desc = Ppat_array pats; ppat_loc; _ }] : [%t? typ] array)] ->
-        (* TODO: ideally we should combine with the alt_typ information if present. *)
-        let pats, bindings =
-          List.split @@ List.map (fun pat -> loop ~alt_typ:(Some typ) pat) pats
-        in
-        (A.ppat_array ~loc:ppat_loc pats, List.concat bindings)
     | Some [%type: [%t? typ] array], { ppat_desc = Ppat_array pats; ppat_loc; _ } ->
         let pats, bindings =
           List.split @@ List.map (fun pat -> loop ~alt_typ:(Some typ) pat) pats
@@ -275,11 +301,11 @@ let bound_patterns ~alt_typ pat =
         in
         (A.ppat_array ~loc:ppat_loc pats, List.concat bindings)
     | _, { ppat_desc = Ppat_or (pat1, pat2); _ } ->
-        let pat1, binds1 = loop ~alt_typ pat1 in
+        let pat1, binds1 = loop ~alt_typ:typ pat1 in
         let binds1 =
           List.map (fun (({ txt = descr; _ }, _, _) as b) -> (descr, b)) binds1
         in
-        let pat2, binds2 = loop ~alt_typ pat2 in
+        let pat2, binds2 = loop ~alt_typ:typ pat2 in
         let binds2 =
           List.map (fun (({ txt = descr; _ }, _, _) as b) -> (descr, b)) binds2
         in
@@ -293,26 +319,23 @@ let bound_patterns ~alt_typ pat =
     | Some [%type: [%t? typ] Lazy.t], { ppat_desc = Ppat_lazy pat; _ } ->
         let pat, bindings = loop ~alt_typ:(Some typ) pat in
         (A.ppat_lazy ~loc pat, bindings)
-    | _, [%pat? ([%p? { ppat_desc = Ppat_lazy pat; _ }] : [%t? typ] Lazy.t)] ->
-        let pat, bindings = loop ~alt_typ:(Some typ) pat in
-        (A.ppat_lazy ~loc pat, bindings)
     | _, { ppat_desc = Ppat_lazy pat; _ } ->
         let pat, bindings = loop ~alt_typ:None pat in
         (A.ppat_lazy ~loc pat, bindings)
     | _, { ppat_desc = Ppat_open (m, pat); _ } ->
-        let pat, bindings = loop ~alt_typ pat in
+        let pat, bindings = loop ~alt_typ:typ pat in
         (A.ppat_open ~loc m pat, bindings)
-    | _, [%pat? ([%p? pat] : [%t? typ])] -> loop ~alt_typ:(Some typ) pat
-    | None, { ppat_desc = Ppat_var _ | Ppat_alias (_, _); _ } ->
-        (* Insufficient type information. *)
-        (pat, [])
+    | _, { ppat_desc = Ppat_constraint (_, _); _ } -> assert false
     | ( _,
         {
           ppat_desc =
-            ( Ppat_type _ | Ppat_extension _ | Ppat_unpack _ | Ppat_any | Ppat_constant _
+            ( Ppat_var _
+            | Ppat_alias (_, _)
+            | Ppat_type _ | Ppat_extension _ | Ppat_unpack _ | Ppat_any | Ppat_constant _
             | Ppat_interval _ );
           _;
         } ) ->
+        (* The pattern is only used to bind values that will be logged. *)
         (A.ppat_any ~loc, [])
   in
   let bind_pat, bound = loop ~alt_typ pat in
@@ -401,10 +424,10 @@ let debug_fun callback ?ret_descr ?ret_typ exp =
   in
   expand_fun body args
 
-let debug_case callback ?ret_descr ?ret_typ ?alt_typ kind i { pc_lhs; pc_guard; pc_rhs } =
+let debug_case callback ?ret_descr ?ret_typ ?arg_typ kind i { pc_lhs; pc_guard; pc_rhs } =
   let pc_guard = Option.map callback pc_guard in
   let loc = pc_lhs.ppat_loc in
-  let _, bound = bound_patterns ~alt_typ pc_lhs in
+  let _, bound = bound_patterns ~alt_typ:arg_typ pc_lhs in
   let arg_logs =
     List.map
       (fun (descr_loc, pat, typ) -> !log_value ~loc ~typ ~descr_loc (pat2expr pat))
@@ -425,72 +448,58 @@ let debug_case callback ?ret_descr ?ret_typ ?alt_typ kind i { pc_lhs; pc_guard; 
   { pc_lhs; pc_guard; pc_rhs }
 
 let debug_binding callback vb =
-  let pat = vb.pvb_pat in
   let loc = vb.pvb_loc in
-  let ret_descr, alt_typ, ret_typ =
-    match pat with
+  let pat, ret_descr, typ =
+    match vb.pvb_pat with
     | [%pat?
-        ([%p? { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ }] :
-          [%t? alt_typ] -> [%t? ret_typ])] ->
-        (Some descr_loc, Some alt_typ, Some ret_typ)
-    | [%pat?
-        ([%p? { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ }] :
-          [%t? _ret_typ])] ->
-        (* FIXME: this looks wrong, but...? *)
-        (Some descr_loc, None, None)
-    | { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } ->
-        (Some descr_loc, None, None)
-    | _ -> (None, None, None)
+        ([%p? { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat] :
+          [%t? typ])] ->
+        (pat, Some descr_loc, Some typ)
+    | { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat ->
+        (pat, Some descr_loc, None)
+    | pat -> (pat, None, None)
   in
-  match vb.pvb_expr with
-  | { pexp_desc = Pexp_newtype _ | Pexp_fun _; _ } ->
-      { vb with pvb_expr = debug_fun callback ?ret_descr ?ret_typ vb.pvb_expr }
-  | [%expr ([%e? { pexp_desc = Pexp_newtype _ | Pexp_fun _; _ }] : [%t? _])] ->
-      { vb with pvb_expr = debug_fun callback ?ret_descr ?ret_typ vb.pvb_expr }
-  | { pexp_desc = Pexp_function cases; _ } ->
-      let pvb_expr =
+  let exp, typ2 =
+    match vb.pvb_expr with
+    | [%expr ([%e? exp] : [%t? typ])] -> (exp, Some typ)
+    | exp -> (exp, None)
+  in
+  let typ =
+    match typ with Some typ -> Some (pick ~typ ?alt_typ:typ2 ()) | None -> typ2
+  in
+  let arg_typ, ret_typ =
+    match typ with
+    | Some { ptyp_desc = Ptyp_arrow (_, arg_typ, ret_typ); _ } ->
+        (Some arg_typ, Some ret_typ)
+    | _ -> (None, None)
+  in
+  let exp =
+    match exp with
+    | { pexp_desc = Pexp_newtype _ | Pexp_fun _; _ } ->
+        (* [ret_typ] is not the return type if the function has more arguments. *)
+        debug_fun callback ?typ ?ret_descr exp
+    | { pexp_desc = Pexp_function cases; _ } ->
         A.pexp_function ~loc:vb.pvb_expr.pexp_loc
-          (List.mapi (debug_case callback ?ret_descr ?ret_typ ?alt_typ "function") cases)
-      in
-      { vb with pvb_expr }
-  | [%expr
-      ([%e? { pexp_desc = Pexp_function cases; pexp_loc = f_loc; _ }]
-        : [%t? alt_typ] -> [%t? ret_typ])] ->
-      let pvb_expr =
-        A.pexp_constraint ~loc:vb.pvb_expr.pexp_loc
-          (A.pexp_function ~loc:f_loc
-             (List.mapi
-                (debug_case callback ?ret_descr ~ret_typ ~alt_typ "function")
-                cases))
-          [%type: [%t alt_typ] -> [%t ret_typ]]
-      in
-      { vb with pvb_expr }
-  | [%expr ([%e? { pexp_desc = Pexp_function cases; _ }] : [%t? _])] ->
-      let pvb_expr =
+          (List.mapi (debug_case callback ?ret_descr ?ret_typ ?arg_typ "function") cases)
+    | [%expr ([%e? { pexp_desc = Pexp_function cases; _ }] : [%t? _])] ->
         A.pexp_function ~loc:vb.pvb_expr.pexp_loc
-          (List.mapi (debug_case callback ?ret_descr ?ret_typ ?alt_typ "function") cases)
-      in
-      { vb with pvb_expr }
-  | _ ->
-      let alt_typ =
-        match vb.pvb_expr with [%expr ([%e? _exp] : [%t? typ])] -> Some typ | _ -> None
-      in
-      let result, bound = bound_patterns ~alt_typ pat in
-      if bound = [] then raise Not_transforming;
-      let logs_expr =
-        List.map
-          (fun (descr_loc, pat, typ) ->
-            !log_value ~loc:vb.pvb_expr.pexp_loc ~typ ~descr_loc (pat2expr pat))
-          bound
-        |> List.fold_left
-             (fun e1 e2 ->
-               [%expr
-                 [%e e1];
-                 [%e e2]])
-             [%expr ()]
-      in
-      let descr_loc = pat2descr ~default:"__val" pat in
-      let exp =
+          (List.mapi (debug_case callback ?ret_descr ?ret_typ ?arg_typ "function") cases)
+    | _ ->
+        let result, bound = bound_patterns ~alt_typ:typ pat in
+        if bound = [] then raise Not_transforming;
+        let logs_expr =
+          List.map
+            (fun (descr_loc, pat, typ) ->
+              !log_value ~loc:vb.pvb_expr.pexp_loc ~typ ~descr_loc (pat2expr pat))
+            bound
+          |> List.fold_left
+               (fun e1 e2 ->
+                 [%expr
+                   [%e e1];
+                   [%e e2]])
+               [%expr ()]
+        in
+        let descr_loc = pat2descr ~default:"__val" pat in
         [%expr
           let __entry_id = Debug_runtime.get_entry_id () in
           if Debug_runtime.exceeds_max_children () then (
@@ -512,8 +521,10 @@ let debug_binding callback vb =
               | exception e ->
                   Debug_runtime.close_log ();
                   raise e)]
-      in
-      { vb with pvb_expr = exp }
+  in
+  match typ2 with
+  | None -> { vb with pvb_expr = exp }
+  | Some typ -> { vb with pvb_expr = [%expr ([%e exp] : [%t typ])] }
 
 type rule = {
   ext_point : string;
@@ -555,163 +566,173 @@ let traverse =
   object (self)
     inherit Ast_traverse.map as super
 
-    method! expression e =
+    method! expression exp =
       let callback e = self#expression e in
-      let track_cases ?ret_descr ?ret_typ ?alt_typ kind =
-        List.mapi (debug_case callback ?ret_descr ?ret_typ ?alt_typ kind)
+      let track_cases ?ret_descr ?ret_typ ?arg_typ kind =
+        List.mapi (debug_case callback ?ret_descr ?ret_typ ?arg_typ kind)
       in
-      match e with
-      | { pexp_desc = Pexp_let (rec_flag, bindings, body); _ } ->
-          let bindings =
-            List.map
-              (fun vb ->
-                try debug_binding callback vb
-                with Not_transforming ->
-                  { vb with pvb_expr = super#expression vb.pvb_expr })
-              bindings
-          in
-          { e with pexp_desc = Pexp_let (rec_flag, bindings, callback body) }
-      | { pexp_desc = Pexp_extension ({ loc = _; txt }, PStr [%str [%e? body]]); _ }
-        when is_ext_point txt ->
-          callback body
-      | {
-       pexp_desc =
-         Pexp_extension ({ loc = _; txt = "debug_notrace" }, PStr [%str [%e? body]]);
-       _;
-      } -> (
-          let old_track_branches = !track_branches in
-          track_branches := false;
-          match callback body with
-          | result ->
-              track_branches := old_track_branches;
-              result
-          | exception e ->
-              track_branches := old_track_branches;
-              raise e)
-      | { pexp_desc = Pexp_newtype (type_label, exp); _ } -> (
-          try debug_fun callback e
-          with Not_transforming ->
-            { e with pexp_desc = Pexp_newtype (type_label, self#expression exp) })
-      | { pexp_desc = Pexp_fun (arg_label, guard, pat, exp); _ } -> (
-          try debug_fun callback e
-          with Not_transforming ->
-            { e with pexp_desc = Pexp_fun (arg_label, guard, pat, self#expression exp) })
-      | { pexp_desc = Pexp_match ([%expr ([%e? expr] : [%t? alt_typ])], cases); _ }
-        when !track_branches ->
-          {
-            e with
-            pexp_desc = Pexp_match (callback expr, track_cases ~alt_typ "match" cases);
-          }
-      | { pexp_desc = Pexp_match (expr, cases); _ } when !track_branches ->
-          { e with pexp_desc = Pexp_match (callback expr, track_cases "match" cases) }
-      | { pexp_desc = Pexp_function cases; _ } when !track_branches ->
-          { e with pexp_desc = Pexp_function (track_cases "function" cases) }
-      | { pexp_desc = Pexp_ifthenelse (if_, then_, else_); _ } when !track_branches ->
-          let then_ =
-            let loc = then_.pexp_loc in
+      let loc = exp.pexp_loc in
+      let exp, ret_typ =
+        match exp with
+        | [%expr ([%e? exp] : [%t? typ])] -> (exp, Some typ)
+        | _ -> (exp, None)
+      in
+      let pexp_desc =
+        match exp.pexp_desc with
+        | Pexp_let (rec_flag, bindings, body) ->
+            let bindings =
+              List.map
+                (fun vb ->
+                  try debug_binding callback vb
+                  with Not_transforming ->
+                    { vb with pvb_expr = super#expression vb.pvb_expr })
+                bindings
+            in
+            Pexp_let (rec_flag, bindings, callback body)
+        | Pexp_extension ({ loc = _; txt }, PStr [%str [%e? body]]) when is_ext_point txt
+          ->
+            (callback body).pexp_desc
+        | Pexp_extension ({ loc = _; txt = "debug_notrace" }, PStr [%str [%e? body]]) -> (
+            let old_track_branches = !track_branches in
+            track_branches := false;
+            match callback body with
+            | result ->
+                track_branches := old_track_branches;
+                result.pexp_desc
+            | exception e ->
+                track_branches := old_track_branches;
+                raise e)
+        | Pexp_newtype (type_label, subexp) -> (
+            try (debug_fun callback ?typ:ret_typ exp).pexp_desc
+            with Not_transforming -> Pexp_newtype (type_label, self#expression subexp))
+        | Pexp_fun (arg_label, guard, pat, subexp) -> (
+            try (debug_fun callback ?typ:ret_typ exp).pexp_desc
+            with Not_transforming ->
+              Pexp_fun (arg_label, guard, pat, self#expression subexp))
+        | Pexp_match ([%expr ([%e? expr] : [%t? arg_typ])], cases) when !track_branches ->
+            Pexp_match (callback expr, track_cases ~arg_typ ?ret_typ "match" cases)
+        | Pexp_match (expr, cases) when !track_branches ->
+            Pexp_match (callback expr, track_cases ?ret_typ "match" cases)
+        | Pexp_function cases when !track_branches ->
+            let arg_typ, ret_typ =
+              match ret_typ with
+              | Some { ptyp_desc = Ptyp_arrow (_, arg, ret); _ } -> (Some arg, Some ret)
+              | _ -> (None, None)
+            in
+            Pexp_function (track_cases ?arg_typ ?ret_typ "function" cases)
+        | Pexp_ifthenelse (if_, then_, else_) when !track_branches ->
+            let then_ =
+              let loc = then_.pexp_loc in
+              [%expr
+                let __entry_id = Debug_runtime.get_entry_id () in
+                [%e open_log_preamble ~brief:true ~message:"<if -- then branch>" ~loc ()];
+                match [%e callback then_] with
+                | if_then__result ->
+                    Debug_runtime.close_log ();
+                    if_then__result
+                | exception e ->
+                    Debug_runtime.close_log ();
+                    raise e]
+            in
+            let else_ =
+              Option.map
+                (fun else_ ->
+                  let loc = else_.pexp_loc in
+                  [%expr
+                    let __entry_id = Debug_runtime.get_entry_id () in
+                    [%e
+                      open_log_preamble ~brief:true ~message:"<if -- else branch>" ~loc ()];
+                    match [%e callback else_] with
+                    | if_else__result ->
+                        Debug_runtime.close_log ();
+                        if_else__result
+                    | exception e ->
+                        Debug_runtime.close_log ();
+                        raise e])
+                else_
+            in
+            Pexp_ifthenelse (callback if_, then_, else_)
+        | Pexp_for (pat, from, to_, dir, body) when !track_branches ->
+            let body =
+              let loc = body.pexp_loc in
+              let descr_loc = pat2descr ~default:"__for_index" pat in
+              let typ =
+                A.ptyp_constr ~loc:pat.ppat_loc
+                  { txt = Lident "int"; loc = pat.ppat_loc }
+                  []
+              in
+              [%expr
+                let __entry_id = Debug_runtime.get_entry_id () in
+                [%e !log_value ~loc ~typ ~descr_loc (pat2expr pat)];
+                if Debug_runtime.exceeds_max_children () then (
+                  [%e log_string ~loc ~descr_loc "<max_num_children exceeded>"];
+                  failwith "ppx_minidebug: max_num_children exceeded")
+                else (
+                  [%e
+                    open_log_preamble ~brief:true
+                      ~message:("<for " ^ descr_loc.txt ^ ">")
+                      ~loc:descr_loc.loc ()];
+                  if Debug_runtime.exceeds_max_nesting () then (
+                    [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
+                    Debug_runtime.close_log ();
+                    failwith "ppx_minidebug: max_nesting_depth exceeded")
+                  else
+                    match [%e callback body] with
+                    | () -> Debug_runtime.close_log ()
+                    | exception e ->
+                        Debug_runtime.close_log ();
+                        raise e)]
+            in
+            let loc = exp.pexp_loc in
             [%expr
               let __entry_id = Debug_runtime.get_entry_id () in
-              [%e open_log_preamble ~brief:true ~message:"<if -- then branch>" ~loc ()];
-              match [%e callback then_] with
-              | if_then__result ->
-                  Debug_runtime.close_log ();
-                  if_then__result
+              [%e open_log_preamble ~brief:true ~message:"<for loop>" ~loc ()];
+              match
+                [%e { exp with pexp_desc = Pexp_for (pat, from, to_, dir, body) }]
+              with
+              | () -> Debug_runtime.close_log ()
               | exception e ->
                   Debug_runtime.close_log ();
                   raise e]
-          in
-          let else_ =
-            Option.map
-              (fun else_ ->
-                let loc = else_.pexp_loc in
-                [%expr
-                  let __entry_id = Debug_runtime.get_entry_id () in
+              .pexp_desc
+        | Pexp_while (cond, body) when !track_branches ->
+            let body =
+              let loc = body.pexp_loc in
+              let descr_loc = { txt = "<while body>"; loc } in
+              [%expr
+                let __entry_id = Debug_runtime.get_entry_id () in
+                if Debug_runtime.exceeds_max_children () then (
+                  [%e log_string ~loc ~descr_loc "<max_num_children exceeded>"];
+                  failwith "ppx_minidebug: max_num_children exceeded")
+                else (
                   [%e
-                    open_log_preamble ~brief:true ~message:"<if -- else branch>" ~loc ()];
-                  match [%e callback else_] with
-                  | if_else__result ->
-                      Debug_runtime.close_log ();
-                      if_else__result
-                  | exception e ->
-                      Debug_runtime.close_log ();
-                      raise e])
-              else_
-          in
-          { e with pexp_desc = Pexp_ifthenelse (callback if_, then_, else_) }
-      | { pexp_desc = Pexp_for (pat, from, to_, dir, body); _ } when !track_branches ->
-          let body =
-            let loc = body.pexp_loc in
-            let descr_loc = pat2descr ~default:"__for_index" pat in
-            let typ =
-              A.ptyp_constr ~loc:pat.ppat_loc
-                { txt = Lident "int"; loc = pat.ppat_loc }
-                []
+                    open_log_preamble ~brief:true ~message:"<while loop>"
+                      ~loc:descr_loc.loc ()];
+                  if Debug_runtime.exceeds_max_nesting () then (
+                    [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
+                    Debug_runtime.close_log ();
+                    failwith "ppx_minidebug: max_nesting_depth exceeded")
+                  else
+                    match [%e callback body] with
+                    | () -> Debug_runtime.close_log ()
+                    | exception e ->
+                        Debug_runtime.close_log ();
+                        raise e)]
             in
+            let loc = exp.pexp_loc in
             [%expr
               let __entry_id = Debug_runtime.get_entry_id () in
-              [%e !log_value ~loc ~typ ~descr_loc (pat2expr pat)];
-              if Debug_runtime.exceeds_max_children () then (
-                [%e log_string ~loc ~descr_loc "<max_num_children exceeded>"];
-                failwith "ppx_minidebug: max_num_children exceeded")
-              else (
-                [%e
-                  open_log_preamble ~brief:true
-                    ~message:("<for " ^ descr_loc.txt ^ ">")
-                    ~loc:descr_loc.loc ()];
-                if Debug_runtime.exceeds_max_nesting () then (
-                  [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
+              [%e open_log_preamble ~brief:true ~message:"<while loop>" ~loc ()];
+              match [%e { exp with pexp_desc = Pexp_while (cond, body) }] with
+              | () -> Debug_runtime.close_log ()
+              | exception e ->
                   Debug_runtime.close_log ();
-                  failwith "ppx_minidebug: max_nesting_depth exceeded")
-                else
-                  match [%e callback body] with
-                  | () -> Debug_runtime.close_log ()
-                  | exception e ->
-                      Debug_runtime.close_log ();
-                      raise e)]
-          in
-          let loc = e.pexp_loc in
-          [%expr
-            let __entry_id = Debug_runtime.get_entry_id () in
-            [%e open_log_preamble ~brief:true ~message:"<for loop>" ~loc ()];
-            match [%e { e with pexp_desc = Pexp_for (pat, from, to_, dir, body) }] with
-            | () -> Debug_runtime.close_log ()
-            | exception e ->
-                Debug_runtime.close_log ();
-                raise e]
-      | { pexp_desc = Pexp_while (cond, body); _ } when !track_branches ->
-          let body =
-            let loc = body.pexp_loc in
-            let descr_loc = { txt = "<while body>"; loc } in
-            [%expr
-              let __entry_id = Debug_runtime.get_entry_id () in
-              if Debug_runtime.exceeds_max_children () then (
-                [%e log_string ~loc ~descr_loc "<max_num_children exceeded>"];
-                failwith "ppx_minidebug: max_num_children exceeded")
-              else (
-                [%e
-                  open_log_preamble ~brief:true ~message:"<while loop>" ~loc:descr_loc.loc
-                    ()];
-                if Debug_runtime.exceeds_max_nesting () then (
-                  [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
-                  Debug_runtime.close_log ();
-                  failwith "ppx_minidebug: max_nesting_depth exceeded")
-                else
-                  match [%e callback body] with
-                  | () -> Debug_runtime.close_log ()
-                  | exception e ->
-                      Debug_runtime.close_log ();
-                      raise e)]
-          in
-          let loc = e.pexp_loc in
-          [%expr
-            let __entry_id = Debug_runtime.get_entry_id () in
-            [%e open_log_preamble ~brief:true ~message:"<while loop>" ~loc ()];
-            match [%e { e with pexp_desc = Pexp_while (cond, body) }] with
-            | () -> Debug_runtime.close_log ()
-            | exception e ->
-                Debug_runtime.close_log ();
-                raise e]
-      | _ -> super#expression e
+                  raise e]
+              .pexp_desc
+        | _ -> (super#expression exp).pexp_desc
+      in
+      let exp = { exp with pexp_desc } in
+      match ret_typ with None -> exp | Some typ -> [%expr ([%e exp] : [%t typ])]
 
     method! structure_item si =
       let callback e = self#expression e in
