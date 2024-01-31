@@ -24,7 +24,7 @@
   "Formatted logs of let-bound values, function arguments and results; `if` and `match` branches taken. Optionally, as collapsible HTML trees with highlights.")
  (depends
   (ocaml
-   (>= 4.08))
+   (>= 4.13))
   dune
   ppx_deriving
   ppx_sexp_conv
