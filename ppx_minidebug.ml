@@ -337,20 +337,22 @@ let debug_body callback ~loc ~message ~descr_loc ~arg_logs typ body =
           Debug_runtime.close_log ();
           raise e]
 
-let debug_fun callback ?descr_loc ?alt_typ exp =
-  let args, body, typ_opt2 = collect_fun [] exp in
+let debug_fun callback ?ret_descr ?ret_typ exp =
+  let args, body, ret_typ2 = collect_fun [] exp in
   let loc = exp.pexp_loc in
   let typ =
-    match (alt_typ, typ_opt2) with
-    | Some typ, _ | None, Some typ -> Some typ
+    (* Currently, the type closer to the code has priority. *)
+    match (ret_typ2, ret_typ) with
+    | Some typ, _ -> Some typ
+    | None, Some typ -> Some typ
     | None, None when !track_branches -> None
     | None, None -> raise Not_transforming
   in
-  let descr_loc =
-    match descr_loc with
+  let ret_descr =
+    match ret_descr with
     | None when !track_branches -> { txt = "__fun"; loc }
     | None -> raise Not_transforming
-    | Some descr_loc -> descr_loc
+    | Some descr -> descr
   in
   let arg_logs =
     List.concat
@@ -367,14 +369,15 @@ let debug_fun callback ?descr_loc ?alt_typ exp =
          args
   in
   let body =
-    debug_body callback ~loc ~message:descr_loc.txt ~descr_loc ~arg_logs typ body
+    debug_body callback ~loc ~message:ret_descr.txt ~descr_loc:ret_descr ~arg_logs typ
+      body
   in
   let body =
-    match typ_opt2 with None -> body | Some typ -> [%expr ([%e body] : [%t typ])]
+    match ret_typ2 with None -> body | Some typ -> [%expr ([%e body] : [%t typ])]
   in
   expand_fun body args
 
-let debug_case callback ~ret_descr ~ret_typ ~alt_typ kind i { pc_lhs; pc_guard; pc_rhs } =
+let debug_case callback ?ret_descr ?ret_typ ?alt_typ kind i { pc_lhs; pc_guard; pc_rhs } =
   let pc_guard = Option.map callback pc_guard in
   let loc = pc_lhs.ppat_loc in
   let _, bound = bound_patterns ~alt_typ pc_lhs in
@@ -400,33 +403,48 @@ let debug_case callback ~ret_descr ~ret_typ ~alt_typ kind i { pc_lhs; pc_guard; 
 let debug_binding callback vb =
   let pat = vb.pvb_pat in
   let loc = vb.pvb_loc in
-  match vb.pvb_expr.pexp_desc with
-  | Pexp_newtype _ | Pexp_fun _ ->
-      let descr_loc, alt_typ =
-        match pat with
-        | [%pat?
-            ([%p? { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ }] :
-              [%t? typ])] ->
-            (descr_loc, Some typ)
-        | { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } ->
-            (descr_loc, None)
-        | _ -> raise Not_transforming
-      in
-      { vb with pvb_expr = debug_fun callback ~descr_loc ?alt_typ vb.pvb_expr }
-  | Pexp_function cases ->
-      let ret_descr, alt_typ, ret_typ =
-        match pat with
-        | [%pat?
-            ([%p? { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ }] :
-              [%t? alt_typ] -> [%t? ret_typ])] ->
-            (Some descr_loc, Some alt_typ, Some ret_typ)
-        | { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } ->
-            (Some descr_loc, None, None)
-        | _ -> raise Not_transforming
-      in
+  let ret_descr, alt_typ, ret_typ =
+    match pat with
+    | [%pat?
+        ([%p? { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ }] :
+          [%t? alt_typ] -> [%t? ret_typ])] ->
+        (Some descr_loc, Some alt_typ, Some ret_typ)
+    | [%pat?
+        ([%p? { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ }] :
+          [%t? _ret_typ])] ->
+        (* FIXME: this looks wrong, but...? *)
+        (Some descr_loc, None, None)
+    | { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } ->
+        (Some descr_loc, None, None)
+    | _ -> (None, None, None)
+  in
+  match vb.pvb_expr with
+  | { pexp_desc = Pexp_newtype _ | Pexp_fun _; _ } ->
+      { vb with pvb_expr = debug_fun callback ?ret_descr ?ret_typ vb.pvb_expr }
+  | [%expr ([%e? { pexp_desc = Pexp_newtype _ | Pexp_fun _; _ }] : [%t? _])] ->
+      { vb with pvb_expr = debug_fun callback ?ret_descr ?ret_typ vb.pvb_expr }
+  | { pexp_desc = Pexp_function cases; _ } ->
       let pvb_expr =
         A.pexp_function ~loc:vb.pvb_expr.pexp_loc
-          (List.mapi (debug_case callback ~ret_descr ~ret_typ ~alt_typ "function") cases)
+          (List.mapi (debug_case callback ?ret_descr ?ret_typ ?alt_typ "function") cases)
+      in
+      { vb with pvb_expr }
+  | [%expr
+      ([%e? { pexp_desc = Pexp_function cases; pexp_loc = f_loc; _ }]
+        : [%t? alt_typ] -> [%t? ret_typ])] ->
+      let pvb_expr =
+        A.pexp_constraint ~loc:vb.pvb_expr.pexp_loc
+          (A.pexp_function ~loc:f_loc
+             (List.mapi
+                (debug_case callback ?ret_descr ~ret_typ ~alt_typ "function")
+                cases))
+          [%type: [%t alt_typ] -> [%t ret_typ]]
+      in
+      { vb with pvb_expr }
+  | [%expr ([%e? { pexp_desc = Pexp_function cases; _ }] : [%t? _])] ->
+      let pvb_expr =
+        A.pexp_function ~loc:vb.pvb_expr.pexp_loc
+          (List.mapi (debug_case callback ?ret_descr ?ret_typ ?alt_typ "function") cases)
       in
       { vb with pvb_expr }
   | _ ->
@@ -516,7 +534,7 @@ let traverse =
     method! expression e =
       let callback e = self#expression e in
       let track_cases ?ret_descr ?ret_typ ?alt_typ kind =
-        List.mapi (debug_case callback ~ret_descr ~ret_typ ~alt_typ kind)
+        List.mapi (debug_case callback ?ret_descr ?ret_typ ?alt_typ kind)
       in
       match e with
       | { pexp_desc = Pexp_let (rec_flag, bindings, body); _ } ->

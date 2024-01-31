@@ -1358,13 +1358,13 @@ let%expect_test "%debug_show PrintBox to stdout variants values_first_mode" =
       └─y = 8
         └─"test/test_expect_test.ml":1337:8
       16
-      baz = <fun>
-      └─"test/test_expect_test.ml":1341:6
-      x = 4
-      └─"test/test_expect_test.ml":1342:24-1342:29
+      baz = 5
+      ├─"test/test_expect_test.ml":1342:24-1342:29
+      └─x = 4
       5
-      y = 3
-      └─"test/test_expect_test.ml":1343:31-1343:36
+      baz = 6
+      ├─"test/test_expect_test.ml":1343:31-1343:36
+      └─y = 3
       6
       foo = 3
       ├─"test/test_expect_test.ml":1346:10-1347:82
