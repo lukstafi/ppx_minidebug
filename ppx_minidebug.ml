@@ -384,37 +384,62 @@ let debug_body callback ~loc ~message ~descr_loc ~arg_logs typ body =
           Debug_runtime.close_log ();
           raise e]
 
-let debug_fun callback ?ret_descr ?ret_typ exp =
+let rec collect_fun_typs arg_typs typ =
+  match typ.ptyp_desc with
+  | Ptyp_alias (typ, _) | Ptyp_poly (_, typ) -> collect_fun_typs arg_typs typ
+  | Ptyp_arrow (_, arg_typ, typ) -> collect_fun_typs (arg_typ :: arg_typs) typ
+  | _ -> (List.rev arg_typs, typ)
+
+let debug_fun callback ?typ ?ret_descr ?ret_typ exp =
   let args, body, ret_typ2 = collect_fun [] exp in
+  let arg_typs, ret_typ3 =
+    match typ with
+    | None -> ([], None)
+    | Some typ ->
+        let arg_typs, ret_typ = collect_fun_typs [] typ in
+        (arg_typs, Some ret_typ)
+  in
   let loc = exp.pexp_loc in
   let typ =
-    (* Currently, the type closer to the code has priority. *)
-    match (ret_typ2, ret_typ) with
-    | Some typ, _ -> Some typ
-    | None, Some typ -> Some typ
-    | None, None when !track_branches -> None
-    | None, None -> raise Not_transforming
+    match (ret_typ, ret_typ2, ret_typ3) with
+    | _, Some typ, _ ->
+        Some (pick ~typ:(pick ~typ ?alt_typ:ret_typ ()) ?alt_typ:ret_typ3 ())
+    | _, None, None -> ret_typ
+    | None, None, Some t -> Some t
+    | Some typ, None, _ -> Some (pick ~typ ?alt_typ:ret_typ3 ())
   in
+  if (not !track_branches) && Option.is_none typ then raise Not_transforming;
   let ret_descr =
     match ret_descr with
     | None when !track_branches -> { txt = "__fun"; loc }
     | None -> raise Not_transforming
     | Some descr -> descr
   in
-  let arg_logs =
-    List.concat
-    @@ List.map
-         (function
-           | Pexp_fun_arg
-               (_arg_label, _opt_val, pat, pexp_loc, _pexp_loc_stack, _pexp_attributes) ->
-               let _, bound = bound_patterns ~alt_typ:None pat in
-               List.map
-                 (fun (descr_loc, pat, typ) ->
-                   !log_value ~loc:pexp_loc ~typ ~descr_loc (pat2expr pat))
-                 bound
-           | _ -> [])
-         args
+  let rec arg_log = function
+    | arg_typs, Pexp_newtype_arg _ :: args -> arg_log (arg_typs, args)
+    | ( alt_typ :: arg_typs,
+        Pexp_fun_arg
+          (_arg_label, _opt_val, pat, pexp_loc, _pexp_loc_stack, _pexp_attributes)
+        :: args ) ->
+        let _, bound = bound_patterns ~alt_typ:(Some alt_typ) pat in
+        List.map
+          (fun (descr_loc, pat, typ) ->
+            !log_value ~loc:pexp_loc ~typ ~descr_loc (pat2expr pat))
+          bound
+        @ arg_log (arg_typs, args)
+    | ( [],
+        Pexp_fun_arg
+          (_arg_label, _opt_val, pat, pexp_loc, _pexp_loc_stack, _pexp_attributes)
+        :: args ) ->
+        let _, bound = bound_patterns ~alt_typ:None pat in
+        List.map
+          (fun (descr_loc, pat, typ) ->
+            !log_value ~loc:pexp_loc ~typ ~descr_loc (pat2expr pat))
+          bound
+        @ arg_log ([], args)
+    | _, [] -> []
   in
+  let arg_logs = arg_log (arg_typs, args) in
   let body =
     debug_body callback ~loc ~message:ret_descr.txt ~descr_loc:ret_descr ~arg_logs typ
       body

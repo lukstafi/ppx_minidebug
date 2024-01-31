@@ -1407,3 +1407,19 @@ let%expect_test "%debug_show PrintBox to stdout tuples merge type info" =
     339
     109 |}]
 
+let%expect_test "%debug_show PrintBox to stdout decompose multi-argument function type" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let%debug_show f : 'a. 'a -> int -> int = fun _a b -> b + 1 in
+  let%debug_show g : 'a. 'a -> int -> 'a -> 'a -> int = fun _a b _c _d -> b * 2 in
+  let () = print_endline @@ Int.to_string @@ f 'a' 6 in
+  let () = print_endline @@ Int.to_string @@ g 'a' 6 'b' 'c' in
+  [%expect {|
+    BEGIN DEBUG SESSION
+    f = 7
+    ├─"test/test_expect_test.ml":1412:44-1412:61
+    └─b = 6
+    7
+    g = 12
+    ├─"test/test_expect_test.ml":1413:56-1413:79
+    └─b = 6
+    12 |}]
