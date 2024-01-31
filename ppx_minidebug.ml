@@ -7,6 +7,24 @@ let rec last_ident = function
   | Ldot (_, id) -> id
   | Lapply (_, lid) -> last_ident lid
 
+let rec typ2str typ =
+  match typ.ptyp_desc with
+  | Ptyp_any -> "_"
+  | Ptyp_var x -> "'" ^ x
+  | Ptyp_arrow (_, a, b) -> typ2str a ^ " -> " ^ typ2str b
+  | Ptyp_tuple typs -> "(" ^ String.concat " * " (List.map typ2str typs) ^ ")"
+  | Ptyp_constr (lid, []) -> last_ident lid.txt
+  | Ptyp_constr (lid, typs) ->
+      last_ident lid.txt ^ "(" ^ String.concat " * " (List.map typ2str typs) ^ ")"
+  | Ptyp_object (_, _) -> "<object>"
+  | Ptyp_class (_, _) -> "<class>"
+  | Ptyp_alias (typ, x) -> typ2str typ ^ " as '" ^ x
+  | Ptyp_variant (_, _, _) -> "<poly-variant>"
+  | Ptyp_poly (vs, typ) ->
+      String.concat " " (List.map (fun v -> "'" ^ v.txt) vs) ^ "." ^ typ2str typ
+  | Ptyp_package _ -> "<module val>"
+  | Ptyp_extension _ -> "<extension>"
+
 let rec pat2descr ~default pat =
   let loc = pat.ppat_loc in
   match pat.ppat_desc with
@@ -139,6 +157,7 @@ let log_value_show ~loc ~typ ~descr_loc exp =
 
 let log_value = ref log_value_sexp
 let track_branches = ref false
+let output_type_info = ref false
 
 let log_string ~loc ~descr_loc s =
   [%expr
@@ -301,6 +320,11 @@ let bound_patterns ~alt_typ pat =
   (A.ppat_alias ~loc bind_pat { txt = "__res"; loc }, bound)
 
 let debug_body callback ~loc ~message ~descr_loc ~arg_logs typ body =
+  let message =
+    match typ with
+    | Some t when !output_type_info -> message ^ " : " ^ typ2str t
+    | _ -> message
+  in
   let preamble = open_log_preamble ~message ~loc () in
   let arg_logs =
     List.fold_left
