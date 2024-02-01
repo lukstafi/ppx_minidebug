@@ -106,6 +106,12 @@ let open_log_preamble ?(brief = false) ?(message = "") ~loc () =
 
 exception Not_transforming
 
+let to_descr ~descr_loc typ =
+  let descr =
+    if !output_type_info then descr_loc.txt ^ " : " ^ typ2str typ else descr_loc.txt
+  in
+  A.estring ~loc:descr_loc.loc descr
+
 (* *** The sexplib-based variant. *** *)
 let log_value_sexp ~loc ~typ ~descr_loc exp =
   (* [%sexp_of: typ] does not work with `Ptyp_poly`. Misleading error "Let with no bindings". *)
@@ -113,9 +119,7 @@ let log_value_sexp ~loc ~typ ~descr_loc exp =
     match typ with { ptyp_desc = Ptyp_poly (_, ctyp); _ } -> ctyp | ctyp -> ctyp
   in
   [%expr
-    Debug_runtime.log_value_sexp
-      ~descr:[%e A.estring ~loc:descr_loc.loc descr_loc.txt]
-      ~entry_id:__entry_id
+    Debug_runtime.log_value_sexp ~descr:[%e to_descr ~descr_loc typ] ~entry_id:__entry_id
       ~sexp:([%sexp_of: [%t typ]] [%e exp])]
 
 (* *** The deriving.show pp-based variant. *** *)
@@ -145,9 +149,8 @@ let log_value_pp ~loc ~typ ~descr_loc exp =
       { t_lident_loc with txt = splice_lident ~id_prefix:"pp_" t_lident_loc.txt }
   in
   [%expr
-    Debug_runtime.log_value_pp
-      ~descr:[%e A.estring ~loc:descr_loc.loc descr_loc.txt]
-      ~entry_id:__entry_id ~pp:[%e converter] ~v:[%e exp]]
+    Debug_runtime.log_value_pp ~descr:[%e to_descr ~descr_loc typ] ~entry_id:__entry_id
+      ~pp:[%e converter] ~v:[%e exp]]
 
 (* *** The deriving.show string-based variant. *** *)
 let log_value_show ~loc ~typ ~descr_loc exp =
@@ -156,9 +159,7 @@ let log_value_show ~loc ~typ ~descr_loc exp =
     match typ with { ptyp_desc = Ptyp_poly (_, ctyp); _ } -> ctyp | ctyp -> ctyp
   in
   [%expr
-    Debug_runtime.log_value_show
-      ~descr:[%e A.estring ~loc:descr_loc.loc descr_loc.txt]
-      ~entry_id:__entry_id
+    Debug_runtime.log_value_show ~descr:[%e to_descr ~descr_loc typ] ~entry_id:__entry_id
       ~v:([%show: [%t typ]] [%e exp])]
 
 let log_value = ref log_value_sexp
@@ -876,8 +877,8 @@ let global_interrupts =
             A.pstr_eval ~loc
               (A.pexp_extension ~loc
               @@ Location.error_extensionf ~loc
-                   "ppx_minidebug requires a pattern identifier here: try using an `as` \
-                    alias.")
+                   "ppx_minidebug: bad syntax, expacted [%%%%global_debug_interrupts \
+                    {max_nesting_depth=N;max_num_children=M}]")
               [])
   in
   Ppxlib.Context_free.Rule.extension declaration

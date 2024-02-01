@@ -6,8 +6,6 @@
 
 Take a look at [`ppx_debug`](https://github.com/dariusf/ppx_debug) which has complementary strengths!
 
-See also [the generated documentation](https://lukstafi.github.io/ppx_minidebug/).
-
 Try `opam install ppx_minidebug` to install from the opam repository. To install `ppx_minidebug` from sources, download it with e.g. `gh repo clone lukstafi/ppx_minidebug; cd ppx_minidebug` and then either `dune install` or `opam install .`.
 
 To use `ppx_minidebug` in a Dune project, add/modify these stanzas: `(preprocess (pps ... ppx_minidebug))`, and `(libraries ... ppx_minidebug.runtime)`.
@@ -437,7 +435,7 @@ If you provide the `split_files_after` setting, the logging will transition to a
 
 ### Providing the necessary type information
 
-We only log values of identifiers, located inside patterns, for which the type is provided in the source code, in a syntactically close / related location. PPX rewriters do not have access to the results of type inference. We extract the available type information, but we don't do it perfectly, there is room for improvement. We propagate type information top-down, merging it, but we do not unify or substitute type variables.
+We only log values of identifiers, located inside patterns, for which the type is provided in the source code, in a syntactically close / related location. PPX rewriters do not have access to the results of type inference. We extract the available type information, but we don't do it perfectly. We propagate type information top-down, merging it, but we do not unify or substitute type variables.
 
 Here is a probably incomplete list of the restrictions:
 
@@ -445,10 +443,34 @@ Here is a probably incomplete list of the restrictions:
 - When faced with a binding of a form: `let pattern = (expression : type_)`, we make use of `type_`, but we ignore all types nested inside `expression`, even if we decompose `pattern`.
   - For example, `let%track_sexp (x, y) = ((5, 3) : int * int)` works -- logs both `x` and `y`. Also work: `let%track_sexp ((x, y) : int * int) = (5, 3)` and `let%track_sexp ((x : int), (y : int)) = (5, 3)`. But `let%track_sexp (x, y) = ((5 : int), (3 : int))` will not log anything!
 - We ignore record and variant datatypes when processing record and variant constructor cases. That's because there is no generic(*) way to extract the types of the arguments.
-  - We do handle tuple types and the builtin array type (they are not records or variants).
-  - TODO: Hard-coded special cases: we do handle the option type and the list type.
-  - For example, this works: `let%track_sexp { first : int; second : int } = { first = 3; second =7 }` -- but compare with the tuple examples above, the alternatives provided above would not work for records.
   - (*) Although polymorphic variant types can be provided inline, we decided it's not worth the effort supporting them.
+  - We do handle tuple types and the builtin array type (they are not records or variants).
+    - For example, this works: `let%track_sexp { first : int; second : int } = { first = 3; second =7 }` -- but compare with the tuple examples above, the alternatives provided above would not work for records.
+
+TODO: Hard-coded special cases: we do decompose the option type and the list type. For example: `let%track_show f : int option -> unit = function None -> () | Some _x -> () in f (Some 3)` will log the value of `_x`.
+
+As a help in debugging whether the right type information got propagated, we offer the extension `%debug_type_info` (and `%global_debug_type_info`). (The display strips module qualifiers from types.) It is not a top-level extension. Example [from the test suite](test/test_expect_test.ml):
+
+```ocaml
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  [%debug_show
+    [%debug_type_info
+      let f : 'a. 'a -> int -> int = fun _a b -> b + 1 in
+      let g : 'a. 'a -> int -> 'a -> 'a -> int = fun _a b _c _d -> b * 2 in
+      let () = print_endline @@ Int.to_string @@ f 'a' 6 in
+      print_endline @@ Int.to_string @@ g 'a' 6 'b' 'c']];
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      f : int = 7
+      ├─"test/test_expect_test.ml":1446:37-1446:54
+      └─b : int = 6
+      7
+      g : int = 12
+      ├─"test/test_expect_test.ml":1447:49-1447:72
+      └─b : int = 6
+      12 |}]
+```
 
 ## VS Code suggestions
 
