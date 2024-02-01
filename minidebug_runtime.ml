@@ -129,7 +129,7 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
     | [] -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
     | _ :: tl -> stack := tl);
     CFormat.pp_close_box !ppf ();
-    if List.is_empty !stack then (
+    if !stack = [] then (
       (* Importantly, pp_print_newline invokes pp_print_flush, flushes the out channel. *)
       CFormat.pp_print_newline !ppf ();
       if refresh_ch () then ppf := get_ppf ())
@@ -203,7 +203,7 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
           Printf.fprintf !debug_ch "%s - %!" (timestamp_to_string ());
         Printf.fprintf !debug_ch "%s end\n%!" message;
         flush !debug_ch;
-        if List.is_empty !stack then debug_ch := Log_to.debug_ch ()
+        if !stack = [] then debug_ch := Log_to.debug_ch ()
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message ~entry_id:_ =
     stack := (None, 0) :: !stack;
