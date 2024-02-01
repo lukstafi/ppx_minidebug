@@ -1,0 +1,72 @@
+
+BEGIN DEBUG SESSION
+loop_exceeded begin "test/test_debug_interrupts.ml":7:33-9:55
+ x = 17
+  "test/test_debug_interrupts.ml":8:6: z
+  z = 8
+ loop_exceeded begin "test/test_debug_interrupts.ml":7:33-9:55
+  x = 16
+   "test/test_debug_interrupts.ml":8:6: z
+   z = 7
+  loop_exceeded begin "test/test_debug_interrupts.ml":7:33-9:55
+   x = 15
+    "test/test_debug_interrupts.ml":8:6: z
+    z = 7
+   loop_exceeded begin "test/test_debug_interrupts.ml":7:33-9:55
+    x = 14
+     "test/test_debug_interrupts.ml":8:6: z
+     z = 6
+    loop_exceeded begin "test/test_debug_interrupts.ml":7:33-9:55
+     x = 13
+      "test/test_debug_interrupts.ml":8:6: z
+      z = <max_nesting_depth exceeded>
+    loop_exceeded end
+   loop_exceeded end
+  loop_exceeded end
+ loop_exceeded end
+loop_exceeded end
+bar begin "test/test_debug_interrupts.ml":15:19-19:6
+  "test/test_debug_interrupts.ml":16:2: <for loop>
+  i = 0
+   "test/test_debug_interrupts.ml":16:6: <for i>
+    "test/test_debug_interrupts.ml":17:8: _baz
+    _baz = 0
+  i = 1
+   "test/test_debug_interrupts.ml":16:6: <for i>
+    "test/test_debug_interrupts.ml":17:8: _baz
+    _baz = 2
+  i = 2
+   "test/test_debug_interrupts.ml":16:6: <for i>
+    "test/test_debug_interrupts.ml":17:8: _baz
+    _baz = 4
+  i = 3
+   "test/test_debug_interrupts.ml":16:6: <for i>
+    "test/test_debug_interrupts.ml":17:8: _baz
+    _baz = 6
+  i = 4
+   "test/test_debug_interrupts.ml":16:6: <for i>
+    "test/test_debug_interrupts.ml":17:8: _baz
+    _baz = 8
+  i = 5
+   "test/test_debug_interrupts.ml":16:6: <for i>
+    "test/test_debug_interrupts.ml":17:8: _baz
+    _baz = 10
+  i = 6
+   "test/test_debug_interrupts.ml":16:6: <for i>
+    "test/test_debug_interrupts.ml":17:8: _baz
+    _baz = 12
+  i = 7
+   "test/test_debug_interrupts.ml":16:6: <for i>
+    "test/test_debug_interrupts.ml":17:8: _baz
+    _baz = 14
+  i = 8
+   "test/test_debug_interrupts.ml":16:6: <for i>
+    "test/test_debug_interrupts.ml":17:8: _baz
+    _baz = 16
+  i = 9
+   "test/test_debug_interrupts.ml":16:6: <for i>
+    "test/test_debug_interrupts.ml":17:8: _baz
+    _baz = 18
+  i = 10
+  i = <max_num_children exceeded>
+bar end

@@ -29,6 +29,14 @@
   (run ./%{pp} --impl %{input} -o %{targets})))
 
 (rule
+ (targets test_debug_interrupts.actual.ml)
+ (deps
+  (:pp pp.exe)
+  (:input test_debug_interrupts.ml))
+ (action
+  (run ./%{pp} --impl %{input} -o %{targets})))
+
+(rule
  (alias runtest)
  (action
   (diff test_debug_sexp.expected.ml test_debug_sexp.actual.ml)))
@@ -42,6 +50,11 @@
  (alias runtest)
  (action
   (diff test_debug_show.expected.ml test_debug_show.actual.ml)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff test_debug_interrupts.expected.ml test_debug_interrupts.actual.ml)))
 
 (executable
  (name test_debug_sexp)
@@ -87,6 +100,14 @@
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
 
+(executable
+ (name test_debug_interrupts)
+ (modules test_debug_interrupts)
+ (libraries minidebug_runtime)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_deriving.show)))
+
 (rule
  (target debugger_show_flushing.log)
  (action
@@ -96,6 +117,16 @@
  (alias runtest)
  (action
   (diff debugger_show_flushing.expected.log debugger_show_flushing.log)))
+
+(rule
+ (target debugger_show_interrupts.log)
+ (action
+  (run %{dep:test_debug_interrupts.exe})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_show_interrupts.expected.log debugger_show_interrupts.log)))
 
 (executable
  (name test_debug_html)

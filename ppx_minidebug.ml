@@ -4,7 +4,7 @@ module A = Ast_builder.Default
 (* module H = Ast_helper *)
 let track_branches = ref false
 let output_type_info = ref false
-let interrupts = ref true
+let interrupts = ref false
 
 let rec last_ident = function
   | Lident id -> id
@@ -639,6 +639,45 @@ let traverse =
             | exception e ->
                 track_branches := old_track_branches;
                 raise e)
+        | Pexp_extension
+            ( { loc = _; txt = "debug_interrupts" },
+              PStr
+                [%str
+                  {
+                    max_nesting_depth = [%e? max_nesting_depth];
+                    max_num_children = [%e? max_num_children];
+                  };
+                  [%e? body]] ) -> (
+            let old_interrupts = !interrupts in
+            interrupts := true;
+            match callback body with
+            | result ->
+                interrupts := old_interrupts;
+                [%expr
+                  Debug_runtime.max_nesting_depth := Some [%e max_nesting_depth];
+                  Debug_runtime.max_num_children := Some [%e max_num_children];
+                  [%e result]]
+                  .pexp_desc
+            | exception e ->
+                interrupts := old_interrupts;
+                raise e)
+        | Pexp_extension ({ loc = _; txt = "debug_interrupts" }, PStr [%str [%e? _]]) ->
+            (A.pexp_extension ~loc
+            @@ Location.error_extensionf ~loc
+                 "ppx_minidebug: bad syntax, expacted [%%debug_interrupts \
+                  {max_nesting_depth=N;max_num_children=M}; BODY]")
+              .pexp_desc
+        | Pexp_extension ({ loc = _; txt = "debug_type_info" }, PStr [%str [%e? body]])
+          -> (
+            let old_output_type_info = !output_type_info in
+            output_type_info := true;
+            match callback body with
+            | result ->
+                output_type_info := old_output_type_info;
+                result.pexp_desc
+            | exception e ->
+                output_type_info := old_output_type_info;
+                raise e)
         | Pexp_newtype (type_label, subexp) -> (
             try (debug_fun callback ?typ:ret_typ exp).pexp_desc
             with Not_transforming -> Pexp_newtype (type_label, self#expression subexp))
@@ -793,39 +832,90 @@ let str_expander ~loc payload =
           pincl_attributes = [];
         }
 
+let global_output_type_info =
+  let expanderf expander =
+    output_type_info := true;
+    expander
+  in
+  let declaration =
+    Extension.V3.declare "global_debug_type_info" Extension.Context.structure_item
+      Ast_pattern.(pstr __)
+      (fun ~ctxt ->
+        expanderf
+          (str_expander ~loc:(Expansion_context.Extension.extension_point_loc ctxt)))
+  in
+  Ppxlib.Context_free.Rule.extension declaration
+
+let global_interrupts =
+  let declaration =
+    Extension.V3.declare "global_debug_interrupts" Extension.Context.structure_item
+      Ast_pattern.(pstr __)
+      (fun ~ctxt ->
+        let loc = Expansion_context.Extension.extension_point_loc ctxt in
+        function
+        | [
+            {
+              pstr_desc =
+                Pstr_eval
+                  ( [%expr
+                      {
+                        max_nesting_depth = [%e? max_nesting_depth];
+                        max_num_children = [%e? max_num_children];
+                      }],
+                    attrs );
+              _;
+            };
+          ] ->
+            interrupts := true;
+            A.pstr_eval ~loc
+              [%expr
+                Debug_runtime.max_nesting_depth := Some [%e max_nesting_depth];
+                Debug_runtime.max_num_children := Some [%e max_num_children]]
+              attrs
+        | _ ->
+            A.pstr_eval ~loc
+              (A.pexp_extension ~loc
+              @@ Location.error_extensionf ~loc
+                   "ppx_minidebug requires a pattern identifier here: try using an `as` \
+                    alias.")
+              [])
+  in
+  Ppxlib.Context_free.Rule.extension declaration
+
 let rules =
-  List.map
-    (fun { ext_point; tracking; expander; printer } ->
-      let logf =
-        match printer with
-        | `Show -> log_value_show
-        | `Pp -> log_value_pp
-        | `Sexp -> log_value_sexp
-      in
-      let expanderf expander =
-        log_value := logf;
-        track_branches := tracking;
-        expander
-      in
-      let declaration =
-        match expander with
-        | `Debug ->
-            Extension.V3.declare ext_point Extension.Context.expression
-              Ast_pattern.(single_expr_payload __)
-              (fun ~ctxt:_ -> expanderf debug_expander)
-        | `Debug_this ->
-            Extension.V3.declare ext_point Extension.Context.expression
-              Ast_pattern.(single_expr_payload __)
-              (fun ~ctxt:_ -> expanderf debug_this_expander)
-        | `Str ->
-            Extension.V3.declare ext_point Extension.Context.structure_item
-              Ast_pattern.(pstr __)
-              (fun ~ctxt ->
-                expanderf
-                  (str_expander
-                     ~loc:(Expansion_context.Extension.extension_point_loc ctxt)))
-      in
-      Ppxlib.Context_free.Rule.extension declaration)
-    rules
+  global_output_type_info :: global_interrupts
+  :: List.map
+       (fun { ext_point; tracking; expander; printer } ->
+         let logf =
+           match printer with
+           | `Show -> log_value_show
+           | `Pp -> log_value_pp
+           | `Sexp -> log_value_sexp
+         in
+         let expanderf expander =
+           log_value := logf;
+           track_branches := tracking;
+           expander
+         in
+         let declaration =
+           match expander with
+           | `Debug ->
+               Extension.V3.declare ext_point Extension.Context.expression
+                 Ast_pattern.(single_expr_payload __)
+                 (fun ~ctxt:_ -> expanderf debug_expander)
+           | `Debug_this ->
+               Extension.V3.declare ext_point Extension.Context.expression
+                 Ast_pattern.(single_expr_payload __)
+                 (fun ~ctxt:_ -> expanderf debug_this_expander)
+           | `Str ->
+               Extension.V3.declare ext_point Extension.Context.structure_item
+                 Ast_pattern.(pstr __)
+                 (fun ~ctxt ->
+                   expanderf
+                     (str_expander
+                        ~loc:(Expansion_context.Extension.extension_point_loc ctxt)))
+         in
+         Ppxlib.Context_free.Rule.extension declaration)
+       rules
 
 let () = Driver.register_transformation ~rules "ppx_minidebug"

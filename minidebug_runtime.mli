@@ -6,15 +6,11 @@ module type Debug_ch = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
   val time_tagged : bool
-  val max_nesting_depth : int option
-  val max_num_children : int option
   val split_files_after : int option
 end
 
 val debug_ch :
   ?time_tagged:bool ->
-  ?max_nesting_depth:int ->
-  ?max_num_children:int ->
   ?split_files_after:int ->
   ?for_append:bool ->
   string ->
@@ -59,6 +55,8 @@ module type Debug_runtime = sig
   val exceeds_max_nesting : unit -> bool
   val exceeds_max_children : unit -> bool
   val get_entry_id : unit -> int
+  val max_nesting_depth : int option ref
+  val max_num_children : int option ref
 end
 
 (** The logged traces will be indented using OCaml's `Format` module. *)
@@ -128,8 +126,6 @@ module PrintBox : functor (_ : Debug_ch) -> PrintBox_runtime
 
 val debug_file :
   ?time_tagged:bool ->
-  ?max_nesting_depth:int ->
-  ?max_num_children:int ->
   ?split_files_after:int ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
@@ -153,8 +149,6 @@ val debug_file :
 val debug :
   ?debug_ch:out_channel ->
   ?time_tagged:bool ->
-  ?max_nesting_depth:int ->
-  ?max_num_children:int ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
   ?prune_upto:int ->
@@ -167,8 +161,6 @@ val debug :
 val debug_flushing :
   ?debug_ch:out_channel ->
   ?time_tagged:bool ->
-  ?max_nesting_depth:int ->
-  ?max_num_children:int ->
   unit ->
   (module Debug_runtime)
 (** Creates a PrintBox-based debug runtime. By default it will log to [stdout] and will not be

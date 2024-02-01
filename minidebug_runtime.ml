@@ -14,12 +14,10 @@ module type Debug_ch = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
   val time_tagged : bool
-  val max_nesting_depth : int option
-  val max_num_children : int option
   val split_files_after : int option
 end
 
-let debug_ch ?(time_tagged = false) ?max_nesting_depth ?max_num_children
+let debug_ch ?(time_tagged = false)
     ?split_files_after ?(for_append = true) filename : (module Debug_ch) =
   let module Result = struct
     let () =
@@ -68,8 +66,6 @@ let debug_ch ?(time_tagged = false) ?max_nesting_depth ?max_num_children
       !current_ch
 
     let time_tagged = time_tagged
-    let max_nesting_depth = max_nesting_depth
-    let max_num_children = max_num_children
     let split_files_after = split_files_after
   end in
   (module Result)
@@ -104,12 +100,17 @@ module type Debug_runtime = sig
   val exceeds_max_nesting : unit -> bool
   val exceeds_max_children : unit -> bool
   val get_entry_id : unit -> int
+  val max_nesting_depth : int option ref
+  val max_num_children : int option ref
 end
 
 let exceeds ~value ~limit = match limit with None -> false | Some limit -> limit < value
 
 module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
   open Log_to
+
+  let max_nesting_depth = ref None
+  let max_num_children = ref None
 
   let get_ppf () =
     let ppf = CFormat.formatter_of_out_channel @@ debug_ch () in
@@ -165,12 +166,12 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
     CFormat.fprintf !ppf "%s = %s@ @ " descr v
 
   let exceeds_max_nesting () =
-    exceeds ~value:(List.length !stack) ~limit:max_nesting_depth
+    exceeds ~value:(List.length !stack) ~limit:!max_nesting_depth
 
   let exceeds_max_children () =
     match !stack with
     | [] -> false
-    | num_children :: _ -> exceeds ~value:num_children ~limit:max_num_children
+    | num_children :: _ -> exceeds ~value:num_children ~limit:!max_num_children
 
   let get_entry_id =
     let global_id = ref 0 in
@@ -182,6 +183,8 @@ end
 module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
   open Log_to
 
+  let max_nesting_depth = ref None
+  let max_num_children = ref None
   let debug_ch = ref @@ debug_ch ()
   let stack = ref []
   let indent () = String.make (List.length !stack) ' '
@@ -241,12 +244,12 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
     Printf.fprintf !debug_ch "%s%s = %s\n%!" (indent ()) descr v
 
   let exceeds_max_nesting () =
-    exceeds ~value:(List.length !stack) ~limit:max_nesting_depth
+    exceeds ~value:(List.length !stack) ~limit:!max_nesting_depth
 
   let exceeds_max_children () =
     match !stack with
     | [] -> false
-    | (_, num_children) :: _ -> exceeds ~value:num_children ~limit:max_num_children
+    | (_, num_children) :: _ -> exceeds ~value:num_children ~limit:!max_num_children
 
   let get_entry_id =
     let global_id = ref 0 in
@@ -281,6 +284,8 @@ end
 module PrintBox (Log_to : Debug_ch) = struct
   open Log_to
 
+  let max_nesting_depth = ref None
+  let max_num_children = ref None
   let default_html_config = PrintBox_html.Config.(tree_summary true default)
 
   (* let default_md_config = PrintBox_html.Config.(foldable_trees true default) *)
@@ -581,9 +586,9 @@ module PrintBox (Log_to : Debug_ch) = struct
     | _ -> ()
 
   let exceeds_max_nesting () =
-    exceeds ~value:(List.length !stack) ~limit:max_nesting_depth
+    exceeds ~value:(List.length !stack) ~limit:!max_nesting_depth
 
-  let exceeds_max_children () = exceeds ~value:(num_children ()) ~limit:max_num_children
+  let exceeds_max_children () = exceeds ~value:(num_children ()) ~limit:!max_num_children
 
   let get_entry_id =
     let global_id = ref 0 in
@@ -592,10 +597,9 @@ module PrintBox (Log_to : Debug_ch) = struct
       !global_id
 end
 
-let debug_file ?(time_tagged = false) ?max_nesting_depth ?max_num_children
-    ?split_files_after ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
-    ?(for_append = false) ?(boxify_sexp_from_size = 50) ?backend ?hyperlink
-    ?(values_first_mode = false) filename : (module PrintBox_runtime) =
+let debug_file ?(time_tagged = false) ?split_files_after ?highlight_terms ?exclude_on_path
+    ?(prune_upto = 0) ?(for_append = false) ?(boxify_sexp_from_size = 50) ?backend
+    ?hyperlink ?(values_first_mode = false) filename : (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename ^ ".md"
@@ -603,9 +607,7 @@ let debug_file ?(time_tagged = false) ?max_nesting_depth ?max_num_children
     | Some `Text -> filename ^ ".log"
   in
   let module Debug =
-    PrintBox
-      ((val debug_ch ~time_tagged ~for_append ?max_nesting_depth ?max_num_children
-              ?split_files_after filename)) in
+    PrintBox ((val debug_ch ~time_tagged ~for_append ?split_files_after filename)) in
   Debug.config.backend <-
     Option.value backend ~default:(`Markdown Debug.default_md_config);
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
@@ -617,15 +619,13 @@ let debug_file ?(time_tagged = false) ?max_nesting_depth ?max_num_children
     (match hyperlink with None -> `No_hyperlinks | Some prefix -> `Prefix prefix);
   (module Debug)
 
-let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_num_children
+let debug ?(debug_ch = stdout) ?(time_tagged = false)
     ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(values_first_mode = false) () :
     (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
     let debug_ch () = debug_ch
     let time_tagged = time_tagged
-    let max_nesting_depth = max_nesting_depth
-    let max_num_children = max_num_children
     let split_files_after = None
   end) in
   Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
@@ -634,13 +634,10 @@ let debug ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth ?max_nu
   Debug.config.values_first_mode <- values_first_mode;
   (module Debug)
 
-let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) ?max_nesting_depth
-    ?max_num_children () : (module Debug_runtime) =
+let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) () : (module Debug_runtime) =
   (module Flushing (struct
     let refresh_ch () = false
     let debug_ch () = debug_ch
     let time_tagged = time_tagged
-    let max_nesting_depth = max_nesting_depth
-    let max_num_children = max_num_children
     let split_files_after = None
   end))
