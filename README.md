@@ -2,7 +2,7 @@
 
 ## `ppx_minidebug`: Debug logs for selected functions and let-bindings
 
-`ppx_minidebug` traces selected code if it has type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` (also `%track_pp` and `%track_show`), based on `deriving.show`, and `%debug_sexp` (also `%track_sexp`) based on `sexplib0` and `ppx_sexp_conv`. The syntax extension expects a module `Debug_runtime` in the scope. The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers three ways of logging the traces, as functors (or helper functions) generating `Debug_runtime` modules given an output channel (e.g. for a file).
+`ppx_minidebug` traces selected code if it has type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` (also `%track_pp` and `%track_show`), based on `deriving.show`, and `%debug_sexp` (also `%track_sexp`) based on `sexplib0` and `ppx_sexp_conv`. The syntax extension expects a module `Debug_runtime` in the scope. The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers three ways of logging the traces, as functors (or helper functions) generating `Debug_runtime` modules given an output channel (e.g. for a file). See [the generated documentation for `Minidebug_runtime`](https://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html).
 
 Take a look at [`ppx_debug`](https://github.com/dariusf/ppx_debug) which has complementary strengths!
 
@@ -148,7 +148,7 @@ module Debug_runtime = (val Minidebug_runtime.debug_file ~hyperlink:"" "debug")
 ```
 
 where `~hyperlink` is the prefix to let you tune the file path and select a browsing option. For illustration,
-the prefixes for HTML outputs I might use at the time of writing:
+the prefixes for Markdown / HTML outputs I might use at the time of writing:
 
 - `~hyperlink:"./"` or `~hyperlink:"../"` depending on the relative locations of the log file and the binary
 - `~hyperlink:"vscode://file//wsl.localhost/ubuntu23/home/lukstafi/ppx_minidebug/"`
@@ -224,27 +224,55 @@ The `PrintBox` logs are the prettiest, I could not get the `Pp_format`-functor-b
 The `PrintBox` and `Pp_format` backends only produce any output when a top-level log entry gets closed. This makes it harder to debug infinite loops and especially infinite recursion. The setting `max_nesting_depth` terminates a computation when the given log nesting is exceeded. For example:
 
 ```ocaml
-module Debug_runtime = (val Minidebug_runtime.debug ~max_nesting_depth:5 ())
+module Debug_runtime = (val Minidebug_runtime.debug ())
 
 let%debug_show rec loop_exceeded (x : int) : int =
-  let z : int = (x - 1) / 2 in
-  if x <= 0 then 0 else z + loop_exceeded (z + (x / 2))
+  [%debug_interrupts
+    { max_nesting_depth = 5; max_num_children = 1000 };
+    let z : int = (x - 1) / 2 in
+    if x <= 0 then 0 else z + loop_exceeded (z + (x / 2))]
 
 let () =
-  try print_endline @@ Int.to_string @@ loop_exceeded 7
+  try print_endline @@ Int.to_string @@ loop_exceeded 17
   with _ -> print_endline "Raised exception."
 ```
 
 Similarly, `max_num_children` raises a failure when the given number of logs with the same parent is exceeded. For example:
 
 ```ocaml
-module Debug_runtime = (val Minidebug_runtime.debug ~max_num_children:50 ())
+module Debug_runtime = (val Minidebug_runtime.debug ())
 
 let%debug_show _bar : unit =
+  [%debug_interrupts
+    { max_nesting_depth = 1000; max_num_children = 10 };
+    for i = 0 to 100 do
+      let _baz : int = i * 2 in
+      ()
+    done]
+```
+
+The `%debug_interrupts` extension point emits the interrupt checks in a lexically delimited scope. For convenience, we offer the extension point `%global_debug_interrupts` which triggers emitting the interrupt checks in the remainder of the source preprocessed in the same process (its scope is therefore less well defined). For example:
+
+```ocaml
+module Debug_runtime = (val Minidebug_runtime.debug ())
+
+[%%global_debug_interrupts { max_nesting_depth = 5; max_num_children = 10 }]
+
+let%debug_show rec loop_exceeded (x : int) : int =
+  let z : int = (x - 1) / 2 in
+  if x <= 0 then 0 else z + loop_exceeded (z + (x / 2))
+
+let () =
+  try print_endline @@ Int.to_string @@ loop_exceeded 17
+  with _ -> print_endline "Raised exception."
+
+let%track_show bar () : unit =
   for i = 0 to 100 do
     let _baz : int = i * 2 in
     ()
   done
+
+let () = try bar () with _ -> print_endline "Raised exception."
 ```
 
 If that is insufficient, you can define a `Debug_runtime` using the `Flushing` functor.
