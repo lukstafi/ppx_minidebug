@@ -1,6 +1,10 @@
 open Ppxlib
 module A = Ast_builder.Default
+
 (* module H = Ast_helper *)
+let track_branches = ref false
+let output_type_info = ref false
+let interrupts = ref true
 
 let rec last_ident = function
   | Lident id -> id
@@ -71,9 +75,11 @@ let rec pat2descr ~default pat =
 
 let rec pat2expr pat =
   let loc = pat.ppat_loc in
-  match pat.ppat_desc with
-  | Ppat_constraint (pat', typ) -> A.pexp_constraint ~loc (pat2expr pat') typ
-  | Ppat_alias (_, ident) | Ppat_var ident ->
+  match pat with
+  | [%pat? ()] -> [%expr ()]
+  | { ppat_desc = Ppat_constraint (pat', typ); _ } ->
+      A.pexp_constraint ~loc (pat2expr pat') typ
+  | { ppat_desc = Ppat_alias (_, ident) | Ppat_var ident; _ } ->
       A.pexp_ident ~loc { ident with txt = Lident ident.txt }
   | _ ->
       A.pexp_extension ~loc
@@ -156,8 +162,6 @@ let log_value_show ~loc ~typ ~descr_loc exp =
       ~v:([%show: [%t typ]] [%e exp])]
 
 let log_value = ref log_value_sexp
-let track_branches = ref false
-let output_type_info = ref false
 
 let log_string ~loc ~descr_loc s =
   [%expr
@@ -342,6 +346,45 @@ let bound_patterns ~alt_typ pat =
   let loc = pat.ppat_loc in
   (A.ppat_alias ~loc bind_pat { txt = "__res"; loc }, bound)
 
+let entry_with_interrupts ~loc ~descr_loc ?header ~preamble ~entry ~result ~log_result ()
+    =
+  let header = match header with Some h -> h | None -> [%expr ()] in
+  if !interrupts then
+    [%expr
+      let __entry_id = Debug_runtime.get_entry_id () in
+      [%e header];
+      if Debug_runtime.exceeds_max_children () then (
+        [%e log_string ~loc ~descr_loc "<max_num_children exceeded>"];
+        failwith "ppx_minidebug: max_num_children exceeded")
+      else (
+        [%e preamble];
+        if Debug_runtime.exceeds_max_nesting () then (
+          [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
+          Debug_runtime.close_log ();
+          failwith "ppx_minidebug: max_nesting_depth exceeded")
+        else
+          match [%e entry] with
+          | [%p result] ->
+              [%e log_result];
+              Debug_runtime.close_log ();
+              [%e pat2expr result]
+          | exception e ->
+              Debug_runtime.close_log ();
+              raise e)]
+  else
+    [%expr
+      let __entry_id = Debug_runtime.get_entry_id () in
+      [%e header];
+      [%e preamble];
+      match [%e entry] with
+      | [%p result] ->
+          [%e log_result];
+          Debug_runtime.close_log ();
+          [%e pat2expr result]
+      | exception e ->
+          Debug_runtime.close_log ();
+          raise e]
+
 let debug_body callback ~loc ~message ~descr_loc ~arg_logs typ body =
   let message =
     match typ with
@@ -349,7 +392,7 @@ let debug_body callback ~loc ~message ~descr_loc ~arg_logs typ body =
     | _ -> message
   in
   let preamble = open_log_preamble ~message ~loc () in
-  let arg_logs =
+  let preamble =
     List.fold_left
       (fun e1 e2 ->
         [%expr
@@ -361,28 +404,13 @@ let debug_body callback ~loc ~message ~descr_loc ~arg_logs typ body =
     let loc = descr_loc.loc in
     A.ppat_var ~loc { loc; txt = "__res" }
   in
-  [%expr
-    let __entry_id = Debug_runtime.get_entry_id () in
-    if Debug_runtime.exceeds_max_children () then (
-      [%e log_string ~loc ~descr_loc "<max_num_children exceeded>"];
-      failwith "ppx_minidebug: max_num_children exceeded")
-    else [%e arg_logs];
-    if Debug_runtime.exceeds_max_nesting () then (
-      [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
-      Debug_runtime.close_log ();
-      failwith "ppx_minidebug: max_nesting_depth exceeded")
-    else
-      match [%e callback body] with
-      | [%p result] ->
-          [%e
-            match typ with
-            | None -> [%expr ()]
-            | Some typ -> !log_value ~loc ~typ ~descr_loc (pat2expr result)];
-          Debug_runtime.close_log ();
-          [%e pat2expr result]
-      | exception e ->
-          Debug_runtime.close_log ();
-          raise e]
+  let log_result =
+    match typ with
+    | None -> [%expr ()]
+    | Some typ -> !log_value ~loc ~typ ~descr_loc (pat2expr result)
+  in
+  entry_with_interrupts ~loc ~descr_loc ~preamble ~entry:(callback body) ~result
+    ~log_result ()
 
 let rec collect_fun_typs arg_typs typ =
   match typ.ptyp_desc with
@@ -512,7 +540,8 @@ let debug_binding callback vb =
     | _ ->
         let result, bound = bound_patterns ~alt_typ:typ pat in
         if bound = [] then raise Not_transforming;
-        let logs_expr =
+        let descr_loc = pat2descr ~default:"__val" pat in
+        let log_result =
           List.map
             (fun (descr_loc, pat, typ) ->
               !log_value ~loc:vb.pvb_expr.pexp_loc ~typ ~descr_loc (pat2expr pat))
@@ -524,28 +553,11 @@ let debug_binding callback vb =
                    [%e e2]])
                [%expr ()]
         in
-        let descr_loc = pat2descr ~default:"__val" pat in
-        [%expr
-          let __entry_id = Debug_runtime.get_entry_id () in
-          if Debug_runtime.exceeds_max_children () then (
-            [%e log_string ~loc ~descr_loc "<max_num_children exceeded>"];
-            failwith "ppx_minidebug: max_num_children exceeded")
-          else (
-            [%e
-              open_log_preamble ~brief:true ~message:descr_loc.txt ~loc:descr_loc.loc ()];
-            if Debug_runtime.exceeds_max_nesting () then (
-              [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
-              Debug_runtime.close_log ();
-              failwith "ppx_minidebug: max_nesting_depth exceeded")
-            else
-              match [%e callback vb.pvb_expr] with
-              | [%p result] ->
-                  [%e logs_expr];
-                  Debug_runtime.close_log ();
-                  [%e pat2expr result]
-              | exception e ->
-                  Debug_runtime.close_log ();
-                  raise e)]
+        let preamble =
+          open_log_preamble ~brief:true ~message:descr_loc.txt ~loc:descr_loc.loc ()
+        in
+        entry_with_interrupts ~loc ~descr_loc ~preamble ~entry:(callback exp) ~result
+          ~log_result ()
   in
   match typ2 with
   | None -> { vb with pvb_expr = exp }
@@ -686,27 +698,16 @@ let traverse =
                   { txt = Lident "int"; loc = pat.ppat_loc }
                   []
               in
-              [%expr
-                let __entry_id = Debug_runtime.get_entry_id () in
-                [%e !log_value ~loc ~typ ~descr_loc (pat2expr pat)];
-                if Debug_runtime.exceeds_max_children () then (
-                  [%e log_string ~loc ~descr_loc "<max_num_children exceeded>"];
-                  failwith "ppx_minidebug: max_num_children exceeded")
-                else (
-                  [%e
-                    open_log_preamble ~brief:true
-                      ~message:("<for " ^ descr_loc.txt ^ ">")
-                      ~loc:descr_loc.loc ()];
-                  if Debug_runtime.exceeds_max_nesting () then (
-                    [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
-                    Debug_runtime.close_log ();
-                    failwith "ppx_minidebug: max_nesting_depth exceeded")
-                  else
-                    match [%e callback body] with
-                    | () -> Debug_runtime.close_log ()
-                    | exception e ->
-                        Debug_runtime.close_log ();
-                        raise e)]
+              let preamble =
+                open_log_preamble ~brief:true
+                  ~message:("<for " ^ descr_loc.txt ^ ">")
+                  ~loc:descr_loc.loc ()
+              in
+              let header = !log_value ~loc ~typ ~descr_loc (pat2expr pat) in
+              entry_with_interrupts ~loc ~descr_loc ~header ~preamble
+                ~entry:(callback body)
+                ~result:[%pat? ()]
+                ~log_result:[%expr ()] ()
             in
             let loc = exp.pexp_loc in
             [%expr
@@ -724,25 +725,13 @@ let traverse =
             let body =
               let loc = body.pexp_loc in
               let descr_loc = { txt = "<while body>"; loc } in
-              [%expr
-                let __entry_id = Debug_runtime.get_entry_id () in
-                if Debug_runtime.exceeds_max_children () then (
-                  [%e log_string ~loc ~descr_loc "<max_num_children exceeded>"];
-                  failwith "ppx_minidebug: max_num_children exceeded")
-                else (
-                  [%e
-                    open_log_preamble ~brief:true ~message:"<while loop>"
-                      ~loc:descr_loc.loc ()];
-                  if Debug_runtime.exceeds_max_nesting () then (
-                    [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
-                    Debug_runtime.close_log ();
-                    failwith "ppx_minidebug: max_nesting_depth exceeded")
-                  else
-                    match [%e callback body] with
-                    | () -> Debug_runtime.close_log ()
-                    | exception e ->
-                        Debug_runtime.close_log ();
-                        raise e)]
+              let preamble =
+                open_log_preamble ~brief:true ~message:"<while loop>" ~loc:descr_loc.loc
+                  ()
+              in
+              entry_with_interrupts ~loc ~descr_loc ~preamble ~entry:(callback body)
+                ~result:[%pat? ()]
+                ~log_result:[%expr ()] ()
             in
             let loc = exp.pexp_loc in
             [%expr
