@@ -60,8 +60,8 @@ let debug_ch ?(time_tagged = false) ?max_nesting_depth ?max_num_children
       match split_files_after with
       | None -> false
       | Some split_after ->
-          Out_channel.flush !current_ch;
-          Int64.to_int (Out_channel.length !current_ch) > split_after
+          Stdlib.flush !current_ch;
+          Int64.to_int (Stdlib.LargeFile.out_channel_length !current_ch) > split_after
 
     let debug_ch () =
       if refresh_ch () then current_ch := find_ch ();
@@ -441,7 +441,7 @@ module PrintBox (Log_to : Debug_ch) = struct
               output_string ch
               @@ PrintBox_md.(to_string Config.(foldable_trees config) box));
           output_string ch "\n";
-          Out_channel.flush ch;
+          Stdlib.flush ch;
           []
       | _ -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
 
