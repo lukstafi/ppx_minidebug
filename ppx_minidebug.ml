@@ -537,9 +537,6 @@ let debug_binding callback vb =
     | { pexp_desc = Pexp_function cases; _ } ->
         A.pexp_function ~loc:vb.pvb_expr.pexp_loc
           (List.mapi (debug_case callback ?ret_descr ?ret_typ ?arg_typ "function") cases)
-    | [%expr ([%e? { pexp_desc = Pexp_function cases; _ }] : [%t? _])] ->
-        A.pexp_function ~loc:vb.pvb_expr.pexp_loc
-          (List.mapi (debug_case callback ?ret_descr ?ret_typ ?arg_typ "function") cases)
     | _ ->
         let result, bound = bound_patterns ~alt_typ:typ pat in
         if bound = [] then raise Not_transforming;
