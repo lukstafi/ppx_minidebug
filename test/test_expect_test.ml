@@ -1461,6 +1461,10 @@ let%expect_test "%debug_show PrintBox to stdout debug type info" =
 
 let%expect_test "%debug_show PrintBox to stdout options values_first_mode" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let%track_show foo l : int =
+    match (l : int option) with None -> 7 | Some y -> y * 2
+  in
+  let () = print_endline @@ Int.to_string @@ foo (Some 7) in
   let%track_show bar (l : int option) : int =
     match l with None -> 7 | Some y -> y * 2
   in
@@ -1470,19 +1474,26 @@ let%expect_test "%debug_show PrintBox to stdout options values_first_mode" =
   [%expect
     {|
       BEGIN DEBUG SESSION
+      foo = 14
+      ├─"test/test_expect_test.ml":1464:21-1465:59
+      └─y = 7
+        └─"test/test_expect_test.ml":1465:54-1465:59
+      14
       bar = 14
-      ├─"test/test_expect_test.ml":1464:21-1467:19
+      ├─"test/test_expect_test.ml":1468:21-1469:44
       ├─l = (Some 7)
       └─<match -- branch 1> Some y
-        └─"test/test_expect_test.ml":1467:14-1467:19
+        └─"test/test_expect_test.ml":1469:39-1469:44
       14
       baz = 8
-      ├─"test/test_expect_test.ml":1472:16-1472:21
+      ├─"test/test_expect_test.ml":1472:63-1472:68
       └─y = 4
       8 |}]
 
 let%expect_test "%debug_show PrintBox to stdout list values_first_mode" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let%track_show foo l : int = match (l : int list) with [] -> 7 | y :: _ -> y * 2 in
+  let () = print_endline @@ Int.to_string @@ foo [ 7 ] in
   let%track_show bar (l : int list) : int = match l with [] -> 7 | y :: _ -> y * 2 in
   let () = print_endline @@ Int.to_string @@ bar [ 7 ] in
   let baz : int list -> int = function
@@ -1497,27 +1508,34 @@ let%expect_test "%debug_show PrintBox to stdout list values_first_mode" =
   [%expect
     {|
       BEGIN DEBUG SESSION
+      foo = 14
+      ├─"test/test_expect_test.ml":1490:21-1490:82
+      └─<match -- branch 1> :: (y, _)
+        ├─"test/test_expect_test.ml":1490:77-1490:82
+        └─<values>
+          └─y = 7
+      14
       bar = 14
-      ├─"test/test_expect_test.ml":1480:21-1483:19
+      ├─"test/test_expect_test.ml":1492:21-1492:82
       ├─l = [7]
       └─<match -- branch 1> :: (y, _)
-        └─"test/test_expect_test.ml":1483:14-1483:19
+        └─"test/test_expect_test.ml":1492:77-1492:82
       14
       <function -- branch 1> :: (y, [])
-      ├─"test/test_expect_test.ml":1488:13-1488:18
+      ├─"test/test_expect_test.ml":1496:15-1496:20
       └─<values>
         ├─y = 4
         └─baz = 8
       8
       <function -- branch 2> :: (y, :: (z, []))
-      ├─"test/test_expect_test.ml":1489:16-1489:21
+      ├─"test/test_expect_test.ml":1497:18-1497:23
       └─<values>
         ├─y = 4
         ├─z = 5
         └─baz = 9
       9
       <function -- branch 3> :: (y, :: (z, _))
-      ├─"test/test_expect_test.ml":1490:21-1490:30
+      ├─"test/test_expect_test.ml":1498:21-1498:30
       └─<values>
         ├─y = 4
         ├─z = 5

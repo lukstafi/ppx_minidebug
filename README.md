@@ -446,8 +446,10 @@ Here is a probably incomplete list of the restrictions:
   - (*) Although polymorphic variant types can be provided inline, we decided it's not worth the effort supporting them.
   - We do handle tuple types and the builtin array type (they are not records or variants).
     - For example, this works: `let%track_sexp { first : int; second : int } = { first = 3; second =7 }` -- but compare with the tuple examples above, the alternatives provided above would not work for records.
-
-Hard-coded special cases: we do decompose the option type and the list type. For example: `let%track_show f : int option -> unit = function None -> () | Some _x -> () in f (Some 3)` will log the value of `_x`.
+  - Hard-coded special cases: we do decompose the option type and the list type. For example: `let%track_show f : int option -> unit = function None -> () | Some _x -> () in f (Some 3)` will log the value of `_x`.
+- Another example of only propagating types top-down:
+  - `let%track_show f (l : int option) : int = match l with Some y -> ...` will not log `y` when `f` is applied (but it will log `l`).
+  - Both `let%track_show f : int option -> int = function Some y -> ...` and `let%track_show f l : int = match (l : int option) with Some y -> ...` *will* log `y`.
 
 As a help in debugging whether the right type information got propagated, we offer the extension `%debug_type_info` (and `%global_debug_type_info`). (The display strips module qualifiers from types.) It is not a top-level extension. Example [from the test suite](test/test_expect_test.ml):
 
