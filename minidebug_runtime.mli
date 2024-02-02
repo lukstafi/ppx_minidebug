@@ -149,7 +149,7 @@ val debug_file :
     this function. The default [boxify_sexp_from_size] value is 50.
     
     By default [backend] is [`Markdown PrintBox.default_md_config].
-    See {type:!PrintBox.config} for details about PrintBox-specific parameters.
+    See {!type:PrintBox.config} for details about PrintBox-specific parameters.
     See {!debug_ch} for the details about shared parameters. *)
 
 val debug :

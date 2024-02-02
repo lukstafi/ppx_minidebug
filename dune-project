@@ -43,6 +43,7 @@
    (and
     :with-test
     (>= v0.9.0)))
-  (odoc :with-doc))
+  (odoc :with-doc)
+  (md2mld :with-doc))
  (tags
   (logger debugger "printf debugging")))
