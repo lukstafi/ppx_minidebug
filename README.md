@@ -150,6 +150,7 @@ the prefixes for Markdown / HTML outputs I might use at the time of writing:
 
 - `~hyperlink:"./"` or `~hyperlink:"../"` depending on the relative locations of the log file and the binary
 - `~hyperlink:"vscode://file//wsl.localhost/ubuntu23/home/lukstafi/ppx_minidebug/"`
+  - if left-clicking a link from within VS Code Live Preview follows the file in the HTML preview window rather than an editor window, middle-click the link
 - `~hyperlink:"https://github.com/lukstafi/ppx_minidebug/tree/main/"`
 
 #### Recommended: `values_first_mode`
@@ -192,6 +193,12 @@ BEGIN DEBUG SESSION
     ├──────────────────┘
     ├─"test/test_expect_test.ml":1042:41-1044:58
 ```
+
+Example showcasing the `printbox-html` backend:
+![PrintBox HTML backend -- follow hyperlink](docs/ppx_minidebug-html-hyperlink.png)
+
+Example showcasing the `printbox-md` (Markdown) backend:
+![PrintBox Markdown backend -- follow hyperlink](docs/ppx_minidebug-md-hyperlink.png)
 
 ## Usage
 
