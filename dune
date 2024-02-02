@@ -24,7 +24,9 @@
 (rule
  (target index.mld)
  (deps README.md)
- (mode (promote (until-clean)))
+ (alias doc)
+ (mode
+  (promote (until-clean)))
  (action
   (with-stdout-to
    %{target}
@@ -37,7 +39,6 @@
 (rule
  (alias upload-doc)
  (deps
-  index.mld
   (alias doc))
  (action
   (progn
