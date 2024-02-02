@@ -29,7 +29,7 @@
   ppx_deriving
   ppx_sexp_conv
   (ppxlib
-   (>= 0.25.0))
+   (>= 0.26.0))
   (printbox
    (>= 0.7))
   printbox-text
@@ -44,6 +44,7 @@
     :with-test
     (>= v0.9.0)))
   (odoc :with-doc)
-  (md2mld :with-doc))
+  ; FIXME(#17): continuous integration in opam-repository triggers this dependency.
+  md2mld)
  (tags
   (logger debugger "printf debugging")))
