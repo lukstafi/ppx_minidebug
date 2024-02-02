@@ -254,7 +254,7 @@ let rec pick ~typ ?alt_typ () =
   | _ -> typ
 
 let bound_patterns ~alt_typ pat =
-  let rec loop ~alt_typ pat =
+  let rec loop ?alt_typ pat =
     let loc = pat.ppat_loc in
     let typ, pat =
       match pat with
@@ -272,45 +272,47 @@ let bound_patterns ~alt_typ pat =
     | ( Some { ptyp_desc = Ptyp_tuple typs; _ },
         { ppat_desc = Ppat_tuple pats; ppat_loc; _ } ) ->
         let pats, bindings =
-          List.split @@ List.map2 (fun pat typ -> loop ~alt_typ:(Some typ) pat) pats typs
+          List.split @@ List.map2 (fun pat typ -> loop ~alt_typ:typ pat) pats typs
         in
         (A.ppat_tuple ~loc:ppat_loc pats, List.concat bindings)
     | _, { ppat_desc = Ppat_tuple pats; ppat_loc; _ } ->
         let pats, bindings =
-          List.split @@ List.map (fun pat -> loop ~alt_typ:None pat) pats
+          List.split @@ List.map (fun pat -> loop pat) pats
         in
         (A.ppat_tuple ~loc:ppat_loc pats, List.concat bindings)
     | _, { ppat_desc = Ppat_record (fields, closed); ppat_loc; _ } ->
         let pats, bindings =
-          List.split @@ List.map (fun (_, pat) -> loop ~alt_typ:None pat) fields
+          List.split @@ List.map (fun (_, pat) -> loop pat) fields
         in
         let fields = List.map2 (fun (id, _) pat -> (id, pat)) fields pats in
         (A.ppat_record ~loc:ppat_loc fields closed, List.concat bindings)
-        (* FIXME: special-case some builtin types: option, list. *)
+    | Some [%type: [%t? alt_typ] option], [%pat? Some [%p? pat]] ->
+        let pat, bindings = loop ~alt_typ pat in
+        ([%pat? Some [%p pat]], bindings)
+    | Some [%type: [%t? alt_typ] list], [%pat? [%p? hd] :: [%p? tl]] ->
+        let hd, bindings1 = loop ~alt_typ hd in
+        let tl, bindings2 = loop ?alt_typ:typ tl in
+        ([%pat? [%p hd] :: [%p tl]], bindings1 @ bindings2)
     | _, { ppat_desc = Ppat_construct (_lid, None); _ } -> (pat, [])
     | _, { ppat_desc = Ppat_construct (lid, Some (_abs_tys, pat)); _ } ->
-        let pat, bindings = loop ~alt_typ:None pat in
+        let pat, bindings = loop pat in
         (A.ppat_construct ~loc lid (Some pat), bindings)
     | _, { ppat_desc = Ppat_variant (_lid, None); _ } -> (pat, [])
     | _, { ppat_desc = Ppat_variant (lid, Some pat); _ } ->
-        let pat, bindings = loop ~alt_typ:None pat in
+        let pat, bindings = loop pat in
         (A.ppat_variant ~loc lid (Some pat), bindings)
-    | Some [%type: [%t? typ] array], { ppat_desc = Ppat_array pats; ppat_loc; _ } ->
-        let pats, bindings =
-          List.split @@ List.map (fun pat -> loop ~alt_typ:(Some typ) pat) pats
-        in
+    | Some [%type: [%t? alt_typ] array], { ppat_desc = Ppat_array pats; ppat_loc; _ } ->
+        let pats, bindings = List.split @@ List.map (fun pat -> loop ~alt_typ pat) pats in
         (A.ppat_array ~loc:ppat_loc pats, List.concat bindings)
     | _, { ppat_desc = Ppat_array pats; ppat_loc; _ } ->
-        let pats, bindings =
-          List.split @@ List.map (fun pat -> loop ~alt_typ:None pat) pats
-        in
+        let pats, bindings = List.split @@ List.map (fun pat -> loop pat) pats in
         (A.ppat_array ~loc:ppat_loc pats, List.concat bindings)
     | _, { ppat_desc = Ppat_or (pat1, pat2); _ } ->
-        let pat1, binds1 = loop ~alt_typ:typ pat1 in
+        let pat1, binds1 = loop ?alt_typ:typ pat1 in
         let binds1 =
           List.map (fun (({ txt = descr; _ }, _, _) as b) -> (descr, b)) binds1
         in
-        let pat2, binds2 = loop ~alt_typ:typ pat2 in
+        let pat2, binds2 = loop ?alt_typ:typ pat2 in
         let binds2 =
           List.map (fun (({ txt = descr; _ }, _, _) as b) -> (descr, b)) binds2
         in
@@ -319,16 +321,16 @@ let bound_patterns ~alt_typ pat =
         in
         (A.ppat_or ~loc pat1 pat2, List.map snd bindings)
     | _, { ppat_desc = Ppat_exception pat; _ } ->
-        let pat, bindings = loop ~alt_typ:None pat in
+        let pat, bindings = loop pat in
         (A.ppat_exception ~loc pat, bindings)
-    | Some [%type: [%t? typ] Lazy.t], { ppat_desc = Ppat_lazy pat; _ } ->
-        let pat, bindings = loop ~alt_typ:(Some typ) pat in
+    | Some [%type: [%t? alt_typ] Lazy.t], { ppat_desc = Ppat_lazy pat; _ } ->
+        let pat, bindings = loop ~alt_typ pat in
         (A.ppat_lazy ~loc pat, bindings)
     | _, { ppat_desc = Ppat_lazy pat; _ } ->
-        let pat, bindings = loop ~alt_typ:None pat in
+        let pat, bindings = loop pat in
         (A.ppat_lazy ~loc pat, bindings)
     | _, { ppat_desc = Ppat_open (m, pat); _ } ->
-        let pat, bindings = loop ~alt_typ:typ pat in
+        let pat, bindings = loop ?alt_typ:typ pat in
         (A.ppat_open ~loc m pat, bindings)
     | _, { ppat_desc = Ppat_constraint (_, _); _ } -> assert false
     | ( _,
@@ -343,7 +345,7 @@ let bound_patterns ~alt_typ pat =
         (* The pattern is only used to bind values that will be logged. *)
         (A.ppat_any ~loc, [])
   in
-  let bind_pat, bound = loop ~alt_typ pat in
+  let bind_pat, bound = loop ?alt_typ pat in
   let loc = pat.ppat_loc in
   (A.ppat_alias ~loc bind_pat { txt = "__res"; loc }, bound)
 
