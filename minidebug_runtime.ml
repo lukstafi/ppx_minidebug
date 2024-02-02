@@ -17,8 +17,8 @@ module type Debug_ch = sig
   val split_files_after : int option
 end
 
-let debug_ch ?(time_tagged = false)
-    ?split_files_after ?(for_append = true) filename : (module Debug_ch) =
+let debug_ch ?(time_tagged = false) ?split_files_after ?(for_append = true) filename :
+    (module Debug_ch) =
   let module Result = struct
     let () =
       match split_files_after with
@@ -91,12 +91,18 @@ module type Debug_runtime = sig
     entry_id:int ->
     unit
 
-  val log_value_sexp : descr:string -> entry_id:int -> sexp:Sexplib0.Sexp.t -> unit
+  val log_value_sexp :
+    descr:string -> entry_id:int -> is_result:bool -> Sexplib0.Sexp.t -> unit
 
   val log_value_pp :
-    descr:string -> entry_id:int -> pp:(Format.formatter -> 'a -> unit) -> v:'a -> unit
+    descr:string ->
+    entry_id:int ->
+    pp:(Format.formatter -> 'a -> unit) ->
+    is_result:bool ->
+    'a ->
+    unit
 
-  val log_value_show : descr:string -> entry_id:int -> v:string -> unit
+  val log_value_show : descr:string -> entry_id:int -> is_result:bool -> string -> unit
   val exceeds_max_nesting : unit -> bool
   val exceeds_max_children : unit -> bool
   val get_entry_id : unit -> int
@@ -147,19 +153,19 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
     if Log_to.time_tagged then CFormat.fprintf !ppf "@ at time@ %a" pp_timestamp ();
     CFormat.fprintf !ppf ": %s@]@ @[<hov 2>" message
 
-  let log_value_sexp ~descr ~entry_id:_ ~sexp =
+  let log_value_sexp ~descr ~entry_id:_ ~is_result:_ sexp =
     (match !stack with
     | num_children :: tl -> stack := (num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
     CFormat.fprintf !ppf "%s = %a@ @ " descr Sexplib0.Sexp.pp_hum sexp
 
-  let log_value_pp ~descr ~entry_id:_ ~pp ~v =
+  let log_value_pp ~descr ~entry_id:_ ~pp ~is_result:_ v =
     (match !stack with
     | num_children :: tl -> stack := (num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
     CFormat.fprintf !ppf "%s = %a@ @ " descr pp v
 
-  let log_value_show ~descr ~entry_id:_ ~v =
+  let log_value_show ~descr ~entry_id:_ ~is_result:_ v =
     (match !stack with
     | num_children :: tl -> stack := (num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
@@ -221,14 +227,14 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
       start_colnum end_lnum end_colnum;
     stack := (Some message, 0) :: !stack
 
-  let log_value_sexp ~descr ~entry_id:_ ~sexp =
+  let log_value_sexp ~descr ~entry_id:_ ~is_result:_ sexp =
     (match !stack with
     | (hd, num_children) :: tl -> stack := (hd, num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
     Printf.fprintf !debug_ch "%s%s = %s\n%!" (indent ()) descr
       (Sexplib0.Sexp.to_string_hum sexp)
 
-  let log_value_pp ~descr ~entry_id:_ ~pp ~v =
+  let log_value_pp ~descr ~entry_id:_ ~pp ~is_result:_ v =
     (match !stack with
     | (hd, num_children) :: tl -> stack := (hd, num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
@@ -237,7 +243,7 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
     let v_str = CFormat.flush_str_formatter () in
     Printf.fprintf !debug_ch "%s%s = %s\n%!" (indent ()) descr v_str
 
-  let log_value_show ~descr ~entry_id:_ ~v =
+  let log_value_show ~descr ~entry_id:_ ~is_result:_ v =
     (match !stack with
     | (hd, num_children) :: tl -> stack := (hd, num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
@@ -319,7 +325,7 @@ module PrintBox (Log_to : Debug_ch) = struct
 
   module B = PrintBox
 
-  type subentry = { result_id : int; subtree : B.t }
+  type subentry = { result_id : int; is_result : bool; subtree : B.t }
 
   type entry = {
     cond : bool;
@@ -339,14 +345,14 @@ module PrintBox (Log_to : Debug_ch) = struct
     | `Prefix prefix -> B.link ~uri:(prefix ^ uri) inner
     | `No_hyperlinks -> inner
 
-  let stack_next ~entry_id (hl, b) =
+  let stack_next ~entry_id ~is_result (hl, b) =
     stack :=
       match !stack with
       | ({ highlight; exclude; body; _ } as entry) :: bs2 ->
           {
             entry with
             highlight = highlight || ((not exclude) && hl);
-            body = { result_id = entry_id; subtree = b } :: body;
+            body = { result_id = entry_id; is_result; subtree = b } :: body;
           }
           :: bs2
       | _ ->
@@ -364,56 +370,44 @@ module PrintBox (Log_to : Debug_ch) = struct
   let apply_highlight hl b =
     match B.view b with B.Frame _ -> b | _ -> if hl then B.frame b else b
 
-  let partition_at pos l =
-    let rec loop pos acc l =
-      if pos <= 0 then (List.rev acc, l)
-      else
-        match l with
-        | [] -> (List.rev acc, [])
-        | hd :: tl -> loop (pos - 1) (hd :: acc) tl
-    in
-    loop pos [] l
-
   let stack_to_tree
       { cond = _; highlight; exclude = _; uri; path; entry_message; entry_id; body } =
-    let is_struct, n_struct =
-      if String.contains entry_message ',' || String.contains entry_message ';' then
-        let tuple_elems = String.split_on_char ',' entry_message in
-        let record_elems = String.split_on_char ';' entry_message in
-        let n_tuple = List.length tuple_elems in
-        let n_record = List.length record_elems in
-        (n_tuple > 1 || n_record > 1, max n_tuple n_record)
-      else (false, 0)
-    in
+    let non_id_message = String.contains entry_message '<' || String.contains entry_message ':' in
     let b_path =
       B.line @@ if config.values_first_mode then path else path ^ ": " ^ entry_message
     in
     let b_path = hyperlink_path ~uri ~inner:b_path in
-    let b_body = List.map (fun { subtree; _ } -> subtree) body in
+    let unpack l = List.rev @@ List.map (fun { subtree; _ } -> subtree) l in
     if config.values_first_mode then
       let hl_header = apply_highlight highlight @@ B.line entry_message in
-      match body with
-      | [] -> B.tree hl_header [ b_path ]
-      | { result_id; _ } :: _ as body when is_struct && result_id = entry_id ->
-          let body = List.map (fun { subtree; _ } -> subtree) body in
-          let result, body = partition_at n_struct body in
-          B.tree
-            (apply_highlight highlight hl_header)
-            (b_path :: B.tree (B.line "<values>") (List.rev result) :: List.rev body)
-      | { result_id; subtree } :: body when result_id = entry_id -> (
-          let body = List.map (fun { subtree; _ } -> subtree) body in
+      let results, body =
+        List.partition
+          (fun { result_id; is_result; _ } -> is_result && result_id = entry_id)
+          body
+      in
+      let results = unpack results and body = unpack body in
+      match results with
+      | [ subtree ] -> (
+        let opt_message = if non_id_message then [hl_header] else [] in
           match B.view subtree with
           | B.Tree (_ident, result_header, result_body) ->
               B.tree
                 (apply_highlight highlight result_header)
                 (b_path
-                :: B.tree (B.line "<returns>") (Array.to_list result_body)
-                :: List.rev body)
-          | _ -> B.tree (apply_highlight highlight subtree) (b_path :: List.rev body))
-      | _ -> B.tree hl_header (b_path :: List.rev b_body)
+                :: B.tree
+                     (B.line @@ if body = [] then "<values>" else "<returns>")
+                     (Array.to_list result_body)
+                :: opt_message @ body)
+          | _ -> B.tree (apply_highlight highlight subtree) (b_path :: opt_message @ body))
+      | [] -> B.tree hl_header (b_path :: body)
+      | _ ->
+          B.tree hl_header
+          @@ b_path
+             :: B.tree (B.line @@ if body = [] then "<values>" else "<returns>") results
+             :: body
     else
       let hl_header = apply_highlight highlight b_path in
-      B.tree hl_header (List.rev b_body)
+      B.tree hl_header (unpack body)
 
   let close_log () =
     (* Note: we treat a tree under a box as part of that box. *)
@@ -432,7 +426,7 @@ module PrintBox (Log_to : Debug_ch) = struct
             path;
             entry_message;
             entry_id;
-            body = { result_id; subtree = stack_to_tree entry } :: body;
+            body = { result_id; is_result = false; subtree = stack_to_tree entry } :: body;
           }
           :: bs3
       | { cond = false; _ } :: bs -> bs
@@ -564,19 +558,20 @@ module PrintBox (Log_to : Debug_ch) = struct
 
   let num_children () = match !stack with [] -> 0 | { body; _ } :: _ -> List.length body
 
-  let log_value_sexp ~descr ~entry_id ~sexp =
-    if config.boxify_sexp_from_size >= 0 then stack_next ~entry_id @@ boxify descr sexp
+  let log_value_sexp ~descr ~entry_id ~is_result sexp =
+    if config.boxify_sexp_from_size >= 0
+    then stack_next ~entry_id ~is_result @@ boxify descr sexp
     else
-      stack_next ~entry_id @@ highlight_box
+      stack_next ~entry_id ~is_result @@ highlight_box
       @@ B.asprintf_with_style B.Style.preformatted "%s = %a" descr Sexplib0.Sexp.pp_hum
            sexp
 
-  let log_value_pp ~descr ~entry_id ~pp ~v =
-    stack_next ~entry_id @@ highlight_box
+  let log_value_pp ~descr ~entry_id ~pp  ~is_result v =
+    stack_next ~entry_id ~is_result @@ highlight_box
     @@ B.asprintf_with_style B.Style.preformatted "%s = %a" descr pp v
 
-  let log_value_show ~descr ~entry_id ~v =
-    stack_next ~entry_id @@ highlight_box
+  let log_value_show ~descr ~entry_id ~is_result v =
+    stack_next ~entry_id ~is_result @@ highlight_box
     @@ B.sprintf_with_style B.Style.preformatted "%s = %s" descr v
 
   let no_debug_if cond =
@@ -619,9 +614,8 @@ let debug_file ?(time_tagged = false) ?split_files_after ?highlight_terms ?exclu
     (match hyperlink with None -> `No_hyperlinks | Some prefix -> `Prefix prefix);
   (module Debug)
 
-let debug ?(debug_ch = stdout) ?(time_tagged = false)
-    ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(values_first_mode = false) () :
-    (module PrintBox_runtime) =
+let debug ?(debug_ch = stdout) ?(time_tagged = false) ?highlight_terms ?exclude_on_path
+    ?(prune_upto = 0) ?(values_first_mode = false) () : (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
     let debug_ch () = debug_ch
@@ -634,7 +628,8 @@ let debug ?(debug_ch = stdout) ?(time_tagged = false)
   Debug.config.values_first_mode <- values_first_mode;
   (module Debug)
 
-let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) () : (module Debug_runtime) =
+let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) () : (module Debug_runtime)
+    =
   (module Flushing (struct
     let refresh_ch () = false
     let debug_ch () = debug_ch

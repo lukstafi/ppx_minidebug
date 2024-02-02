@@ -46,12 +46,18 @@ module type Debug_runtime = sig
     entry_id:int ->
     unit
 
-  val log_value_sexp : descr:string -> entry_id:int -> sexp:Sexplib0.Sexp.t -> unit
+  val log_value_sexp :
+    descr:string -> entry_id:int -> is_result:bool -> Sexplib0.Sexp.t -> unit
 
   val log_value_pp :
-    descr:string -> entry_id:int -> pp:(Format.formatter -> 'a -> unit) -> v:'a -> unit
+    descr:string ->
+    entry_id:int ->
+    pp:(Format.formatter -> 'a -> unit) ->
+    is_result:bool ->
+    'a ->
+    unit
 
-  val log_value_show : descr:string -> entry_id:int -> v:string -> unit
+  val log_value_show : descr:string -> entry_id:int -> is_result:bool -> string -> unit
   val exceeds_max_nesting : unit -> bool
   val exceeds_max_children : unit -> bool
   val get_entry_id : unit -> int
@@ -159,9 +165,6 @@ val debug :
     and will not be time tagged. *)
 
 val debug_flushing :
-  ?debug_ch:out_channel ->
-  ?time_tagged:bool ->
-  unit ->
-  (module Debug_runtime)
+  ?debug_ch:out_channel -> ?time_tagged:bool -> unit -> (module Debug_runtime)
 (** Creates a PrintBox-based debug runtime. By default it will log to [stdout] and will not be
     time tagged. *)

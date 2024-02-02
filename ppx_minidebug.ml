@@ -113,14 +113,15 @@ let to_descr ~descr_loc typ =
   A.estring ~loc:descr_loc.loc descr
 
 (* *** The sexplib-based variant. *** *)
-let log_value_sexp ~loc ~typ ~descr_loc exp =
+let log_value_sexp ~loc ~typ ~descr_loc ~is_result exp =
   (* [%sexp_of: typ] does not work with `Ptyp_poly`. Misleading error "Let with no bindings". *)
   let typ =
     match typ with { ptyp_desc = Ptyp_poly (_, ctyp); _ } -> ctyp | ctyp -> ctyp
   in
   [%expr
     Debug_runtime.log_value_sexp ~descr:[%e to_descr ~descr_loc typ] ~entry_id:__entry_id
-      ~sexp:([%sexp_of: [%t typ]] [%e exp])]
+      ~is_result:[%e A.ebool ~loc is_result]
+      ([%sexp_of: [%t typ]] [%e exp])]
 
 (* *** The deriving.show pp-based variant. *** *)
 let rec splice_lident ~id_prefix ident =
@@ -132,7 +133,7 @@ let rec splice_lident ~id_prefix ident =
   | Ldot (path, id) -> Ldot (path, splice id)
   | Lapply (f, a) -> Lapply (splice_lident ~id_prefix f, a)
 
-let log_value_pp ~loc ~typ ~descr_loc exp =
+let log_value_pp ~loc ~typ ~descr_loc ~is_result exp =
   let t_lident_loc =
     match typ with
     | {
@@ -150,17 +151,18 @@ let log_value_pp ~loc ~typ ~descr_loc exp =
   in
   [%expr
     Debug_runtime.log_value_pp ~descr:[%e to_descr ~descr_loc typ] ~entry_id:__entry_id
-      ~pp:[%e converter] ~v:[%e exp]]
+      ~pp:[%e converter] ~is_result:[%e A.ebool ~loc is_result] [%e exp]]
 
 (* *** The deriving.show string-based variant. *** *)
-let log_value_show ~loc ~typ ~descr_loc exp =
+let log_value_show ~loc ~typ ~descr_loc ~is_result exp =
   (* Defensive (TODO: check it doesn't work with Ptyp_poly). *)
   let typ =
     match typ with { ptyp_desc = Ptyp_poly (_, ctyp); _ } -> ctyp | ctyp -> ctyp
   in
   [%expr
     Debug_runtime.log_value_show ~descr:[%e to_descr ~descr_loc typ] ~entry_id:__entry_id
-      ~v:([%show: [%t typ]] [%e exp])]
+      ~is_result:[%e A.ebool ~loc is_result]
+      ([%show: [%t typ]] [%e exp])]
 
 let log_value = ref log_value_sexp
 
@@ -168,7 +170,7 @@ let log_string ~loc ~descr_loc s =
   [%expr
     Debug_runtime.log_value_show
       ~descr:[%e A.estring ~loc:descr_loc.loc descr_loc.txt]
-      ~entry_id:__entry_id ~v:[%e A.estring ~loc s]]
+      ~entry_id:__entry_id ~is_result:false [%e A.estring ~loc s]]
 
 type fun_arg =
   | Pexp_fun_arg of
@@ -276,14 +278,10 @@ let bound_patterns ~alt_typ pat =
         in
         (A.ppat_tuple ~loc:ppat_loc pats, List.concat bindings)
     | _, { ppat_desc = Ppat_tuple pats; ppat_loc; _ } ->
-        let pats, bindings =
-          List.split @@ List.map (fun pat -> loop pat) pats
-        in
+        let pats, bindings = List.split @@ List.map (fun pat -> loop pat) pats in
         (A.ppat_tuple ~loc:ppat_loc pats, List.concat bindings)
     | _, { ppat_desc = Ppat_record (fields, closed); ppat_loc; _ } ->
-        let pats, bindings =
-          List.split @@ List.map (fun (_, pat) -> loop pat) fields
-        in
+        let pats, bindings = List.split @@ List.map (fun (_, pat) -> loop pat) fields in
         let fields = List.map2 (fun (id, _) pat -> (id, pat)) fields pats in
         (A.ppat_record ~loc:ppat_loc fields closed, List.concat bindings)
     | Some [%type: [%t? alt_typ] option], [%pat? Some [%p? pat]] ->
@@ -410,7 +408,7 @@ let debug_body callback ~loc ~message ~descr_loc ~arg_logs typ body =
   let log_result =
     match typ with
     | None -> [%expr ()]
-    | Some typ -> !log_value ~loc ~typ ~descr_loc (pat2expr result)
+    | Some typ -> !log_value ~loc ~typ ~descr_loc ~is_result:true (pat2expr result)
   in
   entry_with_interrupts ~loc ~descr_loc ~preamble ~entry:(callback body) ~result
     ~log_result ()
@@ -455,7 +453,7 @@ let debug_fun callback ?typ ?ret_descr ?ret_typ exp =
         let _, bound = bound_patterns ~alt_typ:(Some alt_typ) pat in
         List.map
           (fun (descr_loc, pat, typ) ->
-            !log_value ~loc:pexp_loc ~typ ~descr_loc (pat2expr pat))
+            !log_value ~loc:pexp_loc ~typ ~descr_loc ~is_result:false (pat2expr pat))
           bound
         @ arg_log (arg_typs, args)
     | ( [],
@@ -465,7 +463,7 @@ let debug_fun callback ?typ ?ret_descr ?ret_typ exp =
         let _, bound = bound_patterns ~alt_typ:None pat in
         List.map
           (fun (descr_loc, pat, typ) ->
-            !log_value ~loc:pexp_loc ~typ ~descr_loc (pat2expr pat))
+            !log_value ~loc:pexp_loc ~typ ~descr_loc ~is_result:false (pat2expr pat))
           bound
         @ arg_log ([], args)
     | _, [] -> []
@@ -486,7 +484,8 @@ let debug_case callback ?ret_descr ?ret_typ ?arg_typ kind i { pc_lhs; pc_guard; 
   let _, bound = bound_patterns ~alt_typ:arg_typ pc_lhs in
   let arg_logs =
     List.map
-      (fun (descr_loc, pat, typ) -> !log_value ~loc ~typ ~descr_loc (pat2expr pat))
+      (fun (descr_loc, pat, typ) ->
+        !log_value ~loc ~typ ~descr_loc ~is_result:false (pat2expr pat))
       bound
   in
   let message = pat2descr ~default:"_" pc_lhs in
@@ -544,7 +543,8 @@ let debug_binding callback vb =
         let log_result =
           List.map
             (fun (descr_loc, pat, typ) ->
-              !log_value ~loc:vb.pvb_expr.pexp_loc ~typ ~descr_loc (pat2expr pat))
+              !log_value ~loc:vb.pvb_expr.pexp_loc ~typ ~descr_loc ~is_result:true
+                (pat2expr pat))
             bound
           |> List.fold_left
                (fun e1 e2 ->
@@ -742,7 +742,7 @@ let traverse =
                   ~message:("<for " ^ descr_loc.txt ^ ">")
                   ~loc:descr_loc.loc ()
               in
-              let header = !log_value ~loc ~typ ~descr_loc (pat2expr pat) in
+              let header = !log_value ~loc ~typ ~descr_loc ~is_result:false (pat2expr pat) in
               entry_with_interrupts ~loc ~descr_loc ~header ~preamble
                 ~entry:(callback body)
                 ~result:[%pat? ()]

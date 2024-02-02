@@ -7,7 +7,7 @@ let foo (x : int) =
       ~start_lnum:5 ~start_colnum:19 ~end_lnum:7 ~end_colnum:17
       ~message:"foo" ~entry_id:__entry_id;
     Debug_runtime.log_value_show ~descr:"x" ~entry_id:__entry_id
-      ~v:(([%show : int]) x));
+      ~is_result:false (([%show : int]) x));
    (match let y : int =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
@@ -17,7 +17,7 @@ let foo (x : int) =
              | y as __res ->
                  ((();
                    Debug_runtime.log_value_show ~descr:"y"
-                     ~entry_id:__entry_id ~v:(([%show : int]) y));
+                     ~entry_id:__entry_id ~is_result:true (([%show : int]) y));
                   Debug_runtime.close_log ();
                   __res)
              | exception e -> (Debug_runtime.close_log (); raise e)) in
@@ -25,7 +25,7 @@ let foo (x : int) =
     with
     | __res ->
         (Debug_runtime.log_value_show ~descr:"foo" ~entry_id:__entry_id
-           ~v:(([%show : int list]) __res);
+           ~is_result:true (([%show : int list]) __res);
          Debug_runtime.close_log ();
          __res)
     | exception e -> (Debug_runtime.close_log (); raise e)) : int list)
@@ -40,7 +40,7 @@ let bar (x : t) =
       ~start_lnum:13 ~start_colnum:19 ~end_lnum:15 ~end_colnum:14
       ~message:"bar" ~entry_id:__entry_id;
     Debug_runtime.log_value_show ~descr:"x" ~entry_id:__entry_id
-      ~v:(([%show : t]) x));
+      ~is_result:false (([%show : t]) x));
    (match let y : int =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
@@ -50,7 +50,7 @@ let bar (x : t) =
              | y as __res ->
                  ((();
                    Debug_runtime.log_value_show ~descr:"y"
-                     ~entry_id:__entry_id ~v:(([%show : int]) y));
+                     ~entry_id:__entry_id ~is_result:true (([%show : int]) y));
                   Debug_runtime.close_log ();
                   __res)
              | exception e -> (Debug_runtime.close_log (); raise e)) in
@@ -58,7 +58,7 @@ let bar (x : t) =
     with
     | __res ->
         (Debug_runtime.log_value_show ~descr:"bar" ~entry_id:__entry_id
-           ~v:(([%show : int]) __res);
+           ~is_result:true (([%show : int]) __res);
          Debug_runtime.close_log ();
          __res)
     | exception e -> (Debug_runtime.close_log (); raise e)) : int)
@@ -70,7 +70,7 @@ let baz (x : t) =
       ~start_lnum:19 ~start_colnum:19 ~end_lnum:21 ~end_colnum:20
       ~message:"baz" ~entry_id:__entry_id;
     Debug_runtime.log_value_show ~descr:"x" ~entry_id:__entry_id
-      ~v:(([%show : t]) x));
+      ~is_result:false (([%show : t]) x));
    (match let (((y, z) as _yz) : (int * int)) =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
@@ -80,7 +80,8 @@ let baz (x : t) =
              | _yz as __res ->
                  ((();
                    Debug_runtime.log_value_show ~descr:"_yz"
-                     ~entry_id:__entry_id ~v:(([%show : (int * int)]) _yz));
+                     ~entry_id:__entry_id ~is_result:true
+                     (([%show : (int * int)]) _yz));
                   Debug_runtime.close_log ();
                   __res)
              | exception e -> (Debug_runtime.close_log (); raise e)) in
@@ -88,7 +89,7 @@ let baz (x : t) =
     with
     | __res ->
         (Debug_runtime.log_value_show ~descr:"baz" ~entry_id:__entry_id
-           ~v:(([%show : int]) __res);
+           ~is_result:true (([%show : int]) __res);
          Debug_runtime.close_log ();
          __res)
     | exception e -> (Debug_runtime.close_log (); raise e)) : int)
@@ -100,9 +101,9 @@ let rec loop (depth : int) (x : t) =
        ~start_lnum:25 ~start_colnum:24 ~end_lnum:31 ~end_colnum:9
        ~message:"loop" ~entry_id:__entry_id;
      Debug_runtime.log_value_show ~descr:"depth" ~entry_id:__entry_id
-       ~v:(([%show : int]) depth));
+       ~is_result:false (([%show : int]) depth));
     Debug_runtime.log_value_show ~descr:"x" ~entry_id:__entry_id
-      ~v:(([%show : t]) x));
+      ~is_result:false (([%show : t]) x));
    (match if depth > 6
           then x.first + x.second
           else
@@ -123,7 +124,8 @@ let rec loop (depth : int) (x : t) =
                   | y as __res ->
                       ((();
                         Debug_runtime.log_value_show ~descr:"y"
-                          ~entry_id:__entry_id ~v:(([%show : int]) y));
+                          ~entry_id:__entry_id ~is_result:true
+                          (([%show : int]) y));
                        Debug_runtime.close_log ();
                        __res)
                   | exception e -> (Debug_runtime.close_log (); raise e)) in
@@ -139,7 +141,8 @@ let rec loop (depth : int) (x : t) =
                   | z as __res ->
                       ((();
                         Debug_runtime.log_value_show ~descr:"z"
-                          ~entry_id:__entry_id ~v:(([%show : int]) z));
+                          ~entry_id:__entry_id ~is_result:true
+                          (([%show : int]) z));
                        Debug_runtime.close_log ();
                        __res)
                   | exception e -> (Debug_runtime.close_log (); raise e)) in
@@ -147,7 +150,7 @@ let rec loop (depth : int) (x : t) =
     with
     | __res ->
         (Debug_runtime.log_value_show ~descr:"loop" ~entry_id:__entry_id
-           ~v:(([%show : int]) __res);
+           ~is_result:true (([%show : int]) __res);
          Debug_runtime.close_log ();
          __res)
     | exception e -> (Debug_runtime.close_log (); raise e)) : int)

@@ -10,7 +10,8 @@ let bar (x : t) =
    (Debug_runtime.open_log_preamble_full ~fname:"test_debug_pp.ml"
       ~start_lnum:7 ~start_colnum:17 ~end_lnum:9 ~end_colnum:14
       ~message:"bar" ~entry_id:__entry_id;
-    Debug_runtime.log_value_pp ~descr:"x" ~entry_id:__entry_id ~pp ~v:x);
+    Debug_runtime.log_value_pp ~descr:"x" ~entry_id:__entry_id ~pp
+      ~is_result:false x);
    (match let y : num =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
@@ -20,7 +21,7 @@ let bar (x : t) =
              | y as __res ->
                  ((();
                    Debug_runtime.log_value_pp ~descr:"y" ~entry_id:__entry_id
-                     ~pp:pp_num ~v:y);
+                     ~pp:pp_num ~is_result:true y);
                   Debug_runtime.close_log ();
                   __res)
              | exception e -> (Debug_runtime.close_log (); raise e)) in
@@ -28,7 +29,7 @@ let bar (x : t) =
     with
     | __res ->
         (Debug_runtime.log_value_pp ~descr:"bar" ~entry_id:__entry_id
-           ~pp:pp_num ~v:__res;
+           ~pp:pp_num ~is_result:true __res;
          Debug_runtime.close_log ();
          __res)
     | exception e -> (Debug_runtime.close_log (); raise e)) : num)
@@ -39,7 +40,8 @@ let baz (x : t) =
    (Debug_runtime.open_log_preamble_full ~fname:"test_debug_pp.ml"
       ~start_lnum:13 ~start_colnum:17 ~end_lnum:15 ~end_colnum:20
       ~message:"baz" ~entry_id:__entry_id;
-    Debug_runtime.log_value_pp ~descr:"x" ~entry_id:__entry_id ~pp ~v:x);
+    Debug_runtime.log_value_pp ~descr:"x" ~entry_id:__entry_id ~pp
+      ~is_result:false x);
    (match let (({ first = y; second = z } as _yz) : t) =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
@@ -49,7 +51,7 @@ let baz (x : t) =
              | _yz as __res ->
                  ((();
                    Debug_runtime.log_value_pp ~descr:"_yz"
-                     ~entry_id:__entry_id ~pp ~v:_yz);
+                     ~entry_id:__entry_id ~pp ~is_result:true _yz);
                   Debug_runtime.close_log ();
                   __res)
              | exception e -> (Debug_runtime.close_log (); raise e)) in
@@ -57,7 +59,7 @@ let baz (x : t) =
     with
     | __res ->
         (Debug_runtime.log_value_pp ~descr:"baz" ~entry_id:__entry_id
-           ~pp:pp_num ~v:__res;
+           ~pp:pp_num ~is_result:true __res;
          Debug_runtime.close_log ();
          __res)
     | exception e -> (Debug_runtime.close_log (); raise e)) : num)
@@ -69,8 +71,9 @@ let rec loop (depth : num) (x : t) =
        ~start_lnum:19 ~start_colnum:22 ~end_lnum:25 ~end_colnum:9
        ~message:"loop" ~entry_id:__entry_id;
      Debug_runtime.log_value_pp ~descr:"depth" ~entry_id:__entry_id
-       ~pp:pp_num ~v:depth);
-    Debug_runtime.log_value_pp ~descr:"x" ~entry_id:__entry_id ~pp ~v:x);
+       ~pp:pp_num ~is_result:false depth);
+    Debug_runtime.log_value_pp ~descr:"x" ~entry_id:__entry_id ~pp
+      ~is_result:false x);
    (match if depth > 6
           then x.first + x.second
           else
@@ -91,7 +94,7 @@ let rec loop (depth : num) (x : t) =
                   | y as __res ->
                       ((();
                         Debug_runtime.log_value_pp ~descr:"y"
-                          ~entry_id:__entry_id ~pp:pp_num ~v:y);
+                          ~entry_id:__entry_id ~pp:pp_num ~is_result:true y);
                        Debug_runtime.close_log ();
                        __res)
                   | exception e -> (Debug_runtime.close_log (); raise e)) in
@@ -107,7 +110,7 @@ let rec loop (depth : num) (x : t) =
                   | z as __res ->
                       ((();
                         Debug_runtime.log_value_pp ~descr:"z"
-                          ~entry_id:__entry_id ~pp:pp_num ~v:z);
+                          ~entry_id:__entry_id ~pp:pp_num ~is_result:true z);
                        Debug_runtime.close_log ();
                        __res)
                   | exception e -> (Debug_runtime.close_log (); raise e)) in
@@ -115,7 +118,7 @@ let rec loop (depth : num) (x : t) =
     with
     | __res ->
         (Debug_runtime.log_value_pp ~descr:"loop" ~entry_id:__entry_id
-           ~pp:pp_num ~v:__res;
+           ~pp:pp_num ~is_result:true __res;
          Debug_runtime.close_log ();
          __res)
     | exception e -> (Debug_runtime.close_log (); raise e)) : num)
