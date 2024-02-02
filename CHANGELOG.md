@@ -1,4 +1,4 @@
-## [1.0.0] -- 2024-01-28
+## [1.0.0] -- 2024-02-02
 
 ### Added
 
@@ -6,8 +6,11 @@
 - Optionally, log to multiple files, opening a new file once a file size threshold is exceeded.
 - Continuous Integration tests.
 - Fixes #9: handle tuple and record patterns.
-- Handle variants patterns and more.
+- Handle variants patterns, nested patterns, ... pretty much all patterns.
 - Log bindings in `match` and `function` patterns, but only when in a `%track_` scope.
+- Provide pattern text in addition to the branch number (counted from 0).
+- Propagate type information top-down and merge different sources of type information.
+- Optionally, log the type information found with extension points `%debug_type_info` and `%global_debug_type_info`.
 
 ### Changed
 
@@ -15,6 +18,11 @@
 - Refactored PrintBox configuration, smaller footprint and allowing control over the backends.
 - Changed `highlighted_roots` to a more general `prune_upto`: prune to only the highlighted boxes up to the given depth.
 - Exported `PrintBox_runtime` configuration for better flexibility (in-flight configuration changes).
+- Refactored the optional termination configuration `max_nesting_depth` and `max_num_children` into extension points `%debug_interrupts` and `%global_debug_interrupts`.
+
+### Fixed
+
+- In `values_first_mode`, be consistent about what counts as a returned value.
 
 ## [0.9.0] -- 2024-01-18
 
