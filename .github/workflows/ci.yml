@@ -30,6 +30,7 @@ jobs:
         allow-prerelease-opam: true
     - run: opam pin -n .
     - run: opam depext -yt printbox printbox-html printbox-md printbox-text
-    - run: opam install -t . --deps-only
-    - run: opam exec -- dune build @all
+    - run: opam install . --deps-only --with-test
+    # Don't run all targets -- don't try building and uploading documentation.
+    - run: opam exec -- dune build
     - run: opam exec -- dune runtest
