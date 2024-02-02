@@ -742,7 +742,9 @@ let traverse =
                   ~message:("<for " ^ descr_loc.txt ^ ">")
                   ~loc:descr_loc.loc ()
               in
-              let header = !log_value ~loc ~typ ~descr_loc ~is_result:false (pat2expr pat) in
+              let header =
+                !log_value ~loc ~typ ~descr_loc ~is_result:false (pat2expr pat)
+              in
               entry_with_interrupts ~loc ~descr_loc ~header ~preamble
                 ~entry:(callback body)
                 ~result:[%pat? ()]
@@ -833,16 +835,25 @@ let str_expander ~loc payload =
         }
 
 let global_output_type_info =
-  let expanderf expander =
-    output_type_info := true;
-    expander
-  in
   let declaration =
     Extension.V3.declare "global_debug_type_info" Extension.Context.structure_item
       Ast_pattern.(pstr __)
       (fun ~ctxt ->
-        expanderf
-          (str_expander ~loc:(Expansion_context.Extension.extension_point_loc ctxt)))
+        let loc = Expansion_context.Extension.extension_point_loc ctxt in
+        function
+        | [ { pstr_desc = Pstr_eval ([%expr true], attrs); _ } ] ->
+            output_type_info := true;
+            A.pstr_eval ~loc [%expr ()] attrs
+        | [ { pstr_desc = Pstr_eval ([%expr false], attrs); _ } ] ->
+            output_type_info := false;
+            A.pstr_eval ~loc [%expr ()] attrs
+        | _ ->
+            A.pstr_eval ~loc
+              (A.pexp_extension ~loc
+              @@ Location.error_extensionf ~loc
+                   "ppx_minidebug: bad syntax, expacted [%%%%global_debug_type_info \
+                    true] or [%%%%global_debug_type_info false]")
+              [])
   in
   Ppxlib.Context_free.Rule.extension declaration
 

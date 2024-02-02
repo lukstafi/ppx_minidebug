@@ -4,6 +4,8 @@ module Debug_runtime =
 
 [%%global_debug_interrupts { max_nesting_depth = 5; max_num_children = 10 }]
 
+[%%global_debug_type_info true]
+
 let%debug_show rec loop_exceeded (x : int) : int =
   let z : int = (x - 1) / 2 in
   if x <= 0 then 0 else z + loop_exceeded (z + (x / 2))

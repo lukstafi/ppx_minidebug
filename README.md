@@ -474,6 +474,8 @@ As a help in debugging whether the right type information got propagated, we off
       12 |}]
 ```
 
+You can also use at the module level: `[%%global_debug_type_info true]`, prior to the code of interest.
+
 ## VS Code suggestions
 
 ### Add / remove type annotations and visit files using [VOCaml](https://marketplace.visualstudio.com/items?itemName=lukstafi.vocaml)
