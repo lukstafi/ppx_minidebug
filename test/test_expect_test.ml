@@ -1481,57 +1481,57 @@ let%expect_test "%debug_show PrintBox values_first_mode to stdout highlight" =
       ┌──────────────────┐
       │loop_highlight = 9│
       ├──────────────────┘
-      ├─"test/test_expect_test.ml":1778:41-1780:58
+      ├─"test/test_expect_test.ml":1473:41-1475:58
       ├─x = 7
       ├─┬─────┐
       │ │z = 3│
       │ ├─────┘
-      │ └─"test/test_expect_test.ml":1779:8
+      │ └─"test/test_expect_test.ml":1474:8
       └─┬──────────────────┐
         │loop_highlight = 6│
         ├──────────────────┘
-        ├─"test/test_expect_test.ml":1778:41-1780:58
+        ├─"test/test_expect_test.ml":1473:41-1475:58
         ├─x = 6
         ├─z = 2
-        │ └─"test/test_expect_test.ml":1779:8
+        │ └─"test/test_expect_test.ml":1474:8
         └─┬──────────────────┐
           │loop_highlight = 4│
           ├──────────────────┘
-          ├─"test/test_expect_test.ml":1778:41-1780:58
+          ├─"test/test_expect_test.ml":1473:41-1475:58
           ├─x = 5
           ├─z = 2
-          │ └─"test/test_expect_test.ml":1779:8
+          │ └─"test/test_expect_test.ml":1474:8
           └─┬──────────────────┐
             │loop_highlight = 2│
             ├──────────────────┘
-            ├─"test/test_expect_test.ml":1778:41-1780:58
+            ├─"test/test_expect_test.ml":1473:41-1475:58
             ├─x = 4
             ├─z = 1
-            │ └─"test/test_expect_test.ml":1779:8
+            │ └─"test/test_expect_test.ml":1474:8
             └─┬──────────────────┐
               │loop_highlight = 1│
               ├──────────────────┘
-              ├─"test/test_expect_test.ml":1778:41-1780:58
+              ├─"test/test_expect_test.ml":1473:41-1475:58
               ├─┬─────┐
               │ │x = 3│
               │ └─────┘
               ├─z = 1
-              │ └─"test/test_expect_test.ml":1779:8
+              │ └─"test/test_expect_test.ml":1474:8
               └─loop_highlight = 0
-                ├─"test/test_expect_test.ml":1778:41-1780:58
+                ├─"test/test_expect_test.ml":1473:41-1475:58
                 ├─x = 2
                 ├─z = 0
-                │ └─"test/test_expect_test.ml":1779:8
+                │ └─"test/test_expect_test.ml":1474:8
                 └─loop_highlight = 0
-                  ├─"test/test_expect_test.ml":1778:41-1780:58
+                  ├─"test/test_expect_test.ml":1473:41-1475:58
                   ├─x = 1
                   ├─z = 0
-                  │ └─"test/test_expect_test.ml":1779:8
+                  │ └─"test/test_expect_test.ml":1474:8
                   └─loop_highlight = 0
-                    ├─"test/test_expect_test.ml":1778:41-1780:58
+                    ├─"test/test_expect_test.ml":1473:41-1475:58
                     ├─x = 0
                     └─z = 0
-                      └─"test/test_expect_test.ml":1779:8
+                      └─"test/test_expect_test.ml":1474:8
       9 |}]
 
 let%expect_test "%debug_show PrintBox values_first_mode tracking" =
@@ -1550,20 +1550,20 @@ let%expect_test "%debug_show PrintBox values_first_mode tracking" =
     {|
       BEGIN DEBUG SESSION
       track_branches = 4
-      ├─"test/test_expect_test.ml":1844:37-1846:46
+      ├─"test/test_expect_test.ml":1539:37-1541:46
       ├─x = 7
       └─<if -- else branch>
-        ├─"test/test_expect_test.ml":1846:9
+        ├─"test/test_expect_test.ml":1541:9
         └─<match -- branch 1>
-          └─"test/test_expect_test.ml":1846:36-1846:37
+          └─"test/test_expect_test.ml":1541:36-1541:37
       4
       track_branches = -3
-      ├─"test/test_expect_test.ml":1844:37-1846:46
+      ├─"test/test_expect_test.ml":1539:37-1541:46
       ├─x = 3
       └─<if -- then branch>
-        ├─"test/test_expect_test.ml":1845:18
+        ├─"test/test_expect_test.ml":1540:18
         └─<match -- branch 2>
-          └─"test/test_expect_test.ml":1845:54-1845:57
+          └─"test/test_expect_test.ml":1540:54-1540:57
       -3
     |}]
 
@@ -1581,19 +1581,19 @@ let%expect_test "%track_show PrintBox values_first_mode to stdout no return type
     {|
       BEGIN DEBUG SESSION
       anonymous
-      ├─"test/test_expect_test.ml":1878:32-1879:70
+      ├─"test/test_expect_test.ml":1573:32-1574:70
       ├─x = 3
       ├─__fun
-      │ ├─"test/test_expect_test.ml":1879:50-1879:70
+      │ ├─"test/test_expect_test.ml":1574:50-1574:70
       │ └─i = 0
       ├─__fun
-      │ ├─"test/test_expect_test.ml":1879:50-1879:70
+      │ ├─"test/test_expect_test.ml":1574:50-1574:70
       │ └─i = 1
       ├─__fun
-      │ ├─"test/test_expect_test.ml":1879:50-1879:70
+      │ ├─"test/test_expect_test.ml":1574:50-1574:70
       │ └─i = 2
       └─__fun
-        ├─"test/test_expect_test.ml":1879:50-1879:70
+        ├─"test/test_expect_test.ml":1574:50-1574:70
         └─i = 3
       6
     |}]
@@ -1614,20 +1614,20 @@ let%expect_test "%debug_show PrintBox to stdout records" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1908:21-1911:15: bar
+    "test/test_expect_test.ml":1603:21-1606:15: bar
     ├─first = 7
     ├─second = 42
-    ├─"test/test_expect_test.ml":1909:8: {first=a; second=b}
+    ├─"test/test_expect_test.ml":1604:8: {first=a; second=b}
     │ ├─a = 7
     │ └─b = 45
-    ├─"test/test_expect_test.ml":1910:8: y
+    ├─"test/test_expect_test.ml":1605:8: y
     │ └─y = 8
     └─bar = 336
     336
-    "test/test_expect_test.ml":1914:10-1916:28: baz
+    "test/test_expect_test.ml":1609:10-1611:28: baz
     ├─first = 7
     ├─second = 42
-    ├─"test/test_expect_test.ml":1915:8: {first; second}
+    ├─"test/test_expect_test.ml":1610:8: {first; second}
     │ ├─first = 8
     │ └─second = 45
     └─baz = 109
@@ -1651,21 +1651,21 @@ let%expect_test "%debug_show PrintBox to stdout tuples" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1943:21-1945:14: bar
+    "test/test_expect_test.ml":1638:21-1640:14: bar
     ├─first = 7
     ├─second = 42
-    ├─"test/test_expect_test.ml":1944:8: y
+    ├─"test/test_expect_test.ml":1639:8: y
     │ └─y = 8
     └─bar = 336
     336
-    "test/test_expect_test.ml":1953:6: (r1, r2)
-    ├─"test/test_expect_test.ml":1948:10-1951:35: baz
+    "test/test_expect_test.ml":1648:6: (r1, r2)
+    ├─"test/test_expect_test.ml":1643:10-1646:35: baz
     │ ├─first = 7
     │ ├─second = 42
-    │ ├─"test/test_expect_test.ml":1949:8: (y, z)
+    │ ├─"test/test_expect_test.ml":1644:8: (y, z)
     │ │ ├─y = 8
     │ │ └─z = 3
-    │ ├─"test/test_expect_test.ml":1950:8: (a, b)
+    │ ├─"test/test_expect_test.ml":1645:8: (a, b)
     │ │ ├─a = 8
     │ │ └─b = 45
     │ └─baz = (339, 109)
@@ -1691,23 +1691,23 @@ let%expect_test "%debug_show PrintBox to stdout records values_first_mode" =
     {|
       BEGIN DEBUG SESSION
       bar = 336
-      ├─"test/test_expect_test.ml":1984:21-1987:15
+      ├─"test/test_expect_test.ml":1679:21-1682:15
       ├─first = 7
       ├─second = 42
       ├─{first=a; second=b}
-      │ ├─"test/test_expect_test.ml":1985:8
+      │ ├─"test/test_expect_test.ml":1680:8
       │ └─<values>
       │   ├─a = 7
       │   └─b = 45
       └─y = 8
-        └─"test/test_expect_test.ml":1986:8
+        └─"test/test_expect_test.ml":1681:8
       336
       baz = 109
-      ├─"test/test_expect_test.ml":1990:10-1992:28
+      ├─"test/test_expect_test.ml":1685:10-1687:28
       ├─first = 7
       ├─second = 42
       └─{first; second}
-        ├─"test/test_expect_test.ml":1991:8
+        ├─"test/test_expect_test.ml":1686:8
         └─<values>
           ├─first = 8
           └─second = 45
@@ -1732,28 +1732,28 @@ let%expect_test "%debug_show PrintBox to stdout tuples values_first_mode" =
     {|
     BEGIN DEBUG SESSION
     bar = 336
-    ├─"test/test_expect_test.ml":2023:21-2025:14
+    ├─"test/test_expect_test.ml":1718:21-1720:14
     ├─first = 7
     ├─second = 42
     └─y = 8
-      └─"test/test_expect_test.ml":2024:8
+      └─"test/test_expect_test.ml":1719:8
     336
     (r1, r2)
-    ├─"test/test_expect_test.ml":2033:6
+    ├─"test/test_expect_test.ml":1728:6
     ├─<returns>
     │ ├─r1 = 339
     │ └─r2 = 109
     └─baz = (339, 109)
-      ├─"test/test_expect_test.ml":2028:10-2031:35
+      ├─"test/test_expect_test.ml":1723:10-1726:35
       ├─first = 7
       ├─second = 42
       ├─(y, z)
-      │ ├─"test/test_expect_test.ml":2029:8
+      │ ├─"test/test_expect_test.ml":1724:8
       │ └─<values>
       │   ├─y = 8
       │   └─z = 3
       └─(a, b)
-        ├─"test/test_expect_test.ml":2030:8
+        ├─"test/test_expect_test.ml":1725:8
         └─<values>
           ├─a = 8
           └─b = 45
@@ -1786,25 +1786,25 @@ let%expect_test "%debug_show PrintBox to stdout variants values_first_mode" =
     {|
       BEGIN DEBUG SESSION
       bar = 16
-      ├─"test/test_expect_test.ml":2074:21-2076:9
+      ├─"test/test_expect_test.ml":1769:21-1771:9
       ├─x = 7
       └─y = 8
-        └─"test/test_expect_test.ml":2075:8
+        └─"test/test_expect_test.ml":1770:8
       16
       baz = 5
-      ├─"test/test_expect_test.ml":2080:24-2080:29
+      ├─"test/test_expect_test.ml":1775:24-1775:29
       ├─<function -- branch 0> Left x
       └─x = 4
       5
       baz = 6
-      ├─"test/test_expect_test.ml":2081:31-2081:36
+      ├─"test/test_expect_test.ml":1776:31-1776:36
       ├─<function -- branch 1> Right Two y
       └─y = 3
       6
       foo = 3
-      ├─"test/test_expect_test.ml":2084:10-2085:82
+      ├─"test/test_expect_test.ml":1779:10-1780:82
       └─<match -- branch 2>
-        └─"test/test_expect_test.ml":2085:81-2085:82
+        └─"test/test_expect_test.ml":1780:81-1780:82
       3 |}]
 
 let%expect_test "%debug_show PrintBox to stdout tuples merge type info" =
@@ -1822,21 +1822,21 @@ let%expect_test "%debug_show PrintBox to stdout tuples merge type info" =
     {|
     BEGIN DEBUG SESSION
     (r1, r2)
-    ├─"test/test_expect_test.ml":2122:6
+    ├─"test/test_expect_test.ml":1817:6
     ├─<returns>
     │ ├─r1 = 339
     │ └─r2 = 109
     └─baz = (339, 109)
-      ├─"test/test_expect_test.ml":2117:21-2120:35
+      ├─"test/test_expect_test.ml":1812:21-1815:35
       ├─first = 7
       ├─second = 42
       ├─(y, z)
-      │ ├─"test/test_expect_test.ml":2118:8
+      │ ├─"test/test_expect_test.ml":1813:8
       │ └─<values>
       │   ├─y = 8
       │   └─z = 3
       └─a = 8
-        └─"test/test_expect_test.ml":2119:8
+        └─"test/test_expect_test.ml":1814:8
     339
     109 |}]
 
@@ -1850,11 +1850,11 @@ let%expect_test "%debug_show PrintBox to stdout decompose multi-argument functio
     {|
     BEGIN DEBUG SESSION
     f = 7
-    ├─"test/test_expect_test.ml":2150:44-2150:61
+    ├─"test/test_expect_test.ml":1845:44-1845:61
     └─b = 6
     7
     g = 12
-    ├─"test/test_expect_test.ml":2151:56-2151:79
+    ├─"test/test_expect_test.ml":1846:56-1846:79
     └─b = 6
     12 |}]
 
@@ -1870,12 +1870,12 @@ let%expect_test "%debug_show PrintBox to stdout debug type info" =
     {|
       BEGIN DEBUG SESSION
       f : int = 7
-      ├─"test/test_expect_test.ml":2170:37-2170:54
+      ├─"test/test_expect_test.ml":1865:37-1865:54
       ├─f : int
       └─b : int = 6
       7
       g : int = 12
-      ├─"test/test_expect_test.ml":2171:49-2171:72
+      ├─"test/test_expect_test.ml":1866:49-1866:72
       ├─g : int
       └─b : int = 6
       12 |}]
@@ -1896,24 +1896,24 @@ let%expect_test "%debug_show PrintBox to stdout options values_first_mode" =
     {|
       BEGIN DEBUG SESSION
       foo = 14
-      ├─"test/test_expect_test.ml":2190:21-2191:59
+      ├─"test/test_expect_test.ml":1885:21-1886:59
       └─<match -- branch 1> Some y
-        ├─"test/test_expect_test.ml":2191:54-2191:59
+        ├─"test/test_expect_test.ml":1886:54-1886:59
         └─y = 7
       14
       bar = 14
-      ├─"test/test_expect_test.ml":2194:10-2194:75
+      ├─"test/test_expect_test.ml":1889:10-1889:75
       ├─l = (Some 7)
       └─<match -- branch 1> Some y
-        └─"test/test_expect_test.ml":2194:70-2194:75
+        └─"test/test_expect_test.ml":1889:70-1889:75
       14
       baz = 8
-      ├─"test/test_expect_test.ml":2196:63-2196:68
+      ├─"test/test_expect_test.ml":1891:63-1891:68
       ├─<function -- branch 1> Some y
       └─y = 4
       8
       zoo = 9
-      ├─"test/test_expect_test.ml":2198:76-2198:81
+      ├─"test/test_expect_test.ml":1893:76-1893:81
       ├─<function -- branch 1> Some (y, z)
       ├─y = 4
       └─z = 5
@@ -1938,30 +1938,30 @@ let%expect_test "%debug_show PrintBox to stdout list values_first_mode" =
     {|
       BEGIN DEBUG SESSION
       foo = 14
-      ├─"test/test_expect_test.ml":2229:21-2229:82
+      ├─"test/test_expect_test.ml":1924:21-1924:82
       └─<match -- branch 1> :: (y, _)
-        ├─"test/test_expect_test.ml":2229:77-2229:82
+        ├─"test/test_expect_test.ml":1924:77-1924:82
         └─y = 7
       14
       bar = 14
-      ├─"test/test_expect_test.ml":2231:10-2231:71
+      ├─"test/test_expect_test.ml":1926:10-1926:71
       ├─l = [7]
       └─<match -- branch 1> :: (y, _)
-        └─"test/test_expect_test.ml":2231:66-2231:71
+        └─"test/test_expect_test.ml":1926:66-1926:71
       14
       baz = 8
-      ├─"test/test_expect_test.ml":2235:15-2235:20
+      ├─"test/test_expect_test.ml":1930:15-1930:20
       ├─<function -- branch 1> :: (y, [])
       └─y = 4
       8
       baz = 9
-      ├─"test/test_expect_test.ml":2236:18-2236:23
+      ├─"test/test_expect_test.ml":1931:18-1931:23
       ├─<function -- branch 2> :: (y, :: (z, []))
       ├─y = 4
       └─z = 5
       9
       baz = 10
-      ├─"test/test_expect_test.ml":2237:21-2237:30
+      ├─"test/test_expect_test.ml":1932:21-1932:30
       ├─<function -- branch 3> :: (y, :: (z, _))
       ├─y = 4
       └─z = 5
