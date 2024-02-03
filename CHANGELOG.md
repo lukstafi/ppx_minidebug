@@ -1,4 +1,4 @@
-## [1.0.0] -- 2024-02-02
+## [1.0.0] -- 2024-02-03
 
 ### Added
 
@@ -24,6 +24,7 @@
 ### Fixed
 
 - In `values_first_mode`, be consistent about what counts as a returned value.
+- Missing transformations for `%debug_notrace`, and generally for the root construct of a body of a non-logged binding.
 
 ## [0.9.0] -- 2024-01-18
 
