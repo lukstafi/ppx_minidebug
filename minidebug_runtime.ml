@@ -279,6 +279,7 @@ module type PrintBox_runtime = sig
     mutable highlight_terms : Re.re option;
     mutable exclude_on_path : Re.re option;
     mutable prune_upto : int;
+    mutable truncate_children : int;
     mutable values_first_mode : bool;
     mutable max_inline_sexp_size : int;
     mutable max_inline_sexp_length : int;
@@ -305,6 +306,7 @@ module PrintBox (Log_to : Debug_ch) = struct
     mutable highlight_terms : Re.re option;
     mutable exclude_on_path : Re.re option;
     mutable prune_upto : int;
+    mutable truncate_children : int;
     mutable values_first_mode : bool;
     mutable max_inline_sexp_size : int;
     mutable max_inline_sexp_length : int;
@@ -317,6 +319,7 @@ module PrintBox (Log_to : Debug_ch) = struct
       boxify_sexp_from_size = -1;
       highlight_terms = None;
       prune_upto = 0;
+      truncate_children = 0;
       exclude_on_path = None;
       values_first_mode = false;
       max_inline_sexp_size = 20;
@@ -372,12 +375,21 @@ module PrintBox (Log_to : Debug_ch) = struct
 
   let stack_to_tree
       { cond = _; highlight; exclude = _; uri; path; entry_message; entry_id; body } =
-    let non_id_message = String.contains entry_message '<' || String.contains entry_message ':' in
+    let non_id_message =
+      String.contains entry_message '<' || String.contains entry_message ':'
+    in
     let b_path =
       B.line @@ if config.values_first_mode then path else path ^ ": " ^ entry_message
     in
     let b_path = hyperlink_path ~uri ~inner:b_path in
-    let unpack l = List.rev @@ List.map (fun { subtree; _ } -> subtree) l in
+    let rec unpack truncate acc = function
+      | [] -> acc
+      | [ { subtree; _ } ] -> subtree :: acc
+      | { subtree; _ } :: tl ->
+          if truncate = 0 then B.line "<earlier entries truncated>" :: subtree :: acc
+          else unpack (truncate - 1) (subtree :: acc) tl
+    in
+    let unpack l = unpack (config.truncate_children - 1) [] l in
     if config.values_first_mode then
       let hl_header = apply_highlight highlight @@ B.line entry_message in
       let results, body =
@@ -388,17 +400,19 @@ module PrintBox (Log_to : Debug_ch) = struct
       let results = unpack results and body = unpack body in
       match results with
       | [ subtree ] -> (
-        let opt_message = if non_id_message then [hl_header] else [] in
+          let opt_message = if non_id_message then [ hl_header ] else [] in
           match B.view subtree with
           | B.Tree (_ident, result_header, result_body) ->
               B.tree
                 (apply_highlight highlight result_header)
                 (b_path
-                :: B.tree
-                     (B.line @@ if body = [] then "<values>" else "<returns>")
-                     (Array.to_list result_body)
-                :: opt_message @ body)
-          | _ -> B.tree (apply_highlight highlight subtree) (b_path :: opt_message @ body))
+                 :: B.tree
+                      (B.line @@ if body = [] then "<values>" else "<returns>")
+                      (Array.to_list result_body)
+                 :: opt_message
+                @ body)
+          | _ ->
+              B.tree (apply_highlight highlight subtree) ((b_path :: opt_message) @ body))
       | [] -> B.tree hl_header (b_path :: body)
       | _ ->
           B.tree hl_header
@@ -559,19 +573,22 @@ module PrintBox (Log_to : Debug_ch) = struct
   let num_children () = match !stack with [] -> 0 | { body; _ } :: _ -> List.length body
 
   let log_value_sexp ~descr ~entry_id ~is_result sexp =
-    if config.boxify_sexp_from_size >= 0
-    then stack_next ~entry_id ~is_result @@ boxify descr sexp
+    if config.boxify_sexp_from_size >= 0 then
+      stack_next ~entry_id ~is_result @@ boxify descr sexp
     else
-      stack_next ~entry_id ~is_result @@ highlight_box
+      stack_next ~entry_id ~is_result
+      @@ highlight_box
       @@ B.asprintf_with_style B.Style.preformatted "%s = %a" descr Sexplib0.Sexp.pp_hum
            sexp
 
-  let log_value_pp ~descr ~entry_id ~pp  ~is_result v =
-    stack_next ~entry_id ~is_result @@ highlight_box
+  let log_value_pp ~descr ~entry_id ~pp ~is_result v =
+    stack_next ~entry_id ~is_result
+    @@ highlight_box
     @@ B.asprintf_with_style B.Style.preformatted "%s = %a" descr pp v
 
   let log_value_show ~descr ~entry_id ~is_result v =
-    stack_next ~entry_id ~is_result @@ highlight_box
+    stack_next ~entry_id ~is_result
+    @@ highlight_box
     @@ B.sprintf_with_style B.Style.preformatted "%s = %s" descr v
 
   let no_debug_if cond =
@@ -593,7 +610,7 @@ module PrintBox (Log_to : Debug_ch) = struct
 end
 
 let debug_file ?(time_tagged = false) ?split_files_after ?highlight_terms ?exclude_on_path
-    ?(prune_upto = 0) ?(for_append = false) ?(boxify_sexp_from_size = 50) ?backend
+    ?(prune_upto = 0) ?(truncate_children = 0) ?(for_append = false) ?(boxify_sexp_from_size = 50) ?backend
     ?hyperlink ?(values_first_mode = false) filename : (module PrintBox_runtime) =
   let filename =
     match backend with
@@ -608,6 +625,7 @@ let debug_file ?(time_tagged = false) ?split_files_after ?highlight_terms ?exclu
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
   Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
   Debug.config.prune_upto <- prune_upto;
+  Debug.config.truncate_children <- truncate_children;
   Debug.config.exclude_on_path <- Option.map Re.compile exclude_on_path;
   Debug.config.values_first_mode <- values_first_mode;
   Debug.config.hyperlink <-
@@ -615,7 +633,7 @@ let debug_file ?(time_tagged = false) ?split_files_after ?highlight_terms ?exclu
   (module Debug)
 
 let debug ?(debug_ch = stdout) ?(time_tagged = false) ?highlight_terms ?exclude_on_path
-    ?(prune_upto = 0) ?(values_first_mode = false) () : (module PrintBox_runtime) =
+    ?(prune_upto = 0) ?(truncate_children = 0) ?(values_first_mode = false) () : (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
     let debug_ch () = debug_ch
@@ -624,6 +642,7 @@ let debug ?(debug_ch = stdout) ?(time_tagged = false) ?highlight_terms ?exclude_
   end) in
   Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
   Debug.config.prune_upto <- prune_upto;
+  Debug.config.truncate_children <- truncate_children;
   Debug.config.exclude_on_path <- Option.map Re.compile exclude_on_path;
   Debug.config.values_first_mode <- values_first_mode;
   (module Debug)

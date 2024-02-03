@@ -402,6 +402,14 @@ BEGIN DEBUG SESSION
 
 ### Reducing the size of generated logs
 
+Summary of possibilities:
+
+- `no_debug_if`
+- `prune_upto`
+- `truncate_children`
+- `split_files_after`
+- HTML browsers can handle really large files (less luck with Markdown).
+
 In the PrintBox backend, you can disable the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space.
 The test suite example:
 
@@ -437,6 +445,48 @@ leads to:
 ```
 
 The `no_debug_if` mechanism requires modifying the logged sources, and since it's limited to cutting out subtrees of the logs, it can be tricky to select and preserve the context one wants. The highlighting mechanism with the `prune_upto` setting avoids these problems. You provide a search term without modifying the debugged sources. You can tune the pruning level to keep the context around the place the search term was found.
+
+Setting the option `truncate_children` will only log the given number of children at each node, prioritizing the most recent ones. An example from the test suite:
+
+```ocaml
+  let module Debug_runtime = (val Minidebug_runtime.debug ~truncate_children:10 ()) in
+  let () =
+    let%track_this_show _bar : unit =
+      for i = 0 to 30 do
+        let _baz : int = i * 2 in
+        ()
+      done
+    in
+    ()
+  in
+  [%expect
+    {|
+    BEGIN DEBUG SESSION
+    "test/test_expect_test.ml":350:26: _bar
+    ├─"test/test_expect_test.ml":351:8: <for loop>
+    │ ├─<earlier entries truncated>
+    │ ├─i = 26
+    │ ├─"test/test_expect_test.ml":351:12: <for i>
+    │ │ └─"test/test_expect_test.ml":352:14: _baz
+    │ │   └─_baz = 52
+    │ ├─i = 27
+    │ ├─"test/test_expect_test.ml":351:12: <for i>
+    │ │ └─"test/test_expect_test.ml":352:14: _baz
+    │ │   └─_baz = 54
+    │ ├─i = 28
+    │ ├─"test/test_expect_test.ml":351:12: <for i>
+    │ │ └─"test/test_expect_test.ml":352:14: _baz
+    │ │   └─_baz = 56
+    │ ├─i = 29
+    │ ├─"test/test_expect_test.ml":351:12: <for i>
+    │ │ └─"test/test_expect_test.ml":352:14: _baz
+    │ │   └─_baz = 58
+    │ ├─i = 30
+    │ └─"test/test_expect_test.ml":351:12: <for i>
+    │   └─"test/test_expect_test.ml":352:14: _baz
+    │     └─_baz = 60
+    └─_bar = () |}]
+```
 
 If you provide the `split_files_after` setting, the logging will transition to a new file after the current file exceeds the given number of characters. However, the splits only happen at the "toplevel", to not interrupt laying out the log trees. If required, you can remove logging indicators from your high-level functions, to bring the deeper logic log trees to the toplevel. This matters when you prefer Markdown output over HTML output -- in my experience, Markdown renderers (VS Code Markdown Preview, GitHub Preview) fail for files larger than 2MB, while browsers easily handle HTML files of over 200MB (including via VS Code Live Preview).
 

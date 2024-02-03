@@ -11,6 +11,7 @@
 - Provide pattern text in addition to the branch number (counted from 0).
 - Propagate type information top-down and merge different sources of type information.
 - Optionally, log the type information found with extension points `%debug_type_info` and `%global_debug_type_info`.
+- A PrintBox-backend option `truncate_children` to limit the amount of output.
 
 ### Changed
 

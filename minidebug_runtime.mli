@@ -110,6 +110,9 @@ module type PrintBox_runtime = sig
         (** At depths lower than [prune_upto] (or equal if counting from 1) only ouptputs highlighted boxes.
             This makes it simpler to trim excessive logging while still providing some context.
             Defaults to [0] -- no pruning. *)
+    mutable truncate_children : int;
+        (** If > 0, only the given number of the most recent children is kept at each node.
+            Defaults to [0] -- keep all (no pruning). *)
     mutable values_first_mode : bool;
         (** If set to true, does not put the source code location of a computation as a header of its subtree.
             Rather, puts the result of the computation as the header of a computation subtree,
@@ -136,6 +139,7 @@ val debug_file :
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
   ?prune_upto:int ->
+  ?truncate_children:int ->
   ?for_append:bool ->
   ?boxify_sexp_from_size:int ->
   ?backend:[ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ] ->
@@ -158,6 +162,7 @@ val debug :
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
   ?prune_upto:int ->
+  ?truncate_children:int ->
   ?values_first_mode:bool ->
   unit ->
   (module PrintBox_runtime)
