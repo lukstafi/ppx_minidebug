@@ -621,8 +621,7 @@ let traverse =
               List.map
                 (fun vb ->
                   try debug_binding callback vb
-                  with Not_transforming ->
-                    { vb with pvb_expr = super#expression vb.pvb_expr })
+                  with Not_transforming -> { vb with pvb_expr = callback vb.pvb_expr })
                 bindings
             in
             Pexp_let (rec_flag, bindings, callback body)
@@ -636,6 +635,9 @@ let traverse =
             | result ->
                 track_branches := old_track_branches;
                 result.pexp_desc
+            | exception Not_transforming ->
+                track_branches := old_track_branches;
+                body.pexp_desc
             | exception e ->
                 track_branches := old_track_branches;
                 raise e)
@@ -798,7 +800,7 @@ let traverse =
               (fun vb ->
                 try debug_binding callback vb
                 with Not_transforming ->
-                  { vb with pvb_expr = super#expression vb.pvb_expr })
+                  { vb with pvb_expr = self#expression vb.pvb_expr })
               bindings
           in
           { si with pstr_desc = Pstr_value (rec_flag, bindings) }
