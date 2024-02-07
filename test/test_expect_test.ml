@@ -2024,3 +2024,56 @@ let%expect_test "%debug_show PrintBox to stdout list values_first_mode" =
       ├─y = 4
       └─z = 5
       10 |}]
+
+let%expect_test "%debug_show PrintBox to stdout list runtime passing" =
+  let%track_rtb_show foo l : int =
+    match (l : int list) with [] -> 7 | y :: _ -> y * 2
+  in
+  let () =
+    print_endline @@ Int.to_string
+    @@ foo
+         (Minidebug_runtime.debug ~global_prefix:"foo-1" ~values_first_mode:true ())
+         [ 7 ]
+  in
+  let%track_rtb_show baz : int list -> int = function
+    | [] -> 7
+    | [ y ] -> y * 2
+    | [ y; z ] -> y + z
+    | y :: z :: _ -> y + z + 1
+  in
+  let () =
+    print_endline @@ Int.to_string
+    @@ baz
+         (Minidebug_runtime.debug ~global_prefix:"baz-1" ~values_first_mode:true ())
+         [ 4 ]
+  in
+  let () =
+    print_endline @@ Int.to_string
+    @@ baz
+         (Minidebug_runtime.debug ~global_prefix:"baz-2" ~values_first_mode:true ())
+         [ 4; 5; 6 ]
+  in
+  [%expect
+    {|
+      BEGIN DEBUG SESSION foo-1
+      foo = 14
+      ├─"test/test_expect_test.ml":2029:25-2030:55
+      └─foo-1 <match -- branch 1> :: (y, _)
+        ├─"test/test_expect_test.ml":2030:50-2030:55
+        └─y = 7
+      14
+
+      BEGIN DEBUG SESSION baz-1
+      baz = 8
+      ├─"test/test_expect_test.ml":2040:15-2040:20
+      ├─baz-1 <function -- branch 1> :: (y, [])
+      └─y = 4
+      8
+
+      BEGIN DEBUG SESSION baz-2
+      baz = 10
+      ├─"test/test_expect_test.ml":2042:21-2042:30
+      ├─baz-2 <function -- branch 3> :: (y, :: (z, _))
+      ├─y = 4
+      └─z = 5
+      10 |}]

@@ -3,6 +3,7 @@
 ### Added
 
 - A shared runtime-wide setting `global_prefix` for prefixing log headers (and closing tags in the flushing backend), to disambiguate (or debug) interactions of different runtime instances.
+- `_rt_` resp. `_rtb_` (e.g. `%track_rtb_sexp`) entry points to support runtime-passing, i.e. abstracting over a `Debug_runtime` resp. `PrintBox_runtime`.
 
 ## [1.0.0] -- 2024-02-03
 

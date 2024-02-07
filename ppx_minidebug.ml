@@ -3,6 +3,7 @@ module A = Ast_builder.Default
 
 (* module H = Ast_helper *)
 let track_branches = ref false
+let runtime_from_arg = ref `None
 let output_type_info = ref false
 let interrupts = ref false
 
@@ -179,13 +180,13 @@ type fun_arg =
 
 let rec collect_fun accu = function
   | {
-      pexp_desc = Pexp_fun (arg_label, arg, opt_val, body);
+      pexp_desc = Pexp_fun (arg_label, default, pat, body);
       pexp_loc;
       pexp_loc_stack;
       pexp_attributes;
     } ->
       collect_fun
-        (Pexp_fun_arg (arg_label, arg, opt_val, pexp_loc, pexp_loc_stack, pexp_attributes)
+        (Pexp_fun_arg (arg_label, default, pat, pexp_loc, pexp_loc_stack, pexp_attributes)
         :: accu)
         body
   | {
@@ -476,7 +477,24 @@ let debug_fun callback ?typ ?ret_descr ?ret_typ exp =
   let body =
     match ret_typ2 with None -> body | Some typ -> [%expr ([%e body] : [%t typ])]
   in
-  expand_fun body args
+  let body =
+    match !runtime_from_arg with
+    | `None -> body
+    | `Generic | `PrintBox ->
+        [%expr
+          let module Debug_runtime = (val debug_runtime) in
+          [%e body]]
+  in
+  let exp = expand_fun body args in
+  match !runtime_from_arg with
+  | `None -> exp
+  | `Generic ->
+      runtime_from_arg := `None;
+      [%expr fun (debug_runtime : (module Minidebug_runtime.Debug_runtime)) -> [%e exp]]
+  | `PrintBox ->
+      runtime_from_arg := `None;
+      [%expr
+        fun (debug_runtime : (module Minidebug_runtime.PrintBox_runtime)) -> [%e exp]]
 
 let debug_case callback ?ret_descr ?ret_typ ?arg_typ kind i { pc_lhs; pc_guard; pc_rhs } =
   let pc_guard = Option.map callback pc_guard in
@@ -528,15 +546,37 @@ let debug_binding callback vb =
         (Some arg_typ, Some ret_typ)
     | _ -> (None, None)
   in
-  let exp =
+  let exp, runtime =
     match exp with
     | { pexp_desc = Pexp_newtype _ | Pexp_fun _; _ } ->
         (* [ret_typ] is not the return type if the function has more arguments. *)
-        debug_fun callback ?typ ?ret_descr exp
+        (* [debug_fun] handles the runtime passing configuration. *)
+        let runtime = !runtime_from_arg in
+        (debug_fun callback ?typ ?ret_descr exp, runtime)
     | { pexp_desc = Pexp_function cases; _ } ->
-        A.pexp_function ~loc:vb.pvb_expr.pexp_loc
-          (List.mapi (debug_case callback ?ret_descr ?ret_typ ?arg_typ "function") cases)
+        let runtime = !runtime_from_arg in
+        runtime_from_arg := `None;
+        let exp =
+          A.pexp_function ~loc:vb.pvb_expr.pexp_loc
+            (List.mapi
+               (debug_case callback ?ret_descr ?ret_typ ?arg_typ "function")
+               cases)
+        in
+        ( (match runtime with
+          | `None -> exp
+          | `Generic ->
+              [%expr
+                fun (debug_runtime : (module Minidebug_runtime.Debug_runtime)) ->
+                  let module Debug_runtime = (val debug_runtime) in
+                  [%e exp]]
+          | `PrintBox ->
+              [%expr
+                fun (debug_runtime : (module Minidebug_runtime.PrintBox_runtime)) ->
+                  let module Debug_runtime = (val debug_runtime) in
+                  [%e exp]]),
+          runtime )
     | _ ->
+        runtime_from_arg := `None;
         let result, bound = bound_patterns ~alt_typ:typ pat in
         if bound = [] then raise Not_transforming;
         let descr_loc = pat2descr ~default:"__val" pat in
@@ -556,16 +596,36 @@ let debug_binding callback vb =
         let preamble =
           open_log_preamble ~brief:true ~message:descr_loc.txt ~loc:descr_loc.loc ()
         in
-        entry_with_interrupts ~loc ~descr_loc ~preamble ~entry:(callback exp) ~result
-          ~log_result ()
+        ( entry_with_interrupts ~loc ~descr_loc ~preamble ~entry:(callback exp) ~result
+            ~log_result (),
+          `None )
   in
-  match typ2 with
-  | None -> { vb with pvb_expr = exp }
-  | Some typ -> { vb with pvb_expr = [%expr ([%e exp] : [%t typ])] }
+  let pvb_expr =
+    match (typ2, runtime) with
+    | None, _ -> exp
+    | Some typ, `None -> [%expr ([%e exp] : [%t typ])]
+    | Some typ, `Generic ->
+        [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> [%t typ])]
+    | Some typ, `PrintBox ->
+        [%expr ([%e exp] : (module Minidebug_runtime.PrintBox_runtime) -> [%t typ])]
+  in
+  let pvb_pat =
+    (* FIXME(#18): restoring a modified type constraint breaks typing. *)
+    match (vb.pvb_pat, runtime) with
+    | [%pat? ([%p? pat] : [%t? _typ])], `Generic ->
+        pat
+        (* [%pat? ([%p pat] : (module Minidebug_runtime.Debug_runtime) -> [%t typ])] *)
+    | [%pat? ([%p? pat] : [%t? _typ])], `PrintBox ->
+        pat
+        (* [%pat? ([%p pat] : (module Minidebug_runtime.PrintBox_runtime) -> [%t typ])] *)
+    | _ -> vb.pvb_pat
+  in
+  { vb with pvb_expr; pvb_pat }
 
 type rule = {
   ext_point : string;
   tracking : bool;
+  runtime_passing : [ `None | `Generic | `PrintBox ];
   expander : [ `Debug | `Debug_this | `Str ];
   printer : [ `Pp | `Sexp | `Show ];
 }
@@ -576,22 +636,38 @@ let rules =
        (fun tracking ->
          List.concat
          @@ List.map
-              (fun expander ->
-                List.map
-                  (fun printer ->
-                    let ext_point = if tracking then "track" else "debug" in
-                    let ext_point =
-                      ext_point
-                      ^ match expander with `Debug_this -> "_this" | `Debug | `Str -> ""
-                    in
-                    let ext_point =
-                      ext_point ^ "_"
-                      ^
-                      match printer with `Pp -> "pp" | `Sexp -> "sexp" | `Show -> "show"
-                    in
-                    { ext_point; tracking; expander; printer })
-                  [ `Pp; `Sexp; `Show ])
-              [ `Debug; `Debug_this; `Str ])
+              (fun runtime_passing ->
+                List.concat
+                @@ List.map
+                     (fun expander ->
+                       List.map
+                         (fun printer ->
+                           let ext_point = if tracking then "track" else "debug" in
+                           let ext_point =
+                             ext_point
+                             ^
+                             match expander with
+                             | `Debug_this -> "_this"
+                             | `Debug | `Str -> ""
+                           in
+                           let ext_point =
+                             match runtime_passing with
+                             | `None -> ext_point
+                             | `Generic -> ext_point ^ "_rt"
+                             | `PrintBox -> ext_point ^ "_rtb"
+                           in
+                           let ext_point =
+                             ext_point ^ "_"
+                             ^
+                             match printer with
+                             | `Pp -> "pp"
+                             | `Sexp -> "sexp"
+                             | `Show -> "show"
+                           in
+                           { ext_point; tracking; runtime_passing; expander; printer })
+                         [ `Pp; `Sexp; `Show ])
+                     [ `Debug; `Debug_this; `Str ])
+              [ `None; `Generic; `PrintBox ])
        [ false; true ]
 
 let is_ext_point =
@@ -627,6 +703,10 @@ let traverse =
             Pexp_let (rec_flag, bindings, callback body)
         | Pexp_extension ({ loc = _; txt }, PStr [%str [%e? body]]) when is_ext_point txt
           ->
+            if String.length txt > 9 && String.sub txt 5 4 = "_rt_" then
+              runtime_from_arg := `Generic
+            else if String.length txt > 10 && String.sub txt 5 5 = "_rtb_" then
+              runtime_from_arg := `PrintBox;
             (callback body).pexp_desc
         | Pexp_extension ({ loc = _; txt = "debug_notrace" }, PStr [%str [%e? body]]) -> (
             let old_track_branches = !track_branches in
@@ -898,7 +978,7 @@ let global_interrupts =
 let rules =
   global_output_type_info :: global_interrupts
   :: List.map
-       (fun { ext_point; tracking; expander; printer } ->
+       (fun { ext_point; tracking; runtime_passing; expander; printer } ->
          let logf =
            match printer with
            | `Show -> log_value_show
@@ -908,6 +988,7 @@ let rules =
          let expanderf expander =
            log_value := logf;
            track_branches := tracking;
+           runtime_from_arg := runtime_passing;
            expander
          in
          let declaration =
