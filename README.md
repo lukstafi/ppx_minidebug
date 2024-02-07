@@ -202,13 +202,17 @@ Example showcasing the `printbox-md` (Markdown) backend:
 
 ## Usage
 
-Tracing only happens in explicitly marked lexical scopes. The extension points vary along three axes:
+Tracing only happens in explicitly marked lexical scopes. The extension points vary along four axes:
 
 - `%debug_` vs. `%track_`
   - The prefix `%debug_` means logging fewer things: only let-bound values and functions are logged, and functions only when their return type is annotated.
   - `%track_` also logs: which `if` and `match` branch is taken, and all functions, including anonymous ones.
 - Optional infix `_this_` puts only the body of a `let` definition in scope for logging.
   - `let%debug_this v: t = compute value in outer scope` will trace `v` and the type-annotated bindings and functions inside `compute value`, but it will not trace `outer scope`.
+- Optional infixes `_rt_` and `_rtb_` add a first-class module argument to a function, and unpack it as `module Debug_runtime` for the scope of the function.
+  - `_rt_` uses the module type `Minidebug_runtime.Debug_runtime`.
+  - `_rtb_` uses the module type `Minidebug_runtime.PrintBox_runtime`.
+  - This functionality is "one use only": it applies only to the nearest function inside the extension point, as long as there are no intervening (non-function) let-bindings between the start of the extension point and the function.
 - Representation and printing mechanism: `_pp`, `_show`, recommended: `_sexp`
   - `_pp` is currently most restrictive as it requires the type of a value to be an identifier. The identifier is converted to a `pp_` printing function, e.g. `pp_int`.
   - `_show` converts values to strings via the `%show` extension provided by `deriving.show`: e.g. `[%show: int list]`.
@@ -216,7 +220,7 @@ Tracing only happens in explicitly marked lexical scopes. The extension points v
 
 See examples in [the test directory](test/), and especially [the inline tests](test/test_expect_test.ml).
 
-Only type-annotated let-bindings, function arguments, function results can be logged. However, the bindings and function arguments can be nested patterns! Variant patterns are not yet supported
+Only type-annotated let-bindings, function arguments, function results can be logged. However, the bindings and function arguments can be nested patterns with only parts of them type-annotated!
 
 To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.debug_file thread_name in ...`
 
@@ -532,6 +536,70 @@ As a help in debugging whether the right type information got propagated, we off
 ```
 
 You can also use at the module level: `[%%global_debug_type_info true]`, prior to the code of interest.
+
+### Dealing with concurrent execution
+
+For programs with threads or domains running concurrently, you need to ensure that each thread uses its own instance of a debug runtime, writing to its own log file. Currently, `ppx_minidebug` doesn't do any checks to prevent abuse: using the same debug runtime instance from multiple threads or opening the same file by multiple debug runtime instances.
+
+We offer two helpers for dealing with multiple debug runtimes. There is an optional runtime instance-level setting `global_prefix`, which adds the given information to all log headers coming from the instance.
+
+Another feature is the extension points `%debug_rtb_sexp`, `%debug_this_rtb_sexp`, `%track_rtb_sexp`, etc. They add a first-class module argument to a function, and unpack the argument as `module Debug_runtime`. The feature helps using a runtime instance dedicated to a thread. At present, passing of the runtime instance to functions needs to be done manually. Note that at most one function per `_rt_` or `_rtb_` extension point is modified, regardless of whether there is a `_this_`.
+
+Example from the test suite:
+
+```ocaml
+  let%track_rtb_show foo l : int =
+    match (l : int list) with [] -> 7 | y :: _ -> y * 2
+  in
+  let () =
+    print_endline @@ Int.to_string
+    @@ foo
+         (Minidebug_runtime.debug ~global_prefix:"foo-1" ~values_first_mode:true ())
+         [ 7 ]
+  in
+  let%track_rtb_show baz : int list -> int = function
+    | [] -> 7
+    | [ y ] -> y * 2
+    | [ y; z ] -> y + z
+    | y :: z :: _ -> y + z + 1
+  in
+  let () =
+    print_endline @@ Int.to_string
+    @@ baz
+         (Minidebug_runtime.debug ~global_prefix:"baz-1" ~values_first_mode:true ())
+         [ 4 ]
+  in
+  let () =
+    print_endline @@ Int.to_string
+    @@ baz
+         (Minidebug_runtime.debug ~global_prefix:"baz-2" ~values_first_mode:true ())
+         [ 4; 5; 6 ]
+  in
+  [%expect
+    {|
+      BEGIN DEBUG SESSION foo-1
+      foo = 14
+      ├─"test/test_expect_test.ml":2029:25-2030:55
+      └─foo-1 <match -- branch 1> :: (y, _)
+        ├─"test/test_expect_test.ml":2030:50-2030:55
+        └─y = 7
+      14
+
+      BEGIN DEBUG SESSION baz-1
+      baz = 8
+      ├─"test/test_expect_test.ml":2040:15-2040:20
+      ├─baz-1 <function -- branch 1> :: (y, [])
+      └─y = 4
+      8
+
+      BEGIN DEBUG SESSION baz-2
+      baz = 10
+      ├─"test/test_expect_test.ml":2042:21-2042:30
+      ├─baz-2 <function -- branch 3> :: (y, :: (z, _))
+      ├─y = 4
+      └─z = 5
+      10 |}]
+```
 
 ## VS Code suggestions
 
