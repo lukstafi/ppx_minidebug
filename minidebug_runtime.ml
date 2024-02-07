@@ -470,8 +470,9 @@ module PrintBox (Log_to : Debug_ch) = struct
       | `Prefix prefix
         when String.length prefix = 0
              || Char.equal prefix.[0] '.'
-             || String.equal (String.sub prefix 0 5) "http:"
-             || String.equal (String.sub prefix 0 6) "https:" ->
+             || String.length prefix > 6
+                && (String.equal (String.sub prefix 0 5) "http:"
+                   || String.equal (String.sub prefix 0 6) "https:") ->
           Printf.sprintf "%s#L%d" fname start_lnum
       | _ -> Printf.sprintf "%s:%d:%d" fname start_lnum (start_colnum + 1)
     in
@@ -638,7 +639,7 @@ let debug ?(debug_ch = stdout) ?(time_tagged = false) ?(global_prefix = "")
     let refresh_ch () = false
     let debug_ch () = debug_ch
     let time_tagged = time_tagged
-    let global_prefix = global_prefix
+    let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = None
   end) in
   Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
