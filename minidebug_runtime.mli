@@ -6,11 +6,13 @@ module type Debug_ch = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
   val time_tagged : bool
+  val global_prefix : string
   val split_files_after : int option
 end
 
 val debug_ch :
   ?time_tagged:bool ->
+  ?global_prefix:string ->
   ?split_files_after:int ->
   ?for_append:bool ->
   string ->
@@ -19,7 +21,10 @@ val debug_ch :
     to store the files. By default the logging will not be time tagged and will be appending
     to the file / creating more files. If [split_files_after] is given and [for_append] is false,
     clears the directory. If the opened file exceeds [split_files_after] characters, [Debug_ch.refresh_ch ()]
-    returns true; if in that case [Debug_ch.debug_ch ()] is called, it will create and return a new file. *)
+    returns true; if in that case [Debug_ch.debug_ch ()] is called, it will create and return a new file.
+      
+    If [global_prefix] is given, the log header messages (and the log closing messages for the flushing
+    backend) are prefixed with it. *)
 
 (** When using the
     {{:http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html}
@@ -135,6 +140,7 @@ module PrintBox : functor (_ : Debug_ch) -> PrintBox_runtime
 
 val debug_file :
   ?time_tagged:bool ->
+  ?global_prefix:string ->
   ?split_files_after:int ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
@@ -159,6 +165,7 @@ val debug_file :
 val debug :
   ?debug_ch:out_channel ->
   ?time_tagged:bool ->
+  ?global_prefix:string ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
   ?prune_upto:int ->
@@ -167,9 +174,16 @@ val debug :
   unit ->
   (module PrintBox_runtime)
 (** Creates a PrintBox-based debug runtime for the [`Text] backend. By default it will log to [stdout]
-    and will not be time tagged. *)
+    and will not be time tagged.
+
+    See {!type:PrintBox.config} for details about PrintBox-specific parameters.
+    See {!debug_ch} for the details about shared parameters. *)
 
 val debug_flushing :
-  ?debug_ch:out_channel -> ?time_tagged:bool -> unit -> (module Debug_runtime)
-(** Creates a PrintBox-based debug runtime. By default it will log to [stdout] and will not be
-    time tagged. *)
+  ?debug_ch:out_channel ->
+  ?time_tagged:bool ->
+  ?global_prefix:string ->
+  unit ->
+  (module Debug_runtime)
+(** Creates a flushing-based debug runtime. By default it will log to [stdout] and will not be
+    time tagged. See {!debug_ch} for the details about shared parameters. *)

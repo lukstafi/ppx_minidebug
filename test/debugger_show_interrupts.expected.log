@@ -1,5 +1,5 @@
 
-BEGIN DEBUG SESSION
+BEGIN DEBUG SESSION 
 loop_exceeded : int begin "test/test_debug_interrupts.ml":9:33-11:55
  x : int = 17
   "test/test_debug_interrupts.ml":10:6: z

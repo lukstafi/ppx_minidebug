@@ -14,11 +14,12 @@ module type Debug_ch = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
   val time_tagged : bool
+  val global_prefix : string
   val split_files_after : int option
 end
 
-let debug_ch ?(time_tagged = false) ?split_files_after ?(for_append = true) filename :
-    (module Debug_ch) =
+let debug_ch ?(time_tagged = false) ?(global_prefix = "") ?split_files_after
+    ?(for_append = true) filename : (module Debug_ch) =
   let module Result = struct
     let () =
       match split_files_after with
@@ -66,6 +67,7 @@ let debug_ch ?(time_tagged = false) ?split_files_after ?(for_append = true) file
       !current_ch
 
     let time_tagged = time_tagged
+    let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = split_files_after
   end in
   (module Result)
@@ -127,9 +129,10 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
   let stack = ref []
 
   let () =
-    if Log_to.time_tagged then
-      CFormat.fprintf !ppf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
-    else CFormat.fprintf !ppf "@.BEGIN DEBUG SESSION@."
+    if time_tagged then
+      CFormat.fprintf !ppf "@.BEGIN DEBUG SESSION %sat time %a@." global_prefix
+        pp_timestamp ()
+    else CFormat.fprintf !ppf "@.BEGIN DEBUG SESSION %s@." global_prefix
 
   let close_log () =
     (match !stack with
@@ -143,7 +146,8 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message ~entry_id:_ =
     stack := 0 :: !stack;
-    CFormat.fprintf !ppf "\"%s\":%d:%d: %s@ @[<hov 2>" fname pos_lnum pos_colnum message
+    CFormat.fprintf !ppf "\"%s\":%d:%d: %s%s@ @[<hov 2>" fname pos_lnum pos_colnum
+      global_prefix message
 
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
       ~message ~entry_id:_ =
@@ -151,7 +155,7 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
     CFormat.fprintf !ppf "@[\"%s\":%d:%d-%d:%d" fname start_lnum start_colnum end_lnum
       end_colnum;
     if Log_to.time_tagged then CFormat.fprintf !ppf "@ at time@ %a" pp_timestamp ();
-    CFormat.fprintf !ppf ": %s@]@ @[<hov 2>" message
+    CFormat.fprintf !ppf ": %s%s@]@ @[<hov 2>" global_prefix message
 
   let log_value_sexp ~descr ~entry_id:_ ~is_result:_ sexp =
     (match !stack with
@@ -197,9 +201,9 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
 
   let () =
     if Log_to.time_tagged then
-      Printf.fprintf !debug_ch "\nBEGIN DEBUG SESSION at time %s\n%!"
+      Printf.fprintf !debug_ch "\nBEGIN DEBUG SESSION %sat time %s\n%!" global_prefix
         (timestamp_to_string ())
-    else Printf.fprintf !debug_ch "\nBEGIN DEBUG SESSION\n%!"
+    else Printf.fprintf !debug_ch "\nBEGIN DEBUG SESSION %s\n%!" global_prefix
 
   let close_log () =
     match !stack with
@@ -210,21 +214,21 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
         Printf.fprintf !debug_ch "%s%!" (indent ());
         if Log_to.time_tagged then
           Printf.fprintf !debug_ch "%s - %!" (timestamp_to_string ());
-        Printf.fprintf !debug_ch "%s end\n%!" message;
+        Printf.fprintf !debug_ch "%s%s end\n%!" global_prefix message;
         flush !debug_ch;
         if !stack = [] then debug_ch := Log_to.debug_ch ()
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message ~entry_id:_ =
     stack := (None, 0) :: !stack;
-    Printf.fprintf !debug_ch "%s\"%s\":%d:%d: %s\n%!" (indent ()) fname pos_lnum
-      pos_colnum message
+    Printf.fprintf !debug_ch "%s\"%s\":%d:%d: %s%s\n%!" (indent ()) fname pos_lnum
+      pos_colnum global_prefix message
 
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
       ~message ~entry_id:_ =
     Printf.fprintf !debug_ch "%s%!" (indent ());
     if Log_to.time_tagged then Printf.fprintf !debug_ch "%s - %!" (timestamp_to_string ());
-    Printf.fprintf !debug_ch "%s begin \"%s\":%d:%d-%d:%d\n%!" message fname start_lnum
-      start_colnum end_lnum end_colnum;
+    Printf.fprintf !debug_ch "%s%s begin \"%s\":%d:%d-%d:%d\n%!" global_prefix message
+      fname start_lnum start_colnum end_lnum end_colnum;
     stack := (Some message, 0) :: !stack
 
   let log_value_sexp ~descr ~entry_id:_ ~is_result:_ sexp =
@@ -365,8 +369,9 @@ module PrintBox (Log_to : Debug_ch) = struct
   let () =
     let log_header =
       if Log_to.time_tagged then
-        CFormat.asprintf "@.BEGIN DEBUG SESSION at time %a@." pp_timestamp ()
-      else CFormat.asprintf "@.BEGIN DEBUG SESSION@."
+        CFormat.asprintf "@.BEGIN DEBUG SESSION %sat time %a@." global_prefix pp_timestamp
+          ()
+      else CFormat.asprintf "@.BEGIN DEBUG SESSION %s@." global_prefix
     in
     output_string (debug_ch ()) log_header
 
@@ -486,17 +491,9 @@ module PrintBox (Log_to : Debug_ch) = struct
     let highlight =
       match config.highlight_terms with Some r -> Re.execp r message | None -> false
     in
+    let entry_message = global_prefix ^ message in
     stack :=
-      {
-        cond = true;
-        highlight;
-        exclude;
-        uri;
-        path;
-        entry_message = message;
-        entry_id;
-        body = [];
-      }
+      { cond = true; highlight; exclude; uri; path; entry_message; entry_id; body = [] }
       :: !stack
 
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum =
@@ -609,9 +606,10 @@ module PrintBox (Log_to : Debug_ch) = struct
       !global_id
 end
 
-let debug_file ?(time_tagged = false) ?split_files_after ?highlight_terms ?exclude_on_path
-    ?(prune_upto = 0) ?(truncate_children = 0) ?(for_append = false) ?(boxify_sexp_from_size = 50) ?backend
-    ?hyperlink ?(values_first_mode = false) filename : (module PrintBox_runtime) =
+let debug_file ?(time_tagged = false) ?(global_prefix = "") ?split_files_after
+    ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
+    ?(for_append = false) ?(boxify_sexp_from_size = 50) ?backend ?hyperlink
+    ?(values_first_mode = false) filename : (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename ^ ".md"
@@ -619,7 +617,8 @@ let debug_file ?(time_tagged = false) ?split_files_after ?highlight_terms ?exclu
     | Some `Text -> filename ^ ".log"
   in
   let module Debug =
-    PrintBox ((val debug_ch ~time_tagged ~for_append ?split_files_after filename)) in
+    PrintBox
+      ((val debug_ch ~time_tagged ~global_prefix ~for_append ?split_files_after filename)) in
   Debug.config.backend <-
     Option.value backend ~default:(`Markdown Debug.default_md_config);
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
@@ -632,12 +631,14 @@ let debug_file ?(time_tagged = false) ?split_files_after ?highlight_terms ?exclu
     (match hyperlink with None -> `No_hyperlinks | Some prefix -> `Prefix prefix);
   (module Debug)
 
-let debug ?(debug_ch = stdout) ?(time_tagged = false) ?highlight_terms ?exclude_on_path
-    ?(prune_upto = 0) ?(truncate_children = 0) ?(values_first_mode = false) () : (module PrintBox_runtime) =
+let debug ?(debug_ch = stdout) ?(time_tagged = false) ?(global_prefix = "")
+    ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
+    ?(values_first_mode = false) () : (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
     let debug_ch () = debug_ch
     let time_tagged = time_tagged
+    let global_prefix = global_prefix
     let split_files_after = None
   end) in
   Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
@@ -647,11 +648,12 @@ let debug ?(debug_ch = stdout) ?(time_tagged = false) ?highlight_terms ?exclude_
   Debug.config.values_first_mode <- values_first_mode;
   (module Debug)
 
-let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) () : (module Debug_runtime)
-    =
+let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) ?(global_prefix = "") () :
+    (module Debug_runtime) =
   (module Flushing (struct
     let refresh_ch () = false
     let debug_ch () = debug_ch
     let time_tagged = time_tagged
+    let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = None
   end))

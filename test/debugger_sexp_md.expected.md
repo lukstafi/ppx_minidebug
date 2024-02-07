@@ -1,5 +1,5 @@
 
-BEGIN DEBUG SESSION
+BEGIN DEBUG SESSION 
 <details><summary><code>foo = (7 8 16)</code></summary>
 
 - ["test/test_debug_md.ml":8:19-10:17](../test/test_debug_md.ml#L8)

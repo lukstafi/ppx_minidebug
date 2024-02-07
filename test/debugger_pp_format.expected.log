@@ -1,5 +1,5 @@
 
-BEGIN DEBUG SESSION
+BEGIN DEBUG SESSION 
 "test/test_debug_pp.ml":7:17-9:14: bar
 x = { Test_debug_pp.first = 7; second = 42 }  "test/test_debug_pp.ml":8:6: y y = 8  bar = 336  
 "test/test_debug_pp.ml":13:17-15:20: baz

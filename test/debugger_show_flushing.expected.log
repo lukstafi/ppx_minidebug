@@ -1,5 +1,5 @@
 
-BEGIN DEBUG SESSION
+BEGIN DEBUG SESSION 
 foo begin "test/test_debug_show.ml":5:19-7:17
  x = 7
   "test/test_debug_show.ml":6:6: y

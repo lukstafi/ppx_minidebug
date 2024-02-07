@@ -1,3 +1,9 @@
+## [1.1.0] -- current
+
+### Added
+
+- A shared runtime-wide setting `global_prefix` for prefixing log headers (and closing tags in the flushing backend), to disambiguate (or debug) interactions of different runtime instances.
+
 ## [1.0.0] -- 2024-02-03
 
 ### Added

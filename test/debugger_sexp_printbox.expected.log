@@ -1,5 +1,5 @@
 
-BEGIN DEBUG SESSION
+BEGIN DEBUG SESSION 
 "test/test_debug_sexp.ml":7:19-9:17: foo
 ├─x = 7
 ├─"test/test_debug_sexp.ml":8:6: y
