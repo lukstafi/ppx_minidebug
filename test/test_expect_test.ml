@@ -2089,14 +2089,22 @@ let%expect_test "%debug_show procedure runtime passing" =
   let () = foo (Minidebug_runtime.debug_flushing ~global_prefix:"foo-2" ()) () in
   [%expect
     {|
+      BEGIN DEBUG SESSION bar-1
+      bar-1 bar begin "test/test_expect_test.ml":2084:24-2084:46
+       bar-1 __fun begin "test/test_expect_test.ml":2084:29-2084:43
+       bar-1 __fun end
+      bar-1 bar end
+
+      BEGIN DEBUG SESSION bar-2
+      bar-2 bar begin "test/test_expect_test.ml":2084:24-2084:46
+       bar-2 __fun begin "test/test_expect_test.ml":2084:29-2084:43
+       bar-2 __fun end
+      bar-2 bar end
+
       BEGIN DEBUG SESSION foo-1
-      foo-1 foo begin "test/test_expect_test.ml":2084:24-2084:31
+      foo-1 foo begin "test/test_expect_test.ml":2087:24-2087:46
       foo-1 foo end
 
       BEGIN DEBUG SESSION foo-2
-      foo-2 foo begin "test/test_expect_test.ml":2084:24-2084:31
-      foo-2 foo end
-
-      BEGIN DEBUG SESSION foo-3
-      foo-3 foo begin "test/test_expect_test.ml":2084:24-2084:31
-      foo-3 foo end |}]
+      foo-2 foo begin "test/test_expect_test.ml":2087:24-2087:46
+      foo-2 foo end |}]
