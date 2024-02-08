@@ -2081,10 +2081,12 @@ let%expect_test "%track_rtb_show PrintBox to stdout list runtime passing" =
       10 |}]
 
 let%expect_test "%debug_show procedure runtime passing" =
-  let%track_rt_show foo () = () in
+  let%track_rt_show bar () = (fun () -> ()) () in
+  let () = bar (Minidebug_runtime.debug_flushing ~global_prefix:"bar-1" ()) () in
+  let () = bar (Minidebug_runtime.debug_flushing ~global_prefix:"bar-2" ()) () in
+  let%track_rt_show foo () = let () = () in () in
   let () = foo (Minidebug_runtime.debug_flushing ~global_prefix:"foo-1" ()) () in
   let () = foo (Minidebug_runtime.debug_flushing ~global_prefix:"foo-2" ()) () in
-  let () = foo (Minidebug_runtime.debug_flushing ~global_prefix:"foo-3" ()) () in
   [%expect
     {|
       BEGIN DEBUG SESSION foo-1
