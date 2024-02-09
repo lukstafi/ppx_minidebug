@@ -640,6 +640,12 @@ let extract_type ~alt_typ exp =
         let typ = loop ~alt_typ hd in
         let typl = loop ~alt_typ:typ tl in
         pick ~typ:[%type: [%t typ] list] ~alt_typ:typl ()
+    | _, [%expr [%e? hd] :: [%e? tl]] ->
+        let typ = loop hd in
+        let typl = loop ~alt_typ:typ tl in
+        pick ~typ:[%type: [%t typ] list] ~alt_typ:typl ()
+    | Some typ, [%expr []] -> typ
+    | None, [%expr []] -> [%type: _ list]
     | Some [%type: [%t? alt_typ] array], { pexp_desc = Pexp_array exps; _ } ->
         let typs = List.map (fun exp -> loop ~alt_typ exp) exps in
         List.fold_left (fun typ alt_typ -> pick ~typ ~alt_typ ()) alt_typ typs
