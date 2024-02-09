@@ -4,12 +4,13 @@
 
 - A shared runtime-wide setting `global_prefix` for prefixing log headers (and closing tags in the flushing backend), to disambiguate (or debug) interactions of different runtime instances.
 - `_rt_` resp. `_rtb_` (e.g. `%track_rtb_sexp`) entry points to support runtime-passing, i.e. abstracting over a `Debug_runtime` resp. `PrintBox_runtime`.
-- TODO: Entry points `%log_show`, `%log_pp`, `%log_sexp` that do not open a new log subtree.
+- TODO: An extension point `%log` that is not registered -- therefore reducing interference with logger ppxs -- and does not open a new log subtree.
 - TODO: Optionally indicate elapsed time in subtree headers in the PrintBox backend.
 
 ### Changed
 
 - Removed the VS Code specific section of the README.
+- Slightly breaking change: the `~descr` parameter of the logging functions in the runtimes is now optional.
 
 ## [1.0.0] -- 2024-02-03
 

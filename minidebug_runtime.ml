@@ -94,17 +94,17 @@ module type Debug_runtime = sig
     unit
 
   val log_value_sexp :
-    descr:string -> entry_id:int -> is_result:bool -> Sexplib0.Sexp.t -> unit
+    ?descr:string -> entry_id:int -> is_result:bool -> Sexplib0.Sexp.t -> unit
 
   val log_value_pp :
-    descr:string ->
+    ?descr:string ->
     entry_id:int ->
     pp:(Format.formatter -> 'a -> unit) ->
     is_result:bool ->
     'a ->
     unit
 
-  val log_value_show : descr:string -> entry_id:int -> is_result:bool -> string -> unit
+  val log_value_show : ?descr:string -> entry_id:int -> is_result:bool -> string -> unit
   val exceeds_max_nesting : unit -> bool
   val exceeds_max_children : unit -> bool
   val get_entry_id : unit -> int
@@ -157,23 +157,29 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
     if Log_to.time_tagged then CFormat.fprintf !ppf "@ at time@ %a" pp_timestamp ();
     CFormat.fprintf !ppf ": %s%s@]@ @[<hov 2>" global_prefix message
 
-  let log_value_sexp ~descr ~entry_id:_ ~is_result:_ sexp =
+  let log_value_sexp ?descr ~entry_id:_ ~is_result:_ sexp =
     (match !stack with
     | num_children :: tl -> stack := (num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
-    CFormat.fprintf !ppf "%s = %a@ @ " descr Sexplib0.Sexp.pp_hum sexp
+    match descr with
+    | None -> CFormat.fprintf !ppf "%a@ @ " Sexplib0.Sexp.pp_hum sexp
+    | Some d -> CFormat.fprintf !ppf "%s = %a@ @ " d Sexplib0.Sexp.pp_hum sexp
 
-  let log_value_pp ~descr ~entry_id:_ ~pp ~is_result:_ v =
+  let log_value_pp ?descr ~entry_id:_ ~pp ~is_result:_ v =
     (match !stack with
     | num_children :: tl -> stack := (num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
-    CFormat.fprintf !ppf "%s = %a@ @ " descr pp v
+    match descr with
+    | None -> CFormat.fprintf !ppf "%a@ @ " pp v
+    | Some d -> CFormat.fprintf !ppf "%s = %a@ @ " d pp v
 
-  let log_value_show ~descr ~entry_id:_ ~is_result:_ v =
+  let log_value_show ?descr ~entry_id:_ ~is_result:_ v =
     (match !stack with
     | num_children :: tl -> stack := (num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
-    CFormat.fprintf !ppf "%s = %s@ @ " descr v
+    match descr with
+    | None -> CFormat.fprintf !ppf "%s@ @ " v
+    | Some d -> CFormat.fprintf !ppf "%s = %s@ @ " d v
 
   let exceeds_max_nesting () =
     exceeds ~value:(List.length !stack) ~limit:!max_nesting_depth
@@ -231,27 +237,35 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
       fname start_lnum start_colnum end_lnum end_colnum;
     stack := (Some message, 0) :: !stack
 
-  let log_value_sexp ~descr ~entry_id:_ ~is_result:_ sexp =
+  let log_value_sexp ?descr ~entry_id:_ ~is_result:_ sexp =
     (match !stack with
     | (hd, num_children) :: tl -> stack := (hd, num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
-    Printf.fprintf !debug_ch "%s%s = %s\n%!" (indent ()) descr
-      (Sexplib0.Sexp.to_string_hum sexp)
+    match descr with
+    | None ->
+        Printf.fprintf !debug_ch "%s%s\n%!" (indent ()) (Sexplib0.Sexp.to_string_hum sexp)
+    | Some d ->
+        Printf.fprintf !debug_ch "%s%s = %s\n%!" (indent ()) d
+          (Sexplib0.Sexp.to_string_hum sexp)
 
-  let log_value_pp ~descr ~entry_id:_ ~pp ~is_result:_ v =
+  let log_value_pp ?descr ~entry_id:_ ~pp ~is_result:_ v =
     (match !stack with
     | (hd, num_children) :: tl -> stack := (hd, num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
     let _ = CFormat.flush_str_formatter () in
     pp CFormat.str_formatter v;
     let v_str = CFormat.flush_str_formatter () in
-    Printf.fprintf !debug_ch "%s%s = %s\n%!" (indent ()) descr v_str
+    match descr with
+    | None -> Printf.fprintf !debug_ch "%s%s\n%!" (indent ()) v_str
+    | Some d -> Printf.fprintf !debug_ch "%s%s = %s\n%!" (indent ()) d v_str
 
-  let log_value_show ~descr ~entry_id:_ ~is_result:_ v =
+  let log_value_show ?descr ~entry_id:_ ~is_result:_ v =
     (match !stack with
     | (hd, num_children) :: tl -> stack := (hd, num_children + 1) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
-    Printf.fprintf !debug_ch "%s%s = %s\n%!" (indent ()) descr v
+    match descr with
+    | None -> Printf.fprintf !debug_ch "%s%s\n%!" (indent ()) v
+    | Some d -> Printf.fprintf !debug_ch "%s%s = %s\n%!" (indent ()) d v
 
   let exceeds_max_nesting () =
     exceeds ~value:(List.length !stack) ~limit:!max_nesting_depth
@@ -529,7 +543,7 @@ module PrintBox (Log_to : Debug_ch) = struct
     in
     (hl, apply_highlight hl b)
 
-  let boxify descr sexp =
+  let boxify ?descr sexp =
     let open Sexplib0.Sexp in
     let rec loop ?(as_tree = false) sexp =
       if (not as_tree) && sexp_size sexp < config.boxify_sexp_from_size then
@@ -553,11 +567,14 @@ module PrintBox (Log_to : Debug_ch) = struct
             let hls, bs = List.split @@ List.map loop l in
             (List.exists (fun x -> x) hls, B.vlist ~bars:false bs)
     in
-    match sexp with
-    | Atom s | List [ Atom s ] ->
-        highlight_box @@ B.text_with_style B.Style.preformatted (descr ^ " = " ^ s)
-    | List [] -> highlight_box @@ B.line descr
-    | List l ->
+    match (sexp, descr) with
+    | (Atom s | List [ Atom s ]), Some d ->
+        highlight_box @@ B.text_with_style B.Style.preformatted (d ^ " = " ^ s)
+    | (Atom s | List [ Atom s ]), None ->
+        highlight_box @@ B.text_with_style B.Style.preformatted s
+    | List [], Some d -> highlight_box @@ B.line d
+    | List [], None -> false, B.empty
+    | List l, _ ->
         let str =
           if sexp_size sexp < min config.boxify_sexp_from_size config.max_inline_sexp_size
           then Sexplib0.Sexp.to_string_hum sexp
@@ -565,29 +582,42 @@ module PrintBox (Log_to : Debug_ch) = struct
         in
         if String.length str > 0 && String.length str < config.max_inline_sexp_length then
           (* TODO: Desing choice: consider not using monospace, at least for descr.  *)
-          highlight_box @@ B.text_with_style B.Style.preformatted (descr ^ " = " ^ str)
-        else loop ~as_tree:true @@ List (Atom (descr ^ " =") :: l)
+          highlight_box
+          @@ B.text_with_style B.Style.preformatted
+          @@ match descr with None -> str | Some d -> d ^ " = " ^ str
+        else
+          loop ~as_tree:true
+          @@ List ((match descr with None -> [] | Some d -> [ Atom (d ^ " =") ]) @ l)
 
   let num_children () = match !stack with [] -> 0 | { body; _ } :: _ -> List.length body
 
-  let log_value_sexp ~descr ~entry_id ~is_result sexp =
+  let log_value_sexp ?descr ~entry_id ~is_result sexp =
     if config.boxify_sexp_from_size >= 0 then
-      stack_next ~entry_id ~is_result @@ boxify descr sexp
+      stack_next ~entry_id ~is_result @@ boxify ?descr sexp
     else
       stack_next ~entry_id ~is_result
       @@ highlight_box
-      @@ B.asprintf_with_style B.Style.preformatted "%s = %a" descr Sexplib0.Sexp.pp_hum
-           sexp
+      @@
+      match descr with
+      | None -> B.asprintf_with_style B.Style.preformatted "%a" Sexplib0.Sexp.pp_hum sexp
+      | Some d ->
+          B.asprintf_with_style B.Style.preformatted "%s = %a" d Sexplib0.Sexp.pp_hum sexp
 
-  let log_value_pp ~descr ~entry_id ~pp ~is_result v =
+  let log_value_pp ?descr ~entry_id ~pp ~is_result v =
     stack_next ~entry_id ~is_result
     @@ highlight_box
-    @@ B.asprintf_with_style B.Style.preformatted "%s = %a" descr pp v
+    @@
+    match descr with
+    | None -> B.asprintf_with_style B.Style.preformatted "%a" pp v
+    | Some d -> B.asprintf_with_style B.Style.preformatted "%s = %a" d pp v
 
-  let log_value_show ~descr ~entry_id ~is_result v =
+  let log_value_show ?descr ~entry_id ~is_result v =
     stack_next ~entry_id ~is_result
     @@ highlight_box
-    @@ B.sprintf_with_style B.Style.preformatted "%s = %s" descr v
+    @@
+    match descr with
+    | None -> B.sprintf_with_style B.Style.preformatted "%s" v
+    | Some d -> B.sprintf_with_style B.Style.preformatted "%s = %s" d v
 
   let no_debug_if cond =
     match !stack with

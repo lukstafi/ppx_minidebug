@@ -52,17 +52,17 @@ module type Debug_runtime = sig
     unit
 
   val log_value_sexp :
-    descr:string -> entry_id:int -> is_result:bool -> Sexplib0.Sexp.t -> unit
+    ?descr:string -> entry_id:int -> is_result:bool -> Sexplib0.Sexp.t -> unit
 
   val log_value_pp :
-    descr:string ->
+    ?descr:string ->
     entry_id:int ->
     pp:(Format.formatter -> 'a -> unit) ->
     is_result:bool ->
     'a ->
     unit
 
-  val log_value_show : descr:string -> entry_id:int -> is_result:bool -> string -> unit
+  val log_value_show : ?descr:string -> entry_id:int -> is_result:bool -> string -> unit
   val exceeds_max_nesting : unit -> bool
   val exceeds_max_children : unit -> bool
   val get_entry_id : unit -> int
