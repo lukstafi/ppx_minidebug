@@ -764,6 +764,12 @@ let traverse =
             Pexp_let (rec_flag, bindings, callback () body)
         | Pexp_extension ({ loc = _; txt }, PStr [%str [%e? body]]) when is_ext_point txt
           ->
+            let suffix_pos = String.rindex txt '_' in
+            (match String.sub txt suffix_pos (String.length txt - suffix_pos) with
+            | "_pp" -> log_value := log_value_pp
+            | "_show" -> log_value := log_value_show
+            | "_sexp" -> log_value := log_value_sexp
+            | _ -> ());
             let runtime_from_arg =
               if String.length txt > 9 && String.sub txt 5 4 = "_rt_" then Generic
               else if String.length txt > 10 && String.sub txt 5 5 = "_rtb_" then PrintBox

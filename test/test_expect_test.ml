@@ -893,14 +893,14 @@ let%expect_test "nested extension points are no-ops" =
       | 0 -> 1
       | 1 -> 0
       | _ ->
-          let%debug_sexp result : int = if x > 2 then x else ~-x in
+          let%debug_show result : int = if x > 2 then x else ~-x in
           result
     else
       match%debug_pp x with
       | 6 -> 5
       | 7 -> 4
       | _ ->
-          let%track_pp result : int = if x < 10 then x else ~-x in
+          let%track_show result : int = if x < 10 then x else ~-x in
           result
   in
   let () =
@@ -916,8 +916,8 @@ let%expect_test "nested extension points are no-ops" =
       ├─x = 8
       ├─"test/test_expect_test.ml":899:6: <if -- else branch>
       │ └─"test/test_expect_test.ml":903:10-904:16: <match -- branch 2>
-      │   └─"test/test_expect_test.ml":903:23: result
-      │     ├─"test/test_expect_test.ml":903:53: <if -- then branch>
+      │   └─"test/test_expect_test.ml":903:25: result
+      │     ├─"test/test_expect_test.ml":903:55: <if -- then branch>
       │     └─result = 8
       └─track_branches = 8
       8
