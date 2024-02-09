@@ -12,6 +12,10 @@
 - Removed the VS Code specific section of the README.
 - Slightly breaking change: the `~descr` parameter of the logging functions in the runtimes is now optional.
 
+### Fixed
+
+- `log_value_pp` would raise a potentially uncaught or misleading exception, now marks a syntax error.
+
 ## [1.0.0] -- 2024-02-03
 
 ### Added

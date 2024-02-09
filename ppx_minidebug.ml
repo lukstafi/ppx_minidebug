@@ -138,25 +138,31 @@ let rec splice_lident ~id_prefix ident =
   | Lapply (f, a) -> Lapply (splice_lident ~id_prefix f, a)
 
 let log_value_pp ~loc ~typ ?descr_loc ~is_result exp =
-  let t_lident_loc =
-    match typ with
-    | {
-     ptyp_desc =
-       ( Ptyp_constr (t_lident_loc, [])
-       | Ptyp_poly (_, { ptyp_desc = Ptyp_constr (t_lident_loc, []); _ }) );
-     _;
-    } ->
-        t_lident_loc
-    | _ -> raise Not_transforming
-  in
-  let converter =
-    A.pexp_ident ~loc
-      { t_lident_loc with txt = splice_lident ~id_prefix:"pp_" t_lident_loc.txt }
-  in
-  [%expr
-    Debug_runtime.log_value_pp ?descr:[%e to_descr ~loc ~descr_loc typ]
-      ~entry_id:__entry_id ~pp:[%e converter] ~is_result:[%e A.ebool ~loc is_result]
-      [%e exp]]
+  try
+    let t_lident_loc =
+      match typ with
+      | {
+       ptyp_desc =
+         ( Ptyp_constr (t_lident_loc, [])
+         | Ptyp_poly (_, { ptyp_desc = Ptyp_constr (t_lident_loc, []); _ }) );
+       _;
+      } ->
+          t_lident_loc
+      | _ -> raise Not_transforming
+    in
+    let converter =
+      A.pexp_ident ~loc
+        { t_lident_loc with txt = splice_lident ~id_prefix:"pp_" t_lident_loc.txt }
+    in
+    [%expr
+      Debug_runtime.log_value_pp ?descr:[%e to_descr ~loc ~descr_loc typ]
+        ~entry_id:__entry_id ~pp:[%e converter] ~is_result:[%e A.ebool ~loc is_result]
+        [%e exp]]
+  with Not_transforming ->
+    A.pexp_extension ~loc
+    @@ Location.error_extensionf ~loc
+         "ppx_minidebug: cannot find a concrete type to _pp log this value: try _show or \
+          _sexp"
 
 (* *** The deriving.show string-based variant. *** *)
 let log_value_show ~loc ~typ ?descr_loc ~is_result exp =
