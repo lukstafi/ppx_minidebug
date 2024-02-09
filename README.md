@@ -202,7 +202,7 @@ Example showcasing the `printbox-md` (Markdown) backend:
 
 ## Usage
 
-Tracing only happens in explicitly marked lexical scopes. The extension points vary along four axes:
+Tracing only happens in explicitly marked lexical scopes. The entry extension points vary along four axes:
 
 - `%debug_` vs. `%track_`
   - The prefix `%debug_` means logging fewer things: only let-bound values and functions are logged, and functions only when their return type is annotated.
@@ -218,9 +218,11 @@ Tracing only happens in explicitly marked lexical scopes. The extension points v
   - `_show` converts values to strings via the `%show` extension provided by `deriving.show`: e.g. `[%show: int list]`.
   - `_sexp` converts values to sexp expressions first using `%sexp_of`, e.g. `[%sexp_of: int list]`. The runtime can decide how to print the sexp expressions. The `PrintBox` backend allows to convert the sexps to box structures first, with the `boxify_sexp_from_size` setting. This means large values can be unfolded gradually for inspection.
 
+Plus, there is a non-entry extension point `%log` for logging values. (It is not registered, which as a side effect should somewhat mitigate conflicts with other ppx extensions for logging.)
+
 See examples in [the test directory](test/), and especially [the inline tests](test/test_expect_test.ml).
 
-Only type-annotated let-bindings, function arguments, function results can be logged. However, the bindings and function arguments can be nested patterns with only parts of them type-annotated!
+Only type-annotated let-bindings, function arguments, function results can be (implicitly) logged. However, the bindings and function arguments can be nested patterns with only parts of them type-annotated! The explicit logger `%log` takes a value (an expression that can be re-parsed as a pattern) and reconstructs its type from partial type annotations.
 
 To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.debug_file thread_name in ...`
 
@@ -496,7 +498,7 @@ If you provide the `split_files_after` setting, the logging will transition to a
 
 ### Providing the necessary type information
 
-We only log values of identifiers, located inside patterns, for which the type is provided in the source code, in a syntactically close / related location. PPX rewriters do not have access to the results of type inference. We extract the available type information, but we don't do it perfectly. We propagate type information top-down, merging it, but we do not unify or substitute type variables.
+We only implicitly log values of identifiers, located inside patterns, for which the type is provided in the source code, in a syntactically close / related location. PPX rewriters do not have access to the results of type inference. We extract the available type information, but we don't do it perfectly. We propagate type information top-down, merging it, but we do not unify or substitute type variables.
 
 Here is a probably incomplete list of the restrictions:
 
@@ -536,6 +538,8 @@ As a help in debugging whether the right type information got propagated, we off
 ```
 
 You can also use at the module level: `[%%global_debug_type_info true]`, prior to the code of interest.
+
+Explicit logging with `%log` has different but related restrictions compared to logging of let or argument bindings. We reconstruct the type of the expression from partial type information, where in addition to type annotations we take into account: string, int and float literals, tuple, array and list expresssions. We do not analyze applications, nor constructors other than "nil" `[]` and "cons" `::` for lists.
 
 ### Dealing with concurrent execution
 
