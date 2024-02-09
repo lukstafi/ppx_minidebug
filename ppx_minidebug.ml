@@ -242,6 +242,7 @@ let rec pick ~typ ?alt_typ () =
   match typ.ptyp_desc with
   | Ptyp_any -> alt_or_typ
   | Ptyp_var _ -> alt_or_typ
+  | Ptyp_extension _ -> alt_or_typ
   | Ptyp_arrow (_, arg, ret) -> (
       match alt_typ with
       | Some { ptyp_desc = Ptyp_arrow (_, arg2, ret2); _ } ->
