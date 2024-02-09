@@ -202,4 +202,4 @@
  (modules test_expect_test)
  (libraries minidebug_runtime str)
  (preprocess
-  (pps ppx_minidebug ppx_deriving.show ppx_expect)))
+  (pps ppx_minidebug ppx_deriving.show ppx_sexp_conv ppx_expect)))

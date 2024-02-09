@@ -2080,11 +2080,14 @@ let%expect_test "%track_rtb_show PrintBox to stdout list runtime passing" =
       └─z = 5
       10 |}]
 
-let%expect_test "%debug_show procedure runtime passing" =
+let%expect_test "%track_rt_show procedure runtime passing" =
   let%track_rt_show bar () = (fun () -> ()) () in
   let () = bar (Minidebug_runtime.debug_flushing ~global_prefix:"bar-1" ()) () in
   let () = bar (Minidebug_runtime.debug_flushing ~global_prefix:"bar-2" ()) () in
-  let%track_rt_show foo () = let () = () in () in
+  let%track_rt_show foo () =
+    let () = () in
+    ()
+  in
   let () = foo (Minidebug_runtime.debug_flushing ~global_prefix:"foo-1" ()) () in
   let () = foo (Minidebug_runtime.debug_flushing ~global_prefix:"foo-2" ()) () in
   [%expect
@@ -2102,9 +2105,65 @@ let%expect_test "%debug_show procedure runtime passing" =
       bar-2 bar end
 
       BEGIN DEBUG SESSION foo-1
-      foo-1 foo begin "test/test_expect_test.ml":2087:24-2087:46
+      foo-1 foo begin "test/test_expect_test.ml":2087:24-2089:6
       foo-1 foo end
 
       BEGIN DEBUG SESSION foo-2
-      foo-2 foo begin "test/test_expect_test.ml":2087:24-2087:46
+      foo-2 foo begin "test/test_expect_test.ml":2087:24-2089:6
       foo-2 foo end |}]
+
+let%expect_test "%log constant entries" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let%debug_show foo () : unit =
+    [%log "This is the first log line"];
+    [%log [ "This is the"; "2"; "log line" ]];
+    [%log "This is the", 3, "or", 3.14, "log line"]
+  in
+  let () = foo () in
+  let sexp_of_string s = Sexplib0.Sexp.Atom s in
+  let sexp_of_list f l = Sexplib0.Sexp.List (List.map f l) in
+  let sexp_of_unit () = Sexplib0.Sexp.List [] in
+  let sexp_of_int i = Sexplib0.Sexp.Atom (string_of_int i) in
+  let sexp_of_float n = Sexplib0.Sexp.Atom (string_of_float n) in
+  let%debug_sexp bar () : unit =
+    [%log "This is the first log line"];
+    [%log [ "This is the"; "2"; "log line" ]];
+    [%log "This is the", 3, "or", 3.14, "log line"]
+  in
+  let () = bar () in
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      foo = ()
+      ├─"test/test_expect_test.ml":2117:21-2120:51
+      ├─"This is the first log line"
+      ├─["This is the"; "2"; "log line"]
+      └─("This is the", 3, "or", 3.14, "log line")
+      bar = ()
+      ├─"test/test_expect_test.ml":2128:21-2131:51
+      ├─"This is the first log line"
+      ├─("This is the" 2 "log line")
+      └─("This is the" 3 or 3.14 "log line") |}]
+
+let%expect_test "%log with type annotations" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let i = 3 in
+  let pi = 3.14 in
+  let l = [ 1; 2; 3 ] in
+  let%debug_show foo () : unit =
+    [%log "This is like", (i : int), "or", (pi : float), "above"];
+    [%log "tau =", (pi *. 2. : float)];
+    [%log 4 :: l];
+    [%log i :: (l : int list)];
+    [%log (i : int) :: l]
+  in
+  let () = foo () in
+  [%expect
+    {|
+          BEGIN DEBUG SESSION
+          foo = ()
+          ├─"test/test_expect_test.ml":2153:21-2157:32
+          ├─("This is like", 3, "or", 3.14, "above")
+          ├─("tau =", 6.28)
+          ├─[4; 1; 2; 3]
+          └─[3; 1; 2; 3] |}]
