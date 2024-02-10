@@ -145,6 +145,14 @@
   (pps ppx_minidebug ppx_sexp_conv)))
 
 (executable
+ (name test_debug_time_spans)
+ (modules test_debug_time_spans)
+ (libraries sexplib0 minidebug_runtime)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_sexp_conv)))
+
+(executable
  (name test_debug_multifile)
  (modules test_debug_multifile)
  (libraries sexplib0 minidebug_runtime)
@@ -161,6 +169,11 @@
  (target debugger_sexp_md.md)
  (action
   (run %{dep:test_debug_md.exe})))
+
+(rule
+ (target debugger_sexp_time_spans.md)
+ (action
+  (run %{dep:test_debug_time_spans.exe})))
 
 (rule
  (targets debugger_multifile_1.md debugger_multifile_2.md)
@@ -181,6 +194,17 @@
  (alias runtest)
  (action
   (diff debugger_sexp_md.expected.md debugger_sexp_md.md)))
+
+; For illustration purposes.
+; (rule
+;  (alias runtest)
+;  (action
+;   (diff debugger_sexp_time_spans.expected.md debugger_sexp_time_spans.md)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_sexp_time_spans.expected.md debugger_sexp_time_spans.md)))
 
 (rule
  (alias runtest)
