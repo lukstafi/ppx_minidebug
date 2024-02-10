@@ -27,10 +27,10 @@ val debug_ch :
     clears the directory. If the opened file exceeds [split_files_after] characters, [Debug_ch.refresh_ch ()]
     returns true; if in that case [Debug_ch.debug_ch ()] is called, it will create and return a new file.
 
-    If [elapsed_times] is different from [`Not_reported], the elapsed time spans are printed for log
+    If [elapsed_times] is different from [Not_reported], the elapsed time spans are printed for log
     subtrees, in the corresponding units with precision 1%. The times include printing out logs, therefore
     might not be reliable for profiling. In the runtime creation functions, [elapsed_times] defaults to
-    [`Not_reported].
+    [Not_reported].
 
     If [global_prefix] is given, the log header messages (and the log closing messages for the flushing
     backend) are prefixed with it. *)
