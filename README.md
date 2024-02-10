@@ -2,7 +2,7 @@
 
 ## `ppx_minidebug`: Debug logs for selected functions and let-bindings
 
-`ppx_minidebug` traces selected code if it has type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` (also `%track_pp` and `%track_show`), based on `deriving.show`, and `%debug_sexp` (also `%track_sexp`) based on `sexplib0` and `ppx_sexp_conv`. The syntax extension expects a module `Debug_runtime` in the scope. The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers three ways of logging the traces, as functors (or helper functions) generating `Debug_runtime` modules given an output channel (e.g. for a file). See [the generated documentation for `Minidebug_runtime`](https://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html).
+`ppx_minidebug` traces let bindings and functions within a selected scope if they have type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` (also `%track_pp` and `%track_show`), based on `deriving.show`, and `%debug_sexp` (also `%track_sexp`) based on `sexplib0` and `ppx_sexp_conv`. Explicit logs can be added with `%log` within a debug scope (`%log` is not a registered extension point to avoid conflicts with other logging frameworks). The syntax extension expects a module `Debug_runtime` in the scope. The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers multiple ways of logging the traces, as helper functions generating `Debug_runtime` modules. See [the generated documentation for `Minidebug_runtime`](https://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html).
 
 Take a look at [`ppx_debug`](https://github.com/dariusf/ppx_debug) which has complementary strengths!
 
@@ -404,6 +404,55 @@ BEGIN DEBUG SESSION
 └─"test/test_expect_test.ml":517:50-517:70: __fun
   └─i = 3
 6
+```
+
+Explicit logging statements also help with tracking the execution, since they can be placed anywhere within a debug scope. Example from the test suite:
+
+```ocaml
+  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
+  let%track_sexp result =
+    let i = ref 0 in
+    let j = ref 0 in
+    while !i < 6 do
+      [%log 1, "i=", (!i : int)];
+      incr i;
+      [%log 2, "i=", (!i : int)];
+      j := !j + !i;
+      [%log 3, "j=", (!j : int)]
+    done;
+    !j
+  in
+  print_endline @@ Int.to_string result;
+  [%expect
+    {|
+    BEGIN DEBUG SESSION
+    "test/test_expect_test.ml":2271:4: <while loop>
+    ├─"test/test_expect_test.ml":2272:6: <while loop>
+    │ ├─(1 i= 0)
+    │ ├─(2 i= 1)
+    │ └─(3 j= 1)
+    ├─"test/test_expect_test.ml":2272:6: <while loop>
+    │ ├─(1 i= 1)
+    │ ├─(2 i= 2)
+    │ └─(3 j= 3)
+    ├─"test/test_expect_test.ml":2272:6: <while loop>
+    │ ├─(1 i= 2)
+    │ ├─(2 i= 3)
+    │ └─(3 j= 6)
+    ├─"test/test_expect_test.ml":2272:6: <while loop>
+    │ ├─(1 i= 3)
+    │ ├─(2 i= 4)
+    │ └─(3 j= 10)
+    ├─"test/test_expect_test.ml":2272:6: <while loop>
+    │ ├─(1 i= 4)
+    │ ├─(2 i= 5)
+    │ └─(3 j= 15)
+    └─"test/test_expect_test.ml":2272:6: <while loop>
+      ├─(1 i= 5)
+      ├─(2 i= 6)
+      └─(3 j= 21)
+    21
+        |}]
 ```
 
 ### Reducing the size of generated logs
