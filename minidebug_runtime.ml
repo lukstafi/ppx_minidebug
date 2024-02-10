@@ -1,5 +1,7 @@
 module CFormat = Format
 
+let time_elapsed () = Mtime_clock.elapsed ()
+
 let pp_timestamp ppf () =
   let tz_offset_s = Ptime_clock.current_tz_offset_s () in
   Ptime.(pp_human ~frac_s:6 ?tz_offset_s ()) ppf (Ptime_clock.now ())
@@ -14,12 +16,15 @@ module type Debug_ch = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
   val time_tagged : bool
+  val elapsed_times : [ `Not_reported | `Seconds | `Milliseconds | `Microseconds ]
   val global_prefix : string
   val split_files_after : int option
 end
 
-let debug_ch ?(time_tagged = false) ?(global_prefix = "") ?split_files_after
-    ?(for_append = true) filename : (module Debug_ch) =
+let elapsed_default = `Not_reported
+
+let debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default) ?(global_prefix = "")
+    ?split_files_after ?(for_append = true) filename : (module Debug_ch) =
   let module Result = struct
     let () =
       match split_files_after with
@@ -67,6 +72,7 @@ let debug_ch ?(time_tagged = false) ?(global_prefix = "") ?split_files_after
       !current_ch
 
     let time_tagged = time_tagged
+    let elapsed_times = elapsed_times
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = split_files_after
   end in
@@ -114,6 +120,20 @@ end
 
 let exceeds ~value ~limit = match limit with None -> false | Some limit -> limit < value
 
+let time_span ~none ~some elapsed elapsed_times =
+  let span = Mtime.Span.to_float_ns (Mtime.Span.abs_diff (time_elapsed ()) elapsed) in
+  match elapsed_times with
+  | `Not_reported -> none ()
+  | `Seconds ->
+      let span_s = span /. 1e9 in
+      if span_s >= 0.01 then some @@ Printf.sprintf "<%.2fs>" span_s else none ()
+  | `Milliseconds ->
+      let span_ms = span /. 1e6 in
+      if span_ms >= 0.01 then some @@ Printf.sprintf "<%.2fms>" span_ms else none ()
+  | `Microseconds ->
+      let span_us = span /. 1e3 in
+      if span_us >= 0.01 then some @@ Printf.sprintf "<%.2fμs>" span_us else none ()
+
 module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
   open Log_to
 
@@ -135,23 +155,29 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
     else CFormat.fprintf !ppf "@.BEGIN DEBUG SESSION %s@." global_prefix
 
   let close_log () =
-    (match !stack with
-    | [] -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
-    | _ :: tl -> stack := tl);
-    CFormat.pp_close_box !ppf ();
+    let elapsed =
+      match !stack with
+      | [] -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
+      | (_, elapsed) :: tl ->
+          stack := tl;
+          elapsed
+    in
+    time_span ~none:(CFormat.pp_close_box !ppf)
+      ~some:(CFormat.fprintf !ppf "@ %s@]@ ")
+      elapsed elapsed_times;
     if !stack = [] then (
       (* Importantly, pp_print_newline invokes pp_print_flush, flushes the out channel. *)
       CFormat.pp_print_newline !ppf ();
       if refresh_ch () then ppf := get_ppf ())
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message ~entry_id:_ =
-    stack := 0 :: !stack;
+    stack := (0, time_elapsed ()) :: !stack;
     CFormat.fprintf !ppf "\"%s\":%d:%d: %s%s@ @[<hov 2>" fname pos_lnum pos_colnum
       global_prefix message
 
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
       ~message ~entry_id:_ =
-    stack := 0 :: !stack;
+    stack := (0, time_elapsed ()) :: !stack;
     CFormat.fprintf !ppf "@[\"%s\":%d:%d-%d:%d" fname start_lnum start_colnum end_lnum
       end_colnum;
     if Log_to.time_tagged then CFormat.fprintf !ppf "@ at time@ %a" pp_timestamp ();
@@ -159,7 +185,7 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
 
   let log_value_sexp ?descr ~entry_id:_ ~is_result:_ sexp =
     (match !stack with
-    | num_children :: tl -> stack := (num_children + 1) :: tl
+    | (num_children, elapsed) :: tl -> stack := (num_children + 1, elapsed) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
     match descr with
     | None -> CFormat.fprintf !ppf "%a@ @ " Sexplib0.Sexp.pp_hum sexp
@@ -167,7 +193,7 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
 
   let log_value_pp ?descr ~entry_id:_ ~pp ~is_result:_ v =
     (match !stack with
-    | num_children :: tl -> stack := (num_children + 1) :: tl
+    | (num_children, elapsed) :: tl -> stack := (num_children + 1, elapsed) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
     match descr with
     | None -> CFormat.fprintf !ppf "%a@ @ " pp v
@@ -175,7 +201,7 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
 
   let log_value_show ?descr ~entry_id:_ ~is_result:_ v =
     (match !stack with
-    | num_children :: tl -> stack := (num_children + 1) :: tl
+    | (num_children, elapsed) :: tl -> stack := (num_children + 1, elapsed) :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
     match descr with
     | None -> CFormat.fprintf !ppf "%s@ @ " v
@@ -187,7 +213,7 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
   let exceeds_max_children () =
     match !stack with
     | [] -> false
-    | num_children :: _ -> exceeds ~value:num_children ~limit:!max_num_children
+    | (num_children, _) :: _ -> exceeds ~value:num_children ~limit:!max_num_children
 
   let get_entry_id =
     let global_id = ref 0 in
@@ -202,6 +228,9 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
   let max_nesting_depth = ref None
   let max_num_children = ref None
   let debug_ch = ref @@ debug_ch ()
+
+  type entry = { message : string option; num_children : int; elapsed : Mtime.span }
+
   let stack = ref []
   let indent () = String.make (List.length !stack) ' '
 
@@ -214,18 +243,23 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
   let close_log () =
     match !stack with
     | [] -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
-    | (None, _) :: tl -> stack := tl
-    | (Some message, _) :: tl ->
+    | { message = None; _ } :: tl ->
+        (* FIXME: should we print elapsed time on a brief preamble? *)
+        stack := tl
+    | { message = Some message; elapsed; _ } :: tl ->
         stack := tl;
         Printf.fprintf !debug_ch "%s%!" (indent ());
-        if Log_to.time_tagged then
-          Printf.fprintf !debug_ch "%s - %!" (timestamp_to_string ());
+        if time_tagged then Printf.fprintf !debug_ch "%s - %!" (timestamp_to_string ());
+        time_span
+          ~none:(fun () -> ())
+          ~some:(Printf.fprintf !debug_ch "%s %!")
+          elapsed elapsed_times;
         Printf.fprintf !debug_ch "%s%s end\n%!" global_prefix message;
         flush !debug_ch;
         if !stack = [] then debug_ch := Log_to.debug_ch ()
 
   let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message ~entry_id:_ =
-    stack := (None, 0) :: !stack;
+    stack := { message = None; elapsed = time_elapsed (); num_children = 0 } :: !stack;
     Printf.fprintf !debug_ch "%s\"%s\":%d:%d: %s%s\n%!" (indent ()) fname pos_lnum
       pos_colnum global_prefix message
 
@@ -235,11 +269,13 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
     if Log_to.time_tagged then Printf.fprintf !debug_ch "%s - %!" (timestamp_to_string ());
     Printf.fprintf !debug_ch "%s%s begin \"%s\":%d:%d-%d:%d\n%!" global_prefix message
       fname start_lnum start_colnum end_lnum end_colnum;
-    stack := (Some message, 0) :: !stack
+    stack :=
+      { message = Some message; elapsed = time_elapsed (); num_children = 0 } :: !stack
 
   let log_value_sexp ?descr ~entry_id:_ ~is_result:_ sexp =
     (match !stack with
-    | (hd, num_children) :: tl -> stack := (hd, num_children + 1) :: tl
+    | ({ num_children; _ } as entry) :: tl ->
+        stack := { entry with num_children = num_children + 1 } :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
     match descr with
     | None ->
@@ -250,7 +286,8 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
 
   let log_value_pp ?descr ~entry_id:_ ~pp ~is_result:_ v =
     (match !stack with
-    | (hd, num_children) :: tl -> stack := (hd, num_children + 1) :: tl
+    | ({ num_children; _ } as entry) :: tl ->
+        stack := { entry with num_children = num_children + 1 } :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
     let _ = CFormat.flush_str_formatter () in
     pp CFormat.str_formatter v;
@@ -261,7 +298,8 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
 
   let log_value_show ?descr ~entry_id:_ ~is_result:_ v =
     (match !stack with
-    | (hd, num_children) :: tl -> stack := (hd, num_children + 1) :: tl
+    | ({ num_children; _ } as entry) :: tl ->
+        stack := { entry with num_children = num_children + 1 } :: tl
     | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
     match descr with
     | None -> Printf.fprintf !debug_ch "%s%s\n%!" (indent ()) v
@@ -273,7 +311,7 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
   let exceeds_max_children () =
     match !stack with
     | [] -> false
-    | (_, num_children) :: _ -> exceeds ~value:num_children ~limit:!max_num_children
+    | { num_children; _ } :: _ -> exceeds ~value:num_children ~limit:!max_num_children
 
   let get_entry_id =
     let global_id = ref 0 in
@@ -352,6 +390,7 @@ module PrintBox (Log_to : Debug_ch) = struct
     cond : bool;
     highlight : bool;
     exclude : bool;
+    elapsed : Mtime.span;
     uri : string;
     path : string;
     entry_message : string;
@@ -393,12 +432,26 @@ module PrintBox (Log_to : Debug_ch) = struct
     match B.view b with B.Frame _ -> b | _ -> if hl then B.frame b else b
 
   let stack_to_tree
-      { cond = _; highlight; exclude = _; uri; path; entry_message; entry_id; body } =
+      {
+        cond = _;
+        highlight;
+        exclude = _;
+        elapsed;
+        uri;
+        path;
+        entry_message;
+        entry_id;
+        body;
+      } =
     let non_id_message =
       String.contains entry_message '<' || String.contains entry_message ':'
     in
+    let span =
+      time_span ~none:(fun () -> "") ~some:(fun span -> " " ^ span) elapsed elapsed_times
+    in
     let b_path =
-      B.line @@ if config.values_first_mode then path else path ^ ": " ^ entry_message
+      B.line
+      @@ if config.values_first_mode then path else path ^ ": " ^ entry_message ^ span
     in
     let b_path = hyperlink_path ~uri ~inner:b_path in
     let rec unpack truncate acc = function
@@ -410,7 +463,7 @@ module PrintBox (Log_to : Debug_ch) = struct
     in
     let unpack l = unpack (config.truncate_children - 1) [] l in
     if config.values_first_mode then
-      let hl_header = apply_highlight highlight @@ B.line entry_message in
+      let hl_header = apply_highlight highlight @@ B.line @@ entry_message ^ span in
       let results, body =
         List.partition
           (fun { result_id; is_result; _ } -> is_result && result_id = entry_id)
@@ -449,7 +502,7 @@ module PrintBox (Log_to : Debug_ch) = struct
       match !stack with
       | { highlight = false; _ } :: bs when config.prune_upto >= List.length !stack -> bs
       | ({ cond = true; highlight = hl; exclude = _; entry_id = result_id; _ } as entry)
-        :: { cond; highlight; exclude; uri; path; entry_message; entry_id; body }
+        :: { cond; highlight; exclude; uri; path; elapsed; entry_message; entry_id; body }
         :: bs3 ->
           {
             cond;
@@ -457,6 +510,7 @@ module PrintBox (Log_to : Debug_ch) = struct
             exclude;
             uri;
             path;
+            elapsed;
             entry_message;
             entry_id;
             body = { result_id; is_result = false; subtree = stack_to_tree entry } :: body;
@@ -508,7 +562,17 @@ module PrintBox (Log_to : Debug_ch) = struct
     in
     let entry_message = global_prefix ^ message in
     stack :=
-      { cond = true; highlight; exclude; uri; path; entry_message; entry_id; body = [] }
+      {
+        cond = true;
+        highlight;
+        exclude;
+        uri;
+        path;
+        elapsed = time_elapsed ();
+        entry_message;
+        entry_id;
+        body = [];
+      }
       :: !stack
 
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum =
@@ -573,7 +637,7 @@ module PrintBox (Log_to : Debug_ch) = struct
     | (Atom s | List [ Atom s ]), None ->
         highlight_box @@ B.text_with_style B.Style.preformatted s
     | List [], Some d -> highlight_box @@ B.line d
-    | List [], None -> false, B.empty
+    | List [], None -> (false, B.empty)
     | List l, _ ->
         let str =
           if sexp_size sexp < min config.boxify_sexp_from_size config.max_inline_sexp_size
@@ -637,10 +701,10 @@ module PrintBox (Log_to : Debug_ch) = struct
       !global_id
 end
 
-let debug_file ?(time_tagged = false) ?(global_prefix = "") ?split_files_after
-    ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
-    ?(for_append = false) ?(boxify_sexp_from_size = 50) ?backend ?hyperlink
-    ?(values_first_mode = false) filename : (module PrintBox_runtime) =
+let debug_file ?(time_tagged = false) ?(elapsed_times = elapsed_default) ?(global_prefix = "")
+    ?split_files_after ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
+    ?(truncate_children = 0) ?(for_append = false) ?(boxify_sexp_from_size = 50) ?backend
+    ?hyperlink ?(values_first_mode = false) filename : (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename ^ ".md"
@@ -649,7 +713,8 @@ let debug_file ?(time_tagged = false) ?(global_prefix = "") ?split_files_after
   in
   let module Debug =
     PrintBox
-      ((val debug_ch ~time_tagged ~global_prefix ~for_append ?split_files_after filename)) in
+      ((val debug_ch ~time_tagged ~elapsed_times ~global_prefix ~for_append
+              ?split_files_after filename)) in
   Debug.config.backend <-
     Option.value backend ~default:(`Markdown Debug.default_md_config);
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
@@ -662,13 +727,14 @@ let debug_file ?(time_tagged = false) ?(global_prefix = "") ?split_files_after
     (match hyperlink with None -> `No_hyperlinks | Some prefix -> `Prefix prefix);
   (module Debug)
 
-let debug ?(debug_ch = stdout) ?(time_tagged = false) ?(global_prefix = "")
-    ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
-    ?(values_first_mode = false) () : (module PrintBox_runtime) =
+let debug ?(debug_ch = stdout) ?(time_tagged = false) ?(elapsed_times = elapsed_default)
+    ?(global_prefix = "") ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
+    ?(truncate_children = 0) ?(values_first_mode = false) () : (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
     let debug_ch () = debug_ch
     let time_tagged = time_tagged
+    let elapsed_times = elapsed_times
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = None
   end) in
@@ -679,12 +745,13 @@ let debug ?(debug_ch = stdout) ?(time_tagged = false) ?(global_prefix = "")
   Debug.config.values_first_mode <- values_first_mode;
   (module Debug)
 
-let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) ?(global_prefix = "") () :
-    (module Debug_runtime) =
+let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) ?(elapsed_times = elapsed_default)
+    ?(global_prefix = "") () : (module Debug_runtime) =
   (module Flushing (struct
     let refresh_ch () = false
     let debug_ch () = debug_ch
     let time_tagged = time_tagged
+    let elapsed_times = elapsed_times
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = None
   end))

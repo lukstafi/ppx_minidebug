@@ -37,6 +37,7 @@
    (>= 0.8))
   printbox-md
   ptime
+  mtime
   re
   sexplib0
   (ppx_expect

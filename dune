@@ -18,6 +18,7 @@
   printbox-html
   printbox-md
   ptime.clock.os
+  mtime.clock.os
   re
   sexplib0))
 

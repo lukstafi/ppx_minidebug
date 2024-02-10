@@ -6,12 +6,14 @@ module type Debug_ch = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
   val time_tagged : bool
+  val elapsed_times : [ `Not_reported | `Seconds | `Milliseconds | `Microseconds ]
   val global_prefix : string
   val split_files_after : int option
 end
 
 val debug_ch :
   ?time_tagged:bool ->
+  ?elapsed_times:[ `Not_reported | `Seconds | `Milliseconds | `Microseconds ] ->
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?for_append:bool ->
@@ -22,7 +24,12 @@ val debug_ch :
     to the file / creating more files. If [split_files_after] is given and [for_append] is false,
     clears the directory. If the opened file exceeds [split_files_after] characters, [Debug_ch.refresh_ch ()]
     returns true; if in that case [Debug_ch.debug_ch ()] is called, it will create and return a new file.
-      
+
+    If [elapsed_times] is different from [`Not_reported], the elapsed time spans are printed for log
+    subtrees, in the corresponding units with precision 1%. The times include printing out logs, therefore
+    might not be reliable for profiling. In the runtime creation functions, [elapsed_times] defaults to
+    [`Not_reported].
+
     If [global_prefix] is given, the log header messages (and the log closing messages for the flushing
     backend) are prefixed with it. *)
 
@@ -140,6 +147,7 @@ module PrintBox : functor (_ : Debug_ch) -> PrintBox_runtime
 
 val debug_file :
   ?time_tagged:bool ->
+  ?elapsed_times:[ `Not_reported | `Seconds | `Milliseconds | `Microseconds ] ->
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?highlight_terms:Re.t ->
@@ -165,6 +173,7 @@ val debug_file :
 val debug :
   ?debug_ch:out_channel ->
   ?time_tagged:bool ->
+  ?elapsed_times:[ `Not_reported | `Seconds | `Milliseconds | `Microseconds ] ->
   ?global_prefix:string ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
@@ -182,6 +191,7 @@ val debug :
 val debug_flushing :
   ?debug_ch:out_channel ->
   ?time_tagged:bool ->
+  ?elapsed_times:[ `Not_reported | `Seconds | `Milliseconds | `Microseconds ] ->
   ?global_prefix:string ->
   unit ->
   (module Debug_runtime)
