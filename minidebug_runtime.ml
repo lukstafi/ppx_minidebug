@@ -320,12 +320,13 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
       !global_id
 end
 
+let default_html_config = PrintBox_html.Config.(tree_summary true default)
+let default_md_config = PrintBox_md.Config.(foldable_trees default)
+
 module type PrintBox_runtime = sig
   include Debug_runtime
 
   val no_debug_if : bool -> unit
-  val default_html_config : PrintBox_html.Config.t
-  val default_md_config : PrintBox_md.Config.t
 
   type config = {
     mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
@@ -349,10 +350,6 @@ module PrintBox (Log_to : Debug_ch) = struct
 
   let max_nesting_depth = ref None
   let max_num_children = ref None
-  let default_html_config = PrintBox_html.Config.(tree_summary true default)
-
-  (* let default_md_config = PrintBox_html.Config.(foldable_trees true default) *)
-  let default_md_config = PrintBox_md.Config.uniform
 
   type config = {
     mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
@@ -421,7 +418,7 @@ module PrintBox (Log_to : Debug_ch) = struct
 
   let () =
     let log_header =
-      if Log_to.time_tagged then
+      if time_tagged then
         CFormat.asprintf "@.BEGIN DEBUG SESSION %sat time %a@." global_prefix pp_timestamp
           ()
       else CFormat.asprintf "@.BEGIN DEBUG SESSION %s@." global_prefix
@@ -547,7 +544,7 @@ module PrintBox (Log_to : Debug_ch) = struct
 
     let path =
       if brief then Printf.sprintf "\"%s\":%d:%d" fname start_lnum start_colnum
-      else if Log_to.time_tagged then
+      else if time_tagged then
         Format.asprintf "@[\"%s\":%d:%d-%d:%d@ at time@ %a@]" fname start_lnum
           start_colnum end_lnum end_colnum pp_timestamp ()
       else
@@ -715,8 +712,7 @@ let debug_file ?(time_tagged = false) ?(elapsed_times = elapsed_default) ?(globa
     PrintBox
       ((val debug_ch ~time_tagged ~elapsed_times ~global_prefix ~for_append
               ?split_files_after filename)) in
-  Debug.config.backend <-
-    Option.value backend ~default:(`Markdown Debug.default_md_config);
+  Debug.config.backend <- Option.value backend ~default:(`Markdown default_md_config);
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
   Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
   Debug.config.prune_upto <- prune_upto;

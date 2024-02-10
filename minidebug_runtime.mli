@@ -85,6 +85,9 @@ module Pp_format : functor (_ : Debug_ch) -> Debug_runtime
     might be messy. The indentation is also smaller (half of PrintBox). *)
 module Flushing : functor (_ : Debug_ch) -> Debug_runtime
 
+val default_html_config : PrintBox_html.Config.t
+val default_md_config : PrintBox_md.Config.t
+
 module type PrintBox_runtime = sig
   include Debug_runtime
 
@@ -92,9 +95,6 @@ module type PrintBox_runtime = sig
   (** When passed true within the scope of a log subtree, disables the logging of this subtree and its
       subtrees. Does not do anything when passed false ([no_debug_if false] does {e not} re-enable
       the log). *)
-
-  val default_html_config : PrintBox_html.Config.t
-  val default_md_config : PrintBox_md.Config.t
 
   type config = {
     mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
