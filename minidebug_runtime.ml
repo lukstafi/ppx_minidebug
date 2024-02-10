@@ -447,7 +447,10 @@ module PrintBox (Log_to : Debug_ch) = struct
         body;
       } =
     let non_id_message =
-      String.contains entry_message '<' || String.contains entry_message ':'
+      (* Being defensive: checking for '=' not required so far. *)
+      String.contains entry_message '<'
+      || String.contains entry_message ':'
+      || String.contains entry_message '='
     in
     let span =
       time_span ~none:(fun () -> "") ~some:(fun span -> " " ^ span) elapsed elapsed_times
@@ -478,8 +481,12 @@ module PrintBox (Log_to : Debug_ch) = struct
           let opt_message = if non_id_message then [ hl_header ] else [] in
           match B.view subtree with
           | B.Tree (_ident, result_header, result_body) ->
+              let value_header =
+                if elapsed_times = Not_reported then result_header
+                else B.hlist ~bars:false [ result_header; B.line span ]
+              in
               B.tree
-                (apply_highlight highlight result_header)
+                (apply_highlight highlight value_header)
                 (b_path
                  :: B.tree
                       (B.line @@ if body = [] then "<values>" else "<returns>")
@@ -487,7 +494,13 @@ module PrintBox (Log_to : Debug_ch) = struct
                  :: opt_message
                 @ body)
           | _ ->
-              B.tree (apply_highlight highlight subtree) ((b_path :: opt_message) @ body))
+              let value_header =
+                if elapsed_times = Not_reported then subtree
+                else B.hlist ~bars:false [ subtree; B.line span ]
+              in
+              B.tree
+                (apply_highlight highlight value_header)
+                ((b_path :: opt_message) @ body))
       | [] -> B.tree hl_header (b_path :: body)
       | _ ->
           B.tree hl_header
