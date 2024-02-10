@@ -63,7 +63,7 @@ let%expect_test "%debug_show flushing to stdout" =
 
 let%expect_test "%debug_show flushing to stdout, time spans" =
   let module Debug_runtime =
-    (val Minidebug_runtime.debug_flushing ~elapsed_times:`Microseconds ())
+    (val Minidebug_runtime.debug_flushing ~elapsed_times:Microseconds ())
   in
   let%debug_show bar (x : t) : int =
     let y : int = x.first + 1 in
@@ -513,7 +513,7 @@ let%expect_test "%track_this_show PrintBox to stdout track for-loop" =
       └─_bar = () |}]
 
 let%expect_test "%track_this_show PrintBox to stdout track for-loop, time spans" =
-  let module Debug_runtime = (val Minidebug_runtime.debug ~elapsed_times:`Microseconds ())
+  let module Debug_runtime = (val Minidebug_runtime.debug ~elapsed_times:Microseconds ())
   in
   let () =
     try

@@ -12,19 +12,22 @@ let timestamp_to_string () =
   Ptime.(pp_human ~frac_s:6 ?tz_offset_s ()) CFormat.str_formatter (Ptime_clock.now ());
   CFormat.flush_str_formatter ()
 
+type elapsed_times = Not_reported | Seconds | Milliseconds | Microseconds | Nanoseconds
+
 module type Debug_ch = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
   val time_tagged : bool
-  val elapsed_times : [ `Not_reported | `Seconds | `Milliseconds | `Microseconds ]
+  val elapsed_times : elapsed_times
   val global_prefix : string
   val split_files_after : int option
 end
 
-let elapsed_default = `Not_reported
+let elapsed_default = Not_reported
 
-let debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default) ?(global_prefix = "")
-    ?split_files_after ?(for_append = true) filename : (module Debug_ch) =
+let debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default)
+    ?(global_prefix = "") ?split_files_after ?(for_append = true) filename :
+    (module Debug_ch) =
   let module Result = struct
     let () =
       match split_files_after with
@@ -123,16 +126,19 @@ let exceeds ~value ~limit = match limit with None -> false | Some limit -> limit
 let time_span ~none ~some elapsed elapsed_times =
   let span = Mtime.Span.to_float_ns (Mtime.Span.abs_diff (time_elapsed ()) elapsed) in
   match elapsed_times with
-  | `Not_reported -> none ()
-  | `Seconds ->
+  | Not_reported -> none ()
+  | Seconds ->
       let span_s = span /. 1e9 in
       if span_s >= 0.01 then some @@ Printf.sprintf "<%.2fs>" span_s else none ()
-  | `Milliseconds ->
+  | Milliseconds ->
       let span_ms = span /. 1e6 in
       if span_ms >= 0.01 then some @@ Printf.sprintf "<%.2fms>" span_ms else none ()
-  | `Microseconds ->
+  | Microseconds ->
       let span_us = span /. 1e3 in
       if span_us >= 0.01 then some @@ Printf.sprintf "<%.2fμs>" span_us else none ()
+  | Nanoseconds ->
+      let span_ns = span in
+      if span_ns >= 0.01 then some @@ Printf.sprintf "<%.2fns>" span_ns else none ()
 
 module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
   open Log_to
@@ -698,10 +704,11 @@ module PrintBox (Log_to : Debug_ch) = struct
       !global_id
 end
 
-let debug_file ?(time_tagged = false) ?(elapsed_times = elapsed_default) ?(global_prefix = "")
-    ?split_files_after ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
-    ?(truncate_children = 0) ?(for_append = false) ?(boxify_sexp_from_size = 50) ?backend
-    ?hyperlink ?(values_first_mode = false) filename : (module PrintBox_runtime) =
+let debug_file ?(time_tagged = false) ?(elapsed_times = elapsed_default)
+    ?(global_prefix = "") ?split_files_after ?highlight_terms ?exclude_on_path
+    ?(prune_upto = 0) ?(truncate_children = 0) ?(for_append = false)
+    ?(boxify_sexp_from_size = 50) ?backend ?hyperlink ?(values_first_mode = false)
+    filename : (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename ^ ".md"
@@ -741,8 +748,8 @@ let debug ?(debug_ch = stdout) ?(time_tagged = false) ?(elapsed_times = elapsed_
   Debug.config.values_first_mode <- values_first_mode;
   (module Debug)
 
-let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false) ?(elapsed_times = elapsed_default)
-    ?(global_prefix = "") () : (module Debug_runtime) =
+let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false)
+    ?(elapsed_times = elapsed_default) ?(global_prefix = "") () : (module Debug_runtime) =
   (module Flushing (struct
     let refresh_ch () = false
     let debug_ch () = debug_ch

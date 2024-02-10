@@ -2,18 +2,20 @@
     {{:http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html}
     [ppx_minidebug]} requires. *)
 
+type elapsed_times = Not_reported | Seconds | Milliseconds | Microseconds | Nanoseconds
+
 module type Debug_ch = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
   val time_tagged : bool
-  val elapsed_times : [ `Not_reported | `Seconds | `Milliseconds | `Microseconds ]
+  val elapsed_times : elapsed_times
   val global_prefix : string
   val split_files_after : int option
 end
 
 val debug_ch :
   ?time_tagged:bool ->
-  ?elapsed_times:[ `Not_reported | `Seconds | `Milliseconds | `Microseconds ] ->
+  ?elapsed_times:elapsed_times ->
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?for_append:bool ->
@@ -147,7 +149,7 @@ module PrintBox : functor (_ : Debug_ch) -> PrintBox_runtime
 
 val debug_file :
   ?time_tagged:bool ->
-  ?elapsed_times:[ `Not_reported | `Seconds | `Milliseconds | `Microseconds ] ->
+  ?elapsed_times:elapsed_times ->
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?highlight_terms:Re.t ->
@@ -173,7 +175,7 @@ val debug_file :
 val debug :
   ?debug_ch:out_channel ->
   ?time_tagged:bool ->
-  ?elapsed_times:[ `Not_reported | `Seconds | `Milliseconds | `Microseconds ] ->
+  ?elapsed_times:elapsed_times ->
   ?global_prefix:string ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
@@ -191,7 +193,7 @@ val debug :
 val debug_flushing :
   ?debug_ch:out_channel ->
   ?time_tagged:bool ->
-  ?elapsed_times:[ `Not_reported | `Seconds | `Milliseconds | `Microseconds ] ->
+  ?elapsed_times:elapsed_times ->
   ?global_prefix:string ->
   unit ->
   (module Debug_runtime)
