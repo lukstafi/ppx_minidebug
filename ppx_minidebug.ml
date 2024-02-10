@@ -118,14 +118,21 @@ let to_descr ~loc ~descr_loc typ =
 
 (* *** The sexplib-based variant. *** *)
 let log_value_sexp ~loc ~typ ?descr_loc ~is_result exp =
-  (* [%sexp_of: typ] does not work with `Ptyp_poly`. Misleading error "Let with no bindings". *)
-  let typ =
-    match typ with { ptyp_desc = Ptyp_poly (_, ctyp); _ } -> ctyp | ctyp -> ctyp
-  in
-  [%expr
-    Debug_runtime.log_value_sexp ?descr:[%e to_descr ~loc ~descr_loc typ]
-      ~entry_id:__entry_id ~is_result:[%e A.ebool ~loc is_result]
-      ([%sexp_of: [%t typ]] [%e exp])]
+  match typ with
+  | {
+      ptyp_desc = Ptyp_poly (_, { ptyp_desc = Ptyp_extension ext; _ });
+      ptyp_loc = loc;
+      _;
+    }
+  | { ptyp_desc = Ptyp_extension ext; ptyp_loc = loc; _ } ->
+      (* Propagate error if the type could not be found. *)
+      A.pexp_extension ~loc ext
+  | { ptyp_desc = Ptyp_poly (_, typ); _ } | typ ->
+      (* [%sexp_of: typ] does not work with `Ptyp_poly`. Misleading error "Let with no bindings". *)
+      [%expr
+        Debug_runtime.log_value_sexp ?descr:[%e to_descr ~loc ~descr_loc typ]
+          ~entry_id:__entry_id ~is_result:[%e A.ebool ~loc is_result]
+          ([%sexp_of: [%t typ]] [%e exp])]
 
 (* *** The deriving.show pp-based variant. *** *)
 let rec splice_lident ~id_prefix ident =
@@ -166,14 +173,21 @@ let log_value_pp ~loc ~typ ?descr_loc ~is_result exp =
 
 (* *** The deriving.show string-based variant. *** *)
 let log_value_show ~loc ~typ ?descr_loc ~is_result exp =
-  (* Defensive (TODO: check it doesn't work with Ptyp_poly). *)
-  let typ =
-    match typ with { ptyp_desc = Ptyp_poly (_, ctyp); _ } -> ctyp | ctyp -> ctyp
-  in
-  [%expr
-    Debug_runtime.log_value_show ?descr:[%e to_descr ~loc ~descr_loc typ]
-      ~entry_id:__entry_id ~is_result:[%e A.ebool ~loc is_result]
-      ([%show: [%t typ]] [%e exp])]
+  match typ with
+  | {
+      ptyp_desc = Ptyp_poly (_, { ptyp_desc = Ptyp_extension ext; _ });
+      ptyp_loc = loc;
+      _;
+    }
+  | { ptyp_desc = Ptyp_extension ext; ptyp_loc = loc; _ } ->
+      (* Propagate error if the type could not be found. *)
+      A.pexp_extension ~loc ext
+  | { ptyp_desc = Ptyp_poly (_, typ); _ } | typ ->
+      (* Defensive in case there's problems with poly types. *)
+      [%expr
+        Debug_runtime.log_value_show ?descr:[%e to_descr ~loc ~descr_loc typ]
+          ~entry_id:__entry_id ~is_result:[%e A.ebool ~loc is_result]
+          ([%show: [%t typ]] [%e exp])]
 
 let log_value = ref log_value_sexp
 
@@ -640,25 +654,52 @@ let extract_type ~alt_typ exp =
         { pexp_desc = Pexp_tuple exps; pexp_loc; _ } ) ->
         let typs = List.map2 (fun exp typ -> loop ~alt_typ:typ exp) exps typs in
         A.ptyp_tuple ~loc:pexp_loc typs
-    | _, { pexp_desc = Pexp_tuple exps; pexp_loc; _ } ->
-        let typs = List.map (fun exp -> loop exp) exps in
-        A.ptyp_tuple ~loc:pexp_loc typs
-    | Some [%type: [%t? alt_typ] list], [%expr [%e? hd] :: [%e? tl]] ->
-        let typ = loop ~alt_typ hd in
-        let typl = loop ~alt_typ:typ tl in
-        pick ~typ:[%type: [%t typ] list] ~alt_typ:typl ()
-    | _, [%expr [%e? hd] :: [%e? tl]] ->
-        let typ = loop hd in
-        let typl = loop ~alt_typ:typ tl in
-        pick ~typ:[%type: [%t typ] list] ~alt_typ:typl ()
+    | _, { pexp_desc = Pexp_tuple exps; pexp_loc; _ } -> (
+        try
+          let typs = List.map (fun exp -> loop exp) exps in
+          A.ptyp_tuple ~loc:pexp_loc typs
+        with Not_transforming -> (
+          match typ with Some typ -> typ | None -> raise Not_transforming))
+    | Some [%type: [%t? alt_typ] list], [%expr [%e? hd] :: [%e? tl]] -> (
+        let typ = try Some (loop ~alt_typ hd) with Not_transforming -> None in
+        let typl = try Some (loop ?alt_typ:typ tl) with Not_transforming -> None in
+        match (typ, typl) with
+        | Some typ, _ -> pick ~typ:[%type: [%t typ] list] ?alt_typ:typl ()
+        | None, Some typl -> typl
+        | None, None -> raise Not_transforming)
+    | _, [%expr [%e? hd] :: [%e? tl]] -> (
+        let alt_typ = try Some (loop hd) with Not_transforming -> None in
+        let typl = try Some (loop ?alt_typ tl) with Not_transforming -> None in
+        match (alt_typ, typl, typ) with
+        | Some typ, _, _ -> pick ~typ:[%type: [%t typ] list] ?alt_typ:typl ()
+        | None, Some typl, _ -> typl
+        | None, None, Some typ -> typ
+        | None, None, None -> raise Not_transforming)
     | Some typ, [%expr []] -> typ
     | None, [%expr []] -> [%type: _ list]
     | Some [%type: [%t? alt_typ] array], { pexp_desc = Pexp_array exps; _ } ->
-        let typs = List.map (fun exp -> loop ~alt_typ exp) exps in
+        let typs =
+          List.filter_map
+            (fun exp -> try Some (loop ~alt_typ exp) with Not_transforming -> None)
+            exps
+        in
         List.fold_left (fun typ alt_typ -> pick ~typ ~alt_typ ()) alt_typ typs
-    | _, { pexp_desc = Pexp_array (exp :: exps); _ } ->
-        let typs = List.map (fun exp -> loop exp) exps in
-        List.fold_left (fun typ alt_typ -> pick ~typ ~alt_typ ()) (loop exp) typs
+    | _, { pexp_desc = Pexp_array exps; _ } -> (
+        try
+          let typs =
+            List.filter_map
+              (fun exp -> try Some (loop exp) with Not_transforming -> None)
+              exps
+          in
+          match typs with
+          | [] -> raise Not_transforming
+          | typ :: typs ->
+              let typ =
+                List.fold_left (fun typ alt_typ -> pick ~typ ~alt_typ ()) typ typs
+              in
+              [%type: [%t typ] array]
+        with Not_transforming -> (
+          match typ with Some typ -> typ | None -> raise Not_transforming))
     | _, { pexp_desc = Pexp_constant (Pconst_integer _); _ } -> [%type: int]
     | _, { pexp_desc = Pexp_constant (Pconst_char _); _ } -> [%type: char]
     | _, { pexp_desc = Pexp_constant (Pconst_float _); _ } -> [%type: float]
@@ -666,20 +707,23 @@ let extract_type ~alt_typ exp =
     | Some [%type: [%t? alt_typ] Lazy.t], { pexp_desc = Pexp_lazy exp; _ } ->
         let typ = loop ~alt_typ exp in
         [%type: [%t typ] Lazy.t]
-    | _, { pexp_desc = Pexp_lazy exp; _ } ->
-        let typ = loop exp in
-        [%type: [%t typ] Lazy.t]
-    | Some { ptyp_desc = Ptyp_any | Ptyp_var _; _ }, _ ->
-        A.ptyp_extension ~loc
-        @@ Location.error_extensionf ~loc
-             "ppx_minidebug: cannot find a concrete type to log this value"
+    | _, { pexp_desc = Pexp_lazy exp; _ } -> (
+        try
+          let typ = loop exp in
+          [%type: [%t typ] Lazy.t]
+        with Not_transforming -> (
+          match typ with Some typ -> typ | None -> raise Not_transforming))
+    | Some { ptyp_desc = Ptyp_any | Ptyp_var _ | Ptyp_extension _; _ }, _ ->
+        raise Not_transforming
     | Some typ, _ -> typ
-    | None, _ ->
-        A.ptyp_extension ~loc
-        @@ Location.error_extensionf ~loc
-             "ppx_minidebug: cannot find a type to log this value"
+    | None, _ -> raise Not_transforming
   in
-  loop ?alt_typ exp
+  try loop ?alt_typ exp
+  with Not_transforming ->
+    let loc = exp.pexp_loc in
+    A.ptyp_extension ~loc
+    @@ Location.error_extensionf ~loc
+         "ppx_minidebug: cannot find a type to log this value"
 
 type rule = {
   ext_point : string;

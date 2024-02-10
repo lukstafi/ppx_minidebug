@@ -2162,8 +2162,9 @@ let%expect_test "%log with type annotations" =
     {|
           BEGIN DEBUG SESSION
           foo = ()
-          ├─"test/test_expect_test.ml":2153:21-2157:32
+          ├─"test/test_expect_test.ml":2153:21-2158:25
           ├─("This is like", 3, "or", 3.14, "above")
           ├─("tau =", 6.28)
           ├─[4; 1; 2; 3]
+          ├─[3; 1; 2; 3]
           └─[3; 1; 2; 3] |}]
