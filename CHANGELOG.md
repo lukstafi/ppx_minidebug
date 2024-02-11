@@ -8,6 +8,11 @@
 
 - `%debug_` entry points log un-annotated functions but only the function the entry point is attached to.
 
+### Fixed
+
+- `_rt_` & `_rtb_` should work even when nested inside another debug scope.
+  - Nested entry extension point is still considered toplevel.
+
 ## [1.1.0] -- 2024-02-11
 
 ### Added

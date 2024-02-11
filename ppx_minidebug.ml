@@ -622,14 +622,21 @@ let debug_binding runtime_from_arg callback is_toplevel vb =
         entry_with_interrupts ~loc ~descr_loc ~preamble ~entry:(callback () exp) ~result
           ~log_result ()
   in
+  let rt_var =
+    A.ptyp_var ~loc:pat.ppat_loc @@ "rt" ^ Int.to_string exp.pexp_loc.loc_start.pos_lnum
+  in
   let pvb_expr =
     match (typ2, runtime_from_arg) with
-    | None, _ -> exp
+    | None, Not_from_arg -> exp
     | Some typ, Not_from_arg -> [%expr ([%e exp] : [%t typ])]
     | Some typ, Generic ->
         [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> [%t typ])]
     | Some typ, PrintBox ->
         [%expr ([%e exp] : (module Minidebug_runtime.PrintBox_runtime) -> [%t typ])]
+    | None, Generic ->
+        [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> [%t rt_var])]
+    | None, PrintBox ->
+        [%expr ([%e exp] : (module Minidebug_runtime.PrintBox_runtime) -> [%t rt_var])]
   in
   let pvb_pat =
     (* FIXME(#18): restoring a modified type constraint breaks typing. *)
@@ -823,7 +830,7 @@ let traverse =
               else if String.length txt > 10 && String.sub txt 5 5 = "_rtb_" then PrintBox
               else Not_from_arg
             in
-            (callback ~runtime_from_arg () body).pexp_desc
+            (self#expression (runtime_from_arg, Toplevel) body).pexp_desc
         | Pexp_extension ({ loc = _; txt = "debug_notrace" }, PStr [%str [%e? body]]) -> (
             let old_track_branches = !track_branches in
             track_branches := false;
