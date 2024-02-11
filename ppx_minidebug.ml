@@ -622,9 +622,6 @@ let debug_binding runtime_from_arg callback is_toplevel vb =
         entry_with_interrupts ~loc ~descr_loc ~preamble ~entry:(callback () exp) ~result
           ~log_result ()
   in
-  let rt_var =
-    A.ptyp_var ~loc:pat.ppat_loc @@ "rt" ^ Int.to_string exp.pexp_loc.loc_start.pos_lnum
-  in
   let pvb_expr =
     match (typ2, runtime_from_arg) with
     | None, Not_from_arg -> exp
@@ -634,9 +631,9 @@ let debug_binding runtime_from_arg callback is_toplevel vb =
     | Some typ, PrintBox ->
         [%expr ([%e exp] : (module Minidebug_runtime.PrintBox_runtime) -> [%t typ])]
     | None, Generic ->
-        [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> [%t rt_var])]
+        [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> _)]
     | None, PrintBox ->
-        [%expr ([%e exp] : (module Minidebug_runtime.PrintBox_runtime) -> [%t rt_var])]
+        [%expr ([%e exp] : (module Minidebug_runtime.PrintBox_runtime) -> _)]
   in
   let pvb_pat =
     (* FIXME(#18): restoring a modified type constraint breaks typing. *)
