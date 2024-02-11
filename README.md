@@ -6,14 +6,14 @@
 
 Take a look at [`ppx_debug`](https://github.com/dariusf/ppx_debug) which has complementary strengths!
 
-Try `opam install ppx_minidebug` to install from the opam repository. To install `ppx_minidebug` from sources, download it with e.g. `gh repo clone lukstafi/ppx_minidebug; cd ppx_minidebug` and then either `dune install` or `opam install .`.
+Try `opam install ppx_minidebug` to install from the opam repository. To install the development version of `ppx_minidebug`, download it with e.g. `gh repo clone lukstafi/ppx_minidebug; cd ppx_minidebug` and then `dune build; opam install .`.
 
 To use `ppx_minidebug` in a Dune project, add/modify these stanzas: `(preprocess (pps ... ppx_minidebug))`, and `(libraries ... ppx_minidebug.runtime)`.
 
 ### `Pp_format`-based traces -- bare-bones
 
-This backend relies on the `Format` module from the standard library. Define a `Debug_runtime` using the `Pp_format` functor. The helper functor `Debug_ch` opens a file for appending.
-E.g. either `module Debug_runtime = Minidebug_runtime.Pp_format(struct let debug_ch = stdout let time_tagged = true end)`, or:
+This backend relies on the `Format` module from the standard library. Define a `Debug_runtime` using the `Pp_format` functor. The helper first-class-module function `debug_ch` opens a file for appending.
+For example:
 
 ```ocaml
 module Debug_runtime =
@@ -205,10 +205,10 @@ Example showcasing the `printbox-md` (Markdown) backend:
 Tracing only happens in explicitly marked lexical scopes. The entry extension points vary along four axes:
 
 - `%debug_` vs. `%track_`
-  - The prefix `%debug_` means logging fewer things: only let-bound values and functions are logged, and functions only when their return type is annotated.
-  - `%track_` also logs: which `if` and `match` branch is taken, and all functions, including anonymous ones.
+  - The prefix `%debug_` means logging fewer things: only let-bound values and functions are logged, and functions only when either: directly in a `%debug_`-annotated let binding, or their return type is annotated.
+  - `%track_` also logs: which `if`, `match`, `function` branch is taken, `for` and `while` loops, and all functions, including anonymous ones.
 - Optional infix `_this_` puts only the body of a `let` definition in scope for logging.
-  - `let%debug_this v: t = compute value in outer scope` will trace `v` and the type-annotated bindings and functions inside `compute value`, but it will not trace `outer scope`.
+  - `let%debug_this_show v: t = compute value in outer scope` will trace `v` and the type-annotated bindings and functions inside `compute value`, but it will not trace `outer scope`.
 - Optional infixes `_rt_` and `_rtb_` add a first-class module argument to a function, and unpack it as `module Debug_runtime` for the scope of the function.
   - `_rt_` uses the module type `Minidebug_runtime.Debug_runtime`.
   - `_rtb_` uses the module type `Minidebug_runtime.PrintBox_runtime`.
