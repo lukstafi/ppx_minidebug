@@ -446,8 +446,10 @@ let rec collect_fun_typs arg_typs typ =
   | _ -> (List.rev arg_typs, typ)
 
 type runtime_from_arg = Not_from_arg | Generic | PrintBox
+type is_toplevel = Toplevel | Nested
 
-let debug_fun runtime_from_arg callback ?typ ?ret_descr ?ret_typ exp =
+let debug_fun runtime_from_arg callback ?(is_toplevel = Nested) ?typ ?ret_descr ?ret_typ
+    exp =
   let args, body, ret_typ2 = collect_fun [] exp in
   let arg_typs, ret_typ3 =
     match typ with
@@ -465,7 +467,8 @@ let debug_fun runtime_from_arg callback ?typ ?ret_descr ?ret_typ exp =
     | None, None, Some t -> Some t
     | Some typ, None, _ -> Some (pick ~typ ?alt_typ:ret_typ3 ())
   in
-  if (not !track_branches) && Option.is_none typ then raise Not_transforming;
+  if (not !track_branches) && is_toplevel = Nested && Option.is_none typ then
+    raise Not_transforming;
   let ret_descr =
     match ret_descr with
     | None when !track_branches -> { txt = "__fun"; loc }
@@ -545,7 +548,7 @@ let debug_case callback ?ret_descr ?ret_typ ?arg_typ kind i { pc_lhs; pc_guard; 
   in
   { pc_lhs; pc_guard; pc_rhs }
 
-let debug_binding runtime_from_arg callback vb =
+let debug_binding runtime_from_arg callback is_toplevel vb =
   let loc = vb.pvb_loc in
   let pat, ret_descr, typ =
     match vb.pvb_pat with
@@ -576,7 +579,7 @@ let debug_binding runtime_from_arg callback vb =
     | { pexp_desc = Pexp_newtype _ | Pexp_fun _; _ } ->
         (* [ret_typ] is not the return type if the function has more arguments. *)
         (* [debug_fun] handles the runtime passing configuration. *)
-        debug_fun runtime_from_arg callback ?typ ?ret_descr exp
+        debug_fun runtime_from_arg callback ~is_toplevel ?typ ?ret_descr exp
     | { pexp_desc = Pexp_function cases; _ } -> (
         let exp =
           A.pexp_function ~loc:vb.pvb_expr.pexp_loc
@@ -780,11 +783,11 @@ let is_ext_point =
 
 let traverse =
   object (self)
-    inherit [runtime_from_arg] Ast_traverse.map_with_context as super
+    inherit [runtime_from_arg * is_toplevel] Ast_traverse.map_with_context as super
 
-    method! expression runtime_from_arg exp =
+    method! expression (runtime_from_arg, is_toplevel) exp =
       let callback ?(runtime_from_arg = Not_from_arg) () e =
-        self#expression runtime_from_arg e
+        self#expression (runtime_from_arg, Nested) e
       in
       let track_cases ?ret_descr ?ret_typ ?arg_typ kind =
         List.mapi (debug_case callback ?ret_descr ?ret_typ ?arg_typ kind)
@@ -801,7 +804,7 @@ let traverse =
             let bindings =
               List.map
                 (fun vb ->
-                  try debug_binding runtime_from_arg callback vb
+                  try debug_binding runtime_from_arg callback is_toplevel vb
                   with Not_transforming ->
                     { vb with pvb_expr = callback () vb.pvb_expr })
                 bindings
@@ -877,13 +880,19 @@ let traverse =
             let typ = extract_type ~alt_typ:ret_typ body in
             (!log_value ~loc ~typ ~is_result:false body).pexp_desc
         | Pexp_newtype (type_label, subexp) -> (
-            try (debug_fun runtime_from_arg callback ?typ:ret_typ exp).pexp_desc
+            try
+              (debug_fun runtime_from_arg callback ~is_toplevel ?typ:ret_typ exp)
+                .pexp_desc
             with Not_transforming ->
-              Pexp_newtype (type_label, self#expression runtime_from_arg subexp))
+              Pexp_newtype (type_label, self#expression (runtime_from_arg, Nested) subexp)
+            )
         | Pexp_fun (arg_label, guard, pat, subexp) -> (
-            try (debug_fun runtime_from_arg callback ?typ:ret_typ exp).pexp_desc
+            try
+              (debug_fun runtime_from_arg callback ~is_toplevel ?typ:ret_typ exp)
+                .pexp_desc
             with Not_transforming ->
-              Pexp_fun (arg_label, guard, pat, self#expression Not_from_arg subexp))
+              Pexp_fun
+                (arg_label, guard, pat, self#expression (Not_from_arg, Nested) subexp))
         | Pexp_match ([%expr ([%e? expr] : [%t? arg_typ])], cases) when !track_branches ->
             Pexp_match (callback () expr, track_cases ~arg_typ ?ret_typ "match" cases)
         | Pexp_match (expr, cases) when !track_branches ->
@@ -983,32 +992,35 @@ let traverse =
                   Debug_runtime.close_log ();
                   raise e]
               .pexp_desc
-        | _ -> (super#expression Not_from_arg exp).pexp_desc
+        | _ -> (super#expression (Not_from_arg, Nested) exp).pexp_desc
       in
       let exp = { exp with pexp_desc } in
       match ret_typ with None -> exp | Some typ -> [%expr ([%e exp] : [%t typ])]
 
-    method! structure_item runtime_from_arg si =
+    method! structure_item ((runtime_from_arg, is_toplevel) as ctx) si =
       let callback ?(runtime_from_arg = Not_from_arg) () e =
-        self#expression runtime_from_arg e
+        self#expression (runtime_from_arg, Nested) e
       in
       match si with
       | { pstr_desc = Pstr_value (rec_flag, bindings); pstr_loc = _; _ } ->
           let bindings =
             List.map
               (fun vb ->
-                try debug_binding runtime_from_arg callback vb
+                try debug_binding runtime_from_arg callback is_toplevel vb
                 with Not_transforming ->
-                  { vb with pvb_expr = self#expression Not_from_arg vb.pvb_expr })
+                  {
+                    vb with
+                    pvb_expr = self#expression (Not_from_arg, Nested) vb.pvb_expr;
+                  })
               bindings
           in
           { si with pstr_desc = Pstr_value (rec_flag, bindings) }
-      | _ -> super#structure_item runtime_from_arg si
+      | _ -> super#structure_item ctx si
   end
 
 let debug_this_expander runtime_from_arg payload =
   let callback ?(runtime_from_arg = Not_from_arg) () e =
-    traverse#expression runtime_from_arg e
+    traverse#expression (runtime_from_arg, Nested) e
   in
   match payload with
   | { pexp_desc = Pexp_let (recflag, bindings, body); _ } ->
@@ -1016,18 +1028,24 @@ let debug_this_expander runtime_from_arg payload =
       let bindings =
         List.map
           (fun vb ->
-            try debug_binding runtime_from_arg callback vb
+            try debug_binding runtime_from_arg callback Toplevel vb
             with Not_transforming ->
-              { vb with pvb_expr = traverse#expression Not_from_arg vb.pvb_expr })
+              {
+                vb with
+                pvb_expr = traverse#expression (Not_from_arg, Nested) vb.pvb_expr;
+              })
           bindings
       in
       { payload with pexp_desc = Pexp_let (recflag, bindings, body) }
   | expr -> expr
 
-let debug_expander payload = traverse#expression payload
+let debug_expander runtime_from_arg payload =
+  traverse#expression (runtime_from_arg, Toplevel) payload
 
 let str_expander runtime_from_arg ~loc payload =
-  match List.map (fun si -> traverse#structure_item runtime_from_arg si) payload with
+  match
+    List.map (fun si -> traverse#structure_item (runtime_from_arg, Toplevel) si) payload
+  with
   | [ item ] -> item
   | items ->
       Ast_helper.Str.include_

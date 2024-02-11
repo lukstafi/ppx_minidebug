@@ -1,3 +1,13 @@
+## [1.2.0] -- current
+
+### Added
+
+- TODO: Compile-time log levels.
+
+### Changed
+
+- `%debug_` entry points log un-annotated functions but only the function the entry point is attached to.
+
 ## [1.1.0] -- 2024-02-11
 
 ### Added
