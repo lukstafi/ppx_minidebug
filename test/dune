@@ -203,11 +203,6 @@
 
 (rule
  (alias runtest)
- (action
-  (diff debugger_sexp_time_spans.expected.md debugger_sexp_time_spans.md)))
-
-(rule
- (alias runtest)
  (enabled_if
   (= %{system} linux))
  (action
