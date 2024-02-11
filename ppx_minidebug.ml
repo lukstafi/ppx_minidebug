@@ -630,8 +630,7 @@ let debug_binding runtime_from_arg callback is_toplevel vb =
         [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> [%t typ])]
     | Some typ, PrintBox ->
         [%expr ([%e exp] : (module Minidebug_runtime.PrintBox_runtime) -> [%t typ])]
-    | None, Generic ->
-        [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> _)]
+    | None, Generic -> [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> _)]
     | None, PrintBox ->
         [%expr ([%e exp] : (module Minidebug_runtime.PrintBox_runtime) -> _)]
   in
@@ -648,8 +647,12 @@ let debug_binding runtime_from_arg callback is_toplevel vb =
   in
   { vb with pvb_expr; pvb_pat }
 
-let extract_type ~alt_typ exp =
-  let rec loop ?alt_typ exp =
+let extract_type ?default ~alt_typ exp =
+  let default =
+    let loc = exp.pexp_loc in
+    match default with None -> [%type: string] | Some typ -> typ
+  in
+  let rec loop ~use_default ?alt_typ exp =
     let loc = exp.pexp_loc in
     let typ, exp =
       match exp with
@@ -659,24 +662,32 @@ let extract_type ~alt_typ exp =
     match (typ, exp) with
     | ( Some { ptyp_desc = Ptyp_tuple typs; _ },
         { pexp_desc = Pexp_tuple exps; pexp_loc; _ } ) ->
-        let typs = List.map2 (fun exp typ -> loop ~alt_typ:typ exp) exps typs in
+        let typs =
+          List.map2 (fun exp typ -> loop ~use_default:true ~alt_typ:typ exp) exps typs
+        in
         A.ptyp_tuple ~loc:pexp_loc typs
     | _, { pexp_desc = Pexp_tuple exps; pexp_loc; _ } -> (
         try
-          let typs = List.map (fun exp -> loop exp) exps in
+          let typs = List.map (fun exp -> loop ~use_default:true exp) exps in
           A.ptyp_tuple ~loc:pexp_loc typs
         with Not_transforming -> (
           match typ with Some typ -> typ | None -> raise Not_transforming))
     | Some [%type: [%t? alt_typ] list], [%expr [%e? hd] :: [%e? tl]] -> (
-        let typ = try Some (loop ~alt_typ hd) with Not_transforming -> None in
-        let typl = try Some (loop ?alt_typ:typ tl) with Not_transforming -> None in
+        let typ =
+          try Some (loop ~use_default:false ~alt_typ hd) with Not_transforming -> None
+        in
+        let typl =
+          try Some (loop ~use_default:false ?alt_typ:typ tl) with Not_transforming -> None
+        in
         match (typ, typl) with
         | Some typ, _ -> pick ~typ:[%type: [%t typ] list] ?alt_typ:typl ()
         | None, Some typl -> typl
         | None, None -> raise Not_transforming)
     | _, [%expr [%e? hd] :: [%e? tl]] -> (
-        let alt_typ = try Some (loop hd) with Not_transforming -> None in
-        let typl = try Some (loop ?alt_typ tl) with Not_transforming -> None in
+        let alt_typ = try Some (loop ~use_default:false hd) with Not_transforming -> None in
+        let typl =
+          try Some (loop ~use_default:false ?alt_typ tl) with Not_transforming -> None
+        in
         match (alt_typ, typl, typ) with
         | Some typ, _, _ -> pick ~typ:[%type: [%t typ] list] ?alt_typ:typl ()
         | None, Some typl, _ -> typl
@@ -687,7 +698,7 @@ let extract_type ~alt_typ exp =
     | Some [%type: [%t? alt_typ] array], { pexp_desc = Pexp_array exps; _ } ->
         let typs =
           List.filter_map
-            (fun exp -> try Some (loop ~alt_typ exp) with Not_transforming -> None)
+            (fun exp -> try Some (loop ~use_default:false ~alt_typ exp) with Not_transforming -> None)
             exps
         in
         List.fold_left (fun typ alt_typ -> pick ~typ ~alt_typ ()) alt_typ typs
@@ -695,7 +706,7 @@ let extract_type ~alt_typ exp =
         try
           let typs =
             List.filter_map
-              (fun exp -> try Some (loop exp) with Not_transforming -> None)
+              (fun exp -> try Some (loop ~use_default:false exp) with Not_transforming -> None)
               exps
           in
           match typs with
@@ -712,20 +723,22 @@ let extract_type ~alt_typ exp =
     | _, { pexp_desc = Pexp_constant (Pconst_float _); _ } -> [%type: float]
     | _, { pexp_desc = Pexp_constant (Pconst_string _); _ } -> [%type: string]
     | Some [%type: [%t? alt_typ] Lazy.t], { pexp_desc = Pexp_lazy exp; _ } ->
-        let typ = loop ~alt_typ exp in
+        let typ = loop ~use_default:false ~alt_typ exp in
         [%type: [%t typ] Lazy.t]
     | _, { pexp_desc = Pexp_lazy exp; _ } -> (
         try
-          let typ = loop exp in
+          let typ = loop ~use_default:false exp in
           [%type: [%t typ] Lazy.t]
         with Not_transforming -> (
           match typ with Some typ -> typ | None -> raise Not_transforming))
     | Some { ptyp_desc = Ptyp_any | Ptyp_var _ | Ptyp_extension _; _ }, _ ->
         raise Not_transforming
     | Some typ, _ -> typ
+    | None, _ when use_default ->
+        { default with ptyp_loc = exp.pexp_loc; ptyp_loc_stack = exp.pexp_loc_stack }
     | None, _ -> raise Not_transforming
   in
-  try loop ?alt_typ exp
+  try loop ~use_default:true ?alt_typ exp
   with Not_transforming ->
     let loc = exp.pexp_loc in
     A.ptyp_extension ~loc

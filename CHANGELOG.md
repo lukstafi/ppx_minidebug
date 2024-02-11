@@ -7,6 +7,7 @@
 ### Changed
 
 - `%debug_` entry points log un-annotated functions but only the function the entry point is attached to.
+- Added a default type `string` to `%log` expression decomposition, reducing the need for annotations.
 
 ### Fixed
 

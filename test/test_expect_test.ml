@@ -2364,6 +2364,32 @@ let%expect_test "%log with type annotations" =
           ├─[3; 1; 2; 3]
           └─[3; 1; 2; 3] |}]
 
+let%expect_test "%log with default type assumption" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let s = "3" in
+  let pi = "3.14" in
+  let x2 s = "2*" ^ s in
+  let l = [ ("1", 1); ("2", 2); ("3", 3) ] in
+  let%debug_show foo () : unit =
+    [%log x2 s];
+    [%log "This is like", s, "or", pi, "above"];
+    [%log "tau =", x2 pi];
+    (* Does not work with lists or arrays: *)
+    (* [%log s :: l]; *)
+    (* But works for tuples even if nested: *)
+    [%log (x2 s, 0) :: l]
+  in
+  let () = foo () in
+  [%expect
+    {|
+          BEGIN DEBUG SESSION
+          foo = ()
+          ├─"test/test_expect_test.ml":2373:21-2380:25
+          ├─"2*3"
+          ├─("This is like", "3", "or", "3.14", "above")
+          ├─("tau =", "2*3.14")
+          └─[("2*3", 0); ("1", 1); ("2", 2); ("3", 3)] |}]
+
 let%expect_test "%log PrintBox to stdout track while-loop" =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let%track_sexp result =
@@ -2382,28 +2408,28 @@ let%expect_test "%log PrintBox to stdout track while-loop" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":2372:4: <while loop>
-    ├─"test/test_expect_test.ml":2373:6: <while loop>
+    "test/test_expect_test.ml":2398:4: <while loop>
+    ├─"test/test_expect_test.ml":2399:6: <while loop>
     │ ├─(1 i= 0)
     │ ├─(2 i= 1)
     │ └─(3 j= 1)
-    ├─"test/test_expect_test.ml":2373:6: <while loop>
+    ├─"test/test_expect_test.ml":2399:6: <while loop>
     │ ├─(1 i= 1)
     │ ├─(2 i= 2)
     │ └─(3 j= 3)
-    ├─"test/test_expect_test.ml":2373:6: <while loop>
+    ├─"test/test_expect_test.ml":2399:6: <while loop>
     │ ├─(1 i= 2)
     │ ├─(2 i= 3)
     │ └─(3 j= 6)
-    ├─"test/test_expect_test.ml":2373:6: <while loop>
+    ├─"test/test_expect_test.ml":2399:6: <while loop>
     │ ├─(1 i= 3)
     │ ├─(2 i= 4)
     │ └─(3 j= 10)
-    ├─"test/test_expect_test.ml":2373:6: <while loop>
+    ├─"test/test_expect_test.ml":2399:6: <while loop>
     │ ├─(1 i= 4)
     │ ├─(2 i= 5)
     │ └─(3 j= 15)
-    └─"test/test_expect_test.ml":2373:6: <while loop>
+    └─"test/test_expect_test.ml":2399:6: <while loop>
       ├─(1 i= 5)
       ├─(2 i= 6)
       └─(3 j= 21)

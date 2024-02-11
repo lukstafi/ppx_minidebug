@@ -218,11 +218,11 @@ Tracing only happens in explicitly marked lexical scopes. The entry extension po
   - `_show` converts values to strings via the `%show` extension provided by `deriving.show`: e.g. `[%show: int list]`.
   - `_sexp` converts values to sexp expressions first using `%sexp_of`, e.g. `[%sexp_of: int list]`. The runtime can decide how to print the sexp expressions. The `PrintBox` backend allows to convert the sexps to box structures first, with the `boxify_sexp_from_size` setting. This means large values can be unfolded gradually for inspection.
 
-Plus, there is a non-entry extension point `%log` for logging values. (It is not registered, which as a side effect should somewhat mitigate conflicts with other ppx extensions for logging.)
+Plus, there is a non-entry extension point `%log` for logging values. It is not registered, which as a side effect should somewhat mitigate conflicts with other ppx extensions for logging.
 
 See examples in [the test directory](test/), and especially [the inline tests](test/test_expect_test.ml).
 
-Only type-annotated let-bindings, function arguments, function results can be (implicitly) logged. However, the bindings and function arguments can be nested patterns with only parts of them type-annotated! The explicit logger `%log` takes a value (an expression that can be re-parsed as a pattern) and reconstructs its type from partial type annotations.
+Only type-annotated let-bindings, function arguments, function results can be (implicitly) logged. However, the bindings and function arguments can be nested patterns with only parts of them type-annotated! The explicit logger `%log` takes a value (an expression that can be re-parsed as a pattern) and reconstructs its type from partial type annotations, sometimes assuming unknown types are strings.
 
 To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.debug_file thread_name in ...`
 
@@ -969,8 +969,9 @@ Here is a probably incomplete list of the restrictions:
 - Another example of only propagating types top-down:
   - `let%track_show f (l : int option) : int = match l with Some y -> ...` will not log `y` when `f` is applied (but it will log `l`).
   - Both `let%track_show f : int option -> int = function Some y -> ...` and `let%track_show f l : int = match (l : int option) with Some y -> ...` *will* log `y`.
+- We try reconstructing or guessing the types of expressions logged with `%log`, see details below.
 
-As a help in debugging whether the right type information got propagated, we offer the extension `%debug_type_info` (and `%global_debug_type_info`). (The display strips module qualifiers from types.) It is not a top-level extension. Example [from the test suite](test/test_expect_test.ml):
+As a help in debugging whether the right type information got propagated, we offer the extension `%debug_type_info` (and `%global_debug_type_info`). (The display strips module qualifiers from types.) It is not an entry extension point. Example [from the test suite](test/test_expect_test.ml):
 
 ```ocaml
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
@@ -995,7 +996,7 @@ As a help in debugging whether the right type information got propagated, we off
 
 You can also use at the module level: `[%%global_debug_type_info true]`, prior to the code of interest.
 
-Explicit logging with `%log` has different but related restrictions compared to logging of let or argument bindings. We reconstruct the type of the expression from partial type information, where in addition to type annotations we take into account: string, int and float literals, tuple, array and list expresssions. We do not analyze applications, nor constructors other than "nil" `[]` and "cons" `::` for lists.
+Explicit logging with `%log` has different but related restrictions compared to logging of let or argument bindings. We reconstruct the type of the expression from partial type information, where in addition to type annotations we take into account: string, int and float literals, tuple, array, list, and `lazy` expresssions. We do not analyze applications, nor constructors other than "nil" `[]` and "cons" `::` for lists. When a type is unknown, for the whole expression and for a tuple element we assume the type `string`. We don't assume string for direct subexpressions of arrays, lists, and `lazy`.
 
 ### Dealing with concurrent execution
 
