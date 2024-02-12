@@ -2620,3 +2620,166 @@ let%expect_test "%log PrintBox to stdout runtime log levels while-loop" =
       └─(WARNING: 2 i= 6)
   21
       |}]
+
+let%expect_test "%log PrintBox to stdout compile time log levels while-loop" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let%track_sexp everything () : int =
+    [%log_level
+      Everything;
+      let i = ref 0 in
+      let j = ref 0 in
+      while !i < 6 do
+        (* Intentional empty but not omitted else-branch. *)
+        if !i < 2 then [%log "ERROR:", 1, "i=", (!i : int)] else ();
+        incr i;
+        [%log "WARNING:", 2, "i=", (!i : int)];
+        j := (fun { contents } -> !j + contents) i;
+        [%log "INFO:", 3, "j=", (!j : int)]
+      done;
+      !j]
+  in
+  let%track_sexp nothing () : int =
+    (* The result is still logged, because the binding is outside of %log_level. *)
+    [%log_level
+      Nothing;
+      let i = ref 0 in
+      let j = ref 0 in
+      while !i < 6 do
+        (* Intentional empty but not omitted else-branch. *)
+        if !i < 2 then [%log "ERROR:", 1, "i=", (!i : int)] else ();
+        incr i;
+        [%log "WARNING:", 2, "i=", (!i : int)];
+        j := (fun { contents } -> !j + contents) i;
+        [%log "INFO:", 3, "j=", (!j : int)]
+      done;
+      !j]
+  in
+  let%track_sexp prefixed () : int =
+    [%log_level
+      Prefixed_or_result [| "WARN"; "ERROR" |];
+      let i = ref 0 in
+      let j = ref 0 in
+      while !i < 6 do
+        (* Intentional empty but not omitted else-branch. *)
+        if !i < 2 then [%log "ERROR:", 1, "i=", (!i : int)] else ();
+        incr i;
+        [%log "WARNING:", 2, "i=", (!i : int)];
+        j := (fun { contents } -> !j + contents) i;
+        [%log "INFO:", 3, "j=", (!j : int)]
+      done;
+      !j]
+  in
+  print_endline @@ Int.to_string @@ everything ();
+  print_endline @@ Int.to_string @@ nothing ();
+  print_endline @@ Int.to_string @@ prefixed ();
+  [%expect
+    {|
+  BEGIN DEBUG SESSION
+  everything = 21
+  ├─"test/test_expect_test.ml":2626:28-2639:9
+  └─<while loop>
+    ├─"test/test_expect_test.ml":2631:6
+    ├─<while loop>
+    │ ├─"test/test_expect_test.ml":2633:8
+    │ ├─<if -- then branch>
+    │ │ ├─"test/test_expect_test.ml":2633:23
+    │ │ └─(ERROR: 1 i= 0)
+    │ ├─(WARNING: 2 i= 1)
+    │ ├─__fun
+    │ │ └─"test/test_expect_test.ml":2636:13-2636:48
+    │ └─(INFO: 3 j= 1)
+    ├─<while loop>
+    │ ├─"test/test_expect_test.ml":2633:8
+    │ ├─<if -- then branch>
+    │ │ ├─"test/test_expect_test.ml":2633:23
+    │ │ └─(ERROR: 1 i= 1)
+    │ ├─(WARNING: 2 i= 2)
+    │ ├─__fun
+    │ │ └─"test/test_expect_test.ml":2636:13-2636:48
+    │ └─(INFO: 3 j= 3)
+    ├─<while loop>
+    │ ├─"test/test_expect_test.ml":2633:8
+    │ ├─<if -- else branch>
+    │ │ └─"test/test_expect_test.ml":2633:65
+    │ ├─(WARNING: 2 i= 3)
+    │ ├─__fun
+    │ │ └─"test/test_expect_test.ml":2636:13-2636:48
+    │ └─(INFO: 3 j= 6)
+    ├─<while loop>
+    │ ├─"test/test_expect_test.ml":2633:8
+    │ ├─<if -- else branch>
+    │ │ └─"test/test_expect_test.ml":2633:65
+    │ ├─(WARNING: 2 i= 4)
+    │ ├─__fun
+    │ │ └─"test/test_expect_test.ml":2636:13-2636:48
+    │ └─(INFO: 3 j= 10)
+    ├─<while loop>
+    │ ├─"test/test_expect_test.ml":2633:8
+    │ ├─<if -- else branch>
+    │ │ └─"test/test_expect_test.ml":2633:65
+    │ ├─(WARNING: 2 i= 5)
+    │ ├─__fun
+    │ │ └─"test/test_expect_test.ml":2636:13-2636:48
+    │ └─(INFO: 3 j= 15)
+    └─<while loop>
+      ├─"test/test_expect_test.ml":2633:8
+      ├─<if -- else branch>
+      │ └─"test/test_expect_test.ml":2633:65
+      ├─(WARNING: 2 i= 6)
+      ├─__fun
+      │ └─"test/test_expect_test.ml":2636:13-2636:48
+      └─(INFO: 3 j= 21)
+  21
+  nothing = 21
+  └─"test/test_expect_test.ml":2641:25-2654:9
+  21
+  prefixed = 21
+  ├─"test/test_expect_test.ml":2656:26-2669:9
+  └─<while loop>
+    ├─"test/test_expect_test.ml":2661:6
+    ├─<while loop>
+    │ ├─"test/test_expect_test.ml":2663:8
+    │ ├─<if -- then branch>
+    │ │ ├─"test/test_expect_test.ml":2663:23
+    │ │ └─(ERROR: 1 i= 0)
+    │ ├─(WARNING: 2 i= 1)
+    │ └─__fun
+    │   └─"test/test_expect_test.ml":2666:13-2666:48
+    ├─<while loop>
+    │ ├─"test/test_expect_test.ml":2663:8
+    │ ├─<if -- then branch>
+    │ │ ├─"test/test_expect_test.ml":2663:23
+    │ │ └─(ERROR: 1 i= 1)
+    │ ├─(WARNING: 2 i= 2)
+    │ └─__fun
+    │   └─"test/test_expect_test.ml":2666:13-2666:48
+    ├─<while loop>
+    │ ├─"test/test_expect_test.ml":2663:8
+    │ ├─<if -- else branch>
+    │ │ └─"test/test_expect_test.ml":2663:65
+    │ ├─(WARNING: 2 i= 3)
+    │ └─__fun
+    │   └─"test/test_expect_test.ml":2666:13-2666:48
+    ├─<while loop>
+    │ ├─"test/test_expect_test.ml":2663:8
+    │ ├─<if -- else branch>
+    │ │ └─"test/test_expect_test.ml":2663:65
+    │ ├─(WARNING: 2 i= 4)
+    │ └─__fun
+    │   └─"test/test_expect_test.ml":2666:13-2666:48
+    ├─<while loop>
+    │ ├─"test/test_expect_test.ml":2663:8
+    │ ├─<if -- else branch>
+    │ │ └─"test/test_expect_test.ml":2663:65
+    │ ├─(WARNING: 2 i= 5)
+    │ └─__fun
+    │   └─"test/test_expect_test.ml":2666:13-2666:48
+    └─<while loop>
+      ├─"test/test_expect_test.ml":2663:8
+      ├─<if -- else branch>
+      │ └─"test/test_expect_test.ml":2663:65
+      ├─(WARNING: 2 i= 6)
+      └─__fun
+        └─"test/test_expect_test.ml":2666:13-2666:48
+  21
+      |}]
