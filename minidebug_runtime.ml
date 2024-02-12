@@ -711,12 +711,19 @@ module PrintBox (Log_to : Debug_ch) = struct
       | Some d ->
           B.asprintf_with_style B.Style.preformatted "%s = %a" d Sexplib0.Sexp.pp_hum sexp
 
+  let skip_parens s =
+    let len = String.length s in
+    let pos = ref 0 in
+    while !pos < len && (s.[!pos] = '(' || s.[!pos] = '{' || s.[!pos] = '[') do incr pos done;
+    let s = String.(sub s !pos @@ (length s - !pos)) in
+    s
+
   let log_value_pp ?descr ~entry_id ~pp ~is_result v =
     let prefixed =
       match config.log_level with
       | Prefixed prefixes | Prefixed_or_result prefixes ->
           (* TODO: perf-hint: cache this conversion and maybe don't re-convert. *)
-          let s = Format.asprintf "%a" pp v in
+          let s = skip_parens @@ Format.asprintf "%a" pp v in
           Array.exists (fun prefix -> String.starts_with ~prefix s) prefixes
       | _ -> true
     in
@@ -731,7 +738,8 @@ module PrintBox (Log_to : Debug_ch) = struct
     let prefixed =
       match config.log_level with
       | Prefixed prefixes | Prefixed_or_result prefixes ->
-          Array.exists (fun prefix -> String.starts_with ~prefix v) prefixes
+          let s = skip_parens v in
+          Array.exists (fun prefix -> String.starts_with ~prefix s) prefixes
       | _ -> true
     in
     stack_next ~entry_id ~is_result ~prefixed
