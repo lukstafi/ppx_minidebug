@@ -453,15 +453,78 @@ Explicit logging statements also help with tracking the execution, since they ca
         |}]
 ```
 
+### Using as a logging framework
+
+`ppx_minidebug` can be used as a logging framework: its annotations can be stored permamently with the source code, rather than shyly added for a brief period of debugging. To allow this, there needs to be a mechanism of logging levels -- otherwise the system is slowed down too much, or even if performance is not an issue, the user is overwhelmed with the amount of logs. `ppx_minidebug` addresses these issues in a flexible way, by offering restriction of log levels both at compile time and at runtime.
+
+The log levels are:
+
+- `Nothing` -- the runtime should not generate anything, and when used at compile time, the extension should not generate any `ppx_minidebug`-related code.
+- `Prefixed [| prefix1; ... |]` -- only values starting with one of: prefix1, ... should be logged; at compile time, only logs with literals having one of prefix1, ... as a prefix, should be generated. Moreover, also don't log "empty entries" (see below).
+- `Prefixed_or_result [| prefix1; ... |]` as above, but also log results of computations.
+- `Nonempty_entries` -- do not log entries such as functions or control flow blocks without sub-logs.
+- `Everything` -- no restrictions.
+
+At runtime, the level can be set via `Minidebug_runtime.debug ~log_level` or `Minidebug_runtime.debug_file ~log_level` at runtime creation, or via `Debug_runtime.config.log_level <- ...` later on. Check out the test suite [test_expect_test.ml:"%log runtime log levels while-loop"](test/test_expect_test.ml#L2439) for examples:
+
+```ocaml
+  let%track_rtb_sexp result () : int =
+    let i = ref 0 in
+    let j = ref 0 in
+    while !i < 6 do
+      (* Intentional empty but not omitted else-branch. *)
+      if !i < 2 then [%log "ERROR:", 1, "i=", (!i : int)] else ();
+      incr i;
+      [%log "WARNING:", 2, "i=", (!i : int)];
+      j := (fun { contents } -> !j + contents) i;
+      [%log "INFO:", 3, "j=", (!j : int)]
+    done;
+    !j
+  in
+  ...
+  print_endline
+  @@ Int.to_string
+       (result
+          (Minidebug_runtime.debug ~values_first_mode:true ~log_level:Nonempty_entries
+             ~global_prefix:"Nonempty" ())
+          ());
+  ...
+```
+
+At compile time, the level can be set for a scope with `%log_level`, or globally with `%global_debug_log_level`.
+(`%log_level` is not registered to minimize incompatibility with other logging frameworks.) For example:
+
+```ocaml
+[%%global_log_level Nonempty_entries]
+
+let%track_sexp nonempty () : int =
+  let i = ref 0 in
+  let j = ref 0 in
+  while !i < 6 do
+    (* Intentional empty but not omitted else-branch. *)
+    if !i < 2 then [%log "ERROR:", 1, "i=", (!i : int)] else ();
+    incr i;
+    [%log "WARNING:", 2, "i=", (!i : int)];
+    j := (fun { contents } -> !j + contents) i;
+    [%log "INFO:", 3, "j=", (!j : int)]
+  done;
+  !j
+
+let () = print_endline @@ Int.to_string @@ nonempty ()
+```
+
 ### Reducing the size of generated logs
 
 Summary of possibilities:
 
+- log levels
 - `no_debug_if`
 - `prune_upto`
 - `truncate_children`
 - `split_files_after`
 - HTML browsers can handle really large files (less luck with Markdown).
+
+The log levels discussed in the previous section certainly reduce the amount generated, but they either help too little (`Nonempty_entries`) or they remove logs too indiscriminately (`Prefixed`) for use in a debugging context. Dynamically controlling the runtime log level is one option, but there are some other options.
 
 In the PrintBox backend, you can disable the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space.
 The test suite example:
@@ -971,7 +1034,7 @@ Here is a probably incomplete list of the restrictions:
   - Both `let%track_show f : int option -> int = function Some y -> ...` and `let%track_show f l : int = match (l : int option) with Some y -> ...` *will* log `y`.
 - We try reconstructing or guessing the types of expressions logged with `%log`, see details below.
 
-As a help in debugging whether the right type information got propagated, we offer the extension `%debug_type_info` (and `%global_debug_type_info`). (The display strips module qualifiers from types.) It is not an entry extension point. Example [from the test suite](test/test_expect_test.ml):
+As a help in debugging whether the right type information got propagated, we offer the extension `%debug_type_info` (and `%global_debug_type_info`). (The display strips module qualifiers from types.) `%debug_type_info` is not an entry extension point (`%global_debug_type_info` is). Example [from the test suite](test/test_expect_test.ml):
 
 ```ocaml
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
