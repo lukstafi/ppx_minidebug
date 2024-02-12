@@ -1,9 +1,9 @@
-## [1.2.0] -- 2024-02-12
+## [1.2.0] -- 2024-02-13
 
 ### Added
 
 - Runtime log levels for the PrintBox backend.
-- TODO: Compile-time log levels.
+- Compile-time log levels.
 
 ### Changed
 

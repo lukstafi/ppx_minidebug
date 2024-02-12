@@ -2731,55 +2731,35 @@ let%expect_test "%log PrintBox to stdout compile time log levels while-loop" =
       └─(INFO: 3 j= 21)
   21
   nothing = 21
-  └─"test/test_expect_test.ml":2641:25-2654:9
+  └─"test/test_expect_test.ml":2641:25-2655:9
   21
   prefixed = 21
-  ├─"test/test_expect_test.ml":2656:26-2669:9
+  ├─"test/test_expect_test.ml":2657:26-2670:9
   └─<while loop>
-    ├─"test/test_expect_test.ml":2661:6
+    ├─"test/test_expect_test.ml":2662:6
     ├─<while loop>
-    │ ├─"test/test_expect_test.ml":2663:8
+    │ ├─"test/test_expect_test.ml":2664:8
     │ ├─<if -- then branch>
-    │ │ ├─"test/test_expect_test.ml":2663:23
+    │ │ ├─"test/test_expect_test.ml":2664:23
     │ │ └─(ERROR: 1 i= 0)
-    │ ├─(WARNING: 2 i= 1)
-    │ └─__fun
-    │   └─"test/test_expect_test.ml":2666:13-2666:48
+    │ └─(WARNING: 2 i= 1)
     ├─<while loop>
-    │ ├─"test/test_expect_test.ml":2663:8
+    │ ├─"test/test_expect_test.ml":2664:8
     │ ├─<if -- then branch>
-    │ │ ├─"test/test_expect_test.ml":2663:23
+    │ │ ├─"test/test_expect_test.ml":2664:23
     │ │ └─(ERROR: 1 i= 1)
-    │ ├─(WARNING: 2 i= 2)
-    │ └─__fun
-    │   └─"test/test_expect_test.ml":2666:13-2666:48
+    │ └─(WARNING: 2 i= 2)
     ├─<while loop>
-    │ ├─"test/test_expect_test.ml":2663:8
-    │ ├─<if -- else branch>
-    │ │ └─"test/test_expect_test.ml":2663:65
-    │ ├─(WARNING: 2 i= 3)
-    │ └─__fun
-    │   └─"test/test_expect_test.ml":2666:13-2666:48
+    │ ├─"test/test_expect_test.ml":2664:8
+    │ └─(WARNING: 2 i= 3)
     ├─<while loop>
-    │ ├─"test/test_expect_test.ml":2663:8
-    │ ├─<if -- else branch>
-    │ │ └─"test/test_expect_test.ml":2663:65
-    │ ├─(WARNING: 2 i= 4)
-    │ └─__fun
-    │   └─"test/test_expect_test.ml":2666:13-2666:48
+    │ ├─"test/test_expect_test.ml":2664:8
+    │ └─(WARNING: 2 i= 4)
     ├─<while loop>
-    │ ├─"test/test_expect_test.ml":2663:8
-    │ ├─<if -- else branch>
-    │ │ └─"test/test_expect_test.ml":2663:65
-    │ ├─(WARNING: 2 i= 5)
-    │ └─__fun
-    │   └─"test/test_expect_test.ml":2666:13-2666:48
+    │ ├─"test/test_expect_test.ml":2664:8
+    │ └─(WARNING: 2 i= 5)
     └─<while loop>
-      ├─"test/test_expect_test.ml":2663:8
-      ├─<if -- else branch>
-      │ └─"test/test_expect_test.ml":2663:65
-      ├─(WARNING: 2 i= 6)
-      └─__fun
-        └─"test/test_expect_test.ml":2666:13-2666:48
+      ├─"test/test_expect_test.ml":2664:8
+      └─(WARNING: 2 i= 6)
   21
       |}]

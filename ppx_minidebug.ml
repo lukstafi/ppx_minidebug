@@ -5,6 +5,7 @@ module A = Ast_builder.Default
 let track_branches = ref false
 let output_type_info = ref false
 let interrupts = ref false
+let global_log_count = ref 0
 
 type log_level =
   | Nothing
@@ -202,6 +203,7 @@ let log_value_sexp ~loc ~typ ?descr_loc ~is_result exp =
       A.pexp_extension ~loc ext
   | { ptyp_desc = Ptyp_poly (_, typ); _ } | typ ->
       (* [%sexp_of: typ] does not work with `Ptyp_poly`. Misleading error "Let with no bindings". *)
+      incr global_log_count;
       [%expr
         Debug_runtime.log_value_sexp ?descr:[%e to_descr ~loc ~descr_loc typ]
           ~entry_id:__entry_id ~is_result:[%e A.ebool ~loc is_result]
@@ -235,6 +237,7 @@ let log_value_pp ~loc ~typ ?descr_loc ~is_result exp =
       A.pexp_ident ~loc
         { t_lident_loc with txt = splice_lident ~id_prefix:"pp_" t_lident_loc.txt }
     in
+    incr global_log_count;
     [%expr
       Debug_runtime.log_value_pp ?descr:[%e to_descr ~loc ~descr_loc typ]
         ~entry_id:__entry_id ~pp:[%e converter] ~is_result:[%e A.ebool ~loc is_result]
@@ -259,6 +262,7 @@ let log_value_show ~loc ~typ ?descr_loc ~is_result exp =
       A.pexp_extension ~loc ext
   | { ptyp_desc = Ptyp_poly (_, typ); _ } | typ ->
       (* Defensive in case there's problems with poly types. *)
+      incr global_log_count;
       [%expr
         Debug_runtime.log_value_show ?descr:[%e to_descr ~loc ~descr_loc typ]
           ~entry_id:__entry_id ~is_result:[%e A.ebool ~loc is_result]
@@ -448,46 +452,48 @@ let bound_patterns ~alt_typ pat =
   let loc = pat.ppat_loc in
   (A.ppat_alias ~loc bind_pat { txt = "__res"; loc }, bound)
 
-let entry_with_interrupts ~loc ~descr_loc ?header ~preamble ~entry ~result ~log_result ()
-    =
-  let header = match header with Some h -> h | None -> [%expr ()] in
-  if !interrupts then
-    [%expr
-      let __entry_id = Debug_runtime.get_entry_id () in
-      [%e header];
-      if Debug_runtime.exceeds_max_children () then (
-        [%e log_string ~loc ~descr_loc "<max_num_children exceeded>"];
-        failwith "ppx_minidebug: max_num_children exceeded")
-      else (
-        [%e preamble];
-        if Debug_runtime.exceeds_max_nesting () then (
-          [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
-          Debug_runtime.close_log ();
-          failwith "ppx_minidebug: max_nesting_depth exceeded")
-        else
-          match [%e entry] with
-          | [%p result] ->
-              [%e log_result];
-              Debug_runtime.close_log ();
-              [%e pat2expr result]
-          | exception e ->
-              Debug_runtime.close_log ();
-              raise e)]
+let entry_with_interrupts ~loc ~descr_loc ~log_count_before ?header ~preamble ~entry
+    ~result ~log_result () =
+  if !log_level <> Everything && log_count_before = !global_log_count then entry
   else
-    [%expr
-      let __entry_id = Debug_runtime.get_entry_id () in
-      [%e header];
-      [%e preamble];
-      match [%e entry] with
-      | [%p result] ->
-          [%e log_result];
-          Debug_runtime.close_log ();
-          [%e pat2expr result]
-      | exception e ->
-          Debug_runtime.close_log ();
-          raise e]
+    let header = match header with Some h -> h | None -> [%expr ()] in
+    if !interrupts then
+      [%expr
+        let __entry_id = Debug_runtime.get_entry_id () in
+        [%e header];
+        if Debug_runtime.exceeds_max_children () then (
+          [%e log_string ~loc ~descr_loc "<max_num_children exceeded>"];
+          failwith "ppx_minidebug: max_num_children exceeded")
+        else (
+          [%e preamble];
+          if Debug_runtime.exceeds_max_nesting () then (
+            [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
+            Debug_runtime.close_log ();
+            failwith "ppx_minidebug: max_nesting_depth exceeded")
+          else
+            match [%e entry] with
+            | [%p result] ->
+                [%e log_result];
+                Debug_runtime.close_log ();
+                [%e pat2expr result]
+            | exception e ->
+                Debug_runtime.close_log ();
+                raise e)]
+    else
+      [%expr
+        let __entry_id = Debug_runtime.get_entry_id () in
+        [%e header];
+        [%e preamble];
+        match [%e entry] with
+        | [%p result] ->
+            [%e log_result];
+            Debug_runtime.close_log ();
+            [%e pat2expr result]
+        | exception e ->
+            Debug_runtime.close_log ();
+            raise e]
 
-let debug_body callback ~loc ~message ~descr_loc ~arg_logs typ body =
+let debug_body callback ~loc ~message ~descr_loc ~log_count_before ~arg_logs typ body =
   let message =
     match typ with
     | Some t when !output_type_info -> message ^ " : " ^ typ2str t
@@ -511,8 +517,8 @@ let debug_body callback ~loc ~message ~descr_loc ~arg_logs typ body =
     | None -> [%expr ()]
     | Some typ -> !log_value ~loc ~typ ~descr_loc ~is_result:true (pat2expr result)
   in
-  entry_with_interrupts ~loc ~descr_loc ~preamble ~entry:(callback () body) ~result
-    ~log_result ()
+  entry_with_interrupts ~loc ~descr_loc ~log_count_before ~preamble
+    ~entry:(callback () body) ~result ~log_result ()
 
 let rec collect_fun_typs arg_typs typ =
   match typ.ptyp_desc with
@@ -526,6 +532,7 @@ type is_toplevel = Toplevel | Nested
 let debug_fun runtime_from_arg callback ?(is_toplevel = Nested) ?typ ?ret_descr ?ret_typ
     exp =
   if !log_level = Nothing then raise Not_transforming;
+  let log_count_before = !global_log_count in
   let args, body, ret_typ2 = collect_fun [] exp in
   let arg_typs, ret_typ3 =
     match typ with
@@ -577,8 +584,8 @@ let debug_fun runtime_from_arg callback ?(is_toplevel = Nested) ?typ ?ret_descr 
   in
   let arg_logs = arg_log (arg_typs, args) in
   let body =
-    debug_body callback ~loc ~message:ret_descr.txt ~descr_loc:ret_descr ~arg_logs typ
-      body
+    debug_body callback ~loc ~message:ret_descr.txt ~descr_loc:ret_descr ~log_count_before
+      ~arg_logs typ body
   in
   let body =
     match ret_typ2 with None -> body | Some typ -> [%expr ([%e body] : [%t typ])]
@@ -601,6 +608,7 @@ let debug_fun runtime_from_arg callback ?(is_toplevel = Nested) ?typ ?ret_descr 
         fun (debug_runtime : (module Minidebug_runtime.PrintBox_runtime)) -> [%e exp]]
 
 let debug_case callback ?ret_descr ?ret_typ ?arg_typ kind i { pc_lhs; pc_guard; pc_rhs } =
+  let log_count_before = !global_log_count in
   let pc_guard = Option.map (callback ()) pc_guard in
   let loc = pc_lhs.ppat_loc in
   let _, bound = bound_patterns ~alt_typ:arg_typ pc_lhs in
@@ -619,8 +627,8 @@ let debug_case callback ?ret_descr ?ret_typ ?arg_typ kind i { pc_lhs; pc_guard; 
     | Some ret -> ret
   in
   let pc_rhs =
-    debug_body callback ~loc:pc_rhs.pexp_loc ~message ~descr_loc:ret_descr ~arg_logs
-      ret_typ pc_rhs
+    debug_body callback ~loc:pc_rhs.pexp_loc ~message ~descr_loc:ret_descr
+      ~log_count_before ~arg_logs ret_typ pc_rhs
   in
   { pc_lhs; pc_guard; pc_rhs }
 
@@ -679,6 +687,7 @@ let debug_binding runtime_from_arg callback is_toplevel vb =
     | _ ->
         let result, bound = bound_patterns ~alt_typ:typ pat in
         if bound = [] then raise Not_transforming;
+        let log_count_before = !global_log_count in
         let descr_loc = pat2descr ~default:"__val" pat in
         let log_result =
           List.map
@@ -696,8 +705,8 @@ let debug_binding runtime_from_arg callback is_toplevel vb =
         let preamble =
           open_log_preamble ~brief:true ~message:descr_loc.txt ~loc:descr_loc.loc ()
         in
-        entry_with_interrupts ~loc ~descr_loc ~preamble ~entry:(callback () exp) ~result
-          ~log_result ()
+        entry_with_interrupts ~loc ~descr_loc ~log_count_before ~preamble
+          ~entry:(callback () exp) ~result ~log_result ()
   in
   let pvb_expr =
     match (typ2, runtime_from_arg) with
@@ -1025,39 +1034,58 @@ let traverse =
               | _ -> (None, None)
             in
             Pexp_function (track_cases ?arg_typ ?ret_typ "function" cases)
-        | Pexp_ifthenelse (if_, then_, else_) when !track_branches && !log_level <> Nothing ->
+        | Pexp_ifthenelse (if_, then_, else_)
+          when !track_branches && !log_level <> Nothing ->
             let then_ =
+              let log_count_before = !global_log_count in
               let loc = then_.pexp_loc in
-              [%expr
-                let __entry_id = Debug_runtime.get_entry_id () in
-                [%e open_log_preamble ~brief:true ~message:"<if -- then branch>" ~loc ()];
-                match [%e callback () then_] with
-                | if_then__result ->
-                    Debug_runtime.close_log ();
-                    if_then__result
-                | exception e ->
-                    Debug_runtime.close_log ();
-                    raise e]
+              let then_ = callback () then_ in
+              let then_' =
+                [%expr
+                  let __entry_id = Debug_runtime.get_entry_id () in
+                  [%e
+                    open_log_preamble ~brief:true ~message:"<if -- then branch>" ~loc ()];
+                  match [%e then_] with
+                  | if_then__result ->
+                      Debug_runtime.close_log ();
+                      if_then__result
+                  | exception e ->
+                      Debug_runtime.close_log ();
+                      raise e]
+              in
+              if !log_level <> Everything && log_count_before = !global_log_count then
+                then_
+              else then_'
             in
             let else_ =
-              Option.map
-                (fun else_ ->
-                  let loc = else_.pexp_loc in
-                  [%expr
-                    let __entry_id = Debug_runtime.get_entry_id () in
-                    [%e
-                      open_log_preamble ~brief:true ~message:"<if -- else branch>" ~loc ()];
-                    match [%e callback () else_] with
-                    | if_else__result ->
-                        Debug_runtime.close_log ();
-                        if_else__result
-                    | exception e ->
-                        Debug_runtime.close_log ();
-                        raise e])
+              let log_count_before = !global_log_count in
+              let else_ = Option.map (callback ()) else_ in
+              let else_' =
+                Option.map
+                  (fun else_ ->
+                    let loc = else_.pexp_loc in
+                    [%expr
+                      let __entry_id = Debug_runtime.get_entry_id () in
+                      [%e
+                        open_log_preamble ~brief:true ~message:"<if -- else branch>" ~loc
+                          ()];
+                      match [%e else_] with
+                      | if_else__result ->
+                          Debug_runtime.close_log ();
+                          if_else__result
+                      | exception e ->
+                          Debug_runtime.close_log ();
+                          raise e])
+                  else_
+              in
+              if !log_level <> Everything && log_count_before = !global_log_count then
                 else_
+              else else_'
             in
             Pexp_ifthenelse (callback () if_, then_, else_)
-        | Pexp_for (pat, from, to_, dir, body) when !track_branches && !log_level <> Nothing ->
+        | Pexp_for (pat, from, to_, dir, body)
+          when !track_branches && !log_level <> Nothing ->
+            let log_count_before = !global_log_count in
             let body =
               let loc = body.pexp_loc in
               let descr_loc = pat2descr ~default:"__for_index" pat in
@@ -1074,24 +1102,29 @@ let traverse =
               let header =
                 !log_value ~loc ~typ ~descr_loc ~is_result:false (pat2expr pat)
               in
-              entry_with_interrupts ~loc ~descr_loc ~header ~preamble
+              entry_with_interrupts ~loc ~descr_loc ~log_count_before ~header ~preamble
                 ~entry:(callback () body)
                 ~result:[%pat? ()]
                 ~log_result:[%expr ()] ()
             in
             let loc = exp.pexp_loc in
-            [%expr
-              let __entry_id = Debug_runtime.get_entry_id () in
-              [%e open_log_preamble ~brief:true ~message:"<for loop>" ~loc ()];
-              match
-                [%e { exp with pexp_desc = Pexp_for (pat, from, to_, dir, body) }]
-              with
-              | () -> Debug_runtime.close_log ()
-              | exception e ->
-                  Debug_runtime.close_log ();
-                  raise e]
-              .pexp_desc
+            let pexp_desc = Pexp_for (pat, from, to_, dir, body) in
+            let transformed =
+              [%expr
+                let __entry_id = Debug_runtime.get_entry_id () in
+                [%e open_log_preamble ~brief:true ~message:"<for loop>" ~loc ()];
+                match [%e { exp with pexp_desc }] with
+                | () -> Debug_runtime.close_log ()
+                | exception e ->
+                    Debug_runtime.close_log ();
+                    raise e]
+                .pexp_desc
+            in
+            if !log_level <> Everything && log_count_before = !global_log_count then
+              pexp_desc
+            else transformed
         | Pexp_while (cond, body) when !track_branches && !log_level <> Nothing ->
+            let log_count_before = !global_log_count in
             let body =
               let loc = body.pexp_loc in
               let descr_loc = { txt = "<while body>"; loc } in
@@ -1099,20 +1132,27 @@ let traverse =
                 open_log_preamble ~brief:true ~message:"<while loop>" ~loc:descr_loc.loc
                   ()
               in
-              entry_with_interrupts ~loc ~descr_loc ~preamble ~entry:(callback () body)
+              entry_with_interrupts ~loc ~descr_loc ~log_count_before ~preamble
+                ~entry:(callback () body)
                 ~result:[%pat? ()]
                 ~log_result:[%expr ()] ()
             in
             let loc = exp.pexp_loc in
-            [%expr
-              let __entry_id = Debug_runtime.get_entry_id () in
-              [%e open_log_preamble ~brief:true ~message:"<while loop>" ~loc ()];
-              match [%e { exp with pexp_desc = Pexp_while (cond, body) }] with
-              | () -> Debug_runtime.close_log ()
-              | exception e ->
-                  Debug_runtime.close_log ();
-                  raise e]
-              .pexp_desc
+            let pexp_desc = Pexp_while (cond, body) in
+            let transformed =
+              [%expr
+                let __entry_id = Debug_runtime.get_entry_id () in
+                [%e open_log_preamble ~brief:true ~message:"<while loop>" ~loc ()];
+                match [%e { exp with pexp_desc }] with
+                | () -> Debug_runtime.close_log ()
+                | exception e ->
+                    Debug_runtime.close_log ();
+                    raise e]
+                .pexp_desc
+            in
+            if !log_level <> Everything && log_count_before = !global_log_count then
+              pexp_desc
+            else transformed
         | _ -> (super#expression (Not_from_arg, Nested) exp).pexp_desc
       in
       let exp = { exp with pexp_desc } in
