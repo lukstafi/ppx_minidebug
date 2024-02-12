@@ -2435,3 +2435,188 @@ let%expect_test "%log PrintBox to stdout track while-loop" =
       └─(3 j= 21)
     21
         |}]
+
+let%expect_test "%log PrintBox to stdout runtime log levels while-loop" =
+  let%track_rtb_sexp result () : int =
+    let i = ref 0 in
+    let j = ref 0 in
+    while !i < 6 do
+      (* Intentional empty but not omitted else-branch. *)
+      if !i < 2 then [%log "ERROR:", 1, "i=", (!i : int)] else ();
+      incr i;
+      [%log "WARNING:", 2, "i=", (!i : int)];
+      j := (fun { contents } -> !j + contents) i;
+      [%log "INFO:", 3, "j=", (!j : int)]
+    done;
+    !j
+  in
+  print_endline
+  @@ Int.to_string (result (Minidebug_runtime.debug ~global_prefix:"Everything" ()) ());
+  print_endline
+  @@ Int.to_string
+       (result
+          (Minidebug_runtime.debug ~values_first_mode:true ~log_level:Nothing
+             ~global_prefix:"Nothing" ())
+          ());
+  print_endline
+  @@ Int.to_string
+       (result
+          (Minidebug_runtime.debug ~values_first_mode:true ~log_level:Nonempty_entries
+             ~global_prefix:"Nonempty" ())
+          ());
+  print_endline
+  @@ Int.to_string
+       (result
+          (Minidebug_runtime.debug ~values_first_mode:true
+             ~log_level:(Prefixed [| "ERROR"; "WARN" |])
+             ~global_prefix:"Prefixed" ())
+          ());
+  print_endline
+  @@ Int.to_string
+       (result
+          (Minidebug_runtime.debug ~values_first_mode:true
+             ~log_level:(Prefixed_or_result [| "ERROR"; "WARN" |])
+             ~global_prefix:"Prefixed_or_result" ())
+          ());
+  [%expect
+    {|
+  BEGIN DEBUG SESSION Everything
+  "test/test_expect_test.ml":2440:28-2451:6: Everything result
+  ├─"test/test_expect_test.ml":2443:4: Everything <while loop>
+  │ ├─"test/test_expect_test.ml":2445:6: Everything <while loop>
+  │ │ ├─"test/test_expect_test.ml":2445:21: Everything <if -- then branch>
+  │ │ │ └─(ERROR: 1 i= 0)
+  │ │ ├─(WARNING: 2 i= 1)
+  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything __fun
+  │ │ └─(INFO: 3 j= 1)
+  │ ├─"test/test_expect_test.ml":2445:6: Everything <while loop>
+  │ │ ├─"test/test_expect_test.ml":2445:21: Everything <if -- then branch>
+  │ │ │ └─(ERROR: 1 i= 1)
+  │ │ ├─(WARNING: 2 i= 2)
+  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything __fun
+  │ │ └─(INFO: 3 j= 3)
+  │ ├─"test/test_expect_test.ml":2445:6: Everything <while loop>
+  │ │ ├─"test/test_expect_test.ml":2445:63: Everything <if -- else branch>
+  │ │ ├─(WARNING: 2 i= 3)
+  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything __fun
+  │ │ └─(INFO: 3 j= 6)
+  │ ├─"test/test_expect_test.ml":2445:6: Everything <while loop>
+  │ │ ├─"test/test_expect_test.ml":2445:63: Everything <if -- else branch>
+  │ │ ├─(WARNING: 2 i= 4)
+  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything __fun
+  │ │ └─(INFO: 3 j= 10)
+  │ ├─"test/test_expect_test.ml":2445:6: Everything <while loop>
+  │ │ ├─"test/test_expect_test.ml":2445:63: Everything <if -- else branch>
+  │ │ ├─(WARNING: 2 i= 5)
+  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything __fun
+  │ │ └─(INFO: 3 j= 15)
+  │ └─"test/test_expect_test.ml":2445:6: Everything <while loop>
+  │   ├─"test/test_expect_test.ml":2445:63: Everything <if -- else branch>
+  │   ├─(WARNING: 2 i= 6)
+  │   ├─"test/test_expect_test.ml":2448:11-2448:46: Everything __fun
+  │   └─(INFO: 3 j= 21)
+  └─result = 21
+  21
+
+  BEGIN DEBUG SESSION Nothing
+  21
+
+  BEGIN DEBUG SESSION Nonempty
+  result = 21
+  ├─"test/test_expect_test.ml":2440:28-2451:6
+  └─Nonempty <while loop>
+    ├─"test/test_expect_test.ml":2443:4
+    ├─Nonempty <while loop>
+    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─Nonempty <if -- then branch>
+    │ │ ├─"test/test_expect_test.ml":2445:21
+    │ │ └─(ERROR: 1 i= 0)
+    │ ├─(WARNING: 2 i= 1)
+    │ └─(INFO: 3 j= 1)
+    ├─Nonempty <while loop>
+    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─Nonempty <if -- then branch>
+    │ │ ├─"test/test_expect_test.ml":2445:21
+    │ │ └─(ERROR: 1 i= 1)
+    │ ├─(WARNING: 2 i= 2)
+    │ └─(INFO: 3 j= 3)
+    ├─Nonempty <while loop>
+    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─(WARNING: 2 i= 3)
+    │ └─(INFO: 3 j= 6)
+    ├─Nonempty <while loop>
+    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─(WARNING: 2 i= 4)
+    │ └─(INFO: 3 j= 10)
+    ├─Nonempty <while loop>
+    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─(WARNING: 2 i= 5)
+    │ └─(INFO: 3 j= 15)
+    └─Nonempty <while loop>
+      ├─"test/test_expect_test.ml":2445:6
+      ├─(WARNING: 2 i= 6)
+      └─(INFO: 3 j= 21)
+  21
+
+  BEGIN DEBUG SESSION Prefixed
+  Prefixed result
+  ├─"test/test_expect_test.ml":2440:28-2451:6
+  └─Prefixed <while loop>
+    ├─"test/test_expect_test.ml":2443:4
+    ├─Prefixed <while loop>
+    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─Prefixed <if -- then branch>
+    │ │ ├─"test/test_expect_test.ml":2445:21
+    │ │ └─(ERROR: 1 i= 0)
+    │ └─(WARNING: 2 i= 1)
+    ├─Prefixed <while loop>
+    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─Prefixed <if -- then branch>
+    │ │ ├─"test/test_expect_test.ml":2445:21
+    │ │ └─(ERROR: 1 i= 1)
+    │ └─(WARNING: 2 i= 2)
+    ├─Prefixed <while loop>
+    │ ├─"test/test_expect_test.ml":2445:6
+    │ └─(WARNING: 2 i= 3)
+    ├─Prefixed <while loop>
+    │ ├─"test/test_expect_test.ml":2445:6
+    │ └─(WARNING: 2 i= 4)
+    ├─Prefixed <while loop>
+    │ ├─"test/test_expect_test.ml":2445:6
+    │ └─(WARNING: 2 i= 5)
+    └─Prefixed <while loop>
+      ├─"test/test_expect_test.ml":2445:6
+      └─(WARNING: 2 i= 6)
+  21
+
+  BEGIN DEBUG SESSION Prefixed_or_result
+  result = 21
+  ├─"test/test_expect_test.ml":2440:28-2451:6
+  └─Prefixed_or_result <while loop>
+    ├─"test/test_expect_test.ml":2443:4
+    ├─Prefixed_or_result <while loop>
+    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─Prefixed_or_result <if -- then branch>
+    │ │ ├─"test/test_expect_test.ml":2445:21
+    │ │ └─(ERROR: 1 i= 0)
+    │ └─(WARNING: 2 i= 1)
+    ├─Prefixed_or_result <while loop>
+    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─Prefixed_or_result <if -- then branch>
+    │ │ ├─"test/test_expect_test.ml":2445:21
+    │ │ └─(ERROR: 1 i= 1)
+    │ └─(WARNING: 2 i= 2)
+    ├─Prefixed_or_result <while loop>
+    │ ├─"test/test_expect_test.ml":2445:6
+    │ └─(WARNING: 2 i= 3)
+    ├─Prefixed_or_result <while loop>
+    │ ├─"test/test_expect_test.ml":2445:6
+    │ └─(WARNING: 2 i= 4)
+    ├─Prefixed_or_result <while loop>
+    │ ├─"test/test_expect_test.ml":2445:6
+    │ └─(WARNING: 2 i= 5)
+    └─Prefixed_or_result <while loop>
+      ├─"test/test_expect_test.ml":2445:6
+      └─(WARNING: 2 i= 6)
+  21
+      |}]

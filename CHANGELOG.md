@@ -1,7 +1,8 @@
-## [1.2.0] -- current
+## [1.2.0] -- 2024-02-12
 
 ### Added
 
+- Runtime log levels for the PrintBox backend.
 - TODO: Compile-time log levels.
 
 ### Changed
@@ -13,6 +14,7 @@
 
 - `_rt_` & `_rtb_` should work even when nested inside another debug scope.
   - Nested entry extension point is still considered toplevel.
+- TODO: Tighter error locations for `%log` missing types or type errors.
 
 ## [1.1.0] -- 2024-02-11
 

@@ -14,6 +14,13 @@ let timestamp_to_string () =
 
 type elapsed_times = Not_reported | Seconds | Milliseconds | Microseconds | Nanoseconds
 
+type log_level =
+  | Nothing
+  | Prefixed of string array
+  | Prefixed_or_result of string array
+  | Nonempty_entries
+  | Everything
+
 module type Debug_ch = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
@@ -346,6 +353,7 @@ module type PrintBox_runtime = sig
     mutable values_first_mode : bool;
     mutable max_inline_sexp_size : int;
     mutable max_inline_sexp_length : int;
+    mutable log_level : log_level;
   }
 
   val config : config
@@ -369,6 +377,7 @@ module PrintBox (Log_to : Debug_ch) = struct
     mutable values_first_mode : bool;
     mutable max_inline_sexp_size : int;
     mutable max_inline_sexp_length : int;
+    mutable log_level : log_level;
   }
 
   let config =
@@ -383,6 +392,7 @@ module PrintBox (Log_to : Debug_ch) = struct
       values_first_mode = false;
       max_inline_sexp_size = 20;
       max_inline_sexp_length = 50;
+      log_level = Everything;
     }
 
   module B = PrintBox
@@ -408,19 +418,24 @@ module PrintBox (Log_to : Debug_ch) = struct
     | `Prefix prefix -> B.link ~uri:(prefix ^ uri) inner
     | `No_hyperlinks -> inner
 
-  let stack_next ~entry_id ~is_result (hl, b) =
-    stack :=
-      match !stack with
-      | ({ highlight; exclude; body; _ } as entry) :: bs2 ->
-          {
-            entry with
-            highlight = highlight || ((not exclude) && hl);
-            body = { result_id = entry_id; is_result; subtree = b } :: body;
-          }
-          :: bs2
-      | _ ->
-          failwith
-            "minidebug_runtime: a log_value must be preceded by an open_log_preamble"
+  let stack_next ~entry_id ~is_result ~prefixed (hl, b) =
+    match config.log_level with
+    | Nothing -> ()
+    | Prefixed _ when not prefixed -> ()
+    | Prefixed_or_result _ when not (is_result || prefixed) -> ()
+    | _ -> (
+        stack :=
+          match !stack with
+          | ({ highlight; exclude; body; _ } as entry) :: bs2 ->
+              {
+                entry with
+                highlight = highlight || ((not exclude) && hl);
+                body = { result_id = entry_id; is_result; subtree = b } :: body;
+              }
+              :: bs2
+          | _ ->
+              failwith
+                "minidebug_runtime: a log_value must be preceded by an open_log_preamble")
 
   let () =
     let log_header =
@@ -517,6 +532,7 @@ module PrintBox (Log_to : Debug_ch) = struct
       (* Design choice: exclude does not apply to its own entry -- its about propagating children. *)
       match !stack with
       | { highlight = false; _ } :: bs when config.prune_upto >= List.length !stack -> bs
+      | { body = []; _ } :: bs when config.log_level <> Everything -> bs
       | ({ cond = true; highlight = hl; exclude = _; entry_id = result_id; _ } as entry)
         :: { cond; highlight; exclude; uri; path; elapsed; entry_message; entry_id; body }
         :: bs3 ->
@@ -672,10 +688,22 @@ module PrintBox (Log_to : Debug_ch) = struct
   let num_children () = match !stack with [] -> 0 | { body; _ } :: _ -> List.length body
 
   let log_value_sexp ?descr ~entry_id ~is_result sexp =
+    let prefixed =
+      match config.log_level with
+      | Prefixed prefixes | Prefixed_or_result prefixes ->
+          let rec loop = function
+            | Sexplib0.Sexp.Atom s ->
+                Array.exists (fun prefix -> String.starts_with ~prefix s) prefixes
+            | List [] -> false
+            | List (e :: _) -> loop e
+          in
+          loop sexp
+      | _ -> true
+    in
     if config.boxify_sexp_from_size >= 0 then
-      stack_next ~entry_id ~is_result @@ boxify ?descr sexp
+      stack_next ~entry_id ~is_result ~prefixed @@ boxify ?descr sexp
     else
-      stack_next ~entry_id ~is_result
+      stack_next ~entry_id ~is_result ~prefixed
       @@ highlight_box
       @@
       match descr with
@@ -684,7 +712,15 @@ module PrintBox (Log_to : Debug_ch) = struct
           B.asprintf_with_style B.Style.preformatted "%s = %a" d Sexplib0.Sexp.pp_hum sexp
 
   let log_value_pp ?descr ~entry_id ~pp ~is_result v =
-    stack_next ~entry_id ~is_result
+    let prefixed =
+      match config.log_level with
+      | Prefixed prefixes | Prefixed_or_result prefixes ->
+          (* TODO: perf-hint: cache this conversion and maybe don't re-convert. *)
+          let s = Format.asprintf "%a" pp v in
+          Array.exists (fun prefix -> String.starts_with ~prefix s) prefixes
+      | _ -> true
+    in
+    stack_next ~entry_id ~is_result ~prefixed
     @@ highlight_box
     @@
     match descr with
@@ -692,7 +728,13 @@ module PrintBox (Log_to : Debug_ch) = struct
     | Some d -> B.asprintf_with_style B.Style.preformatted "%s = %a" d pp v
 
   let log_value_show ?descr ~entry_id ~is_result v =
-    stack_next ~entry_id ~is_result
+    let prefixed =
+      match config.log_level with
+      | Prefixed prefixes | Prefixed_or_result prefixes ->
+          Array.exists (fun prefix -> String.starts_with ~prefix v) prefixes
+      | _ -> true
+    in
+    stack_next ~entry_id ~is_result ~prefixed
     @@ highlight_box
     @@
     match descr with
@@ -721,7 +763,7 @@ let debug_file ?(time_tagged = false) ?(elapsed_times = elapsed_default)
     ?(global_prefix = "") ?split_files_after ?highlight_terms ?exclude_on_path
     ?(prune_upto = 0) ?(truncate_children = 0) ?(for_append = false)
     ?(boxify_sexp_from_size = 50) ?backend ?hyperlink ?(values_first_mode = false)
-    filename : (module PrintBox_runtime) =
+    ?(log_level = Everything) filename : (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename ^ ".md"
@@ -741,11 +783,13 @@ let debug_file ?(time_tagged = false) ?(elapsed_times = elapsed_default)
   Debug.config.values_first_mode <- values_first_mode;
   Debug.config.hyperlink <-
     (match hyperlink with None -> `No_hyperlinks | Some prefix -> `Prefix prefix);
+  Debug.config.log_level <- log_level;
   (module Debug)
 
 let debug ?(debug_ch = stdout) ?(time_tagged = false) ?(elapsed_times = elapsed_default)
     ?(global_prefix = "") ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
-    ?(truncate_children = 0) ?(values_first_mode = false) () : (module PrintBox_runtime) =
+    ?(truncate_children = 0) ?(values_first_mode = false) ?(log_level = Everything) () :
+    (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
     let debug_ch () = debug_ch
@@ -759,6 +803,7 @@ let debug ?(debug_ch = stdout) ?(time_tagged = false) ?(elapsed_times = elapsed_
   Debug.config.truncate_children <- truncate_children;
   Debug.config.exclude_on_path <- Option.map Re.compile exclude_on_path;
   Debug.config.values_first_mode <- values_first_mode;
+  Debug.config.log_level <- log_level;
   (module Debug)
 
 let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false)

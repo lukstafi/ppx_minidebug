@@ -4,6 +4,22 @@
 
 type elapsed_times = Not_reported | Seconds | Milliseconds | Microseconds | Nanoseconds
 
+(** The log levels, for both (in scope) compile time, and for the PrintBox runtime. When considered at
+    compile time, inspecting strings requires string literals, at runtime it applies to all string values.
+    Not logging at compile time means the corresponding loggingcode is not generated; not logging at
+    runtime means the logging state is not updated. *)
+type log_level =
+  | Nothing  (** Does not log anything. *)
+  | Prefixed of string array
+      (** Behaves as [Nonempty_entries] and additionally: only logs "leaf" values when the inspected string
+          starts with one of the prefixes. *)
+  | Prefixed_or_result of string array
+      (** Behaves as [Nonempty_entries] and additionally: only logs "leaf" values when the inspected string
+          starts with one of the prefixes, or the value is marked as a result. *)
+  | Nonempty_entries
+      (** Does not log entries without children (treating results as children). *)
+  | Everything  (** Does not restrict logging. *)
+
 module type Debug_ch = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
@@ -137,6 +153,7 @@ module type PrintBox_runtime = sig
         (** Maximal size (in atoms) up to which a sexp value can be inlined during "boxification". *)
     mutable max_inline_sexp_length : int;
         (** Maximal length (in characters/bytes) up to which a sexp value can be inlined during "boxification". *)
+    mutable log_level : log_level;  (** How much to log, see {!type:log_level}. *)
   }
 
   val config : config
@@ -161,6 +178,7 @@ val debug_file :
   ?backend:[ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ] ->
   ?hyperlink:string ->
   ?values_first_mode:bool ->
+  ?log_level:log_level ->
   string ->
   (module PrintBox_runtime)
 (** Creates a PrintBox-based debug runtime configured to output html or markdown to a file with
@@ -182,6 +200,7 @@ val debug :
   ?prune_upto:int ->
   ?truncate_children:int ->
   ?values_first_mode:bool ->
+  ?log_level:log_level ->
   unit ->
   (module PrintBox_runtime)
 (** Creates a PrintBox-based debug runtime for the [`Text] backend. By default it will log to [stdout]
