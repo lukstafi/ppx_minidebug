@@ -132,7 +132,7 @@ let%expect_test "%debug_show flushing with global prefix" =
     test-51 baz end
     339 |}]
 
-let%expect_test "%debug_this_show PrintBox to stdout disabled subtree" =
+let%expect_test "%debug_this_show disabled subtree" =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let%debug_this_show rec loop_complete (x : int) : int =
     let z : int = (x - 1) / 2 in
@@ -209,7 +209,7 @@ let%expect_test "%debug_this_show PrintBox to stdout disabled subtree" =
   └─loop_changes = 9
   9 |}]
 
-let%expect_test "%debug_this_show PrintBox to stdout with exception" =
+let%expect_test "%debug_this_show with exception" =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let%debug_this_show rec loop_truncated (x : int) : int =
     let z : int = (x - 1) / 2 in
@@ -257,7 +257,7 @@ let%expect_test "%debug_this_show PrintBox to stdout with exception" =
                     └─z = 0
     Raised exception. |}]
 
-let%expect_test "%debug_this_show PrintBox to stdout depth exceeded" =
+let%expect_test "%debug_this_show depth exceeded" =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let%debug_this_show rec loop_exceeded (x : int) : int =
     [%debug_interrupts
@@ -294,7 +294,7 @@ let%expect_test "%debug_this_show PrintBox to stdout depth exceeded" =
                 └─z = <max_nesting_depth exceeded>
       Raised exception. |}]
 
-let%expect_test "%debug_this_show PrintBox to stdout num children exceeded linear" =
+let%expect_test "%debug_this_show num children exceeded linear" =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let () =
     try
@@ -338,7 +338,7 @@ let%expect_test "%debug_this_show PrintBox to stdout num children exceeded linea
     └─_baz = <max_num_children exceeded>
     Raised exception: ppx_minidebug: max_num_children exceeded |}]
 
-let%expect_test "%debug_this_show PrintBox to stdout truncated children linear" =
+let%expect_test "%debug_this_show truncated children linear" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~truncate_children:10 ()) in
   let () =
     try
@@ -376,7 +376,7 @@ let%expect_test "%debug_this_show PrintBox to stdout truncated children linear" 
     │ └─_baz = 60
     └─_bar = () |}]
 
-let%expect_test "%track_this_show PrintBox to stdout track for-loop num children exceeded"
+let%expect_test "%track_this_show track for-loop num children exceeded"
     =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let () =
@@ -421,7 +421,7 @@ let%expect_test "%track_this_show PrintBox to stdout track for-loop num children
       └─i = <max_num_children exceeded>
     Raised exception: ppx_minidebug: max_num_children exceeded |}]
 
-let%expect_test "%track_this_show PrintBox to stdout track for-loop truncated children" =
+let%expect_test "%track_this_show track for-loop truncated children" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~truncate_children:10 ()) in
   let () =
     try
@@ -462,7 +462,7 @@ let%expect_test "%track_this_show PrintBox to stdout track for-loop truncated ch
     │     └─_baz = 60
     └─_bar = () |}]
 
-let%expect_test "%track_this_show PrintBox to stdout track for-loop" =
+let%expect_test "%track_this_show track for-loop" =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let () =
     try
@@ -512,7 +512,7 @@ let%expect_test "%track_this_show PrintBox to stdout track for-loop" =
       │     └─_baz = 12
       └─_bar = () |}]
 
-let%expect_test "%track_this_show PrintBox to stdout track for-loop, time spans" =
+let%expect_test "%track_this_show track for-loop, time spans" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~elapsed_times:Microseconds ())
   in
   let () =
@@ -568,7 +568,7 @@ let%expect_test "%track_this_show PrintBox to stdout track for-loop, time spans"
       │     └─_baz = 12
       └─_bar = () |}]
 
-let%expect_test "%track_this_show PrintBox to stdout track while-loop" =
+let%expect_test "%track_this_show track while-loop" =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let () =
     try
@@ -608,7 +608,7 @@ let%expect_test "%track_this_show PrintBox to stdout track while-loop" =
     └─_bar = ()
         |}]
 
-let%expect_test "%debug_this_show PrintBox to stdout num children exceeded nested" =
+let%expect_test "%debug_this_show num children exceeded nested" =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let%debug_this_show rec loop_exceeded (x : int) : int =
     [%debug_interrupts
@@ -664,7 +664,7 @@ let%expect_test "%debug_this_show PrintBox to stdout num children exceeded neste
             └─z = <max_num_children exceeded>
       Raised exception: ppx_minidebug: max_num_children exceeded |}]
 
-let%expect_test "%debug_this_show PrintBox to stdout truncated children nested" =
+let%expect_test "%debug_this_show truncated children nested" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~truncate_children:4 ()) in
   let%debug_this_show rec loop_exceeded (x : int) : int =
     Array.fold_left ( + ) 0
@@ -790,7 +790,7 @@ let%expect_test "%debug_this_show PrintBox to stdout truncated children nested" 
       └─loop_exceeded = 58435
       58435 |}]
 
-let%expect_test "%track_this_show PrintBox to stdout highlight" =
+let%expect_test "%track_this_show highlight" =
   let module Debug_runtime =
     (val Minidebug_runtime.debug ~highlight_terms:(Re.str "3") ())
   in
@@ -1029,7 +1029,7 @@ let%expect_test "nested extension points are no-ops" =
       3
     |}]
 
-let%expect_test "%debug_show PrintBox to stdout un-annotated toplevel fun" =
+let%expect_test "%debug_show un-annotated toplevel fun" =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let%debug_show anonymous x =
     let nested y = y + 1 in
@@ -1054,7 +1054,7 @@ let%expect_test "%debug_show PrintBox to stdout un-annotated toplevel fun" =
     6
   |}]
 
-let%expect_test "%debug_show PrintBox to stdout nested un-annotated toplevel fun" =
+let%expect_test "%debug_show nested un-annotated toplevel fun" =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let%debug_show wrapper () =
     let%debug_show anonymous x =
@@ -1084,7 +1084,7 @@ let%expect_test "%debug_show PrintBox to stdout nested un-annotated toplevel fun
     6
   |}]
 
-let%expect_test "%track_this_show PrintBox to stdout no return type anonymous fun" =
+let%expect_test "%track_this_show no return type anonymous fun" =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let%debug_this_show anonymous (x : int) =
     Array.fold_left ( + ) 0 @@ Array.init (x + 1) (fun (i : int) -> i)
@@ -1122,7 +1122,7 @@ let%expect_test "%track_this_show PrintBox to stdout no return type anonymous fu
       6
     |}]
 
-let%expect_test "%track_this_show PrintBox to stdout anonymous fun, num children exceeded"
+let%expect_test "%track_this_show anonymous fun, num children exceeded"
     =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let%track_this_show rec loop_exceeded (x : int) : int =
@@ -1219,7 +1219,7 @@ let%expect_test "%track_this_show PrintBox to stdout anonymous fun, num children
       Raised exception: ppx_minidebug: max_num_children exceeded
     |}]
 
-let%expect_test "%track_this_show PrintBox to stdout anonymous fun, truncated children" =
+let%expect_test "%track_this_show anonymous fun, truncated children" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~truncate_children:2 ()) in
   let%track_this_show rec loop_exceeded (x : int) : int =
     Array.fold_left ( + ) 0
@@ -1277,7 +1277,7 @@ module type T = sig
   val c : c
 end
 
-let%expect_test "%debug_this_show PrintBox to stdout function with abstract type" =
+let%expect_test "%debug_this_show function with abstract type" =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let%debug_this_show foo (type d) (module D : T with type c = d) ~a (c : int) : int =
     if c = 0 then 0 else List.length [ a; D.c ]
@@ -1821,7 +1821,7 @@ let%expect_test "%track_show PrintBox values_first_mode to stdout no return type
       6
     |}]
 
-let%expect_test "%debug_show PrintBox to stdout records" =
+let%expect_test "%debug_show records" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:false ()) in
   let%debug_show bar { first : int; second : int } : int =
     let { first : int = a; second : int = b } = { first; second = second + 3 } in
@@ -1856,7 +1856,7 @@ let%expect_test "%debug_show PrintBox to stdout records" =
     └─baz = 109
     109 |}]
 
-let%expect_test "%debug_show PrintBox to stdout tuples" =
+let%expect_test "%debug_show tuples" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:false ()) in
   let%debug_show bar ((first : int), (second : int)) : int =
     let y : int = first + 1 in
@@ -1897,7 +1897,7 @@ let%expect_test "%debug_show PrintBox to stdout tuples" =
     339
     109 |}]
 
-let%expect_test "%debug_show PrintBox to stdout records values_first_mode" =
+let%expect_test "%debug_show records values_first_mode" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
   let%debug_show bar { first : int; second : int } : int =
     let { first : int = a; second : int = b } = { first; second = second + 3 } in
@@ -1936,7 +1936,7 @@ let%expect_test "%debug_show PrintBox to stdout records values_first_mode" =
           └─second = 45
       109 |}]
 
-let%expect_test "%debug_show PrintBox to stdout tuples values_first_mode" =
+let%expect_test "%debug_show tuples values_first_mode" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
   let%debug_show bar ((first : int), (second : int)) : int =
     let y : int = first + 1 in
@@ -1987,7 +1987,7 @@ type 'a irrefutable = Zero of 'a
 type ('a, 'b) left_right = Left of 'a | Right of 'b
 type ('a, 'b, 'c) one_two_three = One of 'a | Two of 'b | Three of 'c
 
-let%expect_test "%track_show PrintBox to stdout variants values_first_mode" =
+let%expect_test "%track_show variants values_first_mode" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
   let%track_show bar (Zero (x : int)) : int =
     let y = (x + 1 : int) in
@@ -2030,7 +2030,7 @@ let%expect_test "%track_show PrintBox to stdout variants values_first_mode" =
         └─"test/test_expect_test.ml":2003:81-2003:82
       3 |}]
 
-let%expect_test "%debug_show PrintBox to stdout tuples merge type info" =
+let%expect_test "%debug_show tuples merge type info" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
   let%debug_show baz (((first : int), (second : 'a)) : 'b * int) : int * int =
     let ((y : 'c), (z : int)) : int * 'd = (first + 1, 3) in
@@ -2063,7 +2063,7 @@ let%expect_test "%debug_show PrintBox to stdout tuples merge type info" =
     339
     109 |}]
 
-let%expect_test "%debug_show PrintBox to stdout decompose multi-argument function type" =
+let%expect_test "%debug_show decompose multi-argument function type" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
   let%debug_show f : 'a. 'a -> int -> int = fun _a b -> b + 1 in
   let%debug_show g : 'a. 'a -> int -> 'a -> 'a -> int = fun _a b _c _d -> b * 2 in
@@ -2081,7 +2081,7 @@ let%expect_test "%debug_show PrintBox to stdout decompose multi-argument functio
     └─b = 6
     12 |}]
 
-let%expect_test "%debug_show PrintBox to stdout debug type info" =
+let%expect_test "%debug_show debug type info" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
   [%debug_show
     [%debug_type_info
@@ -2103,7 +2103,7 @@ let%expect_test "%debug_show PrintBox to stdout debug type info" =
       └─b : int = 6
       12 |}]
 
-let%expect_test "%track_show PrintBox to stdout options values_first_mode" =
+let%expect_test "%track_show options values_first_mode" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
   let%track_show foo l : int =
     match (l : int option) with None -> 7 | Some y -> y * 2
@@ -2142,7 +2142,7 @@ let%expect_test "%track_show PrintBox to stdout options values_first_mode" =
       └─z = 5
       9 |}]
 
-let%expect_test "%track_show PrintBox to stdout list values_first_mode" =
+let%expect_test "%track_show list values_first_mode" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
   let%track_show foo l : int = match (l : int list) with [] -> 7 | y :: _ -> y * 2 in
   let () = print_endline @@ Int.to_string @@ foo [ 7 ] in
@@ -2190,7 +2190,7 @@ let%expect_test "%track_show PrintBox to stdout list values_first_mode" =
       └─z = 5
       10 |}]
 
-let%expect_test "%track_rtb_show PrintBox to stdout list runtime passing" =
+let%expect_test "%track_rtb_show list runtime passing" =
   let%track_rtb_show foo l : int =
     match (l : int list) with [] -> 7 | y :: _ -> y * 2
   in
@@ -2390,7 +2390,7 @@ let%expect_test "%log with default type assumption" =
           ├─("tau =", "2*3.14")
           └─[("2*3", 0); ("1", 1); ("2", 2); ("3", 3)] |}]
 
-let%expect_test "%log PrintBox to stdout track while-loop" =
+let%expect_test "%log track while-loop" =
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let%track_sexp result =
     let i = ref 0 in
@@ -2436,7 +2436,7 @@ let%expect_test "%log PrintBox to stdout track while-loop" =
     21
         |}]
 
-let%expect_test "%log PrintBox to stdout runtime log levels while-loop" =
+let%expect_test "%log runtime log levels while-loop" =
   let%track_rtb_sexp result () : int =
     let i = ref 0 in
     let j = ref 0 in
@@ -2621,7 +2621,7 @@ let%expect_test "%log PrintBox to stdout runtime log levels while-loop" =
   21
       |}]
 
-let%expect_test "%log PrintBox to stdout compile time log levels while-loop" =
+let%expect_test "%log compile time log levels while-loop" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
   let%track_sexp everything () : int =
     [%log_level
