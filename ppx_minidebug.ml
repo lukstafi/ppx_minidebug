@@ -1317,7 +1317,7 @@ let global_log_level =
   Ppxlib.Context_free.Rule.extension declaration
 
 let rules =
-  global_output_type_info :: global_interrupts
+  global_log_level :: global_output_type_info :: global_interrupts
   :: List.map
        (fun { ext_point; track_branches; toplevel_opt_arg; expander; log_value } ->
          let declaration =

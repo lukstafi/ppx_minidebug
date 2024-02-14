@@ -37,6 +37,22 @@
   (run ./%{pp} --impl %{input} -o %{targets})))
 
 (rule
+ (targets test_debug_log_nothing.actual.ml)
+ (deps
+  (:pp pp.exe)
+  (:input test_debug_log_nothing.ml))
+ (action
+  (run ./%{pp} --impl %{input} -o %{targets})))
+
+(rule
+ (targets test_debug_log_prefixed.actual.ml)
+ (deps
+  (:pp pp.exe)
+  (:input test_debug_log_prefixed.ml))
+ (action
+  (run ./%{pp} --impl %{input} -o %{targets})))
+
+(rule
  (alias runtest)
  (action
   (diff test_debug_sexp.expected.ml test_debug_sexp.actual.ml)))
@@ -55,6 +71,16 @@
  (alias runtest)
  (action
   (diff test_debug_interrupts.expected.ml test_debug_interrupts.actual.ml)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff test_debug_log_nothing.expected.ml test_debug_log_nothing.actual.ml)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff test_debug_log_prefixed.expected.ml test_debug_log_prefixed.actual.ml)))
 
 (executable
  (name test_debug_sexp)
@@ -108,6 +134,22 @@
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
 
+(executable
+ (name test_debug_log_nothing)
+ (modules test_debug_log_nothing)
+ (libraries minidebug_runtime)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_deriving.show)))
+
+(executable
+ (name test_debug_log_prefixed)
+ (modules test_debug_log_prefixed)
+ (libraries minidebug_runtime)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_deriving.show)))
+
 (rule
  (target debugger_show_flushing.log)
  (action
@@ -124,9 +166,29 @@
   (run %{dep:test_debug_interrupts.exe})))
 
 (rule
+ (target debugger_show_log_nothing.log)
+ (action
+  (run %{dep:test_debug_log_nothing.exe})))
+
+(rule
+ (target debugger_show_log_prefixed.log)
+ (action
+  (run %{dep:test_debug_log_prefixed.exe})))
+
+(rule
  (alias runtest)
  (action
   (diff debugger_show_interrupts.expected.log debugger_show_interrupts.log)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_show_log_nothing.expected.log debugger_show_log_nothing.log)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_show_log_prefixed.expected.log debugger_show_log_prefixed.log)))
 
 (executable
  (name test_debug_html)

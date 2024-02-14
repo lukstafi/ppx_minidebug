@@ -22,7 +22,7 @@ depends: [
   "printbox-html" {>= "0.8"}
   "printbox-md"
   "ptime"
-  "mtime" {>= "1.4"}
+  "mtime" {>= "2.0"}
   "re"
   "sexplib0"
   "ppx_expect" {with-test & >= "v0.9.0"}
