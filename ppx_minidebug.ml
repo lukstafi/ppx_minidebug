@@ -1,11 +1,8 @@
 open Ppxlib
 module A = Ast_builder.Default
-
 (* module H = Ast_helper *)
-let track_branches = ref false
-let output_type_info = ref false
-let interrupts = ref false
-let global_log_count = ref 0
+
+type log_value = Sexp | Show | Pp
 
 type log_level =
   | Nothing
@@ -14,7 +11,29 @@ type log_level =
   | Nonempty_entries
   | Everything
 
-let log_level = ref Everything
+type toplevel_opt_arg = Nested | Toplevel_no_arg | Generic | PrintBox
+
+let global_log_count = ref 0
+
+type context = {
+  log_value : log_value;
+  track_branches : bool;
+  output_type_info : bool;
+  interrupts : bool;
+  log_level : log_level;
+  toplevel_opt_arg : toplevel_opt_arg;
+}
+
+let init_context =
+  ref
+    {
+      log_value = Sexp;
+      track_branches = false;
+      output_type_info = false;
+      interrupts = false;
+      log_level = Everything;
+      toplevel_opt_arg = Toplevel_no_arg;
+    }
 
 let parse_log_level ll =
   let exception Error of expression in
@@ -156,14 +175,13 @@ let open_log_preamble ?(brief = false) ?(message = "") ~loc () =
         ~end_colnum:[%e A.eint ~loc (loc.loc_end.pos_cnum - loc.loc_end.pos_bol)]
         ~message:[%e A.estring ~loc message] ~entry_id:__entry_id]
 
-exception Not_transforming
-
-let to_descr ~loc ~descr_loc typ =
+let to_descr context ~loc ~descr_loc typ =
   match descr_loc with
   | None -> [%expr None]
   | Some descr_loc ->
       let descr =
-        if !output_type_info then descr_loc.txt ^ " : " ^ typ2str typ else descr_loc.txt
+        if context.output_type_info then descr_loc.txt ^ " : " ^ typ2str typ
+        else descr_loc.txt
       in
       let loc = descr_loc.loc in
       [%expr Some [%e A.estring ~loc:descr_loc.loc descr]]
@@ -180,9 +198,9 @@ let check_prefix prefixes exp =
   in
   loop exp
 
-let check_log_level ~is_result exp thunk =
+let check_log_level context ~is_result exp thunk =
   let loc = exp.pexp_loc in
-  match !log_level with
+  match context.log_level with
   | Nothing -> [%expr ()]
   | Prefixed prefixes when not (check_prefix prefixes exp) -> [%expr ()]
   | Prefixed_or_result prefixes when not (is_result || check_prefix prefixes exp) ->
@@ -190,8 +208,8 @@ let check_log_level ~is_result exp thunk =
   | _ -> thunk ()
 
 (* *** The sexplib-based variant. *** *)
-let log_value_sexp ~loc ~typ ?descr_loc ~is_result exp =
-  check_log_level ~is_result exp @@ fun () ->
+let log_value_sexp context ~loc ~typ ?descr_loc ~is_result exp =
+  check_log_level context ~is_result exp @@ fun () ->
   match typ with
   | {
       ptyp_desc = Ptyp_poly (_, { ptyp_desc = Ptyp_extension ext; _ });
@@ -205,7 +223,8 @@ let log_value_sexp ~loc ~typ ?descr_loc ~is_result exp =
       (* [%sexp_of: typ] does not work with `Ptyp_poly`. Misleading error "Let with no bindings". *)
       incr global_log_count;
       [%expr
-        Debug_runtime.log_value_sexp ?descr:[%e to_descr ~loc ~descr_loc typ]
+        Debug_runtime.log_value_sexp
+          ?descr:[%e to_descr context ~loc ~descr_loc typ]
           ~entry_id:__entry_id ~is_result:[%e A.ebool ~loc is_result]
           ([%sexp_of: [%t typ]] [%e exp])]
 
@@ -219,38 +238,34 @@ let rec splice_lident ~id_prefix ident =
   | Ldot (path, id) -> Ldot (path, splice id)
   | Lapply (f, a) -> Lapply (splice_lident ~id_prefix f, a)
 
-let log_value_pp ~loc ~typ ?descr_loc ~is_result exp =
-  check_log_level ~is_result exp @@ fun () ->
-  try
-    let t_lident_loc =
-      match typ with
-      | {
-       ptyp_desc =
-         ( Ptyp_constr (t_lident_loc, [])
-         | Ptyp_poly (_, { ptyp_desc = Ptyp_constr (t_lident_loc, []); _ }) );
-       _;
-      } ->
-          t_lident_loc
-      | _ -> raise Not_transforming
-    in
-    let converter =
-      A.pexp_ident ~loc
-        { t_lident_loc with txt = splice_lident ~id_prefix:"pp_" t_lident_loc.txt }
-    in
-    incr global_log_count;
-    [%expr
-      Debug_runtime.log_value_pp ?descr:[%e to_descr ~loc ~descr_loc typ]
-        ~entry_id:__entry_id ~pp:[%e converter] ~is_result:[%e A.ebool ~loc is_result]
-        [%e exp]]
-  with Not_transforming ->
-    A.pexp_extension ~loc
-    @@ Location.error_extensionf ~loc
-         "ppx_minidebug: cannot find a concrete type to _pp log this value: try _show or \
-          _sexp"
+let log_value_pp context ~loc ~typ ?descr_loc ~is_result exp =
+  check_log_level context ~is_result exp @@ fun () ->
+  match typ with
+  | {
+   ptyp_desc =
+     ( Ptyp_constr (t_lident_loc, [])
+     | Ptyp_poly (_, { ptyp_desc = Ptyp_constr (t_lident_loc, []); _ }) );
+   _;
+  } ->
+      let converter =
+        A.pexp_ident ~loc
+          { t_lident_loc with txt = splice_lident ~id_prefix:"pp_" t_lident_loc.txt }
+      in
+      incr global_log_count;
+      [%expr
+        Debug_runtime.log_value_pp
+          ?descr:[%e to_descr context ~loc ~descr_loc typ]
+          ~entry_id:__entry_id ~pp:[%e converter] ~is_result:[%e A.ebool ~loc is_result]
+          [%e exp]]
+  | _ ->
+      A.pexp_extension ~loc
+      @@ Location.error_extensionf ~loc
+           "ppx_minidebug: cannot find a concrete type to _pp log this value: try _show \
+            or _sexp"
 
 (* *** The deriving.show string-based variant. *** *)
-let log_value_show ~loc ~typ ?descr_loc ~is_result exp =
-  check_log_level ~is_result exp @@ fun () ->
+let log_value_show context ~loc ~typ ?descr_loc ~is_result exp =
+  check_log_level context ~is_result exp @@ fun () ->
   match typ with
   | {
       ptyp_desc = Ptyp_poly (_, { ptyp_desc = Ptyp_extension ext; _ });
@@ -264,11 +279,16 @@ let log_value_show ~loc ~typ ?descr_loc ~is_result exp =
       (* Defensive in case there's problems with poly types. *)
       incr global_log_count;
       [%expr
-        Debug_runtime.log_value_show ?descr:[%e to_descr ~loc ~descr_loc typ]
+        Debug_runtime.log_value_show
+          ?descr:[%e to_descr context ~loc ~descr_loc typ]
           ~entry_id:__entry_id ~is_result:[%e A.ebool ~loc is_result]
           ([%show: [%t typ]] [%e exp])]
 
-let log_value = ref log_value_sexp
+let log_value context =
+  match context.log_value with
+  | Sexp -> log_value_sexp context
+  | Show -> log_value_show context
+  | Pp -> log_value_pp context
 
 let log_string ~loc ~descr_loc s =
   [%expr
@@ -452,12 +472,12 @@ let bound_patterns ~alt_typ pat =
   let loc = pat.ppat_loc in
   (A.ppat_alias ~loc bind_pat { txt = "__res"; loc }, bound)
 
-let entry_with_interrupts ~loc ~descr_loc ~log_count_before ?header ~preamble ~entry
-    ~result ~log_result () =
-  if !log_level <> Everything && log_count_before = !global_log_count then entry
+let entry_with_interrupts context ~loc ~descr_loc ~log_count_before ?header ~preamble
+    ~entry ~result ~log_result () =
+  if context.log_level <> Everything && log_count_before = !global_log_count then entry
   else
     let header = match header with Some h -> h | None -> [%expr ()] in
-    if !interrupts then
+    if context.interrupts then
       [%expr
         let __entry_id = Debug_runtime.get_entry_id () in
         [%e header];
@@ -493,10 +513,11 @@ let entry_with_interrupts ~loc ~descr_loc ~log_count_before ?header ~preamble ~e
             Debug_runtime.close_log ();
             raise e]
 
-let debug_body callback ~loc ~message ~descr_loc ~log_count_before ~arg_logs typ body =
+let debug_body context callback ~loc ~message ~descr_loc ~log_count_before ~arg_logs typ
+    body =
   let message =
     match typ with
-    | Some t when !output_type_info -> message ^ " : " ^ typ2str t
+    | Some t when context.output_type_info -> message ^ " : " ^ typ2str t
     | _ -> message
   in
   let preamble = open_log_preamble ~message ~loc () in
@@ -515,10 +536,10 @@ let debug_body callback ~loc ~message ~descr_loc ~log_count_before ~arg_logs typ
   let log_result =
     match typ with
     | None -> [%expr ()]
-    | Some typ -> !log_value ~loc ~typ ~descr_loc ~is_result:true (pat2expr result)
+    | Some typ -> log_value context ~loc ~typ ~descr_loc ~is_result:true (pat2expr result)
   in
-  entry_with_interrupts ~loc ~descr_loc ~log_count_before ~preamble
-    ~entry:(callback () body) ~result ~log_result ()
+  entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
+    ~entry:(callback context body) ~result ~log_result ()
 
 let rec collect_fun_typs arg_typs typ =
   match typ.ptyp_desc with
@@ -526,96 +547,121 @@ let rec collect_fun_typs arg_typs typ =
   | Ptyp_arrow (_, arg_typ, typ) -> collect_fun_typs (arg_typ :: arg_typs) typ
   | _ -> (List.rev arg_typs, typ)
 
-type runtime_from_arg = Not_from_arg | Generic | PrintBox
-type is_toplevel = Toplevel | Nested
+let pass_runtime toplevel_opt_arg exp =
+  let loc = exp.pexp_loc in
+  (* Only pass runtime to functions. *)
+  match (toplevel_opt_arg, exp) with
+  | Generic, { pexp_desc = Pexp_newtype _ | Pexp_fun _ | Pexp_function _; _ } ->
+      [%expr fun (_debug_runtime : (module Minidebug_runtime.Debug_runtime)) -> [%e exp]]
+  | PrintBox, { pexp_desc = Pexp_newtype _ | Pexp_fun _ | Pexp_function _; _ } ->
+      [%expr
+        fun (_debug_runtime : (module Minidebug_runtime.PrintBox_runtime)) -> [%e exp]]
+  | _ -> exp
 
-let debug_fun runtime_from_arg callback ?(is_toplevel = Nested) ?typ ?ret_descr ?ret_typ
-    exp =
-  if !log_level = Nothing then raise Not_transforming;
+let unpack_runtime toplevel_opt_arg exp =
+  let loc = exp.pexp_loc in
+  match toplevel_opt_arg with
+  | Nested | Toplevel_no_arg -> exp
+  | Generic | PrintBox ->
+      [%expr
+        let module Debug_runtime = (val _debug_runtime) in
+        [%e exp]]
+
+let has_runtime_arg = function
+  | { toplevel_opt_arg = Nested | Toplevel_no_arg; _ } -> false
+  | _ -> true
+
+let debug_fun context callback ?typ ?ret_descr ?ret_typ exp =
   let log_count_before = !global_log_count in
   let args, body, ret_typ2 = collect_fun [] exp in
-  let arg_typs, ret_typ3 =
-    match typ with
-    | None -> ([], None)
-    | Some typ ->
-        let arg_typs, ret_typ = collect_fun_typs [] typ in
-        (arg_typs, Some ret_typ)
+  let nested = { context with toplevel_opt_arg = Nested } in
+  let no_change_exp () =
+    let body = callback nested body in
+    let body =
+      match ret_typ2 with
+      | Some typ ->
+          let loc = body.pexp_loc in
+          [%expr ([%e body] : [%t typ])]
+      | None -> body
+    in
+    pass_runtime context.toplevel_opt_arg @@ expand_fun body args
   in
-  let loc = exp.pexp_loc in
-  let typ =
-    match (ret_typ, ret_typ2, ret_typ3) with
-    | _, Some typ, _ ->
-        Some (pick ~typ:(pick ~typ ?alt_typ:ret_typ ()) ?alt_typ:ret_typ3 ())
-    | _, None, None -> ret_typ
-    | None, None, Some t -> Some t
-    | Some typ, None, _ -> Some (pick ~typ ?alt_typ:ret_typ3 ())
-  in
-  if (not !track_branches) && is_toplevel = Nested && Option.is_none typ then
-    raise Not_transforming;
-  let ret_descr =
-    match ret_descr with
-    | None when !track_branches -> { txt = "__fun"; loc }
-    | None -> raise Not_transforming
-    | Some descr -> descr
-  in
-  let rec arg_log = function
-    | arg_typs, Pexp_newtype_arg _ :: args -> arg_log (arg_typs, args)
-    | ( alt_typ :: arg_typs,
-        Pexp_fun_arg
-          (_arg_label, _opt_val, pat, pexp_loc, _pexp_loc_stack, _pexp_attributes)
-        :: args ) ->
-        let _, bound = bound_patterns ~alt_typ:(Some alt_typ) pat in
-        List.map
-          (fun (descr_loc, pat, typ) ->
-            !log_value ~loc:pexp_loc ~typ ~descr_loc ~is_result:false (pat2expr pat))
-          bound
-        @ arg_log (arg_typs, args)
-    | ( [],
-        Pexp_fun_arg
-          (_arg_label, _opt_val, pat, pexp_loc, _pexp_loc_stack, _pexp_attributes)
-        :: args ) ->
-        let _, bound = bound_patterns ~alt_typ:None pat in
-        List.map
-          (fun (descr_loc, pat, typ) ->
-            !log_value ~loc:pexp_loc ~typ ~descr_loc ~is_result:false (pat2expr pat))
-          bound
-        @ arg_log ([], args)
-    | _, [] -> []
-  in
-  let arg_logs = arg_log (arg_typs, args) in
-  let body =
-    debug_body callback ~loc ~message:ret_descr.txt ~descr_loc:ret_descr ~log_count_before
-      ~arg_logs typ body
-  in
-  let body =
-    match ret_typ2 with None -> body | Some typ -> [%expr ([%e body] : [%t typ])]
-  in
-  let body =
-    match runtime_from_arg with
-    | Not_from_arg -> body
-    | Generic | PrintBox ->
-        [%expr
-          let module Debug_runtime = (val debug_runtime) in
-          [%e body]]
-  in
-  let exp = expand_fun body args in
-  match runtime_from_arg with
-  | Not_from_arg -> exp
-  | Generic ->
-      [%expr fun (debug_runtime : (module Minidebug_runtime.Debug_runtime)) -> [%e exp]]
-  | PrintBox ->
-      [%expr
-        fun (debug_runtime : (module Minidebug_runtime.PrintBox_runtime)) -> [%e exp]]
+  if context.log_level = Nothing then no_change_exp ()
+  else
+    let arg_typs, ret_typ3 =
+      match typ with
+      | None -> ([], None)
+      | Some typ ->
+          let arg_typs, ret_typ = collect_fun_typs [] typ in
+          (arg_typs, Some ret_typ)
+    in
+    let loc = exp.pexp_loc in
+    let typ =
+      match (ret_typ, ret_typ2, ret_typ3) with
+      | _, Some typ, _ ->
+          Some (pick ~typ:(pick ~typ ?alt_typ:ret_typ ()) ?alt_typ:ret_typ3 ())
+      | _, None, None -> ret_typ
+      | None, None, Some t -> Some t
+      | Some typ, None, _ -> Some (pick ~typ ?alt_typ:ret_typ3 ())
+    in
+    if
+      (not context.track_branches)
+      && (context.toplevel_opt_arg = Nested || ret_descr = None)
+      && Option.is_none typ
+    then no_change_exp ()
+    else
+      let ret_descr =
+        match ret_descr with
+        | None (* when context.track_branches *) -> { txt = "__fun"; loc }
+        | Some descr -> descr
+      in
+      let rec arg_log = function
+        | arg_typs, Pexp_newtype_arg _ :: args -> arg_log (arg_typs, args)
+        | ( alt_typ :: arg_typs,
+            Pexp_fun_arg
+              (_arg_label, _opt_val, pat, pexp_loc, _pexp_loc_stack, _pexp_attributes)
+            :: args ) ->
+            let _, bound = bound_patterns ~alt_typ:(Some alt_typ) pat in
+            List.map
+              (fun (descr_loc, pat, typ) ->
+                log_value context ~loc:pexp_loc ~typ ~descr_loc ~is_result:false
+                  (pat2expr pat))
+              bound
+            @ arg_log (arg_typs, args)
+        | ( [],
+            Pexp_fun_arg
+              (_arg_label, _opt_val, pat, pexp_loc, _pexp_loc_stack, _pexp_attributes)
+            :: args ) ->
+            let _, bound = bound_patterns ~alt_typ:None pat in
+            List.map
+              (fun (descr_loc, pat, typ) ->
+                log_value context ~loc:pexp_loc ~typ ~descr_loc ~is_result:false
+                  (pat2expr pat))
+              bound
+            @ arg_log ([], args)
+        | _, [] -> []
+      in
+      let arg_logs = arg_log (arg_typs, args) in
+      let body =
+        debug_body nested callback ~loc ~message:ret_descr.txt ~descr_loc:ret_descr
+          ~log_count_before ~arg_logs typ body
+      in
+      let body =
+        match ret_typ2 with None -> body | Some typ -> [%expr ([%e body] : [%t typ])]
+      in
+      let exp = expand_fun (unpack_runtime context.toplevel_opt_arg body) args in
+      pass_runtime context.toplevel_opt_arg exp
 
-let debug_case callback ?ret_descr ?ret_typ ?arg_typ kind i { pc_lhs; pc_guard; pc_rhs } =
+let debug_case context callback ?ret_descr ?ret_typ ?arg_typ kind i
+    { pc_lhs; pc_guard; pc_rhs } =
   let log_count_before = !global_log_count in
-  let pc_guard = Option.map (callback ()) pc_guard in
+  let pc_guard = Option.map (callback context) pc_guard in
   let loc = pc_lhs.ppat_loc in
   let _, bound = bound_patterns ~alt_typ:arg_typ pc_lhs in
   let arg_logs =
     List.map
       (fun (descr_loc, pat, typ) ->
-        !log_value ~loc ~typ ~descr_loc ~is_result:false (pat2expr pat))
+        log_value context ~loc ~typ ~descr_loc ~is_result:false (pat2expr pat))
       bound
   in
   let message = pat2descr ~default:"_" pc_lhs in
@@ -627,102 +673,37 @@ let debug_case callback ?ret_descr ?ret_typ ?arg_typ kind i { pc_lhs; pc_guard; 
     | Some ret -> ret
   in
   let pc_rhs =
-    debug_body callback ~loc:pc_rhs.pexp_loc ~message ~descr_loc:ret_descr
+    debug_body context callback ~loc:pc_rhs.pexp_loc ~message ~descr_loc:ret_descr
       ~log_count_before ~arg_logs ret_typ pc_rhs
   in
   { pc_lhs; pc_guard; pc_rhs }
 
-let debug_binding runtime_from_arg callback is_toplevel vb =
-  if !log_level = Nothing then raise Not_transforming;
-  let loc = vb.pvb_loc in
-  let pat, ret_descr, typ =
-    match vb.pvb_pat with
-    | [%pat?
-        ([%p? { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat] :
-          [%t? typ])] ->
-        (pat, Some descr_loc, Some typ)
-    | { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat ->
-        (pat, Some descr_loc, None)
-    | pat -> (pat, None, None)
-  in
-  let exp, typ2 =
-    match vb.pvb_expr with
-    | [%expr ([%e? exp] : [%t? typ])] -> (exp, Some typ)
-    | exp -> (exp, None)
-  in
-  let typ =
-    match typ with Some typ -> Some (pick ~typ ?alt_typ:typ2 ()) | None -> typ2
-  in
-  let arg_typ, ret_typ =
-    match typ with
-    | Some { ptyp_desc = Ptyp_arrow (_, arg_typ, ret_typ); _ } ->
-        (Some arg_typ, Some ret_typ)
-    | _ -> (None, None)
-  in
+let debug_function context callback ~loc ?ret_descr ?ret_typ ?arg_typ cases =
+  let nested = { context with toplevel_opt_arg = Nested } in
   let exp =
-    match exp with
-    | { pexp_desc = Pexp_newtype _ | Pexp_fun _; _ } ->
-        (* [ret_typ] is not the return type if the function has more arguments. *)
-        (* [debug_fun] handles the runtime passing configuration. *)
-        debug_fun runtime_from_arg callback ~is_toplevel ?typ ?ret_descr exp
-    | { pexp_desc = Pexp_function cases; _ } -> (
-        let exp =
-          A.pexp_function ~loc:vb.pvb_expr.pexp_loc
-            (List.mapi
-               (debug_case callback ?ret_descr ?ret_typ ?arg_typ "function")
-               cases)
-        in
-        match runtime_from_arg with
-        | Not_from_arg -> exp
-        | Generic ->
-            [%expr
-              fun (debug_runtime : (module Minidebug_runtime.Debug_runtime)) ->
-                let module Debug_runtime = (val debug_runtime) in
-                [%e exp]]
-        | PrintBox ->
-            [%expr
-              fun (debug_runtime : (module Minidebug_runtime.PrintBox_runtime)) ->
-                let module Debug_runtime = (val debug_runtime) in
-                [%e exp]])
-    | _ ->
-        let result, bound = bound_patterns ~alt_typ:typ pat in
-        if bound = [] then raise Not_transforming;
-        let log_count_before = !global_log_count in
-        let descr_loc = pat2descr ~default:"__val" pat in
-        let log_result =
-          List.map
-            (fun (descr_loc, pat, typ) ->
-              !log_value ~loc:vb.pvb_expr.pexp_loc ~typ ~descr_loc ~is_result:true
-                (pat2expr pat))
-            bound
-          |> List.fold_left
-               (fun e1 e2 ->
-                 [%expr
-                   [%e e1];
-                   [%e e2]])
-               [%expr ()]
-        in
-        let preamble =
-          open_log_preamble ~brief:true ~message:descr_loc.txt ~loc:descr_loc.loc ()
-        in
-        entry_with_interrupts ~loc ~descr_loc ~log_count_before ~preamble
-          ~entry:(callback () exp) ~result ~log_result ()
+    A.pexp_function ~loc
+      (List.mapi
+         (debug_case nested callback ?ret_descr ?ret_typ ?arg_typ "function")
+         cases)
   in
-  let pvb_expr =
-    match (typ2, runtime_from_arg) with
-    | None, Not_from_arg -> exp
-    | Some typ, Not_from_arg -> [%expr ([%e exp] : [%t typ])]
-    | Some typ, Generic ->
-        [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> [%t typ])]
-    | Some typ, PrintBox ->
-        [%expr ([%e exp] : (module Minidebug_runtime.PrintBox_runtime) -> [%t typ])]
-    | None, Generic -> [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> _)]
-    | None, PrintBox ->
-        [%expr ([%e exp] : (module Minidebug_runtime.PrintBox_runtime) -> _)]
-  in
+  match context.toplevel_opt_arg with
+  | Nested | Toplevel_no_arg -> exp
+  | Generic ->
+      [%expr
+        fun (_debug_runtime : (module Minidebug_runtime.Debug_runtime)) ->
+          let module Debug_runtime = (val _debug_runtime) in
+          [%e exp]]
+  | PrintBox ->
+      [%expr
+        fun (_debug_runtime : (module Minidebug_runtime.PrintBox_runtime)) ->
+          let module Debug_runtime = (val _debug_runtime) in
+          [%e exp]]
+
+let debug_binding context callback vb =
+  let nested = { context with toplevel_opt_arg = Nested } in
   let pvb_pat =
     (* FIXME(#18): restoring a modified type constraint breaks typing. *)
-    match (vb.pvb_pat, runtime_from_arg) with
+    match (vb.pvb_pat, context.toplevel_opt_arg) with
     | [%pat? ([%p? pat] : [%t? _typ])], Generic ->
         pat
         (* [%pat? ([%p pat] : (module Minidebug_runtime.Debug_runtime) -> [%t typ])] *)
@@ -731,13 +712,93 @@ let debug_binding runtime_from_arg callback is_toplevel vb =
         (* [%pat? ([%p pat] : (module Minidebug_runtime.PrintBox_runtime) -> [%t typ])] *)
     | _ -> vb.pvb_pat
   in
-  { vb with pvb_expr; pvb_pat }
+  if context.log_level = Nothing then
+    {
+      vb with
+      pvb_pat;
+      pvb_expr = pass_runtime context.toplevel_opt_arg @@ callback nested vb.pvb_expr;
+    }
+  else
+    let loc = vb.pvb_loc in
+    let pat, ret_descr, typ =
+      match vb.pvb_pat with
+      | [%pat?
+          ([%p? { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat] :
+            [%t? typ])] ->
+          (pat, Some descr_loc, Some typ)
+      | { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat ->
+          (pat, Some descr_loc, None)
+      | pat -> (pat, None, None)
+    in
+    let exp, typ2 =
+      match vb.pvb_expr with
+      | [%expr ([%e? exp] : [%t? typ])] -> (exp, Some typ)
+      | exp -> (exp, None)
+    in
+    let typ =
+      match typ with Some typ -> Some (pick ~typ ?alt_typ:typ2 ()) | None -> typ2
+    in
+    let arg_typ, ret_typ =
+      match typ with
+      | Some { ptyp_desc = Ptyp_arrow (_, arg_typ, ret_typ); _ } ->
+          (Some arg_typ, Some ret_typ)
+      | _ -> (None, None)
+    in
+    let exp =
+      match exp with
+      | { pexp_desc = Pexp_newtype _ | Pexp_fun _; _ } ->
+          (* [ret_typ] is not the return type if the function has more arguments. *)
+          (* [debug_fun] handles the runtime passing configuration. *)
+          debug_fun context callback ?typ ?ret_descr exp
+      | { pexp_desc = Pexp_function cases; _ } ->
+          debug_function context callback ~loc:vb.pvb_expr.pexp_loc ?ret_descr ?ret_typ
+            ?arg_typ cases
+      | _ ->
+          let result, bound = bound_patterns ~alt_typ:typ pat in
+          if bound = [] then callback nested exp
+          else
+            let log_count_before = !global_log_count in
+            let descr_loc = pat2descr ~default:"__val" pat in
+            let log_result =
+              List.map
+                (fun (descr_loc, pat, typ) ->
+                  log_value context ~loc:vb.pvb_expr.pexp_loc ~typ ~descr_loc
+                    ~is_result:true (pat2expr pat))
+                bound
+              |> List.fold_left
+                   (fun e1 e2 ->
+                     [%expr
+                       [%e e1];
+                       [%e e2]])
+                   [%expr ()]
+            in
+            let preamble =
+              open_log_preamble ~brief:true ~message:descr_loc.txt ~loc:descr_loc.loc ()
+            in
+            entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
+              ~entry:(callback context exp) ~result ~log_result ()
+    in
+    let pvb_expr =
+      match (typ2, context.toplevel_opt_arg) with
+      | None, (Nested | Toplevel_no_arg) -> exp
+      | Some typ, (Nested | Toplevel_no_arg) -> [%expr ([%e exp] : [%t typ])]
+      | Some typ, Generic ->
+          [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> [%t typ])]
+      | Some typ, PrintBox ->
+          [%expr ([%e exp] : (module Minidebug_runtime.PrintBox_runtime) -> [%t typ])]
+      | None, Generic ->
+          [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> _)]
+      | None, PrintBox ->
+          [%expr ([%e exp] : (module Minidebug_runtime.PrintBox_runtime) -> _)]
+    in
+    { vb with pvb_expr; pvb_pat }
 
 let extract_type ?default ~alt_typ exp =
   let default =
     let loc = exp.pexp_loc in
     match default with None -> [%type: string] | Some typ -> typ
   in
+  let exception Not_transforming in
   let rec loop ~use_default ?alt_typ exp =
     let loc = exp.pexp_loc in
     let typ, exp =
@@ -839,25 +900,25 @@ let extract_type ?default ~alt_typ exp =
 
 type rule = {
   ext_point : string;
-  tracking : bool;
-  runtime_passing : runtime_from_arg;
+  track_branches : bool;
+  toplevel_opt_arg : toplevel_opt_arg;
   expander : [ `Debug | `Debug_this | `Str ];
-  printer : [ `Pp | `Sexp | `Show ];
+  log_value : log_value;
 }
 
 let rules =
   List.concat
   @@ List.map
-       (fun tracking ->
+       (fun track_branches ->
          List.concat
          @@ List.map
-              (fun runtime_passing ->
+              (fun toplevel_opt_arg ->
                 List.concat
                 @@ List.map
                      (fun expander ->
                        List.map
-                         (fun printer ->
-                           let ext_point = if tracking then "track" else "debug" in
+                         (fun log_value ->
+                           let ext_point = if track_branches then "track" else "debug" in
                            let ext_point =
                              ext_point
                              ^
@@ -866,23 +927,30 @@ let rules =
                              | `Debug | `Str -> ""
                            in
                            let ext_point =
-                             match runtime_passing with
-                             | Not_from_arg -> ext_point
+                             match toplevel_opt_arg with
+                             | Nested -> assert false
+                             | Toplevel_no_arg -> ext_point
                              | Generic -> ext_point ^ "_rt"
                              | PrintBox -> ext_point ^ "_rtb"
                            in
                            let ext_point =
                              ext_point ^ "_"
                              ^
-                             match printer with
-                             | `Pp -> "pp"
-                             | `Sexp -> "sexp"
-                             | `Show -> "show"
+                             match log_value with
+                             | Pp -> "pp"
+                             | Sexp -> "sexp"
+                             | Show -> "show"
                            in
-                           { ext_point; tracking; runtime_passing; expander; printer })
-                         [ `Pp; `Sexp; `Show ])
+                           {
+                             ext_point;
+                             track_branches;
+                             toplevel_opt_arg;
+                             expander;
+                             log_value;
+                           })
+                         [ Pp; Sexp; Show ])
                      [ `Debug; `Debug_this; `Str ])
-              [ Not_from_arg; Generic; PrintBox ])
+              [ Toplevel_no_arg; Generic; PrintBox ])
        [ false; true ]
 
 let is_ext_point =
@@ -890,16 +958,14 @@ let is_ext_point =
   let regex = Re.(compile @@ seq [ start; alt points; stop ]) in
   Re.execp regex
 
-let traverse =
+let traverse_expression =
   object (self)
-    inherit [runtime_from_arg * is_toplevel] Ast_traverse.map_with_context as super
+    inherit [context] Ast_traverse.map_with_context as super
 
-    method! expression (runtime_from_arg, is_toplevel) exp =
-      let callback ?(runtime_from_arg = Not_from_arg) () e =
-        self#expression (runtime_from_arg, Nested) e
-      in
+    method! expression context exp =
+      let callback context e = self#expression context e in
       let track_cases ?ret_descr ?ret_typ ?arg_typ kind =
-        List.mapi (debug_case callback ?ret_descr ?ret_typ ?arg_typ kind)
+        List.mapi (debug_case context callback ?ret_descr ?ret_typ ?arg_typ kind)
       in
       let loc = exp.pexp_loc in
       let exp, ret_typ =
@@ -910,42 +976,39 @@ let traverse =
       let pexp_desc =
         match exp.pexp_desc with
         | Pexp_let (rec_flag, bindings, body) ->
-            let bindings =
-              List.map
-                (fun vb ->
-                  try debug_binding runtime_from_arg callback is_toplevel vb
-                  with Not_transforming ->
-                    { vb with pvb_expr = callback () vb.pvb_expr })
-                bindings
-            in
-            Pexp_let (rec_flag, bindings, callback () body)
+            let bindings = List.map (debug_binding context callback) bindings in
+            Pexp_let
+              ( rec_flag,
+                bindings,
+                callback { context with toplevel_opt_arg = Nested } body )
         | Pexp_extension ({ loc = _; txt }, PStr [%str [%e? body]]) when is_ext_point txt
           ->
+            let prefix_pos = String.index txt '_' in
+            let track_branches =
+              match String.sub txt 0 prefix_pos with
+              | "debug" -> false
+              | "track" -> true
+              | _ -> context.track_branches
+            in
             let suffix_pos = String.rindex txt '_' in
-            (match String.sub txt suffix_pos (String.length txt - suffix_pos) with
-            | "_pp" -> log_value := log_value_pp
-            | "_show" -> log_value := log_value_show
-            | "_sexp" -> log_value := log_value_sexp
-            | _ -> ());
-            let runtime_from_arg =
+            let log_value =
+              match String.sub txt suffix_pos (String.length txt - suffix_pos) with
+              | "_pp" -> Pp
+              | "_show" -> Show
+              | "_sexp" -> Sexp
+              | _ -> context.log_value
+            in
+            let toplevel_opt_arg =
               if String.length txt > 9 && String.sub txt 5 4 = "_rt_" then Generic
               else if String.length txt > 10 && String.sub txt 5 5 = "_rtb_" then PrintBox
-              else Not_from_arg
+              else Toplevel_no_arg
             in
-            (self#expression (runtime_from_arg, Toplevel) body).pexp_desc
-        | Pexp_extension ({ loc = _; txt = "debug_notrace" }, PStr [%str [%e? body]]) -> (
-            let old_track_branches = !track_branches in
-            track_branches := false;
-            match callback ~runtime_from_arg () body with
-            | result ->
-                track_branches := old_track_branches;
-                result.pexp_desc
-            | exception Not_transforming ->
-                track_branches := old_track_branches;
-                body.pexp_desc
-            | exception e ->
-                track_branches := old_track_branches;
-                raise e)
+            (self#expression
+               { context with log_value; track_branches; toplevel_opt_arg }
+               body)
+              .pexp_desc
+        | Pexp_extension ({ loc = _; txt = "debug_notrace" }, PStr [%str [%e? body]]) ->
+            (callback { context with track_branches = false } body).pexp_desc
         | Pexp_extension
             ( { loc = _; txt = "log_level" },
               PStr
@@ -956,16 +1019,7 @@ let traverse =
             | Right error ->
                 (* FIXME: will this lose the location? *)
                 error.pexp_desc
-            | Left new_log_level -> (
-                let old_log_level = !log_level in
-                log_level := new_log_level;
-                match callback ~runtime_from_arg () body with
-                | result ->
-                    log_level := old_log_level;
-                    result.pexp_desc
-                | exception e ->
-                    log_level := old_log_level;
-                    raise e))
+            | Left log_level -> (callback { context with log_level } body).pexp_desc)
         | Pexp_extension
             ( { loc = _; txt = "debug_interrupts" },
               PStr
@@ -974,72 +1028,46 @@ let traverse =
                     max_nesting_depth = [%e? max_nesting_depth];
                     max_num_children = [%e? max_num_children];
                   };
-                  [%e? body]] ) -> (
-            let old_interrupts = !interrupts in
-            interrupts := true;
-            match callback ~runtime_from_arg () body with
-            | result ->
-                interrupts := old_interrupts;
-                [%expr
-                  Debug_runtime.max_nesting_depth := Some [%e max_nesting_depth];
-                  Debug_runtime.max_num_children := Some [%e max_num_children];
-                  [%e result]]
-                  .pexp_desc
-            | exception e ->
-                interrupts := old_interrupts;
-                raise e)
+                  [%e? body]] ) ->
+            [%expr
+              Debug_runtime.max_nesting_depth := Some [%e max_nesting_depth];
+              Debug_runtime.max_num_children := Some [%e max_num_children];
+              [%e callback { context with interrupts = true } body]]
+              .pexp_desc
         | Pexp_extension ({ loc = _; txt = "debug_interrupts" }, PStr [%str [%e? _]]) ->
             (A.pexp_extension ~loc
             @@ Location.error_extensionf ~loc
                  "ppx_minidebug: bad syntax, expacted [%%debug_interrupts \
                   {max_nesting_depth=N;max_num_children=M}; <BODY>]")
               .pexp_desc
-        | Pexp_extension ({ loc = _; txt = "debug_type_info" }, PStr [%str [%e? body]])
-          -> (
-            let old_output_type_info = !output_type_info in
-            output_type_info := true;
-            match callback ~runtime_from_arg () body with
-            | result ->
-                output_type_info := old_output_type_info;
-                result.pexp_desc
-            | exception e ->
-                output_type_info := old_output_type_info;
-                raise e)
+        | Pexp_extension ({ loc = _; txt = "debug_type_info" }, PStr [%str [%e? body]]) ->
+            (callback { context with output_type_info = true } body).pexp_desc
         | Pexp_extension ({ loc = _; txt = "log" }, PStr [%str [%e? body]]) ->
             let typ = extract_type ~alt_typ:ret_typ body in
-            (!log_value ~loc ~typ ~is_result:false body).pexp_desc
-        | Pexp_newtype (type_label, subexp) -> (
-            try
-              (debug_fun runtime_from_arg callback ~is_toplevel ?typ:ret_typ exp)
-                .pexp_desc
-            with Not_transforming ->
-              Pexp_newtype (type_label, self#expression (runtime_from_arg, Nested) subexp)
-            )
-        | Pexp_fun (arg_label, guard, pat, subexp) -> (
-            try
-              (debug_fun runtime_from_arg callback ~is_toplevel ?typ:ret_typ exp)
-                .pexp_desc
-            with Not_transforming ->
-              Pexp_fun
-                (arg_label, guard, pat, self#expression (Not_from_arg, Nested) subexp))
+            (log_value context ~loc ~typ ~is_result:false body).pexp_desc
+        | Pexp_newtype _ -> (debug_fun context callback ?typ:ret_typ exp).pexp_desc
+        | Pexp_fun _ -> (debug_fun context callback ?typ:ret_typ exp).pexp_desc
         | Pexp_match ([%expr ([%e? expr] : [%t? arg_typ])], cases)
-          when !track_branches && !log_level <> Nothing ->
-            Pexp_match (callback () expr, track_cases ~arg_typ ?ret_typ "match" cases)
-        | Pexp_match (expr, cases) when !track_branches && !log_level <> Nothing ->
-            Pexp_match (callback () expr, track_cases ?ret_typ "match" cases)
-        | Pexp_function cases when !track_branches && !log_level <> Nothing ->
+          when context.track_branches && context.log_level <> Nothing ->
+            Pexp_match (callback context expr, track_cases ~arg_typ ?ret_typ "match" cases)
+        | Pexp_match (expr, cases)
+          when context.track_branches && context.log_level <> Nothing ->
+            Pexp_match (callback context expr, track_cases ?ret_typ "match" cases)
+        | Pexp_function cases when context.track_branches && context.log_level <> Nothing
+          ->
             let arg_typ, ret_typ =
               match ret_typ with
               | Some { ptyp_desc = Ptyp_arrow (_, arg, ret); _ } -> (Some arg, Some ret)
               | _ -> (None, None)
             in
-            Pexp_function (track_cases ?arg_typ ?ret_typ "function" cases)
+            (debug_function context callback ~loc:exp.pexp_loc ?arg_typ ?ret_typ cases)
+              .pexp_desc
         | Pexp_ifthenelse (if_, then_, else_)
-          when !track_branches && !log_level <> Nothing ->
+          when context.track_branches && context.log_level <> Nothing ->
             let then_ =
               let log_count_before = !global_log_count in
               let loc = then_.pexp_loc in
-              let then_ = callback () then_ in
+              let then_ = callback context then_ in
               let then_' =
                 [%expr
                   let __entry_id = Debug_runtime.get_entry_id () in
@@ -1053,13 +1081,13 @@ let traverse =
                       Debug_runtime.close_log ();
                       raise e]
               in
-              if !log_level <> Everything && log_count_before = !global_log_count then
-                then_
+              if context.log_level <> Everything && log_count_before = !global_log_count
+              then then_
               else then_'
             in
             let else_ =
               let log_count_before = !global_log_count in
-              let else_ = Option.map (callback ()) else_ in
+              let else_ = Option.map (callback context) else_ in
               let else_' =
                 Option.map
                   (fun else_ ->
@@ -1078,13 +1106,13 @@ let traverse =
                           raise e])
                   else_
               in
-              if !log_level <> Everything && log_count_before = !global_log_count then
-                else_
+              if context.log_level <> Everything && log_count_before = !global_log_count
+              then else_
               else else_'
             in
-            Pexp_ifthenelse (callback () if_, then_, else_)
+            Pexp_ifthenelse (callback context if_, then_, else_)
         | Pexp_for (pat, from, to_, dir, body)
-          when !track_branches && !log_level <> Nothing ->
+          when context.track_branches && context.log_level <> Nothing ->
             let log_count_before = !global_log_count in
             let body =
               let loc = body.pexp_loc in
@@ -1100,10 +1128,10 @@ let traverse =
                   ~loc:descr_loc.loc ()
               in
               let header =
-                !log_value ~loc ~typ ~descr_loc ~is_result:false (pat2expr pat)
+                log_value context ~loc ~typ ~descr_loc ~is_result:false (pat2expr pat)
               in
-              entry_with_interrupts ~loc ~descr_loc ~log_count_before ~header ~preamble
-                ~entry:(callback () body)
+              entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~header
+                ~preamble ~entry:(callback context body)
                 ~result:[%pat? ()]
                 ~log_result:[%expr ()] ()
             in
@@ -1120,10 +1148,11 @@ let traverse =
                     raise e]
                 .pexp_desc
             in
-            if !log_level <> Everything && log_count_before = !global_log_count then
-              pexp_desc
+            if context.log_level <> Everything && log_count_before = !global_log_count
+            then pexp_desc
             else transformed
-        | Pexp_while (cond, body) when !track_branches && !log_level <> Nothing ->
+        | Pexp_while (cond, body)
+          when context.track_branches && context.log_level <> Nothing ->
             let log_count_before = !global_log_count in
             let body =
               let loc = body.pexp_loc in
@@ -1132,8 +1161,8 @@ let traverse =
                 open_log_preamble ~brief:true ~message:"<while loop>" ~loc:descr_loc.loc
                   ()
               in
-              entry_with_interrupts ~loc ~descr_loc ~log_count_before ~preamble
-                ~entry:(callback () body)
+              entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
+                ~entry:(callback context body)
                 ~result:[%pat? ()]
                 ~log_result:[%expr ()] ()
             in
@@ -1150,62 +1179,47 @@ let traverse =
                     raise e]
                 .pexp_desc
             in
-            if !log_level <> Everything && log_count_before = !global_log_count then
-              pexp_desc
+            if context.log_level <> Everything && log_count_before = !global_log_count
+            then pexp_desc
             else transformed
-        | _ -> (super#expression (Not_from_arg, Nested) exp).pexp_desc
+        | _ -> (super#expression { context with toplevel_opt_arg = Nested } exp).pexp_desc
       in
       let exp = { exp with pexp_desc } in
       match ret_typ with None -> exp | Some typ -> [%expr ([%e exp] : [%t typ])]
 
-    method! structure_item ((runtime_from_arg, is_toplevel) as ctx) si =
-      let callback ?(runtime_from_arg = Not_from_arg) () e =
-        self#expression (runtime_from_arg, Nested) e
-      in
+    method! structure_item context si =
+      (* Do not use for an entry_point, because it ignores the toplevel_opt_arg field! *)
+      let callback context e = self#expression context e in
+      let context = { context with toplevel_opt_arg = Toplevel_no_arg } in
       match si with
       | { pstr_desc = Pstr_value (rec_flag, bindings); pstr_loc = _; _ } ->
-          let bindings =
-            List.map
-              (fun vb ->
-                try debug_binding runtime_from_arg callback is_toplevel vb
-                with Not_transforming ->
-                  {
-                    vb with
-                    pvb_expr = self#expression (Not_from_arg, Nested) vb.pvb_expr;
-                  })
-              bindings
-          in
+          let bindings = List.map (debug_binding context callback) bindings in
           { si with pstr_desc = Pstr_value (rec_flag, bindings) }
-      | _ -> super#structure_item ctx si
+      | _ -> super#structure_item context si
   end
 
-let debug_this_expander runtime_from_arg payload =
-  let callback ?(runtime_from_arg = Not_from_arg) () e =
-    traverse#expression (runtime_from_arg, Nested) e
-  in
+let debug_this_expander context payload =
+  let callback context e = traverse_expression#expression context e in
   match payload with
   | { pexp_desc = Pexp_let (recflag, bindings, body); _ } ->
       (* This is the [let%debug_this ... in] use-case: do not debug the whole body. *)
-      let bindings =
-        List.map
-          (fun vb ->
-            try debug_binding runtime_from_arg callback Toplevel vb
-            with Not_transforming ->
-              {
-                vb with
-                pvb_expr = traverse#expression (Not_from_arg, Nested) vb.pvb_expr;
-              })
-          bindings
-      in
+      let bindings = List.map (debug_binding context callback) bindings in
       { payload with pexp_desc = Pexp_let (recflag, bindings, body) }
   | expr -> expr
 
-let debug_expander runtime_from_arg payload =
-  traverse#expression (runtime_from_arg, Toplevel) payload
+let debug_expander context payload = traverse_expression#expression context payload
 
-let str_expander runtime_from_arg ~loc payload =
+let str_expander context ~loc payload =
+  let callback context e = traverse_expression#expression context e in
   match
-    List.map (fun si -> traverse#structure_item (runtime_from_arg, Toplevel) si) payload
+    List.map
+      (fun si ->
+        match si with
+        | { pstr_desc = Pstr_value (rec_flag, bindings); pstr_loc = _; _ } ->
+            let bindings = List.map (debug_binding context callback) bindings in
+            { si with pstr_desc = Pstr_value (rec_flag, bindings) }
+        | _ -> traverse_expression#structure_item context si)
+      payload
   with
   | [ item ] -> item
   | items ->
@@ -1224,10 +1238,10 @@ let global_output_type_info =
         let loc = Expansion_context.Extension.extension_point_loc ctxt in
         function
         | [ { pstr_desc = Pstr_eval ([%expr true], attrs); _ } ] ->
-            output_type_info := true;
+            init_context := { !init_context with output_type_info = true };
             A.pstr_eval ~loc [%expr ()] attrs
         | [ { pstr_desc = Pstr_eval ([%expr false], attrs); _ } ] ->
-            output_type_info := false;
+            init_context := { !init_context with output_type_info = false };
             A.pstr_eval ~loc [%expr ()] attrs
         | _ ->
             A.pstr_eval ~loc
@@ -1259,7 +1273,7 @@ let global_interrupts =
               _;
             };
           ] ->
-            interrupts := true;
+            init_context := { !init_context with interrupts = true };
             A.pstr_eval ~loc
               [%expr
                 Debug_runtime.max_nesting_depth := Some [%e max_nesting_depth];
@@ -1284,8 +1298,8 @@ let global_log_level =
         function
         | [ { pstr_desc = Pstr_eval (exp, attrs); _ } ] -> (
             match parse_log_level exp with
-            | Left level ->
-                log_level := level;
+            | Left log_level ->
+                init_context := { !init_context with log_level };
                 A.pstr_eval ~loc [%expr ()] attrs
             | Right error -> A.pstr_eval ~loc error attrs)
         | _ ->
@@ -1301,35 +1315,28 @@ let global_log_level =
 let rules =
   global_output_type_info :: global_interrupts
   :: List.map
-       (fun { ext_point; tracking; runtime_passing; expander; printer } ->
-         let logf =
-           match printer with
-           | `Show -> log_value_show
-           | `Pp -> log_value_pp
-           | `Sexp -> log_value_sexp
-         in
-         let expanderf expander =
-           log_value := logf;
-           track_branches := tracking;
-           expander runtime_passing
-         in
+       (fun { ext_point; track_branches; toplevel_opt_arg; expander; log_value } ->
          let declaration =
            match expander with
            | `Debug ->
                Extension.V3.declare ext_point Extension.Context.expression
                  Ast_pattern.(single_expr_payload __)
-                 (fun ~ctxt:_ -> expanderf debug_expander)
+                 (fun ~ctxt:_ ->
+                   debug_expander
+                     { !init_context with toplevel_opt_arg; track_branches; log_value })
            | `Debug_this ->
                Extension.V3.declare ext_point Extension.Context.expression
                  Ast_pattern.(single_expr_payload __)
-                 (fun ~ctxt:_ -> expanderf debug_this_expander)
+                 (fun ~ctxt:_ ->
+                   debug_this_expander
+                     { !init_context with toplevel_opt_arg; track_branches; log_value })
            | `Str ->
                Extension.V3.declare ext_point Extension.Context.structure_item
                  Ast_pattern.(pstr __)
                  (fun ~ctxt ->
-                   expanderf
-                     (str_expander
-                        ~loc:(Expansion_context.Extension.extension_point_loc ctxt)))
+                   str_expander
+                     { !init_context with toplevel_opt_arg; track_branches; log_value }
+                     ~loc:(Expansion_context.Extension.extension_point_loc ctxt))
          in
          Ppxlib.Context_free.Rule.extension declaration)
        rules
