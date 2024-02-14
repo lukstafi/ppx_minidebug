@@ -967,20 +967,24 @@ let traverse_expression =
       let track_cases ?ret_descr ?ret_typ ?arg_typ kind =
         List.mapi (debug_case context callback ?ret_descr ?ret_typ ?arg_typ kind)
       in
-      let loc = exp.pexp_loc in
       let exp, ret_typ =
         match exp with
         | [%expr ([%e? exp] : [%t? typ])] -> (exp, Some typ)
         | _ -> (exp, None)
       in
-      let pexp_desc =
+      let loc = exp.pexp_loc in
+      let exp =
         match exp.pexp_desc with
         | Pexp_let (rec_flag, bindings, body) ->
             let bindings = List.map (debug_binding context callback) bindings in
-            Pexp_let
-              ( rec_flag,
-                bindings,
-                callback { context with toplevel_opt_arg = Nested } body )
+            {
+              exp with
+              pexp_desc =
+                Pexp_let
+                  ( rec_flag,
+                    bindings,
+                    callback { context with toplevel_opt_arg = Nested } body );
+            }
         | Pexp_extension ({ loc = _; txt }, PStr [%str [%e? body]]) when is_ext_point txt
           ->
             let prefix_pos = String.index txt '_' in
@@ -1003,12 +1007,11 @@ let traverse_expression =
               else if String.length txt > 10 && String.sub txt 5 5 = "_rtb_" then PrintBox
               else Toplevel_no_arg
             in
-            (self#expression
-               { context with log_value; track_branches; toplevel_opt_arg }
-               body)
-              .pexp_desc
+            self#expression
+              { context with log_value; track_branches; toplevel_opt_arg }
+              body
         | Pexp_extension ({ loc = _; txt = "debug_notrace" }, PStr [%str [%e? body]]) ->
-            (callback { context with track_branches = false } body).pexp_desc
+            callback { context with track_branches = false } body
         | Pexp_extension
             ( { loc = _; txt = "log_level" },
               PStr
@@ -1016,10 +1019,8 @@ let traverse_expression =
                   [%e? level];
                   [%e? body]] ) -> (
             match parse_log_level level with
-            | Right error ->
-                (* FIXME: will this lose the location? *)
-                error.pexp_desc
-            | Left log_level -> (callback { context with log_level } body).pexp_desc)
+            | Right error -> error
+            | Left log_level -> callback { context with log_level } body)
         | Pexp_extension
             ( { loc = _; txt = "debug_interrupts" },
               PStr
@@ -1033,26 +1034,33 @@ let traverse_expression =
               Debug_runtime.max_nesting_depth := Some [%e max_nesting_depth];
               Debug_runtime.max_num_children := Some [%e max_num_children];
               [%e callback { context with interrupts = true } body]]
-              .pexp_desc
         | Pexp_extension ({ loc = _; txt = "debug_interrupts" }, PStr [%str [%e? _]]) ->
-            (A.pexp_extension ~loc
+            A.pexp_extension ~loc
             @@ Location.error_extensionf ~loc
                  "ppx_minidebug: bad syntax, expacted [%%debug_interrupts \
-                  {max_nesting_depth=N;max_num_children=M}; <BODY>]")
-              .pexp_desc
+                  {max_nesting_depth=N;max_num_children=M}; <BODY>]"
         | Pexp_extension ({ loc = _; txt = "debug_type_info" }, PStr [%str [%e? body]]) ->
-            (callback { context with output_type_info = true } body).pexp_desc
+            callback { context with output_type_info = true } body
         | Pexp_extension ({ loc = _; txt = "log" }, PStr [%str [%e? body]]) ->
             let typ = extract_type ~alt_typ:ret_typ body in
-            (log_value context ~loc ~typ ~is_result:false body).pexp_desc
-        | Pexp_newtype _ -> (debug_fun context callback ?typ:ret_typ exp).pexp_desc
-        | Pexp_fun _ -> (debug_fun context callback ?typ:ret_typ exp).pexp_desc
+            log_value context ~loc ~typ ~is_result:false body
+        | Pexp_newtype _ -> debug_fun context callback ?typ:ret_typ exp
+        | Pexp_fun _ -> debug_fun context callback ?typ:ret_typ exp
         | Pexp_match ([%expr ([%e? expr] : [%t? arg_typ])], cases)
           when context.track_branches && context.log_level <> Nothing ->
-            Pexp_match (callback context expr, track_cases ~arg_typ ?ret_typ "match" cases)
+            {
+              exp with
+              pexp_desc =
+                Pexp_match
+                  (callback context expr, track_cases ~arg_typ ?ret_typ "match" cases);
+            }
         | Pexp_match (expr, cases)
           when context.track_branches && context.log_level <> Nothing ->
-            Pexp_match (callback context expr, track_cases ?ret_typ "match" cases)
+            {
+              exp with
+              pexp_desc =
+                Pexp_match (callback context expr, track_cases ?ret_typ "match" cases);
+            }
         | Pexp_function cases when context.track_branches && context.log_level <> Nothing
           ->
             let arg_typ, ret_typ =
@@ -1060,8 +1068,7 @@ let traverse_expression =
               | Some { ptyp_desc = Ptyp_arrow (_, arg, ret); _ } -> (Some arg, Some ret)
               | _ -> (None, None)
             in
-            (debug_function context callback ~loc:exp.pexp_loc ?arg_typ ?ret_typ cases)
-              .pexp_desc
+            debug_function context callback ~loc:exp.pexp_loc ?arg_typ ?ret_typ cases
         | Pexp_ifthenelse (if_, then_, else_)
           when context.track_branches && context.log_level <> Nothing ->
             let then_ =
@@ -1110,7 +1117,7 @@ let traverse_expression =
               then else_
               else else_'
             in
-            Pexp_ifthenelse (callback context if_, then_, else_)
+            { exp with pexp_desc = Pexp_ifthenelse (callback context if_, then_, else_) }
         | Pexp_for (pat, from, to_, dir, body)
           when context.track_branches && context.log_level <> Nothing ->
             let log_count_before = !global_log_count in
@@ -1146,10 +1153,9 @@ let traverse_expression =
                 | exception e ->
                     Debug_runtime.close_log ();
                     raise e]
-                .pexp_desc
             in
             if context.log_level <> Everything && log_count_before = !global_log_count
-            then pexp_desc
+            then { exp with pexp_desc }
             else transformed
         | Pexp_while (cond, body)
           when context.track_branches && context.log_level <> Nothing ->
@@ -1177,14 +1183,12 @@ let traverse_expression =
                 | exception e ->
                     Debug_runtime.close_log ();
                     raise e]
-                .pexp_desc
             in
             if context.log_level <> Everything && log_count_before = !global_log_count
-            then pexp_desc
+            then { exp with pexp_desc }
             else transformed
-        | _ -> (super#expression { context with toplevel_opt_arg = Nested } exp).pexp_desc
+        | _ -> super#expression { context with toplevel_opt_arg = Nested } exp
       in
-      let exp = { exp with pexp_desc } in
       match ret_typ with None -> exp | Some typ -> [%expr ([%e exp] : [%t typ])]
 
     method! structure_item context si =
