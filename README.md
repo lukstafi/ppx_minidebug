@@ -194,7 +194,7 @@ BEGIN DEBUG SESSION
     ├─"test/test_expect_test.ml":1042:41-1044:58
 ```
 
-Example showcasing the `printbox-html` backend:
+When logging uses sexps and boxification, and the result is decomposed into a subtree, only the header of the result subtree is put in the header line, and the rest of the result subtree is just underneath it with a `<returns>` or a `<values>` header. Example showcasing the `printbox-html` backend:
 ![PrintBox HTML backend -- follow hyperlink](docs/ppx_minidebug-html-hyperlink.png)
 
 Example showcasing the `printbox-md` (Markdown) backend:
@@ -212,7 +212,7 @@ Tracing only happens in explicitly marked lexical scopes. The entry extension po
 - Optional infixes `_rt_` and `_rtb_` add a first-class module argument to a function, and unpack it as `module Debug_runtime` for the scope of the function.
   - `_rt_` uses the module type `Minidebug_runtime.Debug_runtime`.
   - `_rtb_` uses the module type `Minidebug_runtime.PrintBox_runtime`.
-  - This functionality is "one use only": it applies only to the nearest function inside the extension point, as long as there are no intervening (non-function) let-bindings between the start of the extension point and the function.
+  - This functionality is "one use only": it applies only to the function the extension point is attached to.
 - Representation and printing mechanism: `_pp`, `_show`, recommended: `_sexp`
   - `_pp` is currently most restrictive as it requires the type of a value to be an identifier. The identifier is converted to a `pp_` printing function, e.g. `pp_int`.
   - `_show` converts values to strings via the `%show` extension provided by `deriving.show`: e.g. `[%show: int list]`.
@@ -459,10 +459,10 @@ Explicit logging statements also help with tracking the execution, since they ca
 
 The log levels are:
 
-- `Nothing` -- the runtime should not generate anything, and when used at compile time, the extension should not generate any `ppx_minidebug`-related code.
-- `Prefixed [| prefix1; ... |]` -- only values starting with one of: prefix1, ... should be logged; at compile time, only logs with literals having one of prefix1, ... as a prefix, should be generated. Moreover, also don't log "empty entries" (see below).
+- `Nothing` -- the runtime should not generate anything, and when used at compile time, the extension should not generate any `ppx_minidebug`-related code. However, just changing the log level should not break the code, therefore the runtime-passing transformation (i.e. the first-class-module argument added by the `_rt_` and `_rtb_` infixes) happens even for the `Nothing` log level.
+- `Prefixed [| prefix1; ... |]` -- only values starting with one of: prefix1, ... should be logged; at compile time, only logs with literals having one of prefix1, ... as a prefix, should be generated. Moreover, also don't log "empty entries" (see below). To preserve the hierarchical context, also log headers of logging scopes.
 - `Prefixed_or_result [| prefix1; ... |]` as above, but also log results of computations.
-- `Nonempty_entries` -- do not log entries such as functions or control flow blocks without sub-logs.
+- `Nonempty_entries` -- do not log entries, such as functions or control flow blocks, that do not have sub-logs.
 - `Everything` -- no restrictions.
 
 At runtime, the level can be set via `Minidebug_runtime.debug ~log_level` or `Minidebug_runtime.debug_file ~log_level` at runtime creation, or via `Debug_runtime.config.log_level <- ...` later on. Check out the test suite [test_expect_test.ml:"%log runtime log levels while-loop"](test/test_expect_test.ml#L2439) for examples:
@@ -608,7 +608,7 @@ If you provide the `split_files_after` setting, the logging will transition to a
 
 ### Navigating large logs
 
-The `Flushing` logs enable [VS Code Log Inspector](https://marketplace.visualstudio.com/items?itemName=lukstafi.loginspector-submillisecond) flame graphs. In the future, `ppx_minidebug` will have native flame graphs in the HTML output (issue #19). The best option to navigate large logs is to use the HTML backend with foldable trees and `elapsed_times` set. Unlike with the Markdown backend, HTML browsers can render really large files, and flame graphs will make this option even better.
+In the future, `ppx_minidebug` will have native flame graphs in the HTML output (issue #19), which will then serve as a "table of contents" for the logs. Currently the best option to navigate large logs is to use the HTML backend with foldable trees and `elapsed_times` set. Unlike with the Markdown backend, HTML browsers can render really large files.
 
 Example:
 
@@ -632,7 +632,7 @@ let () =
   print_endline @@ Int.to_string @@ loop 3
 ```
 
-Inlined example output. Note that the elapsed time is wallclock time (see [`mtime`](https://erratique.ch/software/mtime)) and is due to fluctuate because of e.g. garbage collection or external system events.
+Inlined example output, using the Markdown backend for PrintBox. Note that the elapsed time is wallclock time (see [`mtime`](https://erratique.ch/software/mtime)) and is due to fluctuate because of e.g. garbage collection or external system events.
 
 BEGIN DEBUG SESSION 
 <details><summary><code>loop = 58435</code> &nbsp;  &lt;16850.93μs&gt;</summary>
@@ -1067,7 +1067,7 @@ For programs with threads or domains running concurrently, you need to ensure th
 
 We offer two helpers for dealing with multiple debug runtimes. There is an optional runtime instance-level setting `global_prefix`, which adds the given information to all log headers coming from the instance.
 
-Another feature is the extension points `%debug_rtb_sexp`, `%debug_this_rtb_sexp`, `%track_rtb_sexp`, etc. They add a first-class module argument to a function, and unpack the argument as `module Debug_runtime`. The feature helps using a runtime instance dedicated to a thread. At present, passing of the runtime instance to functions needs to be done manually. Note that at most one function per `_rt_` or `_rtb_` extension point is modified, regardless of whether there is a `_this_`.
+Another feature is the extension points `%debug_rtb_sexp`, `%debug_this_rtb_sexp`, `%track_rtb_sexp`, etc. They add a first-class module argument to a function, and unpack the argument as `module Debug_runtime`. The feature helps using a runtime instance dedicated to a thread. At present, passing of the runtime instance to functions needs to be done manually. Note that only the function attached to the `_rt_` or `_rtb_` extension point is modified, regardless of whether there is a `_this_`.
 
 Example from the test suite:
 
