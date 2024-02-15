@@ -11,6 +11,8 @@ type log_level =
   | Nonempty_entries
   | Everything
 
+let no_results = function Nothing | Prefixed _ -> true | _ -> false
+
 type toplevel_opt_arg = Nested | Toplevel_no_arg | Generic | PrintBox
 
 let global_log_count = ref 0
@@ -753,6 +755,7 @@ let debug_binding context callback vb =
       | { pexp_desc = Pexp_function cases; _ } ->
           debug_function context callback ~loc:vb.pvb_expr.pexp_loc ?ret_descr ?ret_typ
             ?arg_typ cases
+      | _ when no_results context.log_level -> callback nested exp
       | _ ->
           let result, bound = bound_patterns ~alt_typ:typ pat in
           if bound = [] then callback nested exp

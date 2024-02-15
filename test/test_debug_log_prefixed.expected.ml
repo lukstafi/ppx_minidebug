@@ -9,25 +9,16 @@ let rec loop_exceeded (x : int) =
       ~message:"loop_exceeded" ~entry_id:__entry_id;
     ());
    (match let z : int =
-            let __entry_id = Debug_runtime.get_entry_id () in
-            ();
-            Debug_runtime.open_log_preamble_brief
-              ~fname:"test_debug_log_prefixed.ml" ~pos_lnum:8 ~pos_colnum:6
-              ~message:"z" ~entry_id:__entry_id;
-            (match Debug_runtime.log_value_show ?descr:None
-                     ~entry_id:__entry_id ~is_result:false
-                     (([%show : (string * int)])
-                        ("INFO: inside loop", (x : int)));
-                   (x - 1) / 2
-             with
-             | _z as __res -> (((); ()); Debug_runtime.close_log (); __res)
-             | exception e -> (Debug_runtime.close_log (); raise e)) in
+            Debug_runtime.log_value_show ?descr:None ~entry_id:__entry_id
+              ~is_result:false
+              (([%show : (string * int)]) ("INFO: inside loop", (x : int)));
+            (x - 1) / 2 in
           if x <= 0 then 0 else z + (loop_exceeded (z + (x / 2)))
     with
     | __res -> ((); Debug_runtime.close_log (); __res)
     | exception e -> (Debug_runtime.close_log (); raise e)) : int)
 let () =
-  try print_endline @@ (Int.to_string @@ (loop_exceeded 17))
+  try print_endline @@ (Int.to_string @@ (loop_exceeded 7))
   with | _ -> print_endline "Raised exception."
 let bar () =
   (let __entry_id = Debug_runtime.get_entry_id () in
@@ -39,7 +30,7 @@ let bar () =
           Debug_runtime.open_log_preamble_brief
             ~fname:"test_debug_log_prefixed.ml" ~pos_lnum:19 ~pos_colnum:2
             ~message:"<for loop>" ~entry_id:__entry_id;
-          (match for i = 0 to 100 do
+          (match for i = 0 to 10 do
                    let __entry_id = Debug_runtime.get_entry_id () in
                    ();
                    Debug_runtime.open_log_preamble_brief
