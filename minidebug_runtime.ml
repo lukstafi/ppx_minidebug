@@ -150,7 +150,7 @@ let time_span ~none ~some elapsed elapsed_times =
       if span_ns >= 0.01 then some @@ Printf.sprintf "<%.2fns>" span_ns else none ()
 
 let opt_entry_id ~print_entry_ids ~entry_id =
-  if print_entry_ids then "{#" ^ Int.to_string entry_id ^ "} " else ""
+  if print_entry_ids && entry_id >= 0 then "{#" ^ Int.to_string entry_id ^ "} " else ""
 
 module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
   open Log_to
@@ -205,41 +205,26 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
       (opt_entry_id ~print_entry_ids ~entry_id)
       message
 
+  let bump_stack_entry ~entry_id =
+    match !stack with
+    | (num_children, elapsed) :: tl ->
+        stack := (num_children + 1, elapsed) :: tl;
+        ""
+    | [] -> "{orphaned from #" ^ Int.to_string entry_id ^ "} "
+
   let log_value_sexp ?descr ~entry_id ~is_result:_ sexp =
-    let sexp =
-      match !stack with
-      | (num_children, elapsed) :: tl ->
-          stack := (num_children + 1, elapsed) :: tl;
-          sexp
-      | [] ->
-          let entry_message = "{#" ^ Int.to_string entry_id ^ "} <ORPHANED LOG LINE>" in
-          Sexplib0.Sexp.(List [ Atom entry_message; sexp ])
-    in
+    let orphaned = bump_stack_entry ~entry_id in
     match descr with
-    | None -> CFormat.fprintf !ppf "%a@ @ " Sexplib0.Sexp.pp_hum sexp
-    | Some d -> CFormat.fprintf !ppf "%s = %a@ @ " d Sexplib0.Sexp.pp_hum sexp
+    | None -> CFormat.fprintf !ppf "%s%a@ @ " orphaned Sexplib0.Sexp.pp_hum sexp
+    | Some d -> CFormat.fprintf !ppf "%s%s = %a@ @ " orphaned d Sexplib0.Sexp.pp_hum sexp
 
   let log_value_pp ?descr ~entry_id ~pp ~is_result:_ v =
-    (match !stack with
-    | (num_children, elapsed) :: tl -> stack := (num_children + 1, elapsed) :: tl
-    | [] -> ());
-    let d =
-      match (descr, !stack) with
-      | None, _ :: _ -> ""
-      | Some d, _ :: _ -> d ^ " = "
-      | None, [] -> "{#" ^ Int.to_string entry_id ^ "} <ORPHANED LOG LINE>"
-      | Some d, [] -> "{#" ^ Int.to_string entry_id ^ "} <ORPHANED LOG LINE> " ^ d ^ " = "
-    in
-    CFormat.fprintf !ppf "%s%a@ @ " d pp v
+    let orphaned = bump_stack_entry ~entry_id in
+    let d = match descr with None -> "" | Some d -> d ^ " = " in
+    CFormat.fprintf !ppf "%s%s%a@ @ " orphaned d pp v
 
   let log_value_show ?descr ~entry_id ~is_result:_ v =
-    let orphaned =
-      match !stack with
-      | (num_children, elapsed) :: tl ->
-          stack := (num_children + 1, elapsed) :: tl;
-          ""
-      | [] -> "{#" ^ Int.to_string entry_id ^ "} <ORPHANED LOG LINE> "
-    in
+    let orphaned = bump_stack_entry ~entry_id in
     let descr = match descr with None -> "" | Some d -> d ^ "%s = " in
     CFormat.fprintf !ppf "%s%s%s@ @ " orphaned descr v
 
@@ -316,7 +301,7 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
     | ({ num_children; _ } as entry) :: tl ->
         stack := { entry with num_children = num_children + 1 } :: tl;
         ""
-    | [] -> "{#" ^ Int.to_string entry_id ^ "} <ORPHANED LOG LINE> "
+    | [] -> "{orphaned from #" ^ Int.to_string entry_id ^ "} "
 
   let log_value_sexp ?descr ~entry_id ~is_result:_ sexp =
     let orphaned = bump_stack_entry entry_id in
@@ -471,11 +456,13 @@ module PrintBox (Log_to : Debug_ch) = struct
       time_span ~none:(fun () -> "") ~some:(fun span -> " " ^ span) elapsed elapsed_times
     in
     let opt_id = opt_entry_id ~print_entry_ids ~entry_id in
+    let colon a b = if a = "" || b = "" then a ^ b else a ^ ": " ^ b in
     let b_path =
       B.line
       @@
-      if config.values_first_mode then path
-      else path ^ ": " ^ opt_id ^ entry_message ^ span
+      if config.values_first_mode then
+        if entry_id = -1 then colon path entry_message else colon path opt_id
+      else colon path (opt_id ^ entry_message) ^ span
     in
     let b_path = hyperlink_path ~uri ~inner:b_path in
     let rec unpack truncate acc = function
@@ -488,12 +475,15 @@ module PrintBox (Log_to : Debug_ch) = struct
     let unpack l = unpack (config.truncate_children - 1) [] l in
     if config.values_first_mode then
       let hl_header =
-        apply_highlight highlight @@ B.line @@ opt_id ^ entry_message ^ span
+        if entry_id = -1 then B.empty
+        else apply_highlight highlight @@ B.line @@ opt_id ^ entry_message ^ span
       in
       let results, body =
-        List.partition
-          (fun { result_id; is_result; _ } -> is_result && result_id = entry_id)
-          body
+        if entry_id = -1 then (body, [])
+        else
+          List.partition
+            (fun { result_id; is_result; _ } -> is_result && result_id = entry_id)
+            body
       in
       let results = unpack results and body = unpack body in
       match results with
@@ -585,7 +575,7 @@ module PrintBox (Log_to : Debug_ch) = struct
               :: bs2
         | [] ->
             let subentry = { result_id = entry_id; is_result; subtree = b } in
-            let entry_message = "{#" ^ Int.to_string entry_id ^ "} <ORPHANED LOG LINE>" in
+            let entry_message = "{orphaned from #" ^ Int.to_string entry_id ^ "}" in
             stack :=
               [
                 {
@@ -596,7 +586,7 @@ module PrintBox (Log_to : Debug_ch) = struct
                   uri = "";
                   path = "";
                   entry_message;
-                  entry_id;
+                  entry_id = -1;
                   body = [ subentry ];
                 };
               ];

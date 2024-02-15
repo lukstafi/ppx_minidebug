@@ -2843,7 +2843,7 @@ let%expect_test "%log compile time log levels runtime-passing while-loop" =
       |}]
 
 let%expect_test "%log without scope" =
-  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
+  let module Debug_runtime = (val Minidebug_runtime.debug ~print_entry_ids:true ()) in
   let i = 3 in
   let pi = 3.14 in
   let l = [ 1; 2; 3 ] in
@@ -2863,25 +2863,26 @@ let%expect_test "%log without scope" =
   [%expect
     {|
           BEGIN DEBUG SESSION
-          "test/test_expect_test.ml":2853:17: _bar
+          "test/test_expect_test.ml":2853:17: {#1} _bar
           └─_bar = ()
-          : {#1} <ORPHANED LOG LINE>
+          {orphaned from #1}
           └─("This is like", 3, "or", 3.14, "above")
-          : {#1} <ORPHANED LOG LINE>
+          {orphaned from #1}
           └─("tau =", 6.28)
-          : {#1} <ORPHANED LOG LINE>
+          {orphaned from #1}
           └─[4; 1; 2; 3]
-          : {#1} <ORPHANED LOG LINE>
+          {orphaned from #1}
           └─[3; 1; 2; 3]
-          : {#1} <ORPHANED LOG LINE>
+          {orphaned from #1}
           └─[3; 1; 2; 3] |}]
 
 let%expect_test "%log without scope values_first_mode" =
-  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug ~print_entry_ids:true ~values_first_mode:true ())
+  in
   let i = 3 in
   let pi = 3.14 in
   let l = [ 1; 2; 3 ] in
-  (* The values_first_mode reshaping leaves an empty subtree child, which looks a bit odd. *)
   let foo = ref @@ fun () -> () in
   let%debug_show _bar : unit =
     foo :=
@@ -2897,20 +2898,22 @@ let%expect_test "%log without scope values_first_mode" =
     {|
           BEGIN DEBUG SESSION
           _bar = ()
-          └─"test/test_expect_test.ml":2886:17
-          {#1} <ORPHANED LOG LINE>
-          ├─("This is like", 3, "or", 3.14, "above")
-          {#1} <ORPHANED LOG LINE>
-          ├─("tau =", 6.28)
-          {#1} <ORPHANED LOG LINE>
-          ├─[4; 1; 2; 3]
-          {#1} <ORPHANED LOG LINE>
-          ├─[3; 1; 2; 3]
-          {#1} <ORPHANED LOG LINE>
-          ├─[3; 1; 2; 3] |}]
+          └─"test/test_expect_test.ml":2887:17: {#1}
+          ("This is like", 3, "or", 3.14, "above")
+          └─{orphaned from #1}
+          ("tau =", 6.28)
+          └─{orphaned from #1}
+          [4; 1; 2; 3]
+          └─{orphaned from #1}
+          [3; 1; 2; 3]
+          └─{orphaned from #1}
+          [3; 1; 2; 3]
+          └─{orphaned from #1} |}]
 
 let%expect_test "%log with print_entry_ids, mixed up scopes" =
-  let module Debug_runtime = (val Minidebug_runtime.debug ~print_entry_ids:true ()) in
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug ~print_entry_ids:true ~values_first_mode:true ())
+  in
   let i = 3 in
   let pi = 3.14 in
   let l = [ 1; 2; 3 ] in
@@ -2941,25 +2944,25 @@ let%expect_test "%log with print_entry_ids, mixed up scopes" =
   [%expect
     {|
           BEGIN DEBUG SESSION
-          "test/test_expect_test.ml":2920:21-2925:19: {#1} bar
-          └─bar = ()
-          "test/test_expect_test.ml":2927:21-2932:19: {#2} baz
-          └─baz = ()
-          "test/test_expect_test.ml":2920:21-2925:19: {#3} bar
-          └─bar = ()
-          "test/test_expect_test.ml":2939:17: {#4} _foobar
+          bar = ()
+          └─"test/test_expect_test.ml":2923:21-2928:19: {#1}
+          baz = ()
+          └─"test/test_expect_test.ml":2930:21-2935:19: {#2}
+          bar = ()
+          └─"test/test_expect_test.ml":2923:21-2928:19: {#3}
+          _foobar = ()
+          ├─"test/test_expect_test.ml":2942:17: {#4}
           ├─("This is like", 3, "or", 3.14, "above")
           ├─("tau =", 6.28)
           ├─[3; 1; 2; 3]
           ├─[3; 1; 2; 3]
           ├─("This is like", 3, "or", 3.14, "above")
-          ├─("tau =", 6.28)
-          └─_foobar = ()
-          : {#2} {#2} <ORPHANED LOG LINE>
-          └─[3; 1; 2; 3]
-          : {#2} {#2} <ORPHANED LOG LINE>
-          └─[3; 1; 2; 3]
-          : {#1} {#1} <ORPHANED LOG LINE>
-          └─("This is like", 3, "or", 3.14, "above")
-          : {#1} {#1} <ORPHANED LOG LINE>
-          └─("tau =", 6.28) |}]
+          └─("tau =", 6.28)
+          [3; 1; 2; 3]
+          └─{orphaned from #2}
+          [3; 1; 2; 3]
+          └─{orphaned from #2}
+          ("This is like", 3, "or", 3.14, "above")
+          └─{orphaned from #1}
+          ("tau =", 6.28)
+          └─{orphaned from #1} |}]

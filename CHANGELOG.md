@@ -1,12 +1,12 @@
-## [1.3.0] -- current
+## [1.3.1] -- 2024-02-15
 
 ### Added
 
-- Optionally print `entry_id`s.
+- Optionally print `entry_id`s for log headers (and escaping logs).
 
-### Changed
+### Fixed
 
-- Do not crash when logging value with an empty entry stack, but signal that it's an invariant-breaking situation.
+- Do not crash when logging value with an empty entry stack; while unusual, "logs escaping lexical scope" are fine.
 
 ## [1.2.0] -- 2024-02-14
 
