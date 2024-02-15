@@ -2897,7 +2897,7 @@ let%expect_test "%log without scope values_first_mode" =
     {|
           BEGIN DEBUG SESSION
           _bar = ()
-          └─"test/test_expect_test.ml":2887:17
+          └─"test/test_expect_test.ml":2886:17
           {#1} <ORPHANED LOG LINE>
           ├─("This is like", 3, "or", 3.14, "above")
           {#1} <ORPHANED LOG LINE>
@@ -2908,3 +2908,58 @@ let%expect_test "%log without scope values_first_mode" =
           ├─[3; 1; 2; 3]
           {#1} <ORPHANED LOG LINE>
           ├─[3; 1; 2; 3] |}]
+
+let%expect_test "%log with print_entry_ids, mixed up scopes" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~print_entry_ids:true ()) in
+  let i = 3 in
+  let pi = 3.14 in
+  let l = [ 1; 2; 3 ] in
+  (* Messing with the structure of the logs might lead to confusing output. *)
+  let foo1 = ref @@ fun () -> () in
+  let foo2 = ref @@ fun () -> () in
+  let%debug_show bar callback : unit =
+    foo1 :=
+      fun () ->
+        [%log "This is like", (i : int), "or", (pi : float), "above"];
+        [%log "tau =", (pi *. 2. : float)];
+        callback ()
+  in
+  let%debug_show baz callback : unit =
+    foo2 :=
+      fun () ->
+        [%log i :: (l : int list)];
+        [%log (i : int) :: l];
+        callback ()
+  in
+  let () =
+    bar !foo2;
+    baz !foo1;
+    bar !foo2
+  in
+  let%debug_show _foobar : unit = !foo1 () in
+  let () = !foo2 () in
+  [%expect
+    {|
+          BEGIN DEBUG SESSION
+          "test/test_expect_test.ml":2920:21-2925:19: {#1} bar
+          └─bar = ()
+          "test/test_expect_test.ml":2927:21-2932:19: {#2} baz
+          └─baz = ()
+          "test/test_expect_test.ml":2920:21-2925:19: {#3} bar
+          └─bar = ()
+          "test/test_expect_test.ml":2939:17: {#4} _foobar
+          ├─("This is like", 3, "or", 3.14, "above")
+          ├─("tau =", 6.28)
+          ├─[3; 1; 2; 3]
+          ├─[3; 1; 2; 3]
+          ├─("This is like", 3, "or", 3.14, "above")
+          ├─("tau =", 6.28)
+          └─_foobar = ()
+          : {#2} {#2} <ORPHANED LOG LINE>
+          └─[3; 1; 2; 3]
+          : {#2} {#2} <ORPHANED LOG LINE>
+          └─[3; 1; 2; 3]
+          : {#1} {#1} <ORPHANED LOG LINE>
+          └─("This is like", 3, "or", 3.14, "above")
+          : {#1} {#1} <ORPHANED LOG LINE>
+          └─("tau =", 6.28) |}]

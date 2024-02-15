@@ -2,7 +2,7 @@
 
 ### Added
 
-- TODO: Optionally print `entry_id`s.
+- Optionally print `entry_id`s.
 
 ### Changed
 

@@ -26,6 +26,7 @@ module type Debug_ch = sig
   val debug_ch : unit -> out_channel
   val time_tagged : bool
   val elapsed_times : elapsed_times
+  val print_entry_ids : bool
   val global_prefix : string
   val split_files_after : int option
 end
@@ -33,8 +34,8 @@ end
 let elapsed_default = Not_reported
 
 let debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default)
-    ?(global_prefix = "") ?split_files_after ?(for_append = true) filename :
-    (module Debug_ch) =
+    ?(print_entry_ids = false) ?(global_prefix = "") ?split_files_after
+    ?(for_append = true) filename : (module Debug_ch) =
   let module Result = struct
     let () =
       match split_files_after with
@@ -83,6 +84,7 @@ let debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default)
 
     let time_tagged = time_tagged
     let elapsed_times = elapsed_times
+    let print_entry_ids = print_entry_ids
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = split_files_after
   end in
@@ -147,6 +149,9 @@ let time_span ~none ~some elapsed elapsed_times =
       let span_ns = span in
       if span_ns >= 0.01 then some @@ Printf.sprintf "<%.2fns>" span_ns else none ()
 
+let opt_entry_id ~print_entry_ids ~entry_id =
+  if print_entry_ids then "{#" ^ Int.to_string entry_id ^ "} " else ""
+
 module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
   open Log_to
 
@@ -183,18 +188,22 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
       CFormat.pp_print_newline !ppf ();
       if refresh_ch () then ppf := get_ppf ())
 
-  let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message ~entry_id:_ =
+  let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message ~entry_id =
     stack := (0, time_elapsed ()) :: !stack;
-    CFormat.fprintf !ppf "\"%s\":%d:%d: %s%s@ @[<hov 2>" fname pos_lnum pos_colnum
-      global_prefix message
+    CFormat.fprintf !ppf "\"%s\":%d:%d: %s%s%s@ @[<hov 2>" fname pos_lnum pos_colnum
+      global_prefix
+      (opt_entry_id ~print_entry_ids ~entry_id)
+      message
 
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
-      ~message ~entry_id:_ =
+      ~message ~entry_id =
     stack := (0, time_elapsed ()) :: !stack;
     CFormat.fprintf !ppf "@[\"%s\":%d:%d-%d:%d" fname start_lnum start_colnum end_lnum
       end_colnum;
     if Log_to.time_tagged then CFormat.fprintf !ppf "@ at time@ %a" pp_timestamp ();
-    CFormat.fprintf !ppf ": %s%s@]@ @[<hov 2>" global_prefix message
+    CFormat.fprintf !ppf ": %s%s%s@]@ @[<hov 2>" global_prefix
+      (opt_entry_id ~print_entry_ids ~entry_id)
+      message
 
   let log_value_sexp ?descr ~entry_id ~is_result:_ sexp =
     let sexp =
@@ -285,17 +294,20 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
         flush !debug_ch;
         if !stack = [] then debug_ch := Log_to.debug_ch ()
 
-  let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message ~entry_id:_ =
+  let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message ~entry_id =
     stack := { message = None; elapsed = time_elapsed (); num_children = 0 } :: !stack;
-    Printf.fprintf !debug_ch "%s\"%s\":%d:%d: %s%s\n%!" (indent ()) fname pos_lnum
-      pos_colnum global_prefix message
+    Printf.fprintf !debug_ch "%s\"%s\":%d:%d: %s%s%s\n%!" (indent ()) fname pos_lnum
+      pos_colnum global_prefix
+      (opt_entry_id ~print_entry_ids ~entry_id)
+      message
 
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
-      ~message ~entry_id:_ =
+      ~message ~entry_id =
     Printf.fprintf !debug_ch "%s%!" (indent ());
     if Log_to.time_tagged then Printf.fprintf !debug_ch "%s - %!" (timestamp_to_string ());
-    Printf.fprintf !debug_ch "%s%s begin \"%s\":%d:%d-%d:%d\n%!" global_prefix message
-      fname start_lnum start_colnum end_lnum end_colnum;
+    Printf.fprintf !debug_ch "%s%s%s begin \"%s\":%d:%d-%d:%d\n%!" global_prefix
+      (opt_entry_id ~print_entry_ids ~entry_id)
+      message fname start_lnum start_colnum end_lnum end_colnum;
     stack :=
       { message = Some message; elapsed = time_elapsed (); num_children = 0 } :: !stack
 
@@ -458,9 +470,12 @@ module PrintBox (Log_to : Debug_ch) = struct
     let span =
       time_span ~none:(fun () -> "") ~some:(fun span -> " " ^ span) elapsed elapsed_times
     in
+    let opt_id = opt_entry_id ~print_entry_ids ~entry_id in
     let b_path =
       B.line
-      @@ if config.values_first_mode then path else path ^ ": " ^ entry_message ^ span
+      @@
+      if config.values_first_mode then path
+      else path ^ ": " ^ opt_id ^ entry_message ^ span
     in
     let b_path = hyperlink_path ~uri ~inner:b_path in
     let rec unpack truncate acc = function
@@ -472,7 +487,9 @@ module PrintBox (Log_to : Debug_ch) = struct
     in
     let unpack l = unpack (config.truncate_children - 1) [] l in
     if config.values_first_mode then
-      let hl_header = apply_highlight highlight @@ B.line @@ entry_message ^ span in
+      let hl_header =
+        apply_highlight highlight @@ B.line @@ opt_id ^ entry_message ^ span
+      in
       let results, body =
         List.partition
           (fun { result_id; is_result; _ } -> is_result && result_id = entry_id)
@@ -792,8 +809,8 @@ module PrintBox (Log_to : Debug_ch) = struct
 end
 
 let debug_file ?(time_tagged = false) ?(elapsed_times = elapsed_default)
-    ?(global_prefix = "") ?split_files_after ?highlight_terms ?exclude_on_path
-    ?(prune_upto = 0) ?(truncate_children = 0) ?(for_append = false)
+    ?(print_entry_ids = false) ?(global_prefix = "") ?split_files_after ?highlight_terms
+    ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0) ?(for_append = false)
     ?(boxify_sexp_from_size = 50) ?backend ?hyperlink ?(values_first_mode = false)
     ?(log_level = Everything) filename : (module PrintBox_runtime) =
   let filename =
@@ -804,8 +821,8 @@ let debug_file ?(time_tagged = false) ?(elapsed_times = elapsed_default)
   in
   let module Debug =
     PrintBox
-      ((val debug_ch ~time_tagged ~elapsed_times ~global_prefix ~for_append
-              ?split_files_after filename)) in
+      ((val debug_ch ~time_tagged ~elapsed_times ~print_entry_ids ~global_prefix
+              ~for_append ?split_files_after filename)) in
   Debug.config.backend <- Option.value backend ~default:(`Markdown default_md_config);
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
   Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
@@ -819,14 +836,15 @@ let debug_file ?(time_tagged = false) ?(elapsed_times = elapsed_default)
   (module Debug)
 
 let debug ?(debug_ch = stdout) ?(time_tagged = false) ?(elapsed_times = elapsed_default)
-    ?(global_prefix = "") ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
-    ?(truncate_children = 0) ?(values_first_mode = false) ?(log_level = Everything) () :
-    (module PrintBox_runtime) =
+    ?(print_entry_ids = false) ?(global_prefix = "") ?highlight_terms ?exclude_on_path
+    ?(prune_upto = 0) ?(truncate_children = 0) ?(values_first_mode = false)
+    ?(log_level = Everything) () : (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
     let debug_ch () = debug_ch
     let time_tagged = time_tagged
     let elapsed_times = elapsed_times
+    let print_entry_ids = print_entry_ids
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = None
   end) in
@@ -839,12 +857,14 @@ let debug ?(debug_ch = stdout) ?(time_tagged = false) ?(elapsed_times = elapsed_
   (module Debug)
 
 let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false)
-    ?(elapsed_times = elapsed_default) ?(global_prefix = "") () : (module Debug_runtime) =
+    ?(elapsed_times = elapsed_default) ?(print_entry_ids = false) ?(global_prefix = "") ()
+    : (module Debug_runtime) =
   (module Flushing (struct
     let refresh_ch () = false
     let debug_ch () = debug_ch
     let time_tagged = time_tagged
     let elapsed_times = elapsed_times
+    let print_entry_ids = print_entry_ids
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = None
   end))

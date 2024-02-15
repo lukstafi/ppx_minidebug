@@ -25,6 +25,7 @@ module type Debug_ch = sig
   val debug_ch : unit -> out_channel
   val time_tagged : bool
   val elapsed_times : elapsed_times
+  val print_entry_ids : bool
   val global_prefix : string
   val split_files_after : int option
 end
@@ -32,6 +33,7 @@ end
 val debug_ch :
   ?time_tagged:bool ->
   ?elapsed_times:elapsed_times ->
+  ?print_entry_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?for_append:bool ->
@@ -44,9 +46,12 @@ val debug_ch :
     returns true; if in that case [Debug_ch.debug_ch ()] is called, it will create and return a new file.
 
     If [elapsed_times] is different from [Not_reported], the elapsed time spans are printed for log
-    subtrees, in the corresponding units with precision 1%. The times include printing out logs, therefore
-    might not be reliable for profiling. In the runtime creation functions, [elapsed_times] defaults to
-    [Not_reported].
+    subtrees, in the corresponding units with precision up to 1%. The times include printing out logs,
+    therefore might not be reliable for profiling. In the runtime creation functions, [elapsed_times]
+    defaults to [Not_reported].
+
+    If [print_entry_ids] is true, the [entry_id] identifiers are printed on log headers with the syntax
+    [{#ID}]; by default they are omitted.
 
     If [global_prefix] is given, the log header messages (and the log closing messages for the flushing
     backend) are prefixed with it. *)
@@ -167,6 +172,7 @@ module PrintBox : functor (_ : Debug_ch) -> PrintBox_runtime
 val debug_file :
   ?time_tagged:bool ->
   ?elapsed_times:elapsed_times ->
+  ?print_entry_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?highlight_terms:Re.t ->
@@ -194,6 +200,7 @@ val debug :
   ?debug_ch:out_channel ->
   ?time_tagged:bool ->
   ?elapsed_times:elapsed_times ->
+  ?print_entry_ids:bool ->
   ?global_prefix:string ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
@@ -213,6 +220,7 @@ val debug_flushing :
   ?debug_ch:out_channel ->
   ?time_tagged:bool ->
   ?elapsed_times:elapsed_times ->
+  ?print_entry_ids:bool ->
   ?global_prefix:string ->
   unit ->
   (module Debug_runtime)
