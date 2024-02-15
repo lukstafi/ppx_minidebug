@@ -196,29 +196,43 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
     if Log_to.time_tagged then CFormat.fprintf !ppf "@ at time@ %a" pp_timestamp ();
     CFormat.fprintf !ppf ": %s%s@]@ @[<hov 2>" global_prefix message
 
-  let log_value_sexp ?descr ~entry_id:_ ~is_result:_ sexp =
-    (match !stack with
-    | (num_children, elapsed) :: tl -> stack := (num_children + 1, elapsed) :: tl
-    | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
+  let log_value_sexp ?descr ~entry_id ~is_result:_ sexp =
+    let sexp =
+      match !stack with
+      | (num_children, elapsed) :: tl ->
+          stack := (num_children + 1, elapsed) :: tl;
+          sexp
+      | [] ->
+          let entry_message = "{#" ^ Int.to_string entry_id ^ "} <ORPHANED LOG LINE>" in
+          Sexplib0.Sexp.(List [ Atom entry_message; sexp ])
+    in
     match descr with
     | None -> CFormat.fprintf !ppf "%a@ @ " Sexplib0.Sexp.pp_hum sexp
     | Some d -> CFormat.fprintf !ppf "%s = %a@ @ " d Sexplib0.Sexp.pp_hum sexp
 
-  let log_value_pp ?descr ~entry_id:_ ~pp ~is_result:_ v =
+  let log_value_pp ?descr ~entry_id ~pp ~is_result:_ v =
     (match !stack with
     | (num_children, elapsed) :: tl -> stack := (num_children + 1, elapsed) :: tl
-    | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
-    match descr with
-    | None -> CFormat.fprintf !ppf "%a@ @ " pp v
-    | Some d -> CFormat.fprintf !ppf "%s = %a@ @ " d pp v
+    | [] -> ());
+    let d =
+      match (descr, !stack) with
+      | None, _ :: _ -> ""
+      | Some d, _ :: _ -> d ^ " = "
+      | None, [] -> "{#" ^ Int.to_string entry_id ^ "} <ORPHANED LOG LINE>"
+      | Some d, [] -> "{#" ^ Int.to_string entry_id ^ "} <ORPHANED LOG LINE> " ^ d ^ " = "
+    in
+    CFormat.fprintf !ppf "%s%a@ @ " d pp v
 
-  let log_value_show ?descr ~entry_id:_ ~is_result:_ v =
-    (match !stack with
-    | (num_children, elapsed) :: tl -> stack := (num_children + 1, elapsed) :: tl
-    | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
-    match descr with
-    | None -> CFormat.fprintf !ppf "%s@ @ " v
-    | Some d -> CFormat.fprintf !ppf "%s = %s@ @ " d v
+  let log_value_show ?descr ~entry_id ~is_result:_ v =
+    let orphaned =
+      match !stack with
+      | (num_children, elapsed) :: tl ->
+          stack := (num_children + 1, elapsed) :: tl;
+          ""
+      | [] -> "{#" ^ Int.to_string entry_id ^ "} <ORPHANED LOG LINE> "
+    in
+    let descr = match descr with None -> "" | Some d -> d ^ "%s = " in
+    CFormat.fprintf !ppf "%s%s%s@ @ " orphaned descr v
 
   let exceeds_max_nesting () =
     exceeds ~value:(List.length !stack) ~limit:!max_nesting_depth
@@ -285,38 +299,31 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
     stack :=
       { message = Some message; elapsed = time_elapsed (); num_children = 0 } :: !stack
 
-  let log_value_sexp ?descr ~entry_id:_ ~is_result:_ sexp =
-    (match !stack with
+  let bump_stack_entry entry_id =
+    match !stack with
     | ({ num_children; _ } as entry) :: tl ->
-        stack := { entry with num_children = num_children + 1 } :: tl
-    | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
-    match descr with
-    | None ->
-        Printf.fprintf !debug_ch "%s%s\n%!" (indent ()) (Sexplib0.Sexp.to_string_hum sexp)
-    | Some d ->
-        Printf.fprintf !debug_ch "%s%s = %s\n%!" (indent ()) d
-          (Sexplib0.Sexp.to_string_hum sexp)
+        stack := { entry with num_children = num_children + 1 } :: tl;
+        ""
+    | [] -> "{#" ^ Int.to_string entry_id ^ "} <ORPHANED LOG LINE> "
 
-  let log_value_pp ?descr ~entry_id:_ ~pp ~is_result:_ v =
-    (match !stack with
-    | ({ num_children; _ } as entry) :: tl ->
-        stack := { entry with num_children = num_children + 1 } :: tl
-    | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
+  let log_value_sexp ?descr ~entry_id ~is_result:_ sexp =
+    let orphaned = bump_stack_entry entry_id in
+    let descr = match descr with None -> "" | Some d -> d ^ " = " in
+    Printf.fprintf !debug_ch "%s%s%s%s\n%!" (indent ()) orphaned descr
+      (Sexplib0.Sexp.to_string_hum sexp)
+
+  let log_value_pp ?descr ~entry_id ~pp ~is_result:_ v =
+    let orphaned = bump_stack_entry entry_id in
+    let descr = match descr with None -> "" | Some d -> d ^ " = " in
     let _ = CFormat.flush_str_formatter () in
     pp CFormat.str_formatter v;
     let v_str = CFormat.flush_str_formatter () in
-    match descr with
-    | None -> Printf.fprintf !debug_ch "%s%s\n%!" (indent ()) v_str
-    | Some d -> Printf.fprintf !debug_ch "%s%s = %s\n%!" (indent ()) d v_str
+    Printf.fprintf !debug_ch "%s%s%s%s\n%!" (indent ()) orphaned descr v_str
 
-  let log_value_show ?descr ~entry_id:_ ~is_result:_ v =
-    (match !stack with
-    | ({ num_children; _ } as entry) :: tl ->
-        stack := { entry with num_children = num_children + 1 } :: tl
-    | [] -> failwith "ppx_minidebug: log_value must follow an earlier open_log_preamble");
-    match descr with
-    | None -> Printf.fprintf !debug_ch "%s%s\n%!" (indent ()) v
-    | Some d -> Printf.fprintf !debug_ch "%s%s = %s\n%!" (indent ()) d v
+  let log_value_show ?descr ~entry_id ~is_result:_ v =
+    let orphaned = bump_stack_entry entry_id in
+    let descr = match descr with None -> "" | Some d -> d ^ " = " in
+    Printf.fprintf !debug_ch "%s%s%s%s\n%!" (indent ()) orphaned descr v
 
   let exceeds_max_nesting () =
     exceeds ~value:(List.length !stack) ~limit:!max_nesting_depth
@@ -417,25 +424,6 @@ module PrintBox (Log_to : Debug_ch) = struct
     match config.hyperlink with
     | `Prefix prefix -> B.link ~uri:(prefix ^ uri) inner
     | `No_hyperlinks -> inner
-
-  let stack_next ~entry_id ~is_result ~prefixed (hl, b) =
-    match config.log_level with
-    | Nothing -> ()
-    | Prefixed _ when not prefixed -> ()
-    | Prefixed_or_result _ when not (is_result || prefixed) -> ()
-    | _ -> (
-        stack :=
-          match !stack with
-          | ({ highlight; exclude; body; _ } as entry) :: bs2 ->
-              {
-                entry with
-                highlight = highlight || ((not exclude) && hl);
-                body = { result_id = entry_id; is_result; subtree = b } :: body;
-              }
-              :: bs2
-          | _ ->
-              failwith
-                "minidebug_runtime: a log_value must be preceded by an open_log_preamble")
 
   let () =
     let log_header =
@@ -562,6 +550,40 @@ module PrintBox (Log_to : Debug_ch) = struct
           Stdlib.flush ch;
           []
       | _ -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
+
+  let stack_next ~entry_id ~is_result ~prefixed (hl, b) =
+    match config.log_level with
+    | Nothing -> ()
+    | Prefixed _ when not prefixed -> ()
+    | Prefixed_or_result _ when not (is_result || prefixed) -> ()
+    | _ -> (
+        match !stack with
+        | ({ highlight; exclude; body; _ } as entry) :: bs2 ->
+            stack :=
+              {
+                entry with
+                highlight = highlight || ((not exclude) && hl);
+                body = { result_id = entry_id; is_result; subtree = b } :: body;
+              }
+              :: bs2
+        | [] ->
+            let subentry = { result_id = entry_id; is_result; subtree = b } in
+            let entry_message = "{#" ^ Int.to_string entry_id ^ "} <ORPHANED LOG LINE>" in
+            stack :=
+              [
+                {
+                  cond = true;
+                  highlight = hl;
+                  exclude = false;
+                  elapsed = Mtime.Span.zero;
+                  uri = "";
+                  path = "";
+                  entry_message;
+                  entry_id;
+                  body = [ subentry ];
+                };
+              ];
+            close_log ())
 
   let open_log_preamble ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message
       ~entry_id ~brief =
@@ -714,7 +736,9 @@ module PrintBox (Log_to : Debug_ch) = struct
   let skip_parens s =
     let len = String.length s in
     let pos = ref 0 in
-    while !pos < len && (s.[!pos] = '(' || s.[!pos] = '{' || s.[!pos] = '[') do incr pos done;
+    while !pos < len && (s.[!pos] = '(' || s.[!pos] = '{' || s.[!pos] = '[') do
+      incr pos
+    done;
     let s = String.(sub s !pos @@ (length s - !pos)) in
     s
 

@@ -1,3 +1,13 @@
+## [1.3.0] -- current
+
+### Added
+
+- TODO: Optionally print `entry_id`s.
+
+### Changed
+
+- Do not crash when logging value with an empty entry stack, but signal that it's an invariant-breaking situation.
+
 ## [1.2.0] -- 2024-02-14
 
 ### Added

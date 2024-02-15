@@ -2841,3 +2841,70 @@ let%expect_test "%log compile time log levels runtime-passing while-loop" =
       └─(WARNING: 2 i= 6)
   21
       |}]
+
+let%expect_test "%log without scope" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
+  let i = 3 in
+  let pi = 3.14 in
+  let l = [ 1; 2; 3 ] in
+  (* Orphaned logs are often prevented by the typechecker complaining about missing __entry_id.
+     But they can happen with closures and other complex ways to interleave uses of a runtime. *)
+  let foo = ref @@ fun () -> () in
+  let%debug_show _bar : unit =
+    foo :=
+      fun () ->
+        [%log "This is like", (i : int), "or", (pi : float), "above"];
+        [%log "tau =", (pi *. 2. : float)];
+        [%log 4 :: l];
+        [%log i :: (l : int list)];
+        [%log (i : int) :: l]
+  in
+  let () = !foo () in
+  [%expect
+    {|
+          BEGIN DEBUG SESSION
+          "test/test_expect_test.ml":2853:17: _bar
+          └─_bar = ()
+          : {#1} <ORPHANED LOG LINE>
+          └─("This is like", 3, "or", 3.14, "above")
+          : {#1} <ORPHANED LOG LINE>
+          └─("tau =", 6.28)
+          : {#1} <ORPHANED LOG LINE>
+          └─[4; 1; 2; 3]
+          : {#1} <ORPHANED LOG LINE>
+          └─[3; 1; 2; 3]
+          : {#1} <ORPHANED LOG LINE>
+          └─[3; 1; 2; 3] |}]
+
+let%expect_test "%log without scope values_first_mode" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let i = 3 in
+  let pi = 3.14 in
+  let l = [ 1; 2; 3 ] in
+  (* The values_first_mode reshaping leaves an empty subtree child, which looks a bit odd. *)
+  let foo = ref @@ fun () -> () in
+  let%debug_show _bar : unit =
+    foo :=
+      fun () ->
+        [%log "This is like", (i : int), "or", (pi : float), "above"];
+        [%log "tau =", (pi *. 2. : float)];
+        [%log 4 :: l];
+        [%log i :: (l : int list)];
+        [%log (i : int) :: l]
+  in
+  let () = !foo () in
+  [%expect
+    {|
+          BEGIN DEBUG SESSION
+          _bar = ()
+          └─"test/test_expect_test.ml":2887:17
+          {#1} <ORPHANED LOG LINE>
+          ├─("This is like", 3, "or", 3.14, "above")
+          {#1} <ORPHANED LOG LINE>
+          ├─("tau =", 6.28)
+          {#1} <ORPHANED LOG LINE>
+          ├─[4; 1; 2; 3]
+          {#1} <ORPHANED LOG LINE>
+          ├─[3; 1; 2; 3]
+          {#1} <ORPHANED LOG LINE>
+          ├─[3; 1; 2; 3] |}]
