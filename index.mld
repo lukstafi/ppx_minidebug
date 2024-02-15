@@ -518,6 +518,65 @@ let%track_sexp nonempty () : int =
 let () = print_endline @@ Int.to_string @@ nonempty ()
 ]}
 
+{2 Lexical scopes vs. dynamic scopes}
+
+We track lexical scoping: every log has access to the [entry_id] number of the lexical scope it is in.
+Lexical scopes are computations: bindings, functions, tracked code branches (even if not annotated
+with an extension point, but always within some [ppx_minidebug] registered extension point). There is
+also dynamic scoping: which entry a particular log actually ends up belonging in. Currently, we do not
+expose the (lexical) entry id of an individual log, except when the log "wandered" out of all dynamic
+scopes. To be able to locate where such log originates from, pass [~print_entry_ids:true] when creating
+the runtime, and look for the header with the log's entry id. Example from the test suite:
+
+{@ocaml[
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug ~print_entry_ids:true ~values_first_mode:true ())
+  in
+  let i = 3 in
+  let pi = 3.14 in
+  let l = [ 1; 2; 3 ] in
+  (* Messing with the structure of the logs might lead to confusing output. *)
+  let foo1 = ref @@ fun () -> () in
+  let foo2 = ref @@ fun () -> () in
+  let%debug_show bar callback : unit =
+    foo1 :=
+      fun () ->
+        [%log "This is like", (i : int), "or", (pi : float), "above"];
+        [%log "tau =", (pi *. 2. : float)];
+        callback ()
+  in
+  let%debug_show baz callback : unit =
+    foo2 :=
+      fun () ->
+        [%log i :: (l : int list)];
+        [%log (i : int) :: l];
+        callback ()
+  in
+  let () =
+    bar !foo2;
+    baz !foo1;
+    bar !foo2
+  in
+  let () = !foo2 () in
+  [%expect
+    {|
+          BEGIN DEBUG SESSION
+          bar = ()
+          └─"test/test_expect_test.ml":2923:21-2928:19: {#1}
+          baz = ()
+          └─"test/test_expect_test.ml":2930:21-2935:19: {#2}
+          bar = ()
+          └─"test/test_expect_test.ml":2923:21-2928:19: {#3}
+          [3; 1; 2; 3]
+          └─{orphaned from #2}
+          [3; 1; 2; 3]
+          └─{orphaned from #2}
+          ("This is like", 3, "or", 3.14, "above")
+          └─{orphaned from #1}
+          ("tau =", 6.28)
+          └─{orphaned from #1} |}]
+]}
+
 {2 Reducing the size of generated logs}
 
 Summary of possibilities:
