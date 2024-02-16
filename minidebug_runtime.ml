@@ -200,7 +200,7 @@ module Pp_format (Log_to : Debug_ch) : Debug_runtime = struct
     stack := (0, time_elapsed ()) :: !stack;
     CFormat.fprintf !ppf "@[\"%s\":%d:%d-%d:%d" fname start_lnum start_colnum end_lnum
       end_colnum;
-    if Log_to.time_tagged then CFormat.fprintf !ppf "@ at time@ %a" pp_timestamp ();
+    if Log_to.time_tagged then CFormat.fprintf !ppf " at time %a" pp_timestamp ();
     CFormat.fprintf !ppf ": %s%s%s@]@ @[<hov 2>" global_prefix
       (opt_entry_id ~print_entry_ids ~entry_id)
       message
@@ -609,10 +609,10 @@ module PrintBox (Log_to : Debug_ch) = struct
     let path =
       if brief then Printf.sprintf "\"%s\":%d:%d" fname start_lnum start_colnum
       else if time_tagged then
-        Format.asprintf "@[\"%s\":%d:%d-%d:%d@ at time@ %a@]" fname start_lnum
+        Format.asprintf "\"%s\":%d:%d-%d:%d at time %a" fname start_lnum
           start_colnum end_lnum end_colnum pp_timestamp ()
       else
-        Format.asprintf "@[\"%s\":%d:%d-%d:%d@]" fname start_lnum start_colnum end_lnum
+        Format.asprintf "\"%s\":%d:%d-%d:%d" fname start_lnum start_colnum end_lnum
           end_colnum
     in
     let exclude =

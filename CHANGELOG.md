@@ -7,6 +7,7 @@
 ### Fixed
 
 - Be more defensive about not allowing multiline descriptions and messages.
+- Don't output line breaks in time-tagged headers.
 
 ## [1.2.1] -- 2024-02-15
 
