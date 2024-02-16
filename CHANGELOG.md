@@ -1,5 +1,13 @@
 ## [1.3.0] -- current
 
+### Added
+
+- TODO: A new entry extension point prefix: `%diag_` restricts the compile-time to `Prefixed [||]`, does not change `Nothing`.
+
+### Fixed
+
+- Be more defensive about not allowing multiline descriptions and messages.
+
 ## [1.2.1] -- 2024-02-15
 
 ### Added

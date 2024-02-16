@@ -160,7 +160,12 @@ let rec pat2expr pat =
            "ppx_minidebug requires a pattern identifier here: try using an `as` alias."
 
 let open_log_preamble ?(brief = false) ?(message = "") ~loc () =
-  if brief then
+  if String.contains message '\n' then
+    A.pexp_extension ~loc
+    @@ Location.error_extensionf ~loc
+         {|ppx_minidebug: multiline messages in log entry headers not allowed, found: "%s"|}
+         message
+  else if brief then
     [%expr
       Debug_runtime.open_log_preamble_brief
         ~fname:[%e A.estring ~loc loc.loc_start.pos_fname]
@@ -186,7 +191,11 @@ let to_descr context ~loc ~descr_loc typ =
         else descr_loc.txt
       in
       let loc = descr_loc.loc in
-      [%expr Some [%e A.estring ~loc:descr_loc.loc descr]]
+      if String.contains descr '\n' then
+        A.pexp_extension ~loc
+        @@ Location.error_extensionf ~loc
+             {|ppx_minidebug: multiline log descriptions not allowed, found: "%s"|} descr
+      else [%expr Some [%e A.estring ~loc:descr_loc.loc descr]]
 
 let check_prefix prefixes exp =
   let rec loop = function
@@ -293,10 +302,15 @@ let log_value context =
   | Pp -> log_value_pp context
 
 let log_string ~loc ~descr_loc s =
-  [%expr
-    Debug_runtime.log_value_show
-      ~descr:[%e A.estring ~loc:descr_loc.loc descr_loc.txt]
-      ~entry_id:__entry_id ~is_result:false [%e A.estring ~loc s]]
+  if String.contains descr_loc.txt '\n' then
+    A.pexp_extension ~loc
+    @@ Location.error_extensionf ~loc
+         {|ppx_minidebug: unexpected multiline internal message: "%s"|} descr_loc.txt
+  else
+    [%expr
+      Debug_runtime.log_value_show
+        ~descr:[%e A.estring ~loc:descr_loc.loc descr_loc.txt]
+        ~entry_id:__entry_id ~is_result:false [%e A.estring ~loc s]]
 
 type fun_arg =
   | Pexp_fun_arg of
