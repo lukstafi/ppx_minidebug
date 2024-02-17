@@ -609,8 +609,8 @@ module PrintBox (Log_to : Debug_ch) = struct
     let path =
       if brief then Printf.sprintf "\"%s\":%d:%d" fname start_lnum start_colnum
       else if time_tagged then
-        Format.asprintf "\"%s\":%d:%d-%d:%d at time %a" fname start_lnum
-          start_colnum end_lnum end_colnum pp_timestamp ()
+        Format.asprintf "\"%s\":%d:%d-%d:%d at time %a" fname start_lnum start_colnum
+          end_lnum end_colnum pp_timestamp ()
       else
         Format.asprintf "\"%s\":%d:%d-%d:%d" fname start_lnum start_colnum end_lnum
           end_colnum
@@ -719,6 +719,8 @@ module PrintBox (Log_to : Debug_ch) = struct
   let log_value_sexp ?descr ~entry_id ~is_result sexp =
     let prefixed =
       match config.log_level with
+      | Prefixed [||] | Prefixed_or_result [||] ->
+          failwith "ppx_minidebug: runtime log levels do not support explicit-logs-only"
       | Prefixed prefixes | Prefixed_or_result prefixes ->
           let rec loop = function
             | Sexplib0.Sexp.Atom s ->
@@ -752,6 +754,8 @@ module PrintBox (Log_to : Debug_ch) = struct
   let log_value_pp ?descr ~entry_id ~pp ~is_result v =
     let prefixed =
       match config.log_level with
+      | Prefixed [||] | Prefixed_or_result [||] ->
+          failwith "ppx_minidebug: runtime log levels do not support explicit-logs-only"
       | Prefixed prefixes | Prefixed_or_result prefixes ->
           (* TODO: perf-hint: cache this conversion and maybe don't re-convert. *)
           let s = skip_parens @@ Format.asprintf "%a" pp v in
@@ -768,6 +772,8 @@ module PrintBox (Log_to : Debug_ch) = struct
   let log_value_show ?descr ~entry_id ~is_result v =
     let prefixed =
       match config.log_level with
+      | Prefixed [||] | Prefixed_or_result [||] ->
+          failwith "ppx_minidebug: runtime log levels do not support explicit-logs-only"
       | Prefixed prefixes | Prefixed_or_result prefixes ->
           let s = skip_parens v in
           Array.exists (fun prefix -> String.starts_with ~prefix s) prefixes
