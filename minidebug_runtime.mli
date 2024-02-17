@@ -24,6 +24,8 @@ type log_level =
 module type Debug_ch = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
+  val snapshot_ch : unit -> unit
+  val reset_to_snapshot : unit -> unit
   val time_tagged : bool
   val elapsed_times : elapsed_times
   val print_entry_ids : bool

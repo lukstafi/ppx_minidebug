@@ -26,6 +26,8 @@ let is_prefixed_or_result = function Prefixed_or_result _ -> true | _ -> false
 module type Debug_ch = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
+  val snapshot_ch : unit -> unit
+  val reset_to_snapshot : unit -> unit
   val time_tagged : bool
   val elapsed_times : elapsed_times
   val print_entry_ids : bool
@@ -80,10 +82,16 @@ let debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default)
           Stdlib.flush !current_ch;
           Int64.to_int (Stdlib.LargeFile.out_channel_length !current_ch) > split_after
 
+    let current_snapshot = ref 0
+
     let debug_ch () =
-      if refresh_ch () then current_ch := find_ch ();
+      if refresh_ch () then (
+        current_ch := find_ch ();
+        current_snapshot := 0);
       !current_ch
 
+    let snapshot_ch () = current_snapshot := pos_out !current_ch
+    let reset_to_snapshot () = seek_out !current_ch !current_snapshot
     let time_tagged = time_tagged
     let elapsed_times = elapsed_times
     let print_entry_ids = print_entry_ids
@@ -840,13 +848,24 @@ let debug_file ?(time_tagged = false) ?(elapsed_times = elapsed_default)
   Debug.config.log_level <- log_level;
   (module Debug)
 
-let debug ?(debug_ch = stdout) ?(time_tagged = false) ?(elapsed_times = elapsed_default)
+let debug ?debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default)
     ?(print_entry_ids = false) ?(global_prefix = "") ?highlight_terms ?exclude_on_path
     ?(prune_upto = 0) ?(truncate_children = 0) ?(values_first_mode = false)
     ?(log_level = Everything) () : (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
-    let debug_ch () = debug_ch
+    let ch = match debug_ch with None -> stdout | Some ch -> ch
+    let current_snapshot = ref 0
+
+    let snapshot_ch () =
+      match debug_ch with None -> () | Some _ -> current_snapshot := pos_out ch
+
+    let reset_to_snapshot () =
+      match debug_ch with
+      | None -> Printf.fprintf ch "\027[2J\027[1;1H%!"
+      | Some _ -> seek_out ch !current_snapshot
+
+    let debug_ch () = ch
     let time_tagged = time_tagged
     let elapsed_times = elapsed_times
     let print_entry_ids = print_entry_ids
@@ -861,12 +880,22 @@ let debug ?(debug_ch = stdout) ?(time_tagged = false) ?(elapsed_times = elapsed_
   Debug.config.log_level <- log_level;
   (module Debug)
 
-let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false)
-    ?(elapsed_times = elapsed_default) ?(print_entry_ids = false) ?(global_prefix = "") ()
-    : (module Debug_runtime) =
+let debug_flushing ?debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default)
+    ?(print_entry_ids = false) ?(global_prefix = "") () : (module Debug_runtime) =
   (module Flushing (struct
     let refresh_ch () = false
-    let debug_ch () = debug_ch
+    let ch = match debug_ch with None -> stdout | Some ch -> ch
+    let current_snapshot = ref 0
+
+    let snapshot_ch () =
+      match debug_ch with None -> () | Some _ -> current_snapshot := pos_out ch
+
+    let reset_to_snapshot () =
+      match debug_ch with
+      | None -> Printf.fprintf ch "\027[2J\027[1;1H%!"
+      | Some _ -> seek_out ch !current_snapshot
+
+    let debug_ch () = ch
     let time_tagged = time_tagged
     let elapsed_times = elapsed_times
     let print_entry_ids = print_entry_ids
