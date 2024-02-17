@@ -209,10 +209,11 @@ let check_prefix prefixes exp =
   in
   loop exp
 
-let check_log_level context ~is_result exp thunk =
+let check_log_level context ~is_explicit ~is_result exp thunk =
   let loc = exp.pexp_loc in
   match context.log_level with
   | Nothing -> [%expr ()]
+  | Prefixed [||] -> if is_explicit then thunk () else [%expr ()]
   | Prefixed prefixes when not (check_prefix prefixes exp) -> [%expr ()]
   | Prefixed_or_result prefixes when not (is_result || check_prefix prefixes exp) ->
       [%expr ()]
@@ -552,7 +553,9 @@ let debug_body context callback ~loc ~message ~descr_loc ~log_count_before ~arg_
   let log_result =
     match typ with
     | None -> [%expr ()]
-    | Some typ -> log_value context ~loc ~typ ~descr_loc ~is_result:true (pat2expr result)
+    | Some typ ->
+        log_value context ~loc ~typ ~descr_loc ~is_explicit:false ~is_result:true
+          (pat2expr result)
   in
   entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
     ~entry:(callback context body) ~result ~log_result ()
@@ -640,8 +643,8 @@ let debug_fun context callback ?typ ?ret_descr ?ret_typ exp =
             let _, bound = bound_patterns ~alt_typ:(Some alt_typ) pat in
             List.map
               (fun (descr_loc, pat, typ) ->
-                log_value context ~loc:pexp_loc ~typ ~descr_loc ~is_result:false
-                  (pat2expr pat))
+                log_value context ~loc:pexp_loc ~typ ~descr_loc ~is_explicit:false
+                  ~is_result:false (pat2expr pat))
               bound
             @ arg_log (arg_typs, args)
         | ( [],
@@ -651,8 +654,8 @@ let debug_fun context callback ?typ ?ret_descr ?ret_typ exp =
             let _, bound = bound_patterns ~alt_typ:None pat in
             List.map
               (fun (descr_loc, pat, typ) ->
-                log_value context ~loc:pexp_loc ~typ ~descr_loc ~is_result:false
-                  (pat2expr pat))
+                log_value context ~loc:pexp_loc ~typ ~descr_loc ~is_explicit:false
+                  ~is_result:false (pat2expr pat))
               bound
             @ arg_log ([], args)
         | _, [] -> []
@@ -677,7 +680,7 @@ let debug_case context callback ?ret_descr ?ret_typ ?arg_typ kind i
   let arg_logs =
     List.map
       (fun (descr_loc, pat, typ) ->
-        log_value context ~loc ~typ ~descr_loc ~is_result:false (pat2expr pat))
+        log_value context ~loc ~typ ~descr_loc ~is_explicit:false ~is_result:false (pat2expr pat))
       bound
   in
   let message = pat2descr ~default:"_" pc_lhs in
@@ -780,7 +783,7 @@ let debug_binding context callback vb =
               List.map
                 (fun (descr_loc, pat, typ) ->
                   log_value context ~loc:vb.pvb_expr.pexp_loc ~typ ~descr_loc
-                    ~is_result:true (pat2expr pat))
+                  ~is_explicit:false ~is_result:true (pat2expr pat))
                 bound
               |> List.fold_left
                    (fun e1 e2 ->
@@ -920,13 +923,14 @@ type rule = {
   track_branches : bool;
   toplevel_opt_arg : toplevel_opt_arg;
   expander : [ `Debug | `Debug_this | `Str ];
+  restrict_to_explicit : bool;
   log_value : log_value;
 }
 
 let rules =
   List.concat
   @@ List.map
-       (fun track_branches ->
+       (fun track_or_explicit ->
          List.concat
          @@ List.map
               (fun toplevel_opt_arg ->
@@ -935,7 +939,12 @@ let rules =
                      (fun expander ->
                        List.map
                          (fun log_value ->
-                           let ext_point = if track_branches then "track" else "debug" in
+                           let ext_point =
+                             match track_or_explicit with
+                             | `Debug -> "debug"
+                             | `Track -> "track"
+                             | `Diagn -> "diagn"
+                           in
                            let ext_point =
                              ext_point
                              ^
@@ -960,15 +969,16 @@ let rules =
                            in
                            {
                              ext_point;
-                             track_branches;
+                             track_branches = track_or_explicit = `Track;
                              toplevel_opt_arg;
                              expander;
+                             restrict_to_explicit = track_or_explicit = `Diagn;
                              log_value;
                            })
                          [ Pp; Sexp; Show ])
                      [ `Debug; `Debug_this; `Str ])
               [ Toplevel_no_arg; Generic; PrintBox ])
-       [ false; true ]
+       [ `Track; `Debug; `Diagn ]
 
 let is_ext_point =
   let points = List.map (fun r -> Re.str r.ext_point) rules in
@@ -1005,11 +1015,12 @@ let traverse_expression =
         | Pexp_extension ({ loc = _; txt }, PStr [%str [%e? body]]) when is_ext_point txt
           ->
             let prefix_pos = String.index txt '_' in
-            let track_branches =
+            let track_branches, log_level =
               match String.sub txt 0 prefix_pos with
-              | "debug" -> false
-              | "track" -> true
-              | _ -> context.track_branches
+              | "debug" -> (false, context.log_level)
+              | "track" -> (true, context.log_level)
+              | "diagn" when context.log_level <> Nothing -> (false, Prefixed [||])
+              | _ -> (context.track_branches, context.log_level)
             in
             let suffix_pos = String.rindex txt '_' in
             let log_value =
@@ -1025,7 +1036,7 @@ let traverse_expression =
               else Toplevel_no_arg
             in
             self#expression
-              { context with log_value; track_branches; toplevel_opt_arg }
+              { context with log_value; track_branches; toplevel_opt_arg; log_level }
               body
         | Pexp_extension ({ loc = _; txt = "debug_notrace" }, PStr [%str [%e? body]]) ->
             callback { context with track_branches = false } body
@@ -1060,7 +1071,7 @@ let traverse_expression =
             callback { context with output_type_info = true } body
         | Pexp_extension ({ loc = _; txt = "log" }, PStr [%str [%e? body]]) ->
             let typ = extract_type ~alt_typ:ret_typ body in
-            log_value context ~loc ~typ ~is_result:false body
+            log_value context ~loc ~typ ~is_explicit:true ~is_result:false body
         | Pexp_newtype _ -> debug_fun context callback ?typ:ret_typ exp
         | Pexp_fun _ -> debug_fun context callback ?typ:ret_typ exp
         | Pexp_match ([%expr ([%e? expr] : [%t? arg_typ])], cases)
@@ -1152,7 +1163,7 @@ let traverse_expression =
                   ~loc:descr_loc.loc ()
               in
               let header =
-                log_value context ~loc ~typ ~descr_loc ~is_result:false (pat2expr pat)
+                log_value context ~loc ~typ ~descr_loc ~is_explicit:false ~is_result:false (pat2expr pat)
               in
               entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~header
                 ~preamble ~entry:(callback context body)
@@ -1336,27 +1347,67 @@ let global_log_level =
 let rules =
   global_log_level :: global_output_type_info :: global_interrupts
   :: List.map
-       (fun { ext_point; track_branches; toplevel_opt_arg; expander; log_value } ->
+       (fun {
+              ext_point;
+              track_branches;
+              toplevel_opt_arg;
+              expander;
+              restrict_to_explicit;
+              log_value;
+            } ->
          let declaration =
            match expander with
            | `Debug ->
                Extension.V3.declare ext_point Extension.Context.expression
                  Ast_pattern.(single_expr_payload __)
                  (fun ~ctxt:_ ->
+                   let log_level =
+                     if restrict_to_explicit && !init_context.log_level <> Nothing then
+                       Prefixed [||]
+                     else !init_context.log_level
+                   in
                    debug_expander
-                     { !init_context with toplevel_opt_arg; track_branches; log_value })
+                     {
+                       !init_context with
+                       toplevel_opt_arg;
+                       track_branches;
+                       log_level;
+                       log_value;
+                     })
            | `Debug_this ->
                Extension.V3.declare ext_point Extension.Context.expression
                  Ast_pattern.(single_expr_payload __)
                  (fun ~ctxt:_ ->
+                   let log_level =
+                     if restrict_to_explicit && !init_context.log_level <> Nothing then
+                       Prefixed [||]
+                     else !init_context.log_level
+                   in
                    debug_this_expander
-                     { !init_context with toplevel_opt_arg; track_branches; log_value })
+                     {
+                       !init_context with
+                       toplevel_opt_arg;
+                       track_branches;
+                       log_level;
+                       log_value;
+                     })
            | `Str ->
                Extension.V3.declare ext_point Extension.Context.structure_item
                  Ast_pattern.(pstr __)
                  (fun ~ctxt ->
+                   let log_level =
+                     if restrict_to_explicit && !init_context.log_level <> Nothing then
+                       Prefixed [||]
+                     else !init_context.log_level
+                   in
                    str_expander
-                     { !init_context with toplevel_opt_arg; track_branches; log_value }
+                     {
+                       !init_context with
+                       toplevel_opt_arg;
+                       track_branches;
+                       log_level;
+                       log_value;
+                     }
                      ~loc:(Expansion_context.Extension.extension_point_loc ctxt))
          in
          Ppxlib.Context_free.Rule.extension declaration)

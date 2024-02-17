@@ -2,7 +2,13 @@
 
 ### Added
 
-- TODO: A new entry extension point prefix: `%diag_` restricts the compile-time to `Prefixed [||]`, does not change `Nothing`.
+- A new entry extension point prefix: `%diagn_` restricts the compile-time to `Prefixed [||]`, does not change `Nothing`.
+- TODO: `snapshot` in the PrintBox backend as in [#21](https://github.com/lukstafi/ppx_minidebug/issues/21).
+- TODO: Optionally, `snapshot ()` at the end of a `log_value` call if elapsed time since last snapshot is greater than given threshold.
+
+### Changed
+
+- Re-interpret `Prefixed [||]` to mean "explicit logs only" -- originally (as logic indicates) it was equivalent to `Nothing`.
 
 ### Fixed
 
