@@ -3095,3 +3095,89 @@ let%expect_test "%debug_show log level Prefixed_or_result [||] compile+runtime" 
         ├─"test/test_expect_test.ml":3079:14-3082:32
         └─("for baz, f squared", 64)
         109 |}]
+
+
+let%expect_test "%debug_this_show PrintBox snapshot" =
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug ~values_first_mode:true ())
+  in
+  let%debug_this_show rec loop_highlight (x : int) : int =
+    let z : int = (x - 1) / 2 in
+    if z = 3 || x = 3 then Debug_runtime.snapshot ();
+    if x <= 0 then 0 else z + loop_highlight (z + (x / 2))
+  in
+  print_endline @@ Int.to_string @@ loop_highlight 7;
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      loop_highlight
+      ├─"test/test_expect_test.ml":3104:41-3107:58
+      ├─x = 7
+      └─z = 3
+        └─"test/test_expect_test.ml":3105:8
+      [2J[1;1Hloop_highlight
+      ├─"test/test_expect_test.ml":3104:41-3107:58
+      ├─x = 7
+      ├─z = 3
+      │ └─"test/test_expect_test.ml":3105:8
+      └─loop_highlight
+        ├─"test/test_expect_test.ml":3104:41-3107:58
+        ├─x = 6
+        ├─z = 2
+        │ └─"test/test_expect_test.ml":3105:8
+        └─loop_highlight
+          ├─"test/test_expect_test.ml":3104:41-3107:58
+          ├─x = 5
+          ├─z = 2
+          │ └─"test/test_expect_test.ml":3105:8
+          └─loop_highlight
+            ├─"test/test_expect_test.ml":3104:41-3107:58
+            ├─x = 4
+            ├─z = 1
+            │ └─"test/test_expect_test.ml":3105:8
+            └─loop_highlight
+              ├─"test/test_expect_test.ml":3104:41-3107:58
+              ├─x = 3
+              └─z = 1
+                └─"test/test_expect_test.ml":3105:8
+      [2J[1;1Hloop_highlight = 9
+      ├─"test/test_expect_test.ml":3104:41-3107:58
+      ├─x = 7
+      ├─z = 3
+      │ └─"test/test_expect_test.ml":3105:8
+      └─loop_highlight = 6
+        ├─"test/test_expect_test.ml":3104:41-3107:58
+        ├─x = 6
+        ├─z = 2
+        │ └─"test/test_expect_test.ml":3105:8
+        └─loop_highlight = 4
+          ├─"test/test_expect_test.ml":3104:41-3107:58
+          ├─x = 5
+          ├─z = 2
+          │ └─"test/test_expect_test.ml":3105:8
+          └─loop_highlight = 2
+            ├─"test/test_expect_test.ml":3104:41-3107:58
+            ├─x = 4
+            ├─z = 1
+            │ └─"test/test_expect_test.ml":3105:8
+            └─loop_highlight = 1
+              ├─"test/test_expect_test.ml":3104:41-3107:58
+              ├─x = 3
+              ├─z = 1
+              │ └─"test/test_expect_test.ml":3105:8
+              └─loop_highlight = 0
+                ├─"test/test_expect_test.ml":3104:41-3107:58
+                ├─x = 2
+                ├─z = 0
+                │ └─"test/test_expect_test.ml":3105:8
+                └─loop_highlight = 0
+                  ├─"test/test_expect_test.ml":3104:41-3107:58
+                  ├─x = 1
+                  ├─z = 0
+                  │ └─"test/test_expect_test.ml":3105:8
+                  └─loop_highlight = 0
+                    ├─"test/test_expect_test.ml":3104:41-3107:58
+                    ├─x = 0
+                    └─z = 0
+                      └─"test/test_expect_test.ml":3105:8
+      9 |}]

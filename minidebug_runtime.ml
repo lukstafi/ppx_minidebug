@@ -371,6 +371,7 @@ module type PrintBox_runtime = sig
   }
 
   val config : config
+  val snapshot : unit -> unit
 end
 
 module PrintBox (Log_to : Debug_ch) = struct
@@ -531,6 +532,13 @@ module PrintBox (Log_to : Debug_ch) = struct
       let hl_header = apply_highlight highlight b_path in
       B.tree hl_header (unpack body)
 
+  let needs_snapshot_reset = ref false
+
+  let pop_snapshot () =
+    if !needs_snapshot_reset then (
+      reset_to_snapshot ();
+      needs_snapshot_reset := false)
+
   let close_log () =
     (* Note: we treat a tree under a box as part of that box. *)
     stack :=
@@ -561,6 +569,7 @@ module PrintBox (Log_to : Debug_ch) = struct
       | [ ({ cond = true; _ } as entry) ] ->
           let box = stack_to_tree entry in
           let ch = debug_ch () in
+          pop_snapshot ();
           (match config.backend with
           | `Text -> PrintBox_text.output ch box
           | `Html config -> output_string ch @@ PrintBox_html.(to_string ~config box)
@@ -569,8 +578,22 @@ module PrintBox (Log_to : Debug_ch) = struct
               @@ PrintBox_md.(to_string Config.(foldable_trees config) box));
           output_string ch "\n";
           Stdlib.flush ch;
+          snapshot_ch ();
           []
       | _ -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
+
+  let snapshot () =
+    let current_stack = !stack in
+    try
+      pop_snapshot ();
+      while !stack <> [] do
+        close_log ()
+      done;
+      needs_snapshot_reset := true;
+      stack := current_stack
+    with e ->
+      stack := current_stack;
+      raise e
 
   let stack_next ~entry_id ~is_result ~prefixed (hl, b) =
     match config.log_level with

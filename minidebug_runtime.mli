@@ -165,6 +165,10 @@ module type PrintBox_runtime = sig
   }
 
   val config : config
+
+  val snapshot : unit -> unit
+  (** Outputs the current logging stack to the logging channel. If the logging channel supports that,
+      an output following a snapshot will rewind the channel to the state prior to the snapshot. *)
 end
 
 (** The logged traces will be pretty-printed as trees using the `printbox` package. This logger
