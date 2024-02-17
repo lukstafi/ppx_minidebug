@@ -214,6 +214,7 @@ let check_log_level context ~is_explicit ~is_result exp thunk =
   match context.log_level with
   | Nothing -> [%expr ()]
   | Prefixed [||] -> if is_explicit then thunk () else [%expr ()]
+  | Prefixed_or_result [||] -> if is_explicit || is_result then thunk () else [%expr ()]
   | Prefixed prefixes when not (check_prefix prefixes exp) -> [%expr ()]
   | Prefixed_or_result prefixes when not (is_result || check_prefix prefixes exp) ->
       [%expr ()]
@@ -680,7 +681,8 @@ let debug_case context callback ?ret_descr ?ret_typ ?arg_typ kind i
   let arg_logs =
     List.map
       (fun (descr_loc, pat, typ) ->
-        log_value context ~loc ~typ ~descr_loc ~is_explicit:false ~is_result:false (pat2expr pat))
+        log_value context ~loc ~typ ~descr_loc ~is_explicit:false ~is_result:false
+          (pat2expr pat))
       bound
   in
   let message = pat2descr ~default:"_" pc_lhs in
@@ -783,7 +785,7 @@ let debug_binding context callback vb =
               List.map
                 (fun (descr_loc, pat, typ) ->
                   log_value context ~loc:vb.pvb_expr.pexp_loc ~typ ~descr_loc
-                  ~is_explicit:false ~is_result:true (pat2expr pat))
+                    ~is_explicit:false ~is_result:true (pat2expr pat))
                 bound
               |> List.fold_left
                    (fun e1 e2 ->
@@ -1163,7 +1165,8 @@ let traverse_expression =
                   ~loc:descr_loc.loc ()
               in
               let header =
-                log_value context ~loc ~typ ~descr_loc ~is_explicit:false ~is_result:false (pat2expr pat)
+                log_value context ~loc ~typ ~descr_loc ~is_explicit:false ~is_result:false
+                  (pat2expr pat)
               in
               entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~header
                 ~preamble ~entry:(callback context body)

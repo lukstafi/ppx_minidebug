@@ -462,6 +462,8 @@ The log levels are:
 - `Nothing` -- the runtime should not generate anything, and when used at compile time, the extension should not generate any `ppx_minidebug`-related code. However, just changing the log level should not break the code, therefore the runtime-passing transformation (i.e. the first-class-module argument added by the `_rt_` and `_rtb_` infixes) happens even for the `Nothing` log level.
 - `Prefixed [| prefix1; ... |]` -- only values starting with one of: prefix1, ... should be logged; at compile time, only logs with literals having one of prefix1, ... as a prefix, should be generated. Moreover, also don't log "empty entries" (see below). To preserve the hierarchical context, also log headers of logging scopes.
 - `Prefixed_or_result [| prefix1; ... |]` as above, but also log results of computations.
+- `Prefixed [||]` -- outputs all and only explicit logs (i.e. `%log` statements).
+- `Prefixed_or_result [||]` -- as above, but also log results of computations.
 - `Nonempty_entries` -- do not log entries, such as functions or control flow blocks, that do not have sub-logs.
 - `Everything` -- no restrictions.
 

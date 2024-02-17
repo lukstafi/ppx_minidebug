@@ -2993,3 +2993,71 @@ let%expect_test "%diagn_show ignores type annots" =
       ├─"test/test_expect_test.ml":2979:10-2982:28
       └─("for baz, f squared", 64)
       109 |}]
+
+let%expect_test "%debug_show log level Prefixed_or_result [||]" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let%debug_show () =
+    [%log_level
+      Prefixed_or_result [||];
+      let bar { first : int; second : int } : int =
+        let { first : int = a; second : int = b } = { first; second = second + 3 } in
+        let y : int = a + 1 in
+        [%log "for bar, b-3", (b - 3 : int)];
+        (b - 3) * y
+      in
+      let baz { first : int; second : int } : int =
+        let { first : int; second : int } = { first = first + 1; second = second + 3 } in
+        [%log "for baz, f squared", (first * first : int)];
+        (first * first) + second
+      in
+      print_endline @@ Int.to_string @@ bar { first = 7; second = 42 };
+      print_endline @@ Int.to_string @@ baz { first = 7; second = 42 }]
+  in
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      bar = 336
+      ├─"test/test_expect_test.ml":3002:14-3006:19
+      ├─{first=a; second=b}
+      │ ├─"test/test_expect_test.ml":3003:12
+      │ └─<values>
+      │   ├─a = 7
+      │   └─b = 45
+      ├─y = 8
+      │ └─"test/test_expect_test.ml":3004:12
+      └─("for bar, b-3", 42)
+      336
+      baz = 109
+      ├─"test/test_expect_test.ml":3008:14-3011:32
+      ├─{first; second}
+      │ ├─"test/test_expect_test.ml":3009:12
+      │ └─<values>
+      │   ├─first = 8
+      │   └─second = 45
+      └─("for baz, f squared", 64)
+      109 |}]
+(* Compare to:
+    {|
+    BEGIN DEBUG SESSION
+    bar = 336
+    ├─"test/test_expect_test.ml":1898:21-1901:15
+    ├─first = 7
+    ├─second = 42
+    ├─{first=a; second=b}
+    │ ├─"test/test_expect_test.ml":1899:8
+    │ └─<values>
+    │   ├─a = 7
+    │   └─b = 45
+    └─y = 8
+      └─"test/test_expect_test.ml":1900:8
+    336
+    baz = 109
+    ├─"test/test_expect_test.ml":1904:10-1906:28
+    ├─first = 7
+    ├─second = 42
+    └─{first; second}
+      ├─"test/test_expect_test.ml":1905:8
+      └─<values>
+        ├─first = 8
+        └─second = 45
+    109 |} *)
