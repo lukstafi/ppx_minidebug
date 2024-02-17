@@ -204,9 +204,10 @@ Example showcasing the `printbox-md` (Markdown) backend:
 
 Tracing only happens in explicitly marked lexical scopes. The entry extension points vary along four axes:
 
-- `%debug_` vs. `%track_`
+- `%debug_` vs. `%track_` vs. `%diagn_`
   - The prefix `%debug_` means logging fewer things: only let-bound values and functions are logged, and functions only when either: directly in a `%debug_`-annotated let binding, or their return type is annotated.
   - `%track_` also logs: which `if`, `match`, `function` branch is taken, `for` and `while` loops, and all functions, including anonymous ones.
+  - The prefix `%diagn_` means only generating logs for explicitly logged values, i.e. introduced by `[%log ...]` statements.
 - Optional infix `_this_` puts only the body of a `let` definition in scope for logging.
   - `let%debug_this_show v: t = compute value in outer scope` will trace `v` and the type-annotated bindings and functions inside `compute value`, but it will not trace `outer scope`.
 - Optional infixes `_rt_` and `_rtb_` add a first-class module argument to a function, and unpack it as `module Debug_runtime` for the scope of the function.
@@ -457,6 +458,8 @@ Explicit logging statements also help with tracking the execution, since they ca
 
 `ppx_minidebug` can be used as a logging framework: its annotations can be stored permamently with the source code, rather than shyly added for a brief period of debugging. To allow this, there needs to be a mechanism of logging levels -- otherwise the system is slowed down too much, or even if performance is not an issue, the user is overwhelmed with the amount of logs. `ppx_minidebug` addresses these issues in a flexible way, by offering restriction of log levels both at compile time and at runtime.
 
+The `%diagn_` extension points (short for "diagnostic") are tailored for the "logging framework" use-case. Within the scope of a `%diagn_` extension point, only explicit logs are generated. Therefore, one can freely add type annotations without generating debug logs.
+
 The log levels are:
 
 - `Nothing` -- the runtime should not generate anything, and when used at compile time, the extension should not generate any `ppx_minidebug`-related code. However, just changing the log level should not break the code, therefore the runtime-passing transformation (i.e. the first-class-module argument added by the `_rt_` and `_rtb_` infixes) happens even for the `Nothing` log level.
@@ -467,6 +470,37 @@ The log levels are:
 - `Prefixed_or_result [||]` at runtime -- only log results of computations if an entry has non-result logs.
 - `Nonempty_entries` -- do not log entries, such as functions or control flow blocks, that do not have sub-logs.
 - `Everything` -- no restrictions.
+
+The `%diagn_` extension points are a shorthand for setting the compile-time log level to `Prefixed [||]`. Example from the test suite:
+
+```ocaml
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let%diagn_show bar { first : int; second : int } : int =
+    let { first : int = a; second : int = b } = { first; second = second + 3 } in
+    let y : int = a + 1 in
+    [%log "for bar, b-3", (b - 3 : int)];
+    (b - 3) * y
+  in
+  let () = print_endline @@ Int.to_string @@ bar { first = 7; second = 42 } in
+  let baz { first : int; second : int } : int =
+    let { first : int; second : int } = { first = first + 1; second = second + 3 } in
+    [%log "for baz, f squared", (first * first : int)];
+    (first * first) + second
+  in
+  let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      bar
+      ├─"test/test_expect_test.ml":2972:21-2976:15
+      └─("for bar, b-3", 42)
+      336
+      baz
+      ├─"test/test_expect_test.ml":2979:10-2982:28
+      └─("for baz, f squared", 64)
+      109 |}]
+
+```
 
 At runtime, the level can be set via `Minidebug_runtime.debug ~log_level` or `Minidebug_runtime.debug_file ~log_level` at runtime creation, or via `Debug_runtime.config.log_level <- ...` later on. Check out the test suite [test_expect_test.ml:"%log runtime log levels while-loop"](test/test_expect_test.ml#L2439) for examples:
 
@@ -514,6 +548,43 @@ let%track_sexp nonempty () : int =
   !j
 
 let () = print_endline @@ Int.to_string @@ nonempty ()
+```
+
+With some "abuse of notation", we use `Prefixed [||]` resp. `Prefixed_or_result [||]` to mean all-and-only explicit logs (resp. also result logs). `Prefixed [||]` only works at compile time. `Prefixed_or_result [||]` works as intended when set both at compile time and at runtime: then, it will output all explicit logs, but also results in otherwise-nonempty entries. Example from the test suite:
+
+```ocaml
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug ~values_first_mode:true
+           ~log_level:(Prefixed_or_result [||]) ())
+  in
+  let%debug_show () =
+    [%log_level
+      Prefixed_or_result [||];
+      let bar { first : int; second : int } : int =
+        let { first : int = a; second : int = b } = { first; second = second + 3 } in
+        let y : int = a + 1 in
+        [%log "for bar, b-3", (b - 3 : int)];
+        (b - 3) * y
+      in
+      let baz { first : int; second : int } : int =
+        let { first : int; second : int } = { first = first + 1; second = second + 3 } in
+        [%log "for baz, f squared", (first * first : int)];
+        (first * first) + second
+      in
+      print_endline @@ Int.to_string @@ bar { first = 7; second = 42 };
+      print_endline @@ Int.to_string @@ baz { first = 7; second = 42 }]
+  in
+  [%expect
+    {|
+        BEGIN DEBUG SESSION
+        bar = 336
+        ├─"test/test_expect_test.ml":3073:14-3077:19
+        └─("for bar, b-3", 42)
+        336
+        baz = 109
+        ├─"test/test_expect_test.ml":3079:14-3082:32
+        └─("for baz, f squared", 64)
+        109 |}]
 ```
 
 ### Lexical scopes vs. dynamic scopes
@@ -696,7 +767,7 @@ let () =
 
 Inlined example output, using the Markdown backend for PrintBox. Note that the elapsed time is wallclock time (see [`mtime`](https://erratique.ch/software/mtime)) and is due to fluctuate because of e.g. garbage collection or external system events.
 
-BEGIN DEBUG SESSION 
+BEGIN DEBUG SESSION
 <details><summary><code>loop = 58435</code> &nbsp;  &lt;16850.93μs&gt;</summary>
 
 - ["test/test_debug_time_spans.ml":9:26-15:60](./test/test_debug_time_spans.ml#L9)
@@ -706,374 +777,314 @@ BEGIN DEBUG SESSION
   - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
   </details>
   
-  
 - <details><summary><code>loop = 11685</code> &nbsp;  &lt;3111.59μs&gt;</summary>
   
   - ["test/test_debug_time_spans.ml":9:26-15:60](./test/test_debug_time_spans.ml#L9)
   - \<earlier entries truncated\>
   - <details><summary><code>z = 4</code> &nbsp;  &lt;0.48μs&gt;</summary>
-    
+
     - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
     </details>
-    
-    
+
   - <details><summary><code>loop = 1945</code> &nbsp;  &lt;494.56μs&gt;</summary>
-    
+
     - ["test/test_debug_time_spans.ml":9:26-15:60](./test/test_debug_time_spans.ml#L9)
     - \<earlier entries truncated\>
     - <details><summary><code>z = 8</code> &nbsp;  &lt;0.48μs&gt;</summary>
-      
+
       - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
       </details>
-      
-      
+
     - <details><summary><code>loop = 190</code> &nbsp;  &lt;41.60μs&gt;</summary>
-      
+
       - ["test/test_debug_time_spans.ml":9:26-15:60](./test/test_debug_time_spans.ml#L9)
       - \<earlier entries truncated\>
       - <details><summary><code>z = 16</code> &nbsp;  &lt;0.41μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 17</code> &nbsp;  &lt;0.42μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 18</code> &nbsp;  &lt;0.45μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 19</code> &nbsp;  &lt;0.45μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       </details>
-      
-      
+
     - <details><summary><code>z = 9</code> &nbsp;  &lt;0.49μs&gt;</summary>
-      
+
       - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
       </details>
-      
-      
+
     - <details><summary><code>loop = 190</code> &nbsp;  &lt;41.54μs&gt;</summary>
-      
+
       - ["test/test_debug_time_spans.ml":9:26-15:60](./test/test_debug_time_spans.ml#L9)
       - \<earlier entries truncated\>
       - <details><summary><code>z = 16</code> &nbsp;  &lt;0.42μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 17</code> &nbsp;  &lt;0.45μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 18</code> &nbsp;  &lt;0.41μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 19</code> &nbsp;  &lt;0.45μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       </details>
-      
-      
+
     </details>
-    
-    
+
   - <details><summary><code>z = 5</code> &nbsp;  &lt;0.45μs&gt;</summary>
-    
+
     - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
     </details>
-    
-    
+
   - <details><summary><code>loop = 1945</code> &nbsp;  &lt;524.86μs&gt;</summary>
-    
+
     - ["test/test_debug_time_spans.ml":9:26-15:60](./test/test_debug_time_spans.ml#L9)
     - \<earlier entries truncated\>
     - <details><summary><code>z = 8</code> &nbsp;  &lt;0.46μs&gt;</summary>
-      
+
       - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
       </details>
-      
-      
+
     - <details><summary><code>loop = 190</code> &nbsp;  &lt;42.11μs&gt;</summary>
-      
+
       - ["test/test_debug_time_spans.ml":9:26-15:60](./test/test_debug_time_spans.ml#L9)
       - \<earlier entries truncated\>
       - <details><summary><code>z = 16</code> &nbsp;  &lt;0.45μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 17</code> &nbsp;  &lt;0.45μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 18</code> &nbsp;  &lt;0.45μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 19</code> &nbsp;  &lt;0.42μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       </details>
-      
-      
+
     - <details><summary><code>z = 9</code> &nbsp;  &lt;0.47μs&gt;</summary>
-      
+
       - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
       </details>
-      
-      
+
     - <details><summary><code>loop = 190</code> &nbsp;  &lt;42.85μs&gt;</summary>
-      
+
       - ["test/test_debug_time_spans.ml":9:26-15:60](./test/test_debug_time_spans.ml#L9)
       - \<earlier entries truncated\>
       - <details><summary><code>z = 16</code> &nbsp;  &lt;0.43μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 17</code> &nbsp;  &lt;0.43μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 18</code> &nbsp;  &lt;0.45μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 19</code> &nbsp;  &lt;0.42μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       </details>
-      
-      
+
     </details>
-    
-    
+
   </details>
-  
   
 - <details><summary><code>z = 5</code> &nbsp;  &lt;0.44μs&gt;</summary>
   
   - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
   </details>
   
-  
 - <details><summary><code>loop = 11685</code> &nbsp;  &lt;3166.55μs&gt;</summary>
   
   - ["test/test_debug_time_spans.ml":9:26-15:60](./test/test_debug_time_spans.ml#L9)
   - \<earlier entries truncated\>
   - <details><summary><code>z = 4</code> &nbsp;  &lt;0.49μs&gt;</summary>
-    
+
     - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
     </details>
-    
-    
+
   - <details><summary><code>loop = 1945</code> &nbsp;  &lt;499.49μs&gt;</summary>
-    
+
     - ["test/test_debug_time_spans.ml":9:26-15:60](./test/test_debug_time_spans.ml#L9)
     - \<earlier entries truncated\>
     - <details><summary><code>z = 8</code> &nbsp;  &lt;0.50μs&gt;</summary>
-      
+
       - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
       </details>
-      
-      
+
     - <details><summary><code>loop = 190</code> &nbsp;  &lt;41.51μs&gt;</summary>
-      
+
       - ["test/test_debug_time_spans.ml":9:26-15:60](./test/test_debug_time_spans.ml#L9)
       - \<earlier entries truncated\>
       - <details><summary><code>z = 16</code> &nbsp;  &lt;0.42μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 17</code> &nbsp;  &lt;0.46μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 18</code> &nbsp;  &lt;0.42μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 19</code> &nbsp;  &lt;0.42μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       </details>
-      
-      
+
     - <details><summary><code>z = 9</code> &nbsp;  &lt;0.49μs&gt;</summary>
-      
+
       - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
       </details>
-      
-      
+
     - <details><summary><code>loop = 190</code> &nbsp;  &lt;41.39μs&gt;</summary>
-      
+
       - ["test/test_debug_time_spans.ml":9:26-15:60](./test/test_debug_time_spans.ml#L9)
       - \<earlier entries truncated\>
       - <details><summary><code>z = 16</code> &nbsp;  &lt;0.41μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 17</code> &nbsp;  &lt;0.41μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 18</code> &nbsp;  &lt;0.45μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 19</code> &nbsp;  &lt;0.46μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       </details>
-      
-      
+
     </details>
-    
-    
+
   - <details><summary><code>z = 5</code> &nbsp;  &lt;0.45μs&gt;</summary>
-    
+
     - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
     </details>
-    
-    
+
   - <details><summary><code>loop = 1945</code> &nbsp;  &lt;642.73μs&gt;</summary>
-    
+
     - ["test/test_debug_time_spans.ml":9:26-15:60](./test/test_debug_time_spans.ml#L9)
     - \<earlier entries truncated\>
     - <details><summary><code>z = 8</code> &nbsp;  &lt;0.47μs&gt;</summary>
-      
+
       - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
       </details>
-      
-      
+
     - <details><summary><code>loop = 190</code> &nbsp;  &lt;210.44μs&gt;</summary>
-      
+
       - ["test/test_debug_time_spans.ml":9:26-15:60](./test/test_debug_time_spans.ml#L9)
       - \<earlier entries truncated\>
       - <details><summary><code>z = 16</code> &nbsp;  &lt;167.41μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 17</code> &nbsp;  &lt;0.53μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 18</code> &nbsp;  &lt;0.43μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 19</code> &nbsp;  &lt;0.43μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       </details>
-      
-      
+
     - <details><summary><code>z = 9</code> &nbsp;  &lt;0.50μs&gt;</summary>
-      
+
       - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
       </details>
-      
-      
+
     - <details><summary><code>loop = 190</code> &nbsp;  &lt;42.02μs&gt;</summary>
-      
+
       - ["test/test_debug_time_spans.ml":9:26-15:60](./test/test_debug_time_spans.ml#L9)
       - \<earlier entries truncated\>
       - <details><summary><code>z = 16</code> &nbsp;  &lt;0.43μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 17</code> &nbsp;  &lt;0.46μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 18</code> &nbsp;  &lt;0.42μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       - <details><summary><code>z = 19</code> &nbsp;  &lt;0.42μs&gt;</summary>
-        
+
         - ["test/test_debug_time_spans.ml":14:15](./test/test_debug_time_spans.ml#L14)
         </details>
-        
-        
+
       </details>
-      
-      
+
     </details>
-    
-    
+
   </details>
-  
   
 </details>
 
