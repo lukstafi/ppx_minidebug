@@ -873,3 +873,5 @@ let debug_flushing ?(debug_ch = stdout) ?(time_tagged = false)
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = None
   end))
+
+let forget_printbox (module Runtime : PrintBox_runtime) = (module Runtime : Debug_runtime)

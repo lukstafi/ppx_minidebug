@@ -1,8 +1,9 @@
-## [1.3.0] -- current
+## [1.3.0] -- 2024-02-17
 
 ### Added
 
-- A new entry extension point prefix: `%diagn_` restricts the compile-time to `Prefixed [||]`, does not change `Nothing`.
+- A new entry extension point prefix: `%diagn_` restricts the compile-time log level to `Prefixed [||]`, does not change `Nothing`.
+- `forget_printbox`
 - TODO: `snapshot` in the PrintBox backend as in [#21](https://github.com/lukstafi/ppx_minidebug/issues/21).
 - TODO: Optionally, `snapshot ()` at the end of a `log_value` call if elapsed time since last snapshot is greater than given threshold.
 

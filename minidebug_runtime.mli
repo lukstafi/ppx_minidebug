@@ -227,3 +227,6 @@ val debug_flushing :
   (module Debug_runtime)
 (** Creates a flushing-based debug runtime. By default it will log to [stdout] and will not be
     time tagged. See {!debug_ch} for the details about shared parameters. *)
+
+val forget_printbox : (module PrintBox_runtime) -> (module Debug_runtime)
+(** Upcasts the runtime. *)
