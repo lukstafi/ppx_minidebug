@@ -10,38 +10,6 @@ Try [opam install ppx_minidebug] to install from the opam repository. To install
 
 To use [ppx_minidebug] in a Dune project, add/modify these stanzas: [(preprocess (pps ... ppx_minidebug))], and [(libraries ... ppx_minidebug.runtime)].
 
-{2 [Pp_format]-based traces -- bare-bones}
-
-This backend relies on the [Format] module from the standard library. Define a [Debug_runtime] using the [Pp_format] functor. The helper first-class-module function [debug_ch] opens a file for appending.
-For example:
-
-{@ocaml[
-module Debug_runtime =
-  Minidebug_runtime.Pp_format((val Minidebug_runtime.debug_ch "path/to/debugger_format.log"))
-]}
-
-The logged traces will be indented using OCaml's [Format] module. Truncated example (using [%debug_pp]):
-
-{@shell[
-BEGIN DEBUG SESSION
-"test/test_debug_pp.ml":7:17-9:14: bar
-x = { Test_debug_pp.first = 7; second = 42 }  "test/test_debug_pp.ml":8:6: y y = 8  bar = 336  
-"test/test_debug_pp.ml":13:17-15:20: baz
-x = { Test_debug_pp.first = 7; second = 42 }  "test/test_debug_pp.ml":14:36: _yz
-  _yz = { Test_debug_pp.first = 8; second = 3 }  baz = 339  
-"test/test_debug_pp.ml":19:22-25:9: loop
-depth = 0  x = { Test_debug_pp.first = 7; second = 42 }  "test/test_debug_pp.ml":23:8: y
-  "test/test_debug_pp.ml":19:22-25:9: loop
-    depth = 1  x = { Test_debug_pp.first = 41; second = 9 }  "test/test_debug_pp.ml":23:8: y
-      "test/test_debug_pp.ml":19:22-25:9: loop
-        depth = 2  x = { Test_debug_pp.first = 8; second = 43 }  "test/test_debug_pp.ml":23:8: y
-          "test/test_debug_pp.ml":19:22-25:9: loop
-            depth = 3  x = { Test_debug_pp.first = 42; second = 10 } 
-]}
-
-{2 [PrintBox]-based traces -- full feature set}
-
-This runtime relies on the [printbox] library; it has the most features.
 Here we define a [Debug_runtime] either using the entrypoint [module Debug_runtime = (val Minidebug_runtime.debug ())],
 or using the [PrintBox] functor, e.g.:
 
@@ -99,7 +67,7 @@ BEGIN DEBUG SESSION
 │ │ │ │ │ │ │ └─loop = 25
 ]}
 
-{3 Traces in HTML or Markdown as collapsible trees}
+{2 Traces in HTML or Markdown as collapsible trees}
 
 The [PrintBox] runtime can be configured to output logs using HTML or Markdown. The logs then become collapsible trees, so that you can expose only the relevant information when debugging. Example configuration:
 
@@ -113,7 +81,7 @@ let () = Debug_runtime.boxify_sexp_from_size := 50
 Here we also convert the logged [sexp] values (with at least 50 atoms) to trees. Example result:
 {%html: <img src="docs/ppx_minidebug-foldable_trees.png" alt="PrintBox runtime with collapsible/foldable trees"/>%}
 
-{3 Highlighting search terms}
+{2 Highlighting search terms}
 
 The [PrintBox] runtime also supports highlighting paths to logs that match a [highlight_terms]
 regular expression. For example:
@@ -123,7 +91,7 @@ To limit the highlight noise, some log entries can be excluded from propagating 
 using the [exclude_on_path] setting. To trim excessive logging while still providing some context,
 you can set [prune_upto] to a level greater than 0, which only outputs highlighted boxes below that level.
 
-{3 [PrintBox] creating helpers with defaults: [debug] and [debug_file]}
+{2 [PrintBox] creating helpers with defaults: [debug] and [debug_file]}
 
 The configuration for the above example is more concisely just:
 
@@ -154,7 +122,7 @@ the prefixes for Markdown / HTML outputs I might use at the time of writing:
 }{- [~hyperlink:"https://github.com/lukstafi/ppx_minidebug/tree/main/"]
 }}
 
-{3 Recommended: [values_first_mode]}
+{2 Recommended: [values_first_mode]}
 
 This setting puts the result of the computation as the header of a computation subtree, rather than the source code location of the computation. I recommend using this setting as it reduces noise and makes the important information easier to find and visible with less unfolding. Another important benefit is that it makes hyperlinks usable, by pushing them from the summary line to under the fold. I decided to not make it the default setting, because it is not available in the bare-bones runtimes, and can be confusing.
 
@@ -236,7 +204,7 @@ To properly trace in concurrent settings, ensure that different threads use diff
 
 {2 Breaking infinite recursion with [max_nesting_depth] and looping with [max_num_children]; [Flushing]-based traces}
 
-The [PrintBox] and [Pp_format] backends only produce any output when a top-level log entry gets closed. This makes it harder to debug infinite loops and especially infinite recursion. The setting [max_nesting_depth] terminates a computation when the given log nesting is exceeded. For example:
+The [PrintBox] backend only produces any output when a top-level log entry gets closed. This makes it harder to debug infinite loops and especially infinite recursion. The setting [max_nesting_depth] terminates a computation when the given log nesting is exceeded. For example:
 
 {@ocaml[
 module Debug_runtime = (val Minidebug_runtime.debug ())
@@ -298,7 +266,7 @@ module Debug_runtime =
   Minidebug_runtime.Flushing((val Minidebug_runtime.debug_ch "path/to/debugger_flushing.log"))
 ]}
 
-The logged traces are still indented, but if the values to print are multi-line, their formatting might be messy. The benefit of [Flushing] traces is that the output is flushed line-at-a-time, so no output should be lost if the traced program crashes. But in recent versions of [ppx_minidebug], uncaught exceptions no longer break logging in the [PrintBox] and [Pp_format] runtimes. The indentation is also smaller (half of [PrintBox]). Truncated example (using [%debug_show]):
+The logged traces are still indented, but if the values to print are multi-line, their formatting might be messy. The benefit of [Flushing] traces is that the output is flushed line-at-a-time, so no output should be lost if the traced program crashes. But in recent versions of [ppx_minidebug], uncaught exceptions no longer break logging in the [PrintBox] runtime. The indentation is also smaller (half of [PrintBox]). Truncated example (using [%debug_show]):
 
 {@shell[
 BEGIN DEBUG SESSION at time 2023-03-02 23:19:40.763950 +01:00

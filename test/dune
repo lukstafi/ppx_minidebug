@@ -109,14 +109,14 @@
   (pps ppx_minidebug ppx_deriving.show)))
 
 (rule
- (target debugger_pp_format.log)
+ (target debugger_pp_flushing.log)
  (action
   (run %{dep:test_debug_pp.exe})))
 
 (rule
  (alias runtest)
  (action
-  (diff debugger_pp_format.expected.log debugger_pp_format.log)))
+  (diff debugger_pp_flushing.expected.log debugger_pp_flushing.log)))
 
 (executable
  (name test_debug_show)

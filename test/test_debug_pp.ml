@@ -1,5 +1,5 @@
 module Debug_runtime =
-  Minidebug_runtime.Pp_format ((val Minidebug_runtime.debug_ch "debugger_pp_format.log"))
+  Minidebug_runtime.Flushing ((val Minidebug_runtime.debug_ch "debugger_pp_flushing.log"))
 
 type t = { first : int; second : int } [@@deriving show]
 type num = int [@@deriving show]
