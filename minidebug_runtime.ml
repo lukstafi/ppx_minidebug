@@ -368,6 +368,7 @@ module type PrintBox_runtime = sig
     mutable max_inline_sexp_size : int;
     mutable max_inline_sexp_length : int;
     mutable log_level : log_level;
+    mutable snapshot_every_sec : float option;
   }
 
   val config : config
@@ -393,6 +394,7 @@ module PrintBox (Log_to : Debug_ch) = struct
     mutable max_inline_sexp_size : int;
     mutable max_inline_sexp_length : int;
     mutable log_level : log_level;
+    mutable snapshot_every_sec : float option;
   }
 
   let config =
@@ -408,6 +410,7 @@ module PrintBox (Log_to : Debug_ch) = struct
       max_inline_sexp_size = 20;
       max_inline_sexp_length = 50;
       log_level = Everything;
+      snapshot_every_sec = None;
     }
 
   module B = PrintBox
@@ -595,6 +598,18 @@ module PrintBox (Log_to : Debug_ch) = struct
       stack := current_stack;
       raise e
 
+  let opt_auto_snapshot =
+    let last_snapshot = ref @@ time_elapsed () in
+    fun () ->
+      match config.snapshot_every_sec with
+      | None -> ()
+      | Some threshold ->
+          let threshold = Float.to_int @@ (threshold *. 1000.) in
+          let now = time_elapsed () in
+          if Mtime.Span.(compare (abs_diff now !last_snapshot) (threshold * ms)) > 0 then (
+            last_snapshot := now;
+            snapshot ())
+
   let stack_next ~entry_id ~is_result ~prefixed (hl, b) =
     match config.log_level with
     | Nothing -> ()
@@ -769,16 +784,18 @@ module PrintBox (Log_to : Debug_ch) = struct
           loop sexp
       | _ -> true
     in
-    if config.boxify_sexp_from_size >= 0 then
-      stack_next ~entry_id ~is_result ~prefixed @@ boxify ?descr sexp
-    else
-      stack_next ~entry_id ~is_result ~prefixed
-      @@ highlight_box
-      @@
-      match descr with
-      | None -> B.asprintf_with_style B.Style.preformatted "%a" Sexplib0.Sexp.pp_hum sexp
-      | Some d ->
-          B.asprintf_with_style B.Style.preformatted "%s = %a" d Sexplib0.Sexp.pp_hum sexp
+    (if config.boxify_sexp_from_size >= 0 then
+       stack_next ~entry_id ~is_result ~prefixed @@ boxify ?descr sexp
+     else
+       stack_next ~entry_id ~is_result ~prefixed
+       @@ highlight_box
+       @@
+       match descr with
+       | None -> B.asprintf_with_style B.Style.preformatted "%a" Sexplib0.Sexp.pp_hum sexp
+       | Some d ->
+           B.asprintf_with_style B.Style.preformatted "%s = %a" d Sexplib0.Sexp.pp_hum
+             sexp);
+    opt_auto_snapshot ()
 
   let skip_parens s =
     let len = String.length s in
@@ -801,12 +818,13 @@ module PrintBox (Log_to : Debug_ch) = struct
           Array.exists (fun prefix -> String.starts_with ~prefix s) prefixes
       | _ -> true
     in
-    stack_next ~entry_id ~is_result ~prefixed
+    (stack_next ~entry_id ~is_result ~prefixed
     @@ highlight_box
     @@
     match descr with
     | None -> B.asprintf_with_style B.Style.preformatted "%a" pp v
-    | Some d -> B.asprintf_with_style B.Style.preformatted "%s = %a" d pp v
+    | Some d -> B.asprintf_with_style B.Style.preformatted "%s = %a" d pp v);
+    opt_auto_snapshot ()
 
   let log_value_show ?descr ~entry_id ~is_result v =
     let prefixed =
@@ -819,12 +837,13 @@ module PrintBox (Log_to : Debug_ch) = struct
           Array.exists (fun prefix -> String.starts_with ~prefix s) prefixes
       | _ -> true
     in
-    stack_next ~entry_id ~is_result ~prefixed
+    (stack_next ~entry_id ~is_result ~prefixed
     @@ highlight_box
     @@
     match descr with
     | None -> B.sprintf_with_style B.Style.preformatted "%s" v
-    | Some d -> B.sprintf_with_style B.Style.preformatted "%s = %s" d v
+    | Some d -> B.sprintf_with_style B.Style.preformatted "%s = %s" d v);
+    opt_auto_snapshot ()
 
   let no_debug_if cond =
     match !stack with
@@ -848,7 +867,7 @@ let debug_file ?(time_tagged = false) ?(elapsed_times = elapsed_default)
     ?(print_entry_ids = false) ?(global_prefix = "") ?split_files_after ?highlight_terms
     ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0) ?(for_append = false)
     ?(boxify_sexp_from_size = 50) ?backend ?hyperlink ?(values_first_mode = false)
-    ?(log_level = Everything) filename : (module PrintBox_runtime) =
+    ?(log_level = Everything) ?snapshot_every_sec filename : (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename ^ ".md"
@@ -869,12 +888,13 @@ let debug_file ?(time_tagged = false) ?(elapsed_times = elapsed_default)
   Debug.config.hyperlink <-
     (match hyperlink with None -> `No_hyperlinks | Some prefix -> `Prefix prefix);
   Debug.config.log_level <- log_level;
+  Debug.config.snapshot_every_sec <- snapshot_every_sec;
   (module Debug)
 
 let debug ?debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default)
     ?(print_entry_ids = false) ?(global_prefix = "") ?highlight_terms ?exclude_on_path
     ?(prune_upto = 0) ?(truncate_children = 0) ?(values_first_mode = false)
-    ?(log_level = Everything) () : (module PrintBox_runtime) =
+    ?(log_level = Everything) ?snapshot_every_sec () : (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
     let ch = match debug_ch with None -> stdout | Some ch -> ch
@@ -901,6 +921,7 @@ let debug ?debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default)
   Debug.config.exclude_on_path <- Option.map Re.compile exclude_on_path;
   Debug.config.values_first_mode <- values_first_mode;
   Debug.config.log_level <- log_level;
+  Debug.config.snapshot_every_sec <- snapshot_every_sec;
   (module Debug)
 
 let debug_flushing ?debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default)

@@ -162,6 +162,9 @@ module type PrintBox_runtime = sig
     mutable max_inline_sexp_length : int;
         (** Maximal length (in characters/bytes) up to which a sexp value can be inlined during "boxification". *)
     mutable log_level : log_level;  (** How much to log, see {!type:log_level}. *)
+    mutable snapshot_every_sec : float option;
+        (** If given, output a snapshot of the pending logs when at least the given time (in seconds) has
+            passed since the previous output. This is only checked at calls to log values. *)
   }
 
   val config : config
@@ -192,6 +195,7 @@ val debug_file :
   ?hyperlink:string ->
   ?values_first_mode:bool ->
   ?log_level:log_level ->
+  ?snapshot_every_sec:float ->
   string ->
   (module PrintBox_runtime)
 (** Creates a PrintBox-based debug runtime configured to output html or markdown to a file with
@@ -215,6 +219,7 @@ val debug :
   ?truncate_children:int ->
   ?values_first_mode:bool ->
   ?log_level:log_level ->
+  ?snapshot_every_sec:float ->
   unit ->
   (module PrintBox_runtime)
 (** Creates a PrintBox-based debug runtime for the [`Text] backend. By default it will log to [stdout]
