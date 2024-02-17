@@ -3061,3 +3061,37 @@ let%expect_test "%debug_show log level Prefixed_or_result [||]" =
         ├─first = 8
         └─second = 45
     109 |} *)
+
+let%expect_test "%debug_show log level Prefixed_or_result [||] compile+runtime" =
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug ~values_first_mode:true
+           ~log_level:(Prefixed_or_result [||]) ())
+  in
+  let%debug_show () =
+    [%log_level
+      Prefixed_or_result [||];
+      let bar { first : int; second : int } : int =
+        let { first : int = a; second : int = b } = { first; second = second + 3 } in
+        let y : int = a + 1 in
+        [%log "for bar, b-3", (b - 3 : int)];
+        (b - 3) * y
+      in
+      let baz { first : int; second : int } : int =
+        let { first : int; second : int } = { first = first + 1; second = second + 3 } in
+        [%log "for baz, f squared", (first * first : int)];
+        (first * first) + second
+      in
+      print_endline @@ Int.to_string @@ bar { first = 7; second = 42 };
+      print_endline @@ Int.to_string @@ baz { first = 7; second = 42 }]
+  in
+  [%expect
+    {|
+        BEGIN DEBUG SESSION
+        bar = 336
+        ├─"test/test_expect_test.ml":3073:14-3077:19
+        └─("for bar, b-3", 42)
+        336
+        baz = 109
+        ├─"test/test_expect_test.ml":3079:14-3082:32
+        └─("for baz, f squared", 64)
+        109 |}]

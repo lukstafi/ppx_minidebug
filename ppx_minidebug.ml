@@ -13,6 +13,8 @@ type log_level =
 
 let no_results = function Nothing | Prefixed _ -> true | _ -> false
 
+let is_prefixed_or_result = function Prefixed_or_result _ -> true | _ -> false
+
 type toplevel_opt_arg = Nested | Toplevel_no_arg | Generic | PrintBox
 
 let global_log_count = ref 0

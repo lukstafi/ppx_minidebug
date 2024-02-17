@@ -21,6 +21,8 @@ type log_level =
   | Nonempty_entries
   | Everything
 
+let is_prefixed_or_result = function Prefixed_or_result _ -> true | _ -> false
+
 module type Debug_ch = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
@@ -528,6 +530,10 @@ module PrintBox (Log_to : Debug_ch) = struct
       match !stack with
       | { highlight = false; _ } :: bs when config.prune_upto >= List.length !stack -> bs
       | { body = []; _ } :: bs when config.log_level <> Everything -> bs
+      | { body; _ } :: bs
+        when is_prefixed_or_result config.log_level
+             && List.for_all (fun e -> e.is_result) body ->
+          bs
       | ({ cond = true; highlight = hl; exclude = _; entry_id = result_id; _ } as entry)
         :: { cond; highlight; exclude; uri; path; elapsed; entry_message; entry_id; body }
         :: bs3 ->
@@ -719,7 +725,8 @@ module PrintBox (Log_to : Debug_ch) = struct
   let log_value_sexp ?descr ~entry_id ~is_result sexp =
     let prefixed =
       match config.log_level with
-      | Prefixed [||] | Prefixed_or_result [||] ->
+      | Prefixed_or_result [||] -> true
+      | Prefixed [||] ->
           failwith "ppx_minidebug: runtime log levels do not support explicit-logs-only"
       | Prefixed prefixes | Prefixed_or_result prefixes ->
           let rec loop = function
@@ -754,7 +761,8 @@ module PrintBox (Log_to : Debug_ch) = struct
   let log_value_pp ?descr ~entry_id ~pp ~is_result v =
     let prefixed =
       match config.log_level with
-      | Prefixed [||] | Prefixed_or_result [||] ->
+      | Prefixed_or_result [||] -> true
+      | Prefixed [||] ->
           failwith "ppx_minidebug: runtime log levels do not support explicit-logs-only"
       | Prefixed prefixes | Prefixed_or_result prefixes ->
           (* TODO: perf-hint: cache this conversion and maybe don't re-convert. *)
@@ -772,7 +780,8 @@ module PrintBox (Log_to : Debug_ch) = struct
   let log_value_show ?descr ~entry_id ~is_result v =
     let prefixed =
       match config.log_level with
-      | Prefixed [||] | Prefixed_or_result [||] ->
+      | Prefixed_or_result [||] -> true
+      | Prefixed [||] ->
           failwith "ppx_minidebug: runtime log levels do not support explicit-logs-only"
       | Prefixed prefixes | Prefixed_or_result prefixes ->
           let s = skip_parens v in

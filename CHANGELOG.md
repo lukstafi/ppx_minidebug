@@ -8,7 +8,8 @@
 
 ### Changed
 
-- Re-interpret `Prefixed [||]` to mean "explicit logs only" -- originally (as logic indicates) it was equivalent to `Nothing`.
+- Re-interpret `Prefixed [||]` and `Prefixed_or_result [||]` to mean "explicit logs only" -- originally (as logic indicates) it was equivalent to `Nothing`.
+- Change runtime `Prefixed_or_result` to only output results if an entry would be non-empty without them.
 
 ### Fixed
 

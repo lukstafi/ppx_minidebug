@@ -15,7 +15,8 @@ type log_level =
           starts with one of the prefixes. *)
   | Prefixed_or_result of string array
       (** Behaves as [Nonempty_entries] and additionally: only logs "leaf" values when the inspected string
-          starts with one of the prefixes, or the value is marked as a result. *)
+          starts with one of the prefixes, or the value is marked as a result. Doesn't output results
+          of an entry if there are no non-result logs. *)
   | Nonempty_entries
       (** Does not log entries without children (treating results as children). *)
   | Everything  (** Does not restrict logging. *)
