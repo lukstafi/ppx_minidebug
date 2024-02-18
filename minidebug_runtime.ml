@@ -90,7 +90,10 @@ let debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default)
         current_snapshot := 0);
       !current_ch
 
-    let snapshot_ch () = current_snapshot := pos_out !current_ch
+    let snapshot_ch () =
+      flush !current_ch;
+      current_snapshot := pos_out !current_ch
+
     let reset_to_snapshot () = seek_out !current_ch !current_snapshot
     let time_tagged = time_tagged
     let elapsed_times = elapsed_times
@@ -810,7 +813,11 @@ let debug ?debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default)
     let current_snapshot = ref 0
 
     let snapshot_ch () =
-      match debug_ch with None -> () | Some _ -> current_snapshot := pos_out ch
+      match debug_ch with
+      | None -> ()
+      | Some _ ->
+          flush ch;
+          current_snapshot := pos_out ch
 
     let reset_to_snapshot () =
       match debug_ch with
@@ -841,7 +848,11 @@ let debug_flushing ?debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_de
     let current_snapshot = ref 0
 
     let snapshot_ch () =
-      match debug_ch with None -> () | Some _ -> current_snapshot := pos_out ch
+      match debug_ch with
+      | None -> ()
+      | Some _ ->
+          flush ch;
+          current_snapshot := pos_out ch
 
     let reset_to_snapshot () =
       match debug_ch with
