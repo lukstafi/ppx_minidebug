@@ -454,7 +454,7 @@ module PrintBox (Log_to : Debug_ch) = struct
       reset_to_snapshot ();
       needs_snapshot_reset := false)
 
-  let close_log () =
+  let close_log_impl ~from_snapshot () =
     (* Note: we treat a tree under a box as part of that box. *)
     stack :=
       (* Design choice: exclude does not apply to its own entry -- its about propagating children. *)
@@ -493,16 +493,17 @@ module PrintBox (Log_to : Debug_ch) = struct
               @@ PrintBox_md.(to_string Config.(foldable_trees config) box));
           output_string ch "\n";
           Stdlib.flush ch;
-          snapshot_ch ();
+          if not from_snapshot then snapshot_ch ();
           []
       | _ -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
+
+  let close_log () = close_log_impl ~from_snapshot:false ()
 
   let snapshot () =
     let current_stack = !stack in
     try
-      pop_snapshot ();
       while !stack <> [] do
-        close_log ()
+        close_log_impl ~from_snapshot:true ()
       done;
       needs_snapshot_reset := true;
       stack := current_stack
