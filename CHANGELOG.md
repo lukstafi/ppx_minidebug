@@ -1,4 +1,4 @@
-## [1.3.0] -- 2024-02-17
+## [1.3.0] -- 2024-02-19
 
 ### Added
 
@@ -12,6 +12,7 @@
 - Re-interpret `Prefixed [||]` and `Prefixed_or_result [||]` to mean "explicit logs only" -- originally (as logic indicates) it was equivalent to `Nothing`.
 - Change runtime `Prefixed_or_result` to only output results if an entry would be non-empty without them.
 - Breaking change: removed the `Pp_format` backend.
+- More informative headers for tracking: e.g. anonymous functions logged with `fun:file_name:LNUM` instead of `__fun`.
 
 ### Fixed
 

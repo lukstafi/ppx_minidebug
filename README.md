@@ -2,7 +2,7 @@
 
 ## `ppx_minidebug`: Debug logs for selected functions and let-bindings
 
-`ppx_minidebug` traces let bindings and functions within a selected scope if they have type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` (also `%track_pp` and `%track_show`), based on `deriving.show`, and `%debug_sexp` (also `%track_sexp`) based on `sexplib0` and `ppx_sexp_conv`. Explicit logs can be added with `%log` within a debug scope (`%log` is not a registered extension point to avoid conflicts with other logging frameworks). The syntax extension expects a module `Debug_runtime` in the scope. The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers multiple ways of logging the traces, as helper functions generating `Debug_runtime` modules. See [the generated documentation for `Minidebug_runtime`](https://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html).
+`ppx_minidebug` traces let bindings and functions within a selected scope if they have type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` (also `%track_pp`, `%diagn_pp` and `%track_show`, `%diagn_show`), based on `deriving.show`, and `%debug_sexp` (also `%track_sexp`, `%diagn_sexp`) based on `sexplib0` and `ppx_sexp_conv`. Explicit logs can be added with `%log` within a debug scope (`%log` is not a registered extension point to avoid conflicts with other logging frameworks). The syntax extension expects a module `Debug_runtime` in the scope. The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers multiple ways of logging the traces, as helper functions generating `Debug_runtime` modules. See [the generated documentation for `Minidebug_runtime`](https://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html).
 
 Take a look at [`ppx_debug`](https://github.com/dariusf/ppx_debug) which has complementary strengths!
 
@@ -105,9 +105,9 @@ Similarly, `debug` returns a `PrintBox` module, which by default logs to `stdout
 module Debug_runtime = (val Minidebug_runtime.debug ())
 ```
 
-#### Hyperlinks to source locations
+### Hyperlinks to source locations
 
-The HTML output supports emitting file locations as hyperlinks. For example:
+The HTML and Markdown outputs support emitting file locations as hyperlinks. For example:
 
 ```ocaml
 module Debug_runtime = (val Minidebug_runtime.debug_file ~hyperlink:"" "debug")
@@ -117,13 +117,13 @@ where `~hyperlink` is the prefix to let you tune the file path and select a brow
 the prefixes for Markdown / HTML outputs I might use at the time of writing:
 
 - `~hyperlink:"./"` or `~hyperlink:"../"` depending on the relative locations of the log file and the binary
-- `~hyperlink:"vscode://file//wsl.localhost/ubuntu23/home/lukstafi/ppx_minidebug/"`
+- `~hyperlink:"vscode://file//wsl.localhost/Ubuntu/home/lukstafi/ppx_minidebug/"`
   - if left-clicking a link from within VS Code Live Preview follows the file in the HTML preview window rather than an editor window, middle-click the link
 - `~hyperlink:"https://github.com/lukstafi/ppx_minidebug/tree/main/"`
 
 ### Recommended: `values_first_mode`
 
-This setting puts the result of the computation as the header of a computation subtree, rather than the source code location of the computation. I recommend using this setting as it reduces noise and makes the important information easier to find and visible with less unfolding. Another important benefit is that it makes hyperlinks usable, by pushing them from the summary line to under the fold. I decided to not make it the default setting, because it is not available in the bare-bones runtimes, and can be confusing.
+This setting puts the result of the computation as the header of a computation subtree, rather than the source code location of the computation. I recommend using this setting as it reduces noise and makes the important information easier to find and visible with less unfolding. Another important benefit is that it makes hyperlinks usable, by pushing them from the summary line to under the fold. I decided to not make it the default setting, because it is not available in the `Flushing` runtime, and can be confusing.
 
 For example:
 
