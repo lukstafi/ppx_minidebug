@@ -25,7 +25,7 @@ loop_exceeded begin "test/test_debug_log_prefixed.ml":7:33-12:55
  loop_exceeded end
 loop_exceeded end
 bar begin "test/test_debug_log_prefixed.ml":18:19-22:6
-  "test/test_debug_log_prefixed.ml":19:2: <for loop>
+  "test/test_debug_log_prefixed.ml":19:2: for:test_debug_log_prefixed:19
    "test/test_debug_log_prefixed.ml":19:6: <for i>
    ("INFO: loop step", 0, "value", 0)
    "test/test_debug_log_prefixed.ml":19:6: <for i>

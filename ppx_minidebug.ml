@@ -12,7 +12,6 @@ type log_level =
   | Everything
 
 let no_results = function Nothing | Prefixed _ -> true | _ -> false
-
 let is_prefixed_or_result = function Prefixed_or_result _ -> true | _ -> false
 
 type toplevel_opt_arg = Nested | Toplevel_no_arg | Generic | PrintBox
@@ -593,6 +592,10 @@ let has_runtime_arg = function
   | { toplevel_opt_arg = Nested | Toplevel_no_arg; _ } -> false
   | _ -> true
 
+let loc_to_name loc =
+  let fname = Filename.basename loc.loc_start.pos_fname |> Filename.remove_extension in
+  fname ^ ":" ^ Int.to_string loc.loc_start.pos_lnum
+
 let debug_fun context callback ?typ ?ret_descr ?ret_typ exp =
   let log_count_before = !global_log_count in
   let args, body, ret_typ2 = collect_fun [] exp in
@@ -634,7 +637,9 @@ let debug_fun context callback ?typ ?ret_descr ?ret_typ exp =
     else
       let ret_descr =
         match ret_descr with
-        | None (* when context.track_branches *) -> { txt = "__fun"; loc }
+        | None (* when context.track_branches *) ->
+            let txt = "fun:" ^ loc_to_name loc in
+            { txt; loc }
         | Some descr -> descr
       in
       let rec arg_log = function
@@ -1106,12 +1111,13 @@ let traverse_expression =
             let then_ =
               let log_count_before = !global_log_count in
               let loc = then_.pexp_loc in
+              let message = "then:" ^ loc_to_name loc in
               let then_ = callback context then_ in
               let then_' =
                 [%expr
                   let __entry_id = Debug_runtime.get_entry_id () in
                   [%e
-                    open_log_preamble ~brief:true ~message:"<if -- then branch>" ~loc ()];
+                    open_log_preamble ~brief:true ~message ~loc ()];
                   match [%e then_] with
                   | if_then__result ->
                       Debug_runtime.close_log ();
@@ -1131,10 +1137,11 @@ let traverse_expression =
                 Option.map
                   (fun else_ ->
                     let loc = else_.pexp_loc in
+                    let message = "else:" ^ loc_to_name loc in
                     [%expr
                       let __entry_id = Debug_runtime.get_entry_id () in
                       [%e
-                        open_log_preamble ~brief:true ~message:"<if -- else branch>" ~loc
+                        open_log_preamble ~brief:true ~message ~loc
                           ()];
                       match [%e else_] with
                       | if_else__result ->
@@ -1177,10 +1184,11 @@ let traverse_expression =
             in
             let loc = exp.pexp_loc in
             let pexp_desc = Pexp_for (pat, from, to_, dir, body) in
+            let message = "for:" ^ loc_to_name loc in
             let transformed =
               [%expr
                 let __entry_id = Debug_runtime.get_entry_id () in
-                [%e open_log_preamble ~brief:true ~message:"<for loop>" ~loc ()];
+                [%e open_log_preamble ~brief:true ~message ~loc ()];
                 match [%e { exp with pexp_desc }] with
                 | () -> Debug_runtime.close_log ()
                 | exception e ->
@@ -1193,6 +1201,7 @@ let traverse_expression =
         | Pexp_while (cond, body)
           when context.track_branches && context.log_level <> Nothing ->
             let log_count_before = !global_log_count in
+            let message = "while:" ^ loc_to_name loc in
             let body =
               let loc = body.pexp_loc in
               let descr_loc = { txt = "<while body>"; loc } in
@@ -1210,7 +1219,7 @@ let traverse_expression =
             let transformed =
               [%expr
                 let __entry_id = Debug_runtime.get_entry_id () in
-                [%e open_log_preamble ~brief:true ~message:"<while loop>" ~loc ()];
+                [%e open_log_preamble ~brief:true ~message ~loc ()];
                 match [%e { exp with pexp_desc }] with
                 | () -> Debug_runtime.close_log ()
                 | exception e ->

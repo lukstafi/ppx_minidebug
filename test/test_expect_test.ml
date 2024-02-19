@@ -395,7 +395,7 @@ let%expect_test "%track_this_show track for-loop num children exceeded" =
     {|
     BEGIN DEBUG SESSION
     "test/test_expect_test.ml":383:26: _bar
-    └─"test/test_expect_test.ml":386:10: <for loop>
+    └─"test/test_expect_test.ml":386:10: for:test_expect_test:386
       ├─i = 0
       ├─"test/test_expect_test.ml":386:14: <for i>
       │ └─"test/test_expect_test.ml":387:16: _baz
@@ -437,7 +437,7 @@ let%expect_test "%track_this_show track for-loop truncated children" =
     {|
     BEGIN DEBUG SESSION
     "test/test_expect_test.ml":427:26: _bar
-    ├─"test/test_expect_test.ml":428:8: <for loop>
+    ├─"test/test_expect_test.ml":428:8: for:test_expect_test:428
     │ ├─<earlier entries truncated>
     │ ├─i = 26
     │ ├─"test/test_expect_test.ml":428:12: <for i>
@@ -480,7 +480,7 @@ let%expect_test "%track_this_show track for-loop" =
     {|
       BEGIN DEBUG SESSION
       "test/test_expect_test.ml":468:26: _bar
-      ├─"test/test_expect_test.ml":471:10: <for loop>
+      ├─"test/test_expect_test.ml":471:10: for:test_expect_test:471
       │ ├─i = 0
       │ ├─"test/test_expect_test.ml":471:14: <for i>
       │ │ └─"test/test_expect_test.ml":472:16: _baz
@@ -536,7 +536,7 @@ let%expect_test "%track_this_show track for-loop, time spans" =
     {|
       BEGIN DEBUG SESSION
       "test/test_expect_test.ml":519:26: _bar <N.NNμs>
-      ├─"test/test_expect_test.ml":522:10: <for loop> <N.NNμs>
+      ├─"test/test_expect_test.ml":522:10: for:test_expect_test:522 <N.NNμs>
       │ ├─i = 0
       │ ├─"test/test_expect_test.ml":522:14: <for i> <N.NNμs>
       │ │ └─"test/test_expect_test.ml":523:16: _baz <N.NNμs>
@@ -585,7 +585,7 @@ let%expect_test "%track_this_show track while-loop" =
     {|
     BEGIN DEBUG SESSION
     "test/test_expect_test.ml":574:26: _bar
-    ├─"test/test_expect_test.ml":576:8: <while loop>
+    ├─"test/test_expect_test.ml":576:8: while:test_expect_test:576
     │ ├─"test/test_expect_test.ml":577:10: <while loop>
     │ │ └─"test/test_expect_test.ml":577:14: _baz
     │ │   └─_baz = 0
@@ -878,13 +878,13 @@ let%expect_test "%track_this_show PrintBox tracking" =
       BEGIN DEBUG SESSION
       "test/test_expect_test.ml":866:37-868:46: track_branches
       ├─x = 7
-      ├─"test/test_expect_test.ml":868:9: <if -- else branch>
+      ├─"test/test_expect_test.ml":868:9: else:test_expect_test:868
       │ └─"test/test_expect_test.ml":868:36-868:37: <match -- branch 1>
       └─track_branches = 4
       4
       "test/test_expect_test.ml":866:37-868:46: track_branches
       ├─x = 3
-      ├─"test/test_expect_test.ml":867:18: <if -- then branch>
+      ├─"test/test_expect_test.ml":867:18: then:test_expect_test:867
       │ └─"test/test_expect_test.ml":867:54-867:57: <match -- branch 2>
       └─track_branches = -3
       -3
@@ -944,16 +944,16 @@ let%expect_test "%track_this_show PrintBox tracking with debug_notrace" =
       BEGIN DEBUG SESSION
       "test/test_expect_test.ml":920:37-934:16: track_branches
       ├─x = 8
-      ├─"test/test_expect_test.ml":929:6: <if -- else branch>
+      ├─"test/test_expect_test.ml":929:6: else:test_expect_test:929
       │ └─"test/test_expect_test.ml":933:10-934:16: <match -- branch 2>
       │   └─"test/test_expect_test.ml":933:14: result
-      │     ├─"test/test_expect_test.ml":933:44: <if -- then branch>
+      │     ├─"test/test_expect_test.ml":933:44: then:test_expect_test:933
       │     └─result = 8
       └─track_branches = 8
       8
       "test/test_expect_test.ml":920:37-934:16: track_branches
       ├─x = 3
-      ├─"test/test_expect_test.ml":922:6: <if -- then branch>
+      ├─"test/test_expect_test.ml":922:6: then:test_expect_test:922
       │ └─"test/test_expect_test.ml":926:14: result
       │   └─result = 3
       └─track_branches = 3
@@ -978,7 +978,7 @@ let%expect_test "%track_show PrintBox not tracking anonymous functions with debu
     BEGIN DEBUG SESSION
     "test/test_expect_test.ml":966:27-970:5: track_foo
     ├─x = 8
-    ├─"test/test_expect_test.ml":969:4-969:31: __fun
+    ├─"test/test_expect_test.ml":969:4-969:31: fun:test_expect_test:969
     │ └─z = 8
     └─track_foo = 8
     8 |}]
@@ -1012,15 +1012,15 @@ let%expect_test "respect scope of nested extension points" =
       BEGIN DEBUG SESSION
       "test/test_expect_test.ml":988:37-1002:16: track_branches
       ├─x = 8
-      ├─"test/test_expect_test.ml":997:6: <if -- else branch>
+      ├─"test/test_expect_test.ml":997:6: else:test_expect_test:997
       │ └─"test/test_expect_test.ml":1001:25: result
-      │   ├─"test/test_expect_test.ml":1001:55: <if -- then branch>
+      │   ├─"test/test_expect_test.ml":1001:55: then:test_expect_test:1001
       │   └─result = 8
       └─track_branches = 8
       8
       "test/test_expect_test.ml":988:37-1002:16: track_branches
       ├─x = 3
-      ├─"test/test_expect_test.ml":990:6: <if -- then branch>
+      ├─"test/test_expect_test.ml":990:6: then:test_expect_test:990
       │ └─"test/test_expect_test.ml":994:25: result
       │   └─result = 3
       └─track_branches = 3
@@ -1108,13 +1108,13 @@ let%expect_test "%track_this_show no return type anonymous fun" =
     {|
       "test/test_expect_test.ml":1100:32-1101:70: anonymous
       ├─x = 3
-      ├─"test/test_expect_test.ml":1101:50-1101:70: __fun
+      ├─"test/test_expect_test.ml":1101:50-1101:70: fun:test_expect_test:1101
       │ └─i = 0
-      ├─"test/test_expect_test.ml":1101:50-1101:70: __fun
+      ├─"test/test_expect_test.ml":1101:50-1101:70: fun:test_expect_test:1101
       │ └─i = 1
-      ├─"test/test_expect_test.ml":1101:50-1101:70: __fun
+      ├─"test/test_expect_test.ml":1101:50-1101:70: fun:test_expect_test:1101
       │ └─i = 2
-      └─"test/test_expect_test.ml":1101:50-1101:70: __fun
+      └─"test/test_expect_test.ml":1101:50-1101:70: fun:test_expect_test:1101
         └─i = 3
       6
     |}]
@@ -1140,78 +1140,78 @@ let%expect_test "%track_this_show anonymous fun, num children exceeded" =
       BEGIN DEBUG SESSION
       "test/test_expect_test.ml":1124:40-1132:72: loop_exceeded
       ├─x = 3
-      └─"test/test_expect_test.ml":1130:11-1132:71: __fun
+      └─"test/test_expect_test.ml":1130:11-1132:71: fun:test_expect_test:1130
         ├─i = 0
         ├─"test/test_expect_test.ml":1131:17: z
         │ └─z = 1
-        └─"test/test_expect_test.ml":1132:35: <if -- else branch>
+        └─"test/test_expect_test.ml":1132:35: else:test_expect_test:1132
           └─"test/test_expect_test.ml":1124:40-1132:72: loop_exceeded
             ├─x = 2
-            └─"test/test_expect_test.ml":1130:11-1132:71: __fun
+            └─"test/test_expect_test.ml":1130:11-1132:71: fun:test_expect_test:1130
               ├─i = 0
               ├─"test/test_expect_test.ml":1131:17: z
               │ └─z = 0
-              └─"test/test_expect_test.ml":1132:35: <if -- else branch>
+              └─"test/test_expect_test.ml":1132:35: else:test_expect_test:1132
                 └─"test/test_expect_test.ml":1124:40-1132:72: loop_exceeded
                   ├─x = 1
-                  └─"test/test_expect_test.ml":1130:11-1132:71: __fun
+                  └─"test/test_expect_test.ml":1130:11-1132:71: fun:test_expect_test:1130
                     ├─i = 0
                     ├─"test/test_expect_test.ml":1131:17: z
                     │ └─z = 0
-                    └─"test/test_expect_test.ml":1132:35: <if -- else branch>
+                    └─"test/test_expect_test.ml":1132:35: else:test_expect_test:1132
                       └─"test/test_expect_test.ml":1124:40-1132:72: loop_exceeded
                         ├─x = 0
-                        ├─"test/test_expect_test.ml":1130:11-1132:71: __fun
+                        ├─"test/test_expect_test.ml":1130:11-1132:71: fun:test_expect_test:1130
                         │ ├─i = 0
                         │ ├─"test/test_expect_test.ml":1131:17: z
                         │ │ └─z = 0
-                        │ └─"test/test_expect_test.ml":1132:28: <if -- then branch>
-                        ├─"test/test_expect_test.ml":1130:11-1132:71: __fun
+                        │ └─"test/test_expect_test.ml":1132:28: then:test_expect_test:1132
+                        ├─"test/test_expect_test.ml":1130:11-1132:71: fun:test_expect_test:1130
                         │ ├─i = 1
                         │ ├─"test/test_expect_test.ml":1131:17: z
                         │ │ └─z = 1
-                        │ └─"test/test_expect_test.ml":1132:28: <if -- then branch>
-                        ├─"test/test_expect_test.ml":1130:11-1132:71: __fun
+                        │ └─"test/test_expect_test.ml":1132:28: then:test_expect_test:1132
+                        ├─"test/test_expect_test.ml":1130:11-1132:71: fun:test_expect_test:1130
                         │ ├─i = 2
                         │ ├─"test/test_expect_test.ml":1131:17: z
                         │ │ └─z = 2
-                        │ └─"test/test_expect_test.ml":1132:28: <if -- then branch>
-                        ├─"test/test_expect_test.ml":1130:11-1132:71: __fun
+                        │ └─"test/test_expect_test.ml":1132:28: then:test_expect_test:1132
+                        ├─"test/test_expect_test.ml":1130:11-1132:71: fun:test_expect_test:1130
                         │ ├─i = 3
                         │ ├─"test/test_expect_test.ml":1131:17: z
                         │ │ └─z = 3
-                        │ └─"test/test_expect_test.ml":1132:28: <if -- then branch>
-                        ├─"test/test_expect_test.ml":1130:11-1132:71: __fun
+                        │ └─"test/test_expect_test.ml":1132:28: then:test_expect_test:1132
+                        ├─"test/test_expect_test.ml":1130:11-1132:71: fun:test_expect_test:1130
                         │ ├─i = 4
                         │ ├─"test/test_expect_test.ml":1131:17: z
                         │ │ └─z = 4
-                        │ └─"test/test_expect_test.ml":1132:28: <if -- then branch>
-                        ├─"test/test_expect_test.ml":1130:11-1132:71: __fun
+                        │ └─"test/test_expect_test.ml":1132:28: then:test_expect_test:1132
+                        ├─"test/test_expect_test.ml":1130:11-1132:71: fun:test_expect_test:1130
                         │ ├─i = 5
                         │ ├─"test/test_expect_test.ml":1131:17: z
                         │ │ └─z = 5
-                        │ └─"test/test_expect_test.ml":1132:28: <if -- then branch>
-                        ├─"test/test_expect_test.ml":1130:11-1132:71: __fun
+                        │ └─"test/test_expect_test.ml":1132:28: then:test_expect_test:1132
+                        ├─"test/test_expect_test.ml":1130:11-1132:71: fun:test_expect_test:1130
                         │ ├─i = 6
                         │ ├─"test/test_expect_test.ml":1131:17: z
                         │ │ └─z = 6
-                        │ └─"test/test_expect_test.ml":1132:28: <if -- then branch>
-                        ├─"test/test_expect_test.ml":1130:11-1132:71: __fun
+                        │ └─"test/test_expect_test.ml":1132:28: then:test_expect_test:1132
+                        ├─"test/test_expect_test.ml":1130:11-1132:71: fun:test_expect_test:1130
                         │ ├─i = 7
                         │ ├─"test/test_expect_test.ml":1131:17: z
                         │ │ └─z = 7
-                        │ └─"test/test_expect_test.ml":1132:28: <if -- then branch>
-                        ├─"test/test_expect_test.ml":1130:11-1132:71: __fun
+                        │ └─"test/test_expect_test.ml":1132:28: then:test_expect_test:1132
+                        ├─"test/test_expect_test.ml":1130:11-1132:71: fun:test_expect_test:1130
                         │ ├─i = 8
                         │ ├─"test/test_expect_test.ml":1131:17: z
                         │ │ └─z = 8
-                        │ └─"test/test_expect_test.ml":1132:28: <if -- then branch>
-                        ├─"test/test_expect_test.ml":1130:11-1132:71: __fun
+                        │ └─"test/test_expect_test.ml":1132:28: then:test_expect_test:1132
+                        ├─"test/test_expect_test.ml":1130:11-1132:71: fun:test_expect_test:1130
                         │ ├─i = 9
                         │ ├─"test/test_expect_test.ml":1131:17: z
                         │ │ └─z = 9
-                        │ └─"test/test_expect_test.ml":1132:28: <if -- then branch>
-                        └─__fun = <max_num_children exceeded>
+                        │ └─"test/test_expect_test.ml":1132:28: then:test_expect_test:1132
+                        └─fun:test_expect_test:1130 = <max_num_children exceeded>
       Raised exception: ppx_minidebug: max_num_children exceeded
     |}]
 
@@ -1234,32 +1234,32 @@ let%expect_test "%track_this_show anonymous fun, truncated children" =
       BEGIN DEBUG SESSION
       "test/test_expect_test.ml":1220:40-1226:69: loop_exceeded
       ├─<earlier entries truncated>
-      ├─"test/test_expect_test.ml":1224:9-1226:69: __fun
+      ├─"test/test_expect_test.ml":1224:9-1226:69: fun:test_expect_test:1224
       │ ├─<earlier entries truncated>
       │ ├─"test/test_expect_test.ml":1225:15: z
       │ │ └─z = 7
-      │ └─"test/test_expect_test.ml":1226:33: <if -- else branch>
+      │ └─"test/test_expect_test.ml":1226:33: else:test_expect_test:1226
       │   └─"test/test_expect_test.ml":1220:40-1226:69: loop_exceeded
       │     ├─<earlier entries truncated>
-      │     ├─"test/test_expect_test.ml":1224:9-1226:69: __fun
+      │     ├─"test/test_expect_test.ml":1224:9-1226:69: fun:test_expect_test:1224
       │     │ ├─<earlier entries truncated>
       │     │ ├─"test/test_expect_test.ml":1225:15: z
       │     │ │ └─z = 9
-      │     │ └─"test/test_expect_test.ml":1226:33: <if -- else branch>
+      │     │ └─"test/test_expect_test.ml":1226:33: else:test_expect_test:1226
       │     │   └─"test/test_expect_test.ml":1220:40-1226:69: loop_exceeded
       │     │     ├─<earlier entries truncated>
-      │     │     ├─"test/test_expect_test.ml":1224:9-1226:69: __fun
+      │     │     ├─"test/test_expect_test.ml":1224:9-1226:69: fun:test_expect_test:1224
       │     │     │ ├─<earlier entries truncated>
       │     │     │ ├─"test/test_expect_test.ml":1225:15: z
       │     │     │ │ └─z = 14
-      │     │     │ └─"test/test_expect_test.ml":1226:33: <if -- else branch>
+      │     │     │ └─"test/test_expect_test.ml":1226:33: else:test_expect_test:1226
       │     │     │   └─"test/test_expect_test.ml":1220:40-1226:69: loop_exceeded
       │     │     │     ├─<earlier entries truncated>
-      │     │     │     ├─"test/test_expect_test.ml":1224:9-1226:69: __fun
+      │     │     │     ├─"test/test_expect_test.ml":1224:9-1226:69: fun:test_expect_test:1224
       │     │     │     │ ├─<earlier entries truncated>
       │     │     │     │ ├─"test/test_expect_test.ml":1225:15: z
       │     │     │     │ │ └─z = 29
-      │     │     │     │ └─"test/test_expect_test.ml":1226:26: <if -- then branch>
+      │     │     │     │ └─"test/test_expect_test.ml":1226:26: then:test_expect_test:1226
       │     │     │     └─loop_exceeded = 435
       │     │     └─loop_exceeded = 6630
       │     └─loop_exceeded = 66345
@@ -1421,7 +1421,7 @@ let%expect_test "%track_this_show PrintBox values_first_mode to stdout track for
       BEGIN DEBUG SESSION
       _bar = ()
       ├─"test/test_expect_test.ml":1408:26
-      └─<for loop>
+      └─for:test_expect_test:1411
         ├─"test/test_expect_test.ml":1411:10
         ├─i = 0
         ├─<for i>
@@ -1771,7 +1771,7 @@ let%expect_test "%track_this_show PrintBox values_first_mode tracking" =
       track_branches = 4
       ├─"test/test_expect_test.ml":1758:37-1760:46
       ├─x = 7
-      └─<if -- else branch>
+      └─else:test_expect_test:1760
         ├─"test/test_expect_test.ml":1760:9
         └─<match -- branch 1>
           └─"test/test_expect_test.ml":1760:36-1760:37
@@ -1779,7 +1779,7 @@ let%expect_test "%track_this_show PrintBox values_first_mode tracking" =
       track_branches = -3
       ├─"test/test_expect_test.ml":1758:37-1760:46
       ├─x = 3
-      └─<if -- then branch>
+      └─then:test_expect_test:1759
         ├─"test/test_expect_test.ml":1759:18
         └─<match -- branch 2>
           └─"test/test_expect_test.ml":1759:54-1759:57
@@ -1802,16 +1802,16 @@ let%expect_test "%track_show PrintBox values_first_mode to stdout no return type
       anonymous
       ├─"test/test_expect_test.ml":1792:32-1793:70
       ├─x = 3
-      ├─__fun
+      ├─fun:test_expect_test:1793
       │ ├─"test/test_expect_test.ml":1793:50-1793:70
       │ └─i = 0
-      ├─__fun
+      ├─fun:test_expect_test:1793
       │ ├─"test/test_expect_test.ml":1793:50-1793:70
       │ └─i = 1
-      ├─__fun
+      ├─fun:test_expect_test:1793
       │ ├─"test/test_expect_test.ml":1793:50-1793:70
       │ └─i = 2
-      └─__fun
+      └─fun:test_expect_test:1793
         ├─"test/test_expect_test.ml":1793:50-1793:70
         └─i = 3
       6
@@ -2253,14 +2253,14 @@ let%expect_test "%track_rt_show procedure runtime passing" =
     {|
       BEGIN DEBUG SESSION bar-1
       bar-1 bar begin "test/test_expect_test.ml":2243:24-2243:46
-       bar-1 __fun begin "test/test_expect_test.ml":2243:29-2243:43
-       bar-1 __fun end
+       bar-1 fun:test_expect_test:2243 begin "test/test_expect_test.ml":2243:29-2243:43
+       bar-1 fun:test_expect_test:2243 end
       bar-1 bar end
 
       BEGIN DEBUG SESSION bar-2
       bar-2 bar begin "test/test_expect_test.ml":2243:24-2243:46
-       bar-2 __fun begin "test/test_expect_test.ml":2243:29-2243:43
-       bar-2 __fun end
+       bar-2 fun:test_expect_test:2243 begin "test/test_expect_test.ml":2243:29-2243:43
+       bar-2 fun:test_expect_test:2243 end
       bar-2 bar end
 
       BEGIN DEBUG SESSION foo-1
@@ -2302,14 +2302,14 @@ let%expect_test "%track_rt_show nested procedure runtime passing" =
 
       BEGIN DEBUG SESSION bar-1
       bar-1 bar begin "test/test_expect_test.ml":2277:26-2277:48
-       bar-1 __fun begin "test/test_expect_test.ml":2277:31-2277:45
-       bar-1 __fun end
+       bar-1 fun:test_expect_test:2277 begin "test/test_expect_test.ml":2277:31-2277:45
+       bar-1 fun:test_expect_test:2277 end
       bar-1 bar end
 
       BEGIN DEBUG SESSION bar-2
       bar-2 bar begin "test/test_expect_test.ml":2277:26-2277:48
-       bar-2 __fun begin "test/test_expect_test.ml":2277:31-2277:45
-       bar-2 __fun end
+       bar-2 fun:test_expect_test:2277 begin "test/test_expect_test.ml":2277:31-2277:45
+       bar-2 fun:test_expect_test:2277 end
       bar-2 bar end |}]
 
 let%expect_test "%log constant entries" =
@@ -2408,7 +2408,7 @@ let%expect_test "%log track while-loop" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":2398:4: <while loop>
+    "test/test_expect_test.ml":2398:4: while:test_expect_test:2398
     ├─"test/test_expect_test.ml":2399:6: <while loop>
     │ ├─(1 i= 0)
     │ ├─(2 i= 1)
@@ -2482,38 +2482,38 @@ let%expect_test "%log runtime log levels while-loop" =
     {|
   BEGIN DEBUG SESSION Everything
   "test/test_expect_test.ml":2440:28-2451:6: Everything result
-  ├─"test/test_expect_test.ml":2443:4: Everything <while loop>
+  ├─"test/test_expect_test.ml":2443:4: Everything while:test_expect_test:2443
   │ ├─"test/test_expect_test.ml":2445:6: Everything <while loop>
-  │ │ ├─"test/test_expect_test.ml":2445:21: Everything <if -- then branch>
+  │ │ ├─"test/test_expect_test.ml":2445:21: Everything then:test_expect_test:2445
   │ │ │ └─(ERROR: 1 i= 0)
   │ │ ├─(WARNING: 2 i= 1)
-  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything __fun
+  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything fun:test_expect_test:2448
   │ │ └─(INFO: 3 j= 1)
   │ ├─"test/test_expect_test.ml":2445:6: Everything <while loop>
-  │ │ ├─"test/test_expect_test.ml":2445:21: Everything <if -- then branch>
+  │ │ ├─"test/test_expect_test.ml":2445:21: Everything then:test_expect_test:2445
   │ │ │ └─(ERROR: 1 i= 1)
   │ │ ├─(WARNING: 2 i= 2)
-  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything __fun
+  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything fun:test_expect_test:2448
   │ │ └─(INFO: 3 j= 3)
   │ ├─"test/test_expect_test.ml":2445:6: Everything <while loop>
-  │ │ ├─"test/test_expect_test.ml":2445:63: Everything <if -- else branch>
+  │ │ ├─"test/test_expect_test.ml":2445:63: Everything else:test_expect_test:2445
   │ │ ├─(WARNING: 2 i= 3)
-  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything __fun
+  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything fun:test_expect_test:2448
   │ │ └─(INFO: 3 j= 6)
   │ ├─"test/test_expect_test.ml":2445:6: Everything <while loop>
-  │ │ ├─"test/test_expect_test.ml":2445:63: Everything <if -- else branch>
+  │ │ ├─"test/test_expect_test.ml":2445:63: Everything else:test_expect_test:2445
   │ │ ├─(WARNING: 2 i= 4)
-  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything __fun
+  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything fun:test_expect_test:2448
   │ │ └─(INFO: 3 j= 10)
   │ ├─"test/test_expect_test.ml":2445:6: Everything <while loop>
-  │ │ ├─"test/test_expect_test.ml":2445:63: Everything <if -- else branch>
+  │ │ ├─"test/test_expect_test.ml":2445:63: Everything else:test_expect_test:2445
   │ │ ├─(WARNING: 2 i= 5)
-  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything __fun
+  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything fun:test_expect_test:2448
   │ │ └─(INFO: 3 j= 15)
   │ └─"test/test_expect_test.ml":2445:6: Everything <while loop>
-  │   ├─"test/test_expect_test.ml":2445:63: Everything <if -- else branch>
+  │   ├─"test/test_expect_test.ml":2445:63: Everything else:test_expect_test:2445
   │   ├─(WARNING: 2 i= 6)
-  │   ├─"test/test_expect_test.ml":2448:11-2448:46: Everything __fun
+  │   ├─"test/test_expect_test.ml":2448:11-2448:46: Everything fun:test_expect_test:2448
   │   └─(INFO: 3 j= 21)
   └─result = 21
   21
@@ -2524,18 +2524,18 @@ let%expect_test "%log runtime log levels while-loop" =
   BEGIN DEBUG SESSION Nonempty
   result = 21
   ├─"test/test_expect_test.ml":2440:28-2451:6
-  └─Nonempty <while loop>
+  └─Nonempty while:test_expect_test:2443
     ├─"test/test_expect_test.ml":2443:4
     ├─Nonempty <while loop>
     │ ├─"test/test_expect_test.ml":2445:6
-    │ ├─Nonempty <if -- then branch>
+    │ ├─Nonempty then:test_expect_test:2445
     │ │ ├─"test/test_expect_test.ml":2445:21
     │ │ └─(ERROR: 1 i= 0)
     │ ├─(WARNING: 2 i= 1)
     │ └─(INFO: 3 j= 1)
     ├─Nonempty <while loop>
     │ ├─"test/test_expect_test.ml":2445:6
-    │ ├─Nonempty <if -- then branch>
+    │ ├─Nonempty then:test_expect_test:2445
     │ │ ├─"test/test_expect_test.ml":2445:21
     │ │ └─(ERROR: 1 i= 1)
     │ ├─(WARNING: 2 i= 2)
@@ -2561,17 +2561,17 @@ let%expect_test "%log runtime log levels while-loop" =
   BEGIN DEBUG SESSION Prefixed
   Prefixed result
   ├─"test/test_expect_test.ml":2440:28-2451:6
-  └─Prefixed <while loop>
+  └─Prefixed while:test_expect_test:2443
     ├─"test/test_expect_test.ml":2443:4
     ├─Prefixed <while loop>
     │ ├─"test/test_expect_test.ml":2445:6
-    │ ├─Prefixed <if -- then branch>
+    │ ├─Prefixed then:test_expect_test:2445
     │ │ ├─"test/test_expect_test.ml":2445:21
     │ │ └─(ERROR: 1 i= 0)
     │ └─(WARNING: 2 i= 1)
     ├─Prefixed <while loop>
     │ ├─"test/test_expect_test.ml":2445:6
-    │ ├─Prefixed <if -- then branch>
+    │ ├─Prefixed then:test_expect_test:2445
     │ │ ├─"test/test_expect_test.ml":2445:21
     │ │ └─(ERROR: 1 i= 1)
     │ └─(WARNING: 2 i= 2)
@@ -2592,17 +2592,17 @@ let%expect_test "%log runtime log levels while-loop" =
   BEGIN DEBUG SESSION Prefixed_or_result
   result = 21
   ├─"test/test_expect_test.ml":2440:28-2451:6
-  └─Prefixed_or_result <while loop>
+  └─Prefixed_or_result while:test_expect_test:2443
     ├─"test/test_expect_test.ml":2443:4
     ├─Prefixed_or_result <while loop>
     │ ├─"test/test_expect_test.ml":2445:6
-    │ ├─Prefixed_or_result <if -- then branch>
+    │ ├─Prefixed_or_result then:test_expect_test:2445
     │ │ ├─"test/test_expect_test.ml":2445:21
     │ │ └─(ERROR: 1 i= 0)
     │ └─(WARNING: 2 i= 1)
     ├─Prefixed_or_result <while loop>
     │ ├─"test/test_expect_test.ml":2445:6
-    │ ├─Prefixed_or_result <if -- then branch>
+    │ ├─Prefixed_or_result then:test_expect_test:2445
     │ │ ├─"test/test_expect_test.ml":2445:21
     │ │ └─(ERROR: 1 i= 1)
     │ └─(WARNING: 2 i= 2)
@@ -2677,56 +2677,56 @@ let%expect_test "%log compile time log levels while-loop" =
   BEGIN DEBUG SESSION
   everything = 21
   ├─"test/test_expect_test.ml":2626:28-2639:9
-  └─<while loop>
+  └─while:test_expect_test:2631
     ├─"test/test_expect_test.ml":2631:6
     ├─<while loop>
     │ ├─"test/test_expect_test.ml":2633:8
-    │ ├─<if -- then branch>
+    │ ├─then:test_expect_test:2633
     │ │ ├─"test/test_expect_test.ml":2633:23
     │ │ └─(ERROR: 1 i= 0)
     │ ├─(WARNING: 2 i= 1)
-    │ ├─__fun
+    │ ├─fun:test_expect_test:2636
     │ │ └─"test/test_expect_test.ml":2636:13-2636:48
     │ └─(INFO: 3 j= 1)
     ├─<while loop>
     │ ├─"test/test_expect_test.ml":2633:8
-    │ ├─<if -- then branch>
+    │ ├─then:test_expect_test:2633
     │ │ ├─"test/test_expect_test.ml":2633:23
     │ │ └─(ERROR: 1 i= 1)
     │ ├─(WARNING: 2 i= 2)
-    │ ├─__fun
+    │ ├─fun:test_expect_test:2636
     │ │ └─"test/test_expect_test.ml":2636:13-2636:48
     │ └─(INFO: 3 j= 3)
     ├─<while loop>
     │ ├─"test/test_expect_test.ml":2633:8
-    │ ├─<if -- else branch>
+    │ ├─else:test_expect_test:2633
     │ │ └─"test/test_expect_test.ml":2633:65
     │ ├─(WARNING: 2 i= 3)
-    │ ├─__fun
+    │ ├─fun:test_expect_test:2636
     │ │ └─"test/test_expect_test.ml":2636:13-2636:48
     │ └─(INFO: 3 j= 6)
     ├─<while loop>
     │ ├─"test/test_expect_test.ml":2633:8
-    │ ├─<if -- else branch>
+    │ ├─else:test_expect_test:2633
     │ │ └─"test/test_expect_test.ml":2633:65
     │ ├─(WARNING: 2 i= 4)
-    │ ├─__fun
+    │ ├─fun:test_expect_test:2636
     │ │ └─"test/test_expect_test.ml":2636:13-2636:48
     │ └─(INFO: 3 j= 10)
     ├─<while loop>
     │ ├─"test/test_expect_test.ml":2633:8
-    │ ├─<if -- else branch>
+    │ ├─else:test_expect_test:2633
     │ │ └─"test/test_expect_test.ml":2633:65
     │ ├─(WARNING: 2 i= 5)
-    │ ├─__fun
+    │ ├─fun:test_expect_test:2636
     │ │ └─"test/test_expect_test.ml":2636:13-2636:48
     │ └─(INFO: 3 j= 15)
     └─<while loop>
       ├─"test/test_expect_test.ml":2633:8
-      ├─<if -- else branch>
+      ├─else:test_expect_test:2633
       │ └─"test/test_expect_test.ml":2633:65
       ├─(WARNING: 2 i= 6)
-      ├─__fun
+      ├─fun:test_expect_test:2636
       │ └─"test/test_expect_test.ml":2636:13-2636:48
       └─(INFO: 3 j= 21)
   21
@@ -2735,17 +2735,17 @@ let%expect_test "%log compile time log levels while-loop" =
   21
   prefixed = 21
   ├─"test/test_expect_test.ml":2657:26-2670:9
-  └─<while loop>
+  └─while:test_expect_test:2662
     ├─"test/test_expect_test.ml":2662:6
     ├─<while loop>
     │ ├─"test/test_expect_test.ml":2664:8
-    │ ├─<if -- then branch>
+    │ ├─then:test_expect_test:2664
     │ │ ├─"test/test_expect_test.ml":2664:23
     │ │ └─(ERROR: 1 i= 0)
     │ └─(WARNING: 2 i= 1)
     ├─<while loop>
     │ ├─"test/test_expect_test.ml":2664:8
-    │ ├─<if -- then branch>
+    │ ├─then:test_expect_test:2664
     │ │ ├─"test/test_expect_test.ml":2664:23
     │ │ └─(ERROR: 1 i= 1)
     │ └─(WARNING: 2 i= 2)
@@ -2813,17 +2813,17 @@ let%expect_test "%log compile time log levels runtime-passing while-loop" =
   BEGIN DEBUG SESSION prefixed
   prefixed = 21
   ├─"test/test_expect_test.ml":2790:34-2801:10
-  └─prefixed <while loop>
+  └─prefixed while:test_expect_test:2793
     ├─"test/test_expect_test.ml":2793:8
     ├─prefixed <while loop>
     │ ├─"test/test_expect_test.ml":2795:10
-    │ ├─prefixed <if -- then branch>
+    │ ├─prefixed then:test_expect_test:2795
     │ │ ├─"test/test_expect_test.ml":2795:25
     │ │ └─(ERROR: 1 i= 0)
     │ └─(WARNING: 2 i= 1)
     ├─prefixed <while loop>
     │ ├─"test/test_expect_test.ml":2795:10
-    │ ├─prefixed <if -- then branch>
+    │ ├─prefixed then:test_expect_test:2795
     │ │ ├─"test/test_expect_test.ml":2795:25
     │ │ └─(ERROR: 1 i= 1)
     │ └─(WARNING: 2 i= 2)

@@ -26,7 +26,7 @@ loop_exceeded : int begin "test/test_debug_interrupts.ml":9:33-11:55
  loop_exceeded : int end
 loop_exceeded : int end
 bar : unit begin "test/test_debug_interrupts.ml":17:19-21:6
-  "test/test_debug_interrupts.ml":18:2: <for loop>
+  "test/test_debug_interrupts.ml":18:2: for:test_debug_interrupts:18
   i : int = 0
    "test/test_debug_interrupts.ml":18:6: <for i>
     "test/test_debug_interrupts.ml":19:8: _baz

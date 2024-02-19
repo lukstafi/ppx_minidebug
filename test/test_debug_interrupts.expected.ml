@@ -89,7 +89,7 @@ let bar () =
         (match let __entry_id = Debug_runtime.get_entry_id () in
                Debug_runtime.open_log_preamble_brief
                  ~fname:"test_debug_interrupts.ml" ~pos_lnum:18 ~pos_colnum:2
-                 ~message:"<for loop>" ~entry_id:__entry_id;
+                 ~message:"for:test_debug_interrupts:18" ~entry_id:__entry_id;
                (match for i = 0 to 100 do
                         let __entry_id = Debug_runtime.get_entry_id () in
                         Debug_runtime.log_value_show ?descr:(Some "i : int")
