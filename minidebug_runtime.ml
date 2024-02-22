@@ -141,6 +141,7 @@ module type Debug_runtime = sig
   val get_entry_id : unit -> int
   val max_nesting_depth : int option ref
   val max_num_children : int option ref
+  val global_prefix : string
 end
 
 let exceeds ~value ~limit = match limit with None -> false | Some limit -> limit < value
@@ -257,6 +258,8 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
     fun () ->
       incr global_id;
       !global_id
+
+  let global_prefix = global_prefix
 end
 
 let default_html_config = PrintBox_html.Config.(tree_summary true default)
@@ -774,6 +777,8 @@ module PrintBox (Log_to : Debug_ch) = struct
     fun () ->
       incr global_id;
       !global_id
+
+  let global_prefix = global_prefix
 end
 
 let debug_file ?(time_tagged = false) ?(elapsed_times = elapsed_default)

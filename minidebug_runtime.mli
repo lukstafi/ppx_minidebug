@@ -101,6 +101,7 @@ module type Debug_runtime = sig
   val get_entry_id : unit -> int
   val max_nesting_depth : int option ref
   val max_num_children : int option ref
+  val global_prefix : string
 end
 
 (** The output is flushed line-at-a-time, so no output should be lost if the traced program crashes.
