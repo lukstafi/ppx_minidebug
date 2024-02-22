@@ -2408,31 +2408,32 @@ let%expect_test "%log track while-loop" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":2398:4: while:test_expect_test:2398
-    ├─"test/test_expect_test.ml":2399:6: <while loop>
-    │ ├─(1 i= 0)
-    │ ├─(2 i= 1)
-    │ └─(3 j= 1)
-    ├─"test/test_expect_test.ml":2399:6: <while loop>
-    │ ├─(1 i= 1)
-    │ ├─(2 i= 2)
-    │ └─(3 j= 3)
-    ├─"test/test_expect_test.ml":2399:6: <while loop>
-    │ ├─(1 i= 2)
-    │ ├─(2 i= 3)
-    │ └─(3 j= 6)
-    ├─"test/test_expect_test.ml":2399:6: <while loop>
-    │ ├─(1 i= 3)
-    │ ├─(2 i= 4)
-    │ └─(3 j= 10)
-    ├─"test/test_expect_test.ml":2399:6: <while loop>
-    │ ├─(1 i= 4)
-    │ ├─(2 i= 5)
-    │ └─(3 j= 15)
-    └─"test/test_expect_test.ml":2399:6: <while loop>
-      ├─(1 i= 5)
-      ├─(2 i= 6)
-      └─(3 j= 21)
+    "test/test_expect_test.ml":2395:17: result
+    └─"test/test_expect_test.ml":2398:4: while:test_expect_test:2398
+      ├─"test/test_expect_test.ml":2399:6: <while loop>
+      │ ├─(1 i= 0)
+      │ ├─(2 i= 1)
+      │ └─(3 j= 1)
+      ├─"test/test_expect_test.ml":2399:6: <while loop>
+      │ ├─(1 i= 1)
+      │ ├─(2 i= 2)
+      │ └─(3 j= 3)
+      ├─"test/test_expect_test.ml":2399:6: <while loop>
+      │ ├─(1 i= 2)
+      │ ├─(2 i= 3)
+      │ └─(3 j= 6)
+      ├─"test/test_expect_test.ml":2399:6: <while loop>
+      │ ├─(1 i= 3)
+      │ ├─(2 i= 4)
+      │ └─(3 j= 10)
+      ├─"test/test_expect_test.ml":2399:6: <while loop>
+      │ ├─(1 i= 4)
+      │ ├─(2 i= 5)
+      │ └─(3 j= 15)
+      └─"test/test_expect_test.ml":2399:6: <while loop>
+        ├─(1 i= 5)
+        ├─(2 i= 6)
+        └─(3 j= 21)
     21
         |}]
 
@@ -2481,39 +2482,39 @@ let%expect_test "%log runtime log levels while-loop" =
   [%expect
     {|
   BEGIN DEBUG SESSION Everything
-  "test/test_expect_test.ml":2440:28-2451:6: Everything result
-  ├─"test/test_expect_test.ml":2443:4: Everything while:test_expect_test:2443
-  │ ├─"test/test_expect_test.ml":2445:6: Everything <while loop>
-  │ │ ├─"test/test_expect_test.ml":2445:21: Everything then:test_expect_test:2445
+  "test/test_expect_test.ml":2441:28-2452:6: Everything result
+  ├─"test/test_expect_test.ml":2444:4: Everything while:test_expect_test:2444
+  │ ├─"test/test_expect_test.ml":2446:6: Everything <while loop>
+  │ │ ├─"test/test_expect_test.ml":2446:21: Everything then:test_expect_test:2446
   │ │ │ └─(ERROR: 1 i= 0)
   │ │ ├─(WARNING: 2 i= 1)
-  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything fun:test_expect_test:2448
+  │ │ ├─"test/test_expect_test.ml":2449:11-2449:46: Everything fun:test_expect_test:2449
   │ │ └─(INFO: 3 j= 1)
-  │ ├─"test/test_expect_test.ml":2445:6: Everything <while loop>
-  │ │ ├─"test/test_expect_test.ml":2445:21: Everything then:test_expect_test:2445
+  │ ├─"test/test_expect_test.ml":2446:6: Everything <while loop>
+  │ │ ├─"test/test_expect_test.ml":2446:21: Everything then:test_expect_test:2446
   │ │ │ └─(ERROR: 1 i= 1)
   │ │ ├─(WARNING: 2 i= 2)
-  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything fun:test_expect_test:2448
+  │ │ ├─"test/test_expect_test.ml":2449:11-2449:46: Everything fun:test_expect_test:2449
   │ │ └─(INFO: 3 j= 3)
-  │ ├─"test/test_expect_test.ml":2445:6: Everything <while loop>
-  │ │ ├─"test/test_expect_test.ml":2445:63: Everything else:test_expect_test:2445
+  │ ├─"test/test_expect_test.ml":2446:6: Everything <while loop>
+  │ │ ├─"test/test_expect_test.ml":2446:63: Everything else:test_expect_test:2446
   │ │ ├─(WARNING: 2 i= 3)
-  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything fun:test_expect_test:2448
+  │ │ ├─"test/test_expect_test.ml":2449:11-2449:46: Everything fun:test_expect_test:2449
   │ │ └─(INFO: 3 j= 6)
-  │ ├─"test/test_expect_test.ml":2445:6: Everything <while loop>
-  │ │ ├─"test/test_expect_test.ml":2445:63: Everything else:test_expect_test:2445
+  │ ├─"test/test_expect_test.ml":2446:6: Everything <while loop>
+  │ │ ├─"test/test_expect_test.ml":2446:63: Everything else:test_expect_test:2446
   │ │ ├─(WARNING: 2 i= 4)
-  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything fun:test_expect_test:2448
+  │ │ ├─"test/test_expect_test.ml":2449:11-2449:46: Everything fun:test_expect_test:2449
   │ │ └─(INFO: 3 j= 10)
-  │ ├─"test/test_expect_test.ml":2445:6: Everything <while loop>
-  │ │ ├─"test/test_expect_test.ml":2445:63: Everything else:test_expect_test:2445
+  │ ├─"test/test_expect_test.ml":2446:6: Everything <while loop>
+  │ │ ├─"test/test_expect_test.ml":2446:63: Everything else:test_expect_test:2446
   │ │ ├─(WARNING: 2 i= 5)
-  │ │ ├─"test/test_expect_test.ml":2448:11-2448:46: Everything fun:test_expect_test:2448
+  │ │ ├─"test/test_expect_test.ml":2449:11-2449:46: Everything fun:test_expect_test:2449
   │ │ └─(INFO: 3 j= 15)
-  │ └─"test/test_expect_test.ml":2445:6: Everything <while loop>
-  │   ├─"test/test_expect_test.ml":2445:63: Everything else:test_expect_test:2445
+  │ └─"test/test_expect_test.ml":2446:6: Everything <while loop>
+  │   ├─"test/test_expect_test.ml":2446:63: Everything else:test_expect_test:2446
   │   ├─(WARNING: 2 i= 6)
-  │   ├─"test/test_expect_test.ml":2448:11-2448:46: Everything fun:test_expect_test:2448
+  │   ├─"test/test_expect_test.ml":2449:11-2449:46: Everything fun:test_expect_test:2449
   │   └─(INFO: 3 j= 21)
   └─result = 21
   21
@@ -2523,100 +2524,100 @@ let%expect_test "%log runtime log levels while-loop" =
 
   BEGIN DEBUG SESSION Nonempty
   result = 21
-  ├─"test/test_expect_test.ml":2440:28-2451:6
-  └─Nonempty while:test_expect_test:2443
-    ├─"test/test_expect_test.ml":2443:4
+  ├─"test/test_expect_test.ml":2441:28-2452:6
+  └─Nonempty while:test_expect_test:2444
+    ├─"test/test_expect_test.ml":2444:4
     ├─Nonempty <while loop>
-    │ ├─"test/test_expect_test.ml":2445:6
-    │ ├─Nonempty then:test_expect_test:2445
-    │ │ ├─"test/test_expect_test.ml":2445:21
+    │ ├─"test/test_expect_test.ml":2446:6
+    │ ├─Nonempty then:test_expect_test:2446
+    │ │ ├─"test/test_expect_test.ml":2446:21
     │ │ └─(ERROR: 1 i= 0)
     │ ├─(WARNING: 2 i= 1)
     │ └─(INFO: 3 j= 1)
     ├─Nonempty <while loop>
-    │ ├─"test/test_expect_test.ml":2445:6
-    │ ├─Nonempty then:test_expect_test:2445
-    │ │ ├─"test/test_expect_test.ml":2445:21
+    │ ├─"test/test_expect_test.ml":2446:6
+    │ ├─Nonempty then:test_expect_test:2446
+    │ │ ├─"test/test_expect_test.ml":2446:21
     │ │ └─(ERROR: 1 i= 1)
     │ ├─(WARNING: 2 i= 2)
     │ └─(INFO: 3 j= 3)
     ├─Nonempty <while loop>
-    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─"test/test_expect_test.ml":2446:6
     │ ├─(WARNING: 2 i= 3)
     │ └─(INFO: 3 j= 6)
     ├─Nonempty <while loop>
-    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─"test/test_expect_test.ml":2446:6
     │ ├─(WARNING: 2 i= 4)
     │ └─(INFO: 3 j= 10)
     ├─Nonempty <while loop>
-    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─"test/test_expect_test.ml":2446:6
     │ ├─(WARNING: 2 i= 5)
     │ └─(INFO: 3 j= 15)
     └─Nonempty <while loop>
-      ├─"test/test_expect_test.ml":2445:6
+      ├─"test/test_expect_test.ml":2446:6
       ├─(WARNING: 2 i= 6)
       └─(INFO: 3 j= 21)
   21
 
   BEGIN DEBUG SESSION Prefixed
   Prefixed result
-  ├─"test/test_expect_test.ml":2440:28-2451:6
-  └─Prefixed while:test_expect_test:2443
-    ├─"test/test_expect_test.ml":2443:4
+  ├─"test/test_expect_test.ml":2441:28-2452:6
+  └─Prefixed while:test_expect_test:2444
+    ├─"test/test_expect_test.ml":2444:4
     ├─Prefixed <while loop>
-    │ ├─"test/test_expect_test.ml":2445:6
-    │ ├─Prefixed then:test_expect_test:2445
-    │ │ ├─"test/test_expect_test.ml":2445:21
+    │ ├─"test/test_expect_test.ml":2446:6
+    │ ├─Prefixed then:test_expect_test:2446
+    │ │ ├─"test/test_expect_test.ml":2446:21
     │ │ └─(ERROR: 1 i= 0)
     │ └─(WARNING: 2 i= 1)
     ├─Prefixed <while loop>
-    │ ├─"test/test_expect_test.ml":2445:6
-    │ ├─Prefixed then:test_expect_test:2445
-    │ │ ├─"test/test_expect_test.ml":2445:21
+    │ ├─"test/test_expect_test.ml":2446:6
+    │ ├─Prefixed then:test_expect_test:2446
+    │ │ ├─"test/test_expect_test.ml":2446:21
     │ │ └─(ERROR: 1 i= 1)
     │ └─(WARNING: 2 i= 2)
     ├─Prefixed <while loop>
-    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─"test/test_expect_test.ml":2446:6
     │ └─(WARNING: 2 i= 3)
     ├─Prefixed <while loop>
-    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─"test/test_expect_test.ml":2446:6
     │ └─(WARNING: 2 i= 4)
     ├─Prefixed <while loop>
-    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─"test/test_expect_test.ml":2446:6
     │ └─(WARNING: 2 i= 5)
     └─Prefixed <while loop>
-      ├─"test/test_expect_test.ml":2445:6
+      ├─"test/test_expect_test.ml":2446:6
       └─(WARNING: 2 i= 6)
   21
 
   BEGIN DEBUG SESSION Prefixed_or_result
   result = 21
-  ├─"test/test_expect_test.ml":2440:28-2451:6
-  └─Prefixed_or_result while:test_expect_test:2443
-    ├─"test/test_expect_test.ml":2443:4
+  ├─"test/test_expect_test.ml":2441:28-2452:6
+  └─Prefixed_or_result while:test_expect_test:2444
+    ├─"test/test_expect_test.ml":2444:4
     ├─Prefixed_or_result <while loop>
-    │ ├─"test/test_expect_test.ml":2445:6
-    │ ├─Prefixed_or_result then:test_expect_test:2445
-    │ │ ├─"test/test_expect_test.ml":2445:21
+    │ ├─"test/test_expect_test.ml":2446:6
+    │ ├─Prefixed_or_result then:test_expect_test:2446
+    │ │ ├─"test/test_expect_test.ml":2446:21
     │ │ └─(ERROR: 1 i= 0)
     │ └─(WARNING: 2 i= 1)
     ├─Prefixed_or_result <while loop>
-    │ ├─"test/test_expect_test.ml":2445:6
-    │ ├─Prefixed_or_result then:test_expect_test:2445
-    │ │ ├─"test/test_expect_test.ml":2445:21
+    │ ├─"test/test_expect_test.ml":2446:6
+    │ ├─Prefixed_or_result then:test_expect_test:2446
+    │ │ ├─"test/test_expect_test.ml":2446:21
     │ │ └─(ERROR: 1 i= 1)
     │ └─(WARNING: 2 i= 2)
     ├─Prefixed_or_result <while loop>
-    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─"test/test_expect_test.ml":2446:6
     │ └─(WARNING: 2 i= 3)
     ├─Prefixed_or_result <while loop>
-    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─"test/test_expect_test.ml":2446:6
     │ └─(WARNING: 2 i= 4)
     ├─Prefixed_or_result <while loop>
-    │ ├─"test/test_expect_test.ml":2445:6
+    │ ├─"test/test_expect_test.ml":2446:6
     │ └─(WARNING: 2 i= 5)
     └─Prefixed_or_result <while loop>
-      ├─"test/test_expect_test.ml":2445:6
+      ├─"test/test_expect_test.ml":2446:6
       └─(WARNING: 2 i= 6)
   21
       |}]
@@ -2676,95 +2677,98 @@ let%expect_test "%log compile time log levels while-loop" =
     {|
   BEGIN DEBUG SESSION
   everything = 21
-  ├─"test/test_expect_test.ml":2626:28-2639:9
-  └─while:test_expect_test:2631
-    ├─"test/test_expect_test.ml":2631:6
+  ├─"test/test_expect_test.ml":2627:28-2640:9
+  └─while:test_expect_test:2632
+    ├─"test/test_expect_test.ml":2632:6
     ├─<while loop>
-    │ ├─"test/test_expect_test.ml":2633:8
-    │ ├─then:test_expect_test:2633
-    │ │ ├─"test/test_expect_test.ml":2633:23
+    │ ├─"test/test_expect_test.ml":2634:8
+    │ ├─then:test_expect_test:2634
+    │ │ ├─"test/test_expect_test.ml":2634:23
     │ │ └─(ERROR: 1 i= 0)
     │ ├─(WARNING: 2 i= 1)
-    │ ├─fun:test_expect_test:2636
-    │ │ └─"test/test_expect_test.ml":2636:13-2636:48
+    │ ├─fun:test_expect_test:2637
+    │ │ └─"test/test_expect_test.ml":2637:13-2637:48
     │ └─(INFO: 3 j= 1)
     ├─<while loop>
-    │ ├─"test/test_expect_test.ml":2633:8
-    │ ├─then:test_expect_test:2633
-    │ │ ├─"test/test_expect_test.ml":2633:23
+    │ ├─"test/test_expect_test.ml":2634:8
+    │ ├─then:test_expect_test:2634
+    │ │ ├─"test/test_expect_test.ml":2634:23
     │ │ └─(ERROR: 1 i= 1)
     │ ├─(WARNING: 2 i= 2)
-    │ ├─fun:test_expect_test:2636
-    │ │ └─"test/test_expect_test.ml":2636:13-2636:48
+    │ ├─fun:test_expect_test:2637
+    │ │ └─"test/test_expect_test.ml":2637:13-2637:48
     │ └─(INFO: 3 j= 3)
     ├─<while loop>
-    │ ├─"test/test_expect_test.ml":2633:8
-    │ ├─else:test_expect_test:2633
-    │ │ └─"test/test_expect_test.ml":2633:65
+    │ ├─"test/test_expect_test.ml":2634:8
+    │ ├─else:test_expect_test:2634
+    │ │ └─"test/test_expect_test.ml":2634:65
     │ ├─(WARNING: 2 i= 3)
-    │ ├─fun:test_expect_test:2636
-    │ │ └─"test/test_expect_test.ml":2636:13-2636:48
+    │ ├─fun:test_expect_test:2637
+    │ │ └─"test/test_expect_test.ml":2637:13-2637:48
     │ └─(INFO: 3 j= 6)
     ├─<while loop>
-    │ ├─"test/test_expect_test.ml":2633:8
-    │ ├─else:test_expect_test:2633
-    │ │ └─"test/test_expect_test.ml":2633:65
+    │ ├─"test/test_expect_test.ml":2634:8
+    │ ├─else:test_expect_test:2634
+    │ │ └─"test/test_expect_test.ml":2634:65
     │ ├─(WARNING: 2 i= 4)
-    │ ├─fun:test_expect_test:2636
-    │ │ └─"test/test_expect_test.ml":2636:13-2636:48
+    │ ├─fun:test_expect_test:2637
+    │ │ └─"test/test_expect_test.ml":2637:13-2637:48
     │ └─(INFO: 3 j= 10)
     ├─<while loop>
-    │ ├─"test/test_expect_test.ml":2633:8
-    │ ├─else:test_expect_test:2633
-    │ │ └─"test/test_expect_test.ml":2633:65
+    │ ├─"test/test_expect_test.ml":2634:8
+    │ ├─else:test_expect_test:2634
+    │ │ └─"test/test_expect_test.ml":2634:65
     │ ├─(WARNING: 2 i= 5)
-    │ ├─fun:test_expect_test:2636
-    │ │ └─"test/test_expect_test.ml":2636:13-2636:48
+    │ ├─fun:test_expect_test:2637
+    │ │ └─"test/test_expect_test.ml":2637:13-2637:48
     │ └─(INFO: 3 j= 15)
     └─<while loop>
-      ├─"test/test_expect_test.ml":2633:8
-      ├─else:test_expect_test:2633
-      │ └─"test/test_expect_test.ml":2633:65
+      ├─"test/test_expect_test.ml":2634:8
+      ├─else:test_expect_test:2634
+      │ └─"test/test_expect_test.ml":2634:65
       ├─(WARNING: 2 i= 6)
-      ├─fun:test_expect_test:2636
-      │ └─"test/test_expect_test.ml":2636:13-2636:48
+      ├─fun:test_expect_test:2637
+      │ └─"test/test_expect_test.ml":2637:13-2637:48
       └─(INFO: 3 j= 21)
   21
   nothing = 21
-  └─"test/test_expect_test.ml":2641:25-2655:9
+  └─"test/test_expect_test.ml":2642:25-2656:9
   21
   prefixed = 21
-  ├─"test/test_expect_test.ml":2657:26-2670:9
-  └─while:test_expect_test:2662
-    ├─"test/test_expect_test.ml":2662:6
+  ├─"test/test_expect_test.ml":2658:26-2671:9
+  └─while:test_expect_test:2663
+    ├─"test/test_expect_test.ml":2663:6
     ├─<while loop>
-    │ ├─"test/test_expect_test.ml":2664:8
-    │ ├─then:test_expect_test:2664
-    │ │ ├─"test/test_expect_test.ml":2664:23
+    │ ├─"test/test_expect_test.ml":2665:8
+    │ ├─then:test_expect_test:2665
+    │ │ ├─"test/test_expect_test.ml":2665:23
     │ │ └─(ERROR: 1 i= 0)
     │ └─(WARNING: 2 i= 1)
     ├─<while loop>
-    │ ├─"test/test_expect_test.ml":2664:8
-    │ ├─then:test_expect_test:2664
-    │ │ ├─"test/test_expect_test.ml":2664:23
+    │ ├─"test/test_expect_test.ml":2665:8
+    │ ├─then:test_expect_test:2665
+    │ │ ├─"test/test_expect_test.ml":2665:23
     │ │ └─(ERROR: 1 i= 1)
     │ └─(WARNING: 2 i= 2)
     ├─<while loop>
-    │ ├─"test/test_expect_test.ml":2664:8
+    │ ├─"test/test_expect_test.ml":2665:8
     │ └─(WARNING: 2 i= 3)
     ├─<while loop>
-    │ ├─"test/test_expect_test.ml":2664:8
+    │ ├─"test/test_expect_test.ml":2665:8
     │ └─(WARNING: 2 i= 4)
     ├─<while loop>
-    │ ├─"test/test_expect_test.ml":2664:8
+    │ ├─"test/test_expect_test.ml":2665:8
     │ └─(WARNING: 2 i= 5)
     └─<while loop>
-      ├─"test/test_expect_test.ml":2664:8
+      ├─"test/test_expect_test.ml":2665:8
       └─(WARNING: 2 i= 6)
   21
       |}]
 
 let%expect_test "%log compile time log levels runtime-passing while-loop" =
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug ~global_prefix:"TOPLEVEL" ~values_first_mode:true ())
+  in
   let%debug_sexp () =
     ([%log_level
        Nothing;
@@ -2807,39 +2811,43 @@ let%expect_test "%log compile time log levels runtime-passing while-loop" =
   in
   [%expect
     {|
+  BEGIN DEBUG SESSION TOPLEVEL
+
   BEGIN DEBUG SESSION nothing
   21
 
   BEGIN DEBUG SESSION prefixed
   prefixed = 21
-  ├─"test/test_expect_test.ml":2790:34-2801:10
-  └─prefixed while:test_expect_test:2793
-    ├─"test/test_expect_test.ml":2793:8
+  ├─"test/test_expect_test.ml":2794:34-2805:10
+  └─prefixed while:test_expect_test:2797
+    ├─"test/test_expect_test.ml":2797:8
     ├─prefixed <while loop>
-    │ ├─"test/test_expect_test.ml":2795:10
-    │ ├─prefixed then:test_expect_test:2795
-    │ │ ├─"test/test_expect_test.ml":2795:25
+    │ ├─"test/test_expect_test.ml":2799:10
+    │ ├─prefixed then:test_expect_test:2799
+    │ │ ├─"test/test_expect_test.ml":2799:25
     │ │ └─(ERROR: 1 i= 0)
     │ └─(WARNING: 2 i= 1)
     ├─prefixed <while loop>
-    │ ├─"test/test_expect_test.ml":2795:10
-    │ ├─prefixed then:test_expect_test:2795
-    │ │ ├─"test/test_expect_test.ml":2795:25
+    │ ├─"test/test_expect_test.ml":2799:10
+    │ ├─prefixed then:test_expect_test:2799
+    │ │ ├─"test/test_expect_test.ml":2799:25
     │ │ └─(ERROR: 1 i= 1)
     │ └─(WARNING: 2 i= 2)
     ├─prefixed <while loop>
-    │ ├─"test/test_expect_test.ml":2795:10
+    │ ├─"test/test_expect_test.ml":2799:10
     │ └─(WARNING: 2 i= 3)
     ├─prefixed <while loop>
-    │ ├─"test/test_expect_test.ml":2795:10
+    │ ├─"test/test_expect_test.ml":2799:10
     │ └─(WARNING: 2 i= 4)
     ├─prefixed <while loop>
-    │ ├─"test/test_expect_test.ml":2795:10
+    │ ├─"test/test_expect_test.ml":2799:10
     │ └─(WARNING: 2 i= 5)
     └─prefixed <while loop>
-      ├─"test/test_expect_test.ml":2795:10
+      ├─"test/test_expect_test.ml":2799:10
       └─(WARNING: 2 i= 6)
   21
+  TOPLEVEL ()
+  └─"test/test_expect_test.ml":2772:17
       |}]
 
 let%expect_test "%log without scope" =
@@ -2863,7 +2871,7 @@ let%expect_test "%log without scope" =
   [%expect
     {|
           BEGIN DEBUG SESSION
-          "test/test_expect_test.ml":2853:17: {#1} _bar
+          "test/test_expect_test.ml":2861:17: {#1} _bar
           └─_bar = ()
           {orphaned from #1}
           └─("This is like", 3, "or", 3.14, "above")
@@ -2898,7 +2906,7 @@ let%expect_test "%log without scope values_first_mode" =
     {|
           BEGIN DEBUG SESSION
           _bar = ()
-          └─"test/test_expect_test.ml":2887:17: {#1}
+          └─"test/test_expect_test.ml":2895:17: {#1}
           ("This is like", 3, "or", 3.14, "above")
           └─{orphaned from #1}
           ("tau =", 6.28)
@@ -2945,13 +2953,13 @@ let%expect_test "%log with print_entry_ids, mixed up scopes" =
     {|
           BEGIN DEBUG SESSION
           bar = ()
-          └─"test/test_expect_test.ml":2923:21-2928:19: {#1}
+          └─"test/test_expect_test.ml":2931:21-2936:19: {#1}
           baz = ()
-          └─"test/test_expect_test.ml":2930:21-2935:19: {#2}
+          └─"test/test_expect_test.ml":2938:21-2943:19: {#2}
           bar = ()
-          └─"test/test_expect_test.ml":2923:21-2928:19: {#3}
+          └─"test/test_expect_test.ml":2931:21-2936:19: {#3}
           _foobar = ()
-          ├─"test/test_expect_test.ml":2942:17: {#4}
+          ├─"test/test_expect_test.ml":2950:17: {#4}
           ├─("This is like", 3, "or", 3.14, "above")
           ├─("tau =", 6.28)
           ├─[3; 1; 2; 3]
@@ -2969,6 +2977,34 @@ let%expect_test "%log with print_entry_ids, mixed up scopes" =
 
 let%expect_test "%diagn_show ignores type annots" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let%diagn_show toplevel =
+    let bar { first : int; second : int } : int =
+      let { first : int = a; second : int = b } = { first; second = second + 3 } in
+      let y : int = a + 1 in
+      [%log "for bar, b-3", (b - 3 : int)];
+      (b - 3) * y
+    in
+    let () = print_endline @@ Int.to_string @@ bar { first = 7; second = 42 } in
+    let baz { first : int; second : int } : int =
+      let { first : int; second : int } = { first = first + 1; second = second + 3 } in
+      [%log "for baz, f squared", (first * first : int)];
+      (first * first) + second
+    in
+    print_endline @@ Int.to_string @@ baz { first = 7; second = 42 }
+  in
+  ignore toplevel;
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      336
+      109
+      toplevel
+      ├─"test/test_expect_test.ml":2980:17
+      ├─("for bar, b-3", 42)
+      └─("for baz, f squared", 64) |}]
+
+let%expect_test "%diagn_show ignores non-empty bindings" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
   let%diagn_show bar { first : int; second : int } : int =
     let { first : int = a; second : int = b } = { first; second = second + 3 } in
     let y : int = a + 1 in
@@ -2976,23 +3012,46 @@ let%expect_test "%diagn_show ignores type annots" =
     (b - 3) * y
   in
   let () = print_endline @@ Int.to_string @@ bar { first = 7; second = 42 } in
-  let baz { first : int; second : int } : int =
-    let { first : int; second : int } = { first = first + 1; second = second + 3 } in
-    [%log "for baz, f squared", (first * first : int)];
-    (first * first) + second
+  let%diagn_show baz { first : int; second : int } : int =
+    let foo { first : int; second : int } : int =
+      [%log "foo baz, f squared", (first * first : int)];
+      (first * first) + second
+    in
+    foo { first; second }
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
   [%expect
     {|
       BEGIN DEBUG SESSION
       bar
-      ├─"test/test_expect_test.ml":2972:21-2976:15
+      ├─"test/test_expect_test.ml":3008:21-3012:15
       └─("for bar, b-3", 42)
       336
       baz
-      ├─"test/test_expect_test.ml":2979:10-2982:28
-      └─("for baz, f squared", 64)
-      109 |}]
+      ├─"test/test_expect_test.ml":3015:21-3020:25
+      └─("foo baz, f squared", 49)
+      91 |}]
+
+let%expect_test "%diagn_show no logs" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let%diagn_show bar { first : int; second : int } : int =
+    let { first : int = a; second : int = b } = { first; second = second + 3 } in
+    let y : int = a + 1 in
+    (b - 3) * y
+  in
+  let () = print_endline @@ Int.to_string @@ bar { first = 7; second = 42 } in
+  let%diagn_show baz { first : int; second : int } : int =
+    let foo { first : int; second : int } : int =
+      (first * first) + second
+    in
+    foo { first; second }
+  in
+  let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      336
+      91 |}]
 
 let%expect_test "%debug_show log level Prefixed_or_result [||]" =
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
@@ -3016,26 +3075,28 @@ let%expect_test "%debug_show log level Prefixed_or_result [||]" =
   [%expect
     {|
       BEGIN DEBUG SESSION
-      bar = 336
-      ├─"test/test_expect_test.ml":3002:14-3006:19
-      ├─{first=a; second=b}
-      │ ├─"test/test_expect_test.ml":3003:12
-      │ └─<values>
-      │   ├─a = 7
-      │   └─b = 45
-      ├─y = 8
-      │ └─"test/test_expect_test.ml":3004:12
-      └─("for bar, b-3", 42)
       336
-      baz = 109
-      ├─"test/test_expect_test.ml":3008:14-3011:32
-      ├─{first; second}
-      │ ├─"test/test_expect_test.ml":3009:12
-      │ └─<values>
-      │   ├─first = 8
-      │   └─second = 45
-      └─("for baz, f squared", 64)
-      109 |}]
+      109
+      ()
+      ├─"test/test_expect_test.ml":3058:17
+      ├─bar = 336
+      │ ├─"test/test_expect_test.ml":3061:14-3065:19
+      │ ├─{first=a; second=b}
+      │ │ ├─"test/test_expect_test.ml":3062:12
+      │ │ └─<values>
+      │ │   ├─a = 7
+      │ │   └─b = 45
+      │ ├─y = 8
+      │ │ └─"test/test_expect_test.ml":3063:12
+      │ └─("for bar, b-3", 42)
+      └─baz = 109
+        ├─"test/test_expect_test.ml":3067:14-3070:32
+        ├─{first; second}
+        │ ├─"test/test_expect_test.ml":3068:12
+        │ └─<values>
+        │   ├─first = 8
+        │   └─second = 45
+        └─("for baz, f squared", 64) |}]
 (* Compare to:
     {|
     BEGIN DEBUG SESSION
@@ -3087,20 +3148,19 @@ let%expect_test "%debug_show log level Prefixed_or_result [||] compile+runtime" 
   [%expect
     {|
         BEGIN DEBUG SESSION
-        bar = 336
-        ├─"test/test_expect_test.ml":3073:14-3077:19
-        └─("for bar, b-3", 42)
         336
-        baz = 109
-        ├─"test/test_expect_test.ml":3079:14-3082:32
-        └─("for baz, f squared", 64)
-        109 |}]
-
+        109
+        ()
+        ├─"test/test_expect_test.ml":3131:17
+        ├─bar = 336
+        │ ├─"test/test_expect_test.ml":3134:14-3138:19
+        │ └─("for bar, b-3", 42)
+        └─baz = 109
+          ├─"test/test_expect_test.ml":3140:14-3143:32
+          └─("for baz, f squared", 64) |}]
 
 let%expect_test "%debug_this_show PrintBox snapshot" =
-  let module Debug_runtime =
-    (val Minidebug_runtime.debug ~values_first_mode:true ())
-  in
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
   let%debug_this_show rec loop_highlight (x : int) : int =
     let z : int = (x - 1) / 2 in
     if z = 3 || x = 3 then Debug_runtime.snapshot ();
@@ -3111,73 +3171,73 @@ let%expect_test "%debug_this_show PrintBox snapshot" =
     {|
       BEGIN DEBUG SESSION
       loop_highlight
-      ├─"test/test_expect_test.ml":3104:41-3107:58
+      ├─"test/test_expect_test.ml":3164:41-3167:58
       ├─x = 7
       └─z = 3
-        └─"test/test_expect_test.ml":3105:8
+        └─"test/test_expect_test.ml":3165:8
       [2J[1;1Hloop_highlight
-      ├─"test/test_expect_test.ml":3104:41-3107:58
+      ├─"test/test_expect_test.ml":3164:41-3167:58
       ├─x = 7
       ├─z = 3
-      │ └─"test/test_expect_test.ml":3105:8
+      │ └─"test/test_expect_test.ml":3165:8
       └─loop_highlight
-        ├─"test/test_expect_test.ml":3104:41-3107:58
+        ├─"test/test_expect_test.ml":3164:41-3167:58
         ├─x = 6
         ├─z = 2
-        │ └─"test/test_expect_test.ml":3105:8
+        │ └─"test/test_expect_test.ml":3165:8
         └─loop_highlight
-          ├─"test/test_expect_test.ml":3104:41-3107:58
+          ├─"test/test_expect_test.ml":3164:41-3167:58
           ├─x = 5
           ├─z = 2
-          │ └─"test/test_expect_test.ml":3105:8
+          │ └─"test/test_expect_test.ml":3165:8
           └─loop_highlight
-            ├─"test/test_expect_test.ml":3104:41-3107:58
+            ├─"test/test_expect_test.ml":3164:41-3167:58
             ├─x = 4
             ├─z = 1
-            │ └─"test/test_expect_test.ml":3105:8
+            │ └─"test/test_expect_test.ml":3165:8
             └─loop_highlight
-              ├─"test/test_expect_test.ml":3104:41-3107:58
+              ├─"test/test_expect_test.ml":3164:41-3167:58
               ├─x = 3
               └─z = 1
-                └─"test/test_expect_test.ml":3105:8
+                └─"test/test_expect_test.ml":3165:8
       [2J[1;1Hloop_highlight = 9
-      ├─"test/test_expect_test.ml":3104:41-3107:58
+      ├─"test/test_expect_test.ml":3164:41-3167:58
       ├─x = 7
       ├─z = 3
-      │ └─"test/test_expect_test.ml":3105:8
+      │ └─"test/test_expect_test.ml":3165:8
       └─loop_highlight = 6
-        ├─"test/test_expect_test.ml":3104:41-3107:58
+        ├─"test/test_expect_test.ml":3164:41-3167:58
         ├─x = 6
         ├─z = 2
-        │ └─"test/test_expect_test.ml":3105:8
+        │ └─"test/test_expect_test.ml":3165:8
         └─loop_highlight = 4
-          ├─"test/test_expect_test.ml":3104:41-3107:58
+          ├─"test/test_expect_test.ml":3164:41-3167:58
           ├─x = 5
           ├─z = 2
-          │ └─"test/test_expect_test.ml":3105:8
+          │ └─"test/test_expect_test.ml":3165:8
           └─loop_highlight = 2
-            ├─"test/test_expect_test.ml":3104:41-3107:58
+            ├─"test/test_expect_test.ml":3164:41-3167:58
             ├─x = 4
             ├─z = 1
-            │ └─"test/test_expect_test.ml":3105:8
+            │ └─"test/test_expect_test.ml":3165:8
             └─loop_highlight = 1
-              ├─"test/test_expect_test.ml":3104:41-3107:58
+              ├─"test/test_expect_test.ml":3164:41-3167:58
               ├─x = 3
               ├─z = 1
-              │ └─"test/test_expect_test.ml":3105:8
+              │ └─"test/test_expect_test.ml":3165:8
               └─loop_highlight = 0
-                ├─"test/test_expect_test.ml":3104:41-3107:58
+                ├─"test/test_expect_test.ml":3164:41-3167:58
                 ├─x = 2
                 ├─z = 0
-                │ └─"test/test_expect_test.ml":3105:8
+                │ └─"test/test_expect_test.ml":3165:8
                 └─loop_highlight = 0
-                  ├─"test/test_expect_test.ml":3104:41-3107:58
+                  ├─"test/test_expect_test.ml":3164:41-3167:58
                   ├─x = 1
                   ├─z = 0
-                  │ └─"test/test_expect_test.ml":3105:8
+                  │ └─"test/test_expect_test.ml":3165:8
                   └─loop_highlight = 0
-                    ├─"test/test_expect_test.ml":3104:41-3107:58
+                    ├─"test/test_expect_test.ml":3164:41-3167:58
                     ├─x = 0
                     └─z = 0
-                      └─"test/test_expect_test.ml":3105:8
+                      └─"test/test_expect_test.ml":3165:8
       9 |}]

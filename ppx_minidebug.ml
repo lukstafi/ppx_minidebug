@@ -1001,6 +1001,9 @@ let traverse_expression =
 
     method! expression context exp =
       let callback context e = self#expression context e in
+      let restrict_to_explicit =
+        match context.log_level with Nothing | Prefixed _ -> true | _ -> false
+      in
       let track_cases ?ret_descr ?ret_typ ?arg_typ kind =
         List.mapi (debug_case context callback ?ret_descr ?ret_typ ?arg_typ kind)
       in
@@ -1012,7 +1015,8 @@ let traverse_expression =
       let loc = exp.pexp_loc in
       let exp =
         match exp.pexp_desc with
-        | Pexp_let (rec_flag, bindings, body) ->
+        | Pexp_let (rec_flag, bindings, body)
+          when context.toplevel_opt_arg <> Nested || not restrict_to_explicit ->
             let bindings = List.map (debug_binding context callback) bindings in
             {
               exp with
@@ -1083,8 +1087,9 @@ let traverse_expression =
         | Pexp_extension ({ loc = _; txt = "log" }, PStr [%str [%e? body]]) ->
             let typ = extract_type ~alt_typ:ret_typ body in
             log_value context ~loc ~typ ~is_explicit:true ~is_result:false body
-        | Pexp_newtype _ -> debug_fun context callback ?typ:ret_typ exp
-        | Pexp_fun _ -> debug_fun context callback ?typ:ret_typ exp
+        | (Pexp_newtype _ | Pexp_fun _)
+          when context.toplevel_opt_arg <> Nested || not restrict_to_explicit ->
+            debug_fun context callback ?typ:ret_typ exp
         | Pexp_match ([%expr ([%e? expr] : [%t? arg_typ])], cases)
           when context.track_branches && context.log_level <> Nothing ->
             {
