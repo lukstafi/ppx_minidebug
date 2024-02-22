@@ -781,10 +781,11 @@ let debug_binding context callback vb =
       | { pexp_desc = Pexp_function cases; _ } ->
           debug_function context callback ~loc:vb.pvb_expr.pexp_loc ?ret_descr ?ret_typ
             ?arg_typ cases
-      | _ when no_results context.log_level -> callback nested exp
+      | _ when context.toplevel_opt_arg = Nested && no_results context.log_level ->
+          callback nested exp
       | _ ->
           let result, bound = bound_patterns ~alt_typ:typ pat in
-          if bound = [] then callback nested exp
+          if bound = [] && context.toplevel_opt_arg = Nested then callback nested exp
           else
             let log_count_before = !global_log_count in
             let descr_loc = pat2descr ~default:"__val" pat in
