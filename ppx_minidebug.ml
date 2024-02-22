@@ -1028,6 +1028,7 @@ let traverse_expression =
               match String.sub txt 0 prefix_pos with
               | "debug" -> (false, context.log_level)
               | "track" -> (true, context.log_level)
+              | "diagn" when context.log_level = Nothing -> (false, Nothing)
               | "diagn" when context.log_level <> Nothing -> (false, Prefixed [||])
               | _ -> (context.track_branches, context.log_level)
             in
@@ -1116,8 +1117,7 @@ let traverse_expression =
               let then_' =
                 [%expr
                   let __entry_id = Debug_runtime.get_entry_id () in
-                  [%e
-                    open_log_preamble ~brief:true ~message ~loc ()];
+                  [%e open_log_preamble ~brief:true ~message ~loc ()];
                   match [%e then_] with
                   | if_then__result ->
                       Debug_runtime.close_log ();
@@ -1140,9 +1140,7 @@ let traverse_expression =
                     let message = "else:" ^ loc_to_name loc in
                     [%expr
                       let __entry_id = Debug_runtime.get_entry_id () in
-                      [%e
-                        open_log_preamble ~brief:true ~message ~loc
-                          ()];
+                      [%e open_log_preamble ~brief:true ~message ~loc ()];
                       match [%e else_] with
                       | if_else__result ->
                           Debug_runtime.close_log ();
