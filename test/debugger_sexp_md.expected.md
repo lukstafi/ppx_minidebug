@@ -9,9 +9,7 @@ BEGIN DEBUG SESSION
   - ["test/test_debug_md.ml":9:6](../test/test_debug_md.ml#L9)
   </details>
   
-  
 </details>
-
 
 
 <details><summary><code>bar = 336</code></summary>
@@ -23,9 +21,7 @@ BEGIN DEBUG SESSION
   - ["test/test_debug_md.ml":17:6](../test/test_debug_md.ml#L17)
   </details>
   
-  
 </details>
-
 
 
 <details><summary><code>baz = 359</code></summary>
@@ -37,15 +33,12 @@ BEGIN DEBUG SESSION
   - ["test/test_debug_md.ml":23:17](../test/test_debug_md.ml#L23)
   </details>
   
-  
 - <details><summary><code>_uw = (7 13)</code></summary>
   
   - ["test/test_debug_md.ml":24:17](../test/test_debug_md.ml#L24)
   </details>
   
-  
 </details>
-
 
 
 <details><summary><code>lab = (7 8 16)</code></summary>
@@ -57,9 +50,7 @@ BEGIN DEBUG SESSION
   - ["test/test_debug_md.ml":30:6](../test/test_debug_md.ml#L30)
   </details>
   
-  
 </details>
-
 
 
 <details><summary><code>loop = 36</code></summary>
@@ -100,18 +91,13 @@ BEGIN DEBUG SESSION
               - `x = ((first 23) (second 2))`
               </details>
               
-              
             </details>
-            
             
           </details>
           
-          
         </details>
         
-        
       </details>
-      
       
     - <details><summary><code>z = 17</code></summary>
       
@@ -138,24 +124,17 @@ BEGIN DEBUG SESSION
               - `x = ((first 14) (second 3))`
               </details>
               
-              
             </details>
-            
             
           </details>
           
-          
         </details>
-        
         
       </details>
       
-      
     </details>
     
-    
   </details>
-  
   
 - <details><summary><code>z = 29</code></summary>
   
@@ -190,18 +169,13 @@ BEGIN DEBUG SESSION
               - `x = ((first 24) (second 6))`
               </details>
               
-              
             </details>
-            
             
           </details>
           
-          
         </details>
         
-        
       </details>
-      
       
     - <details><summary><code>z = 22</code></summary>
       
@@ -228,26 +202,18 @@ BEGIN DEBUG SESSION
               - `x = ((first 16) (second 6))`
               </details>
               
-              
             </details>
-            
             
           </details>
           
-          
         </details>
-        
         
       </details>
       
-      
     </details>
-    
     
   </details>
   
-  
 </details>
-
 
 

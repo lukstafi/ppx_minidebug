@@ -7,15 +7,12 @@
   - ["test/test_debug_multifile.ml":24:17](../test/test_debug_multifile.ml#L24)
   </details>
   
-  
 - <details><summary><code>_uw = (7 13)</code></summary>
   
   - ["test/test_debug_multifile.ml":25:17](../test/test_debug_multifile.ml#L25)
   </details>
   
-  
 </details>
-
 
 
 <details><summary><code>lab = (7 8 16)</code></summary>
@@ -27,8 +24,6 @@
   - ["test/test_debug_multifile.ml":31:6](../test/test_debug_multifile.ml#L31)
   </details>
   
-  
 </details>
-
 
 

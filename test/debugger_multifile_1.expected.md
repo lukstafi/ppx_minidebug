@@ -9,9 +9,7 @@ BEGIN DEBUG SESSION
   - ["test/test_debug_multifile.ml":10:6](../test/test_debug_multifile.ml#L10)
   </details>
   
-  
 </details>
-
 
 
 <details><summary><code>bar = 336</code></summary>
@@ -23,8 +21,6 @@ BEGIN DEBUG SESSION
   - ["test/test_debug_multifile.ml":18:6](../test/test_debug_multifile.ml#L18)
   </details>
   
-  
 </details>
-
 
 

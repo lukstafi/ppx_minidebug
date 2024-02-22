@@ -31,11 +31,13 @@
   (ppxlib
    (>= 0.26.0))
   (printbox
-   (>= 0.7))
-  printbox-text
+   (>= 0.10))
+  (printbox-text
+   (>= 0.10))
   (printbox-html
-   (>= 0.8))
-  printbox-md
+   (>= 0.10))
+  (printbox-md
+   (>= 0.10))
   ptime
   (mtime
    (>= 2.0))
