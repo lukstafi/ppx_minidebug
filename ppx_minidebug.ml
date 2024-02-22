@@ -805,7 +805,7 @@ let debug_binding context callback vb =
               open_log_preamble ~brief:true ~message:descr_loc.txt ~loc:descr_loc.loc ()
             in
             entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
-              ~entry:(callback context exp) ~result ~log_result ()
+              ~entry:(callback nested exp) ~result ~log_result ()
     in
     let pvb_expr =
       match (typ2, context.toplevel_opt_arg) with
