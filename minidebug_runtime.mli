@@ -136,7 +136,7 @@ module type PrintBox_runtime = sig
             or markdown. *)
     mutable boxify_sexp_from_size : int;
         (** If positive, [Sexp.t]-based logs with this many or more atoms are converted to print-boxes
-            before logging. *)
+            before logging. Disabled by default (i.e. negative). *)
     mutable highlight_terms : Re.re option;
         (** Uses a highlight style for logs on paths ending with a log matching the regular expression. *)
     mutable exclude_on_path : Re.re option;
@@ -163,6 +163,9 @@ module type PrintBox_runtime = sig
     mutable snapshot_every_sec : float option;
         (** If given, output a snapshot of the pending logs when at least the given time (in seconds) has
             passed since the previous output. This is only checked at calls to log values. *)
+    mutable sexp_unescape_strings : bool;
+        (** If true, when a value is a sexp atom or is decomposed into a sexp atom by boxification, it is
+            not printed as a sexp, but the string of the atom is printed directly. Defaults to [true]. *)
   }
 
   val config : config

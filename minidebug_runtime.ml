@@ -284,6 +284,7 @@ module type PrintBox_runtime = sig
     mutable max_inline_sexp_length : int;
     mutable log_level : log_level;
     mutable snapshot_every_sec : float option;
+    mutable sexp_unescape_strings : bool;
   }
 
   val config : config
@@ -310,6 +311,7 @@ module PrintBox (Log_to : Debug_ch) = struct
     mutable max_inline_sexp_length : int;
     mutable log_level : log_level;
     mutable snapshot_every_sec : float option;
+    mutable sexp_unescape_strings : bool;
   }
 
   let config =
@@ -326,6 +328,7 @@ module PrintBox (Log_to : Debug_ch) = struct
       max_inline_sexp_length = 50;
       log_level = Everything;
       snapshot_every_sec = None;
+      sexp_unescape_strings = true;
     }
 
   module B = PrintBox
@@ -636,12 +639,16 @@ module PrintBox (Log_to : Debug_ch) = struct
     in
     (hl, apply_highlight hl b)
 
+    let pp_sexp ppf = function
+    | Sexplib0.Sexp.Atom s when config.sexp_unescape_strings -> Format.pp_print_string ppf s
+    | e -> Sexplib0.Sexp.pp_hum ppf e
+
   let boxify ?descr sexp =
     let open Sexplib0.Sexp in
     let rec loop ?(as_tree = false) sexp =
       if (not as_tree) && sexp_size sexp < config.boxify_sexp_from_size then
         highlight_box
-        @@ B.asprintf_with_style B.Style.preformatted "%a" Sexplib0.Sexp.pp_hum sexp
+        @@ B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
       else
         match sexp with
         | Atom s -> highlight_box @@ B.text_with_style B.Style.preformatted s
@@ -707,9 +714,9 @@ module PrintBox (Log_to : Debug_ch) = struct
        @@ highlight_box
        @@
        match descr with
-       | None -> B.asprintf_with_style B.Style.preformatted "%a" Sexplib0.Sexp.pp_hum sexp
+       | None -> B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
        | Some d ->
-           B.asprintf_with_style B.Style.preformatted "%s = %a" d Sexplib0.Sexp.pp_hum
+           B.asprintf_with_style B.Style.preformatted "%s = %a" d pp_sexp
              sexp);
     opt_auto_snapshot ()
 
