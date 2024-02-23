@@ -639,16 +639,16 @@ module PrintBox (Log_to : Debug_ch) = struct
     in
     (hl, apply_highlight hl b)
 
-    let pp_sexp ppf = function
-    | Sexplib0.Sexp.Atom s when config.sexp_unescape_strings -> Format.pp_print_string ppf s
+  let pp_sexp ppf = function
+    | Sexplib0.Sexp.Atom s when config.sexp_unescape_strings ->
+        Format.pp_print_string ppf s
     | e -> Sexplib0.Sexp.pp_hum ppf e
 
   let boxify ?descr sexp =
     let open Sexplib0.Sexp in
     let rec loop ?(as_tree = false) sexp =
       if (not as_tree) && sexp_size sexp < config.boxify_sexp_from_size then
-        highlight_box
-        @@ B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
+        highlight_box @@ B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
       else
         match sexp with
         | Atom s -> highlight_box @@ B.text_with_style B.Style.preformatted s
@@ -715,9 +715,7 @@ module PrintBox (Log_to : Debug_ch) = struct
        @@
        match descr with
        | None -> B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
-       | Some d ->
-           B.asprintf_with_style B.Style.preformatted "%s = %a" d pp_sexp
-             sexp);
+       | Some d -> B.asprintf_with_style B.Style.preformatted "%s = %a" d pp_sexp sexp);
     opt_auto_snapshot ()
 
   let skip_parens s =
