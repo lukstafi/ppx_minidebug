@@ -258,13 +258,8 @@ let%track_show bar () : unit =
 let () = try bar () with _ -> print_endline "Raised exception."
 ]}
 
-If that is insufficient, you can define a [Debug_runtime] using the [Flushing] functor.
-E.g. either [module Debug_runtime = (val Minidebug_runtime.debug_flushing ())], or:
-
-{@ocaml[
-module Debug_runtime =
-  Minidebug_runtime.Flushing((val Minidebug_runtime.debug_ch "path/to/debugger_flushing.log"))
-]}
+If that is insufficient, you can define a [Debug_runtime] using the [debug_flushing] builder.
+E.g. [module Debug_runtime = (val Minidebug_runtime.debug_flushing ())], or [module Debug_runtime = (val Minidebug_runtime.debug_flushing ~filename:"path/to/debugger_flushing" ())] (an extension [.log] will be added to the file name).
 
 The logged traces are still indented, but if the values to print are multi-line, their formatting might be messy. The benefit of [Flushing] traces is that the output is flushed line-at-a-time, so no output should be lost if the traced program crashes. But in recent versions of [ppx_minidebug], uncaught exceptions no longer break logging in the [PrintBox] runtime. The indentation is also smaller (half of [PrintBox]). Truncated example (using [%debug_show]):
 

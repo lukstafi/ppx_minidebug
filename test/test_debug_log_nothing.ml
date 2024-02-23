@@ -1,6 +1,5 @@
 module Debug_runtime =
-  Minidebug_runtime.Flushing
-    ((val Minidebug_runtime.debug_ch "debugger_show_log_nothing.log"))
+  (val Minidebug_runtime.debug_flushing ~filename:"debugger_show_log_nothing" ())
 
 [%%global_debug_log_level Nothing]
 

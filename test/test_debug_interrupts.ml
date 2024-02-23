@@ -1,9 +1,7 @@
 module Debug_runtime =
-  Minidebug_runtime.Flushing
-    ((val Minidebug_runtime.debug_ch "debugger_show_interrupts.log"))
+  (val Minidebug_runtime.debug_flushing ~filename:"debugger_show_interrupts" ())
 
 [%%global_debug_interrupts { max_nesting_depth = 5; max_num_children = 10 }]
-
 [%%global_debug_type_info true]
 
 let%debug_show rec loop_exceeded (x : int) : int =

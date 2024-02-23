@@ -1,11 +1,11 @@
-module Debug_runtime = (Minidebug_runtime.Flushing)((val
-  Minidebug_runtime.debug_ch "debugger_show_log_prefixed.log"))
+module Debug_runtime = (val
+  Minidebug_runtime.debug_flushing ~filename:"debugger_show_log_prefixed" ())
 ;;()
 let rec loop_exceeded (x : int) =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();
    (Debug_runtime.open_log_preamble_full ~fname:"test_debug_log_prefixed.ml"
-      ~start_lnum:7 ~start_colnum:33 ~end_lnum:12 ~end_colnum:55
+      ~start_lnum:6 ~start_colnum:33 ~end_lnum:11 ~end_colnum:55
       ~message:"loop_exceeded" ~entry_id:__entry_id;
     ());
    (match let z : int =
@@ -24,17 +24,17 @@ let bar () =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();
    Debug_runtime.open_log_preamble_full ~fname:"test_debug_log_prefixed.ml"
-     ~start_lnum:18 ~start_colnum:19 ~end_lnum:22 ~end_colnum:6
+     ~start_lnum:17 ~start_colnum:19 ~end_lnum:21 ~end_colnum:6
      ~message:"bar" ~entry_id:__entry_id;
    (match let __entry_id = Debug_runtime.get_entry_id () in
           Debug_runtime.open_log_preamble_brief
-            ~fname:"test_debug_log_prefixed.ml" ~pos_lnum:19 ~pos_colnum:2
-            ~message:"for:test_debug_log_prefixed:19" ~entry_id:__entry_id;
+            ~fname:"test_debug_log_prefixed.ml" ~pos_lnum:18 ~pos_colnum:2
+            ~message:"for:test_debug_log_prefixed:18" ~entry_id:__entry_id;
           (match for i = 0 to 10 do
                    let __entry_id = Debug_runtime.get_entry_id () in
                    ();
                    Debug_runtime.open_log_preamble_brief
-                     ~fname:"test_debug_log_prefixed.ml" ~pos_lnum:19
+                     ~fname:"test_debug_log_prefixed.ml" ~pos_lnum:18
                      ~pos_colnum:6 ~message:"<for i>" ~entry_id:__entry_id;
                    (match let _baz : int = i * 2 in
                           Debug_runtime.log_value_show ?descr:None

@@ -1,8 +1,7 @@
 module Debug_runtime =
-  Minidebug_runtime.Flushing
-    ((val Minidebug_runtime.debug_ch "debugger_show_log_prefixed.log"))
+  (val Minidebug_runtime.debug_flushing ~filename:"debugger_show_log_prefixed" ())
 
-[%%global_debug_log_level Prefixed [|"INFO"|]]
+[%%global_debug_log_level Prefixed [| "INFO" |]]
 
 let%debug_show rec loop_exceeded (x : int) : int =
   let z : int =

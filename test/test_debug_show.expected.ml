@@ -1,10 +1,10 @@
-module Debug_runtime = (Minidebug_runtime.Flushing)((val
-  Minidebug_runtime.debug_ch "debugger_show_flushing.log"))
+module Debug_runtime = (val
+  Minidebug_runtime.debug_flushing ~filename:"debugger_show_flushing" ())
 let foo (x : int) =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();
    (Debug_runtime.open_log_preamble_full ~fname:"test_debug_show.ml"
-      ~start_lnum:5 ~start_colnum:19 ~end_lnum:7 ~end_colnum:17
+      ~start_lnum:4 ~start_colnum:19 ~end_lnum:6 ~end_colnum:17
       ~message:"foo" ~entry_id:__entry_id;
     Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
       ~is_result:false (([%show : int]) x));
@@ -12,7 +12,7 @@ let foo (x : int) =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
             Debug_runtime.open_log_preamble_brief ~fname:"test_debug_show.ml"
-              ~pos_lnum:6 ~pos_colnum:6 ~message:"y" ~entry_id:__entry_id;
+              ~pos_lnum:5 ~pos_colnum:6 ~message:"y" ~entry_id:__entry_id;
             (match x + 1 with
              | y as __res ->
                  ((();
@@ -37,7 +37,7 @@ let bar (x : t) =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();
    (Debug_runtime.open_log_preamble_full ~fname:"test_debug_show.ml"
-      ~start_lnum:13 ~start_colnum:19 ~end_lnum:15 ~end_colnum:14
+      ~start_lnum:12 ~start_colnum:19 ~end_lnum:14 ~end_colnum:14
       ~message:"bar" ~entry_id:__entry_id;
     Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
       ~is_result:false (([%show : t]) x));
@@ -45,7 +45,7 @@ let bar (x : t) =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
             Debug_runtime.open_log_preamble_brief ~fname:"test_debug_show.ml"
-              ~pos_lnum:14 ~pos_colnum:6 ~message:"y" ~entry_id:__entry_id;
+              ~pos_lnum:13 ~pos_colnum:6 ~message:"y" ~entry_id:__entry_id;
             (match x.first + 1 with
              | y as __res ->
                  ((();
@@ -67,7 +67,7 @@ let baz (x : t) =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();
    (Debug_runtime.open_log_preamble_full ~fname:"test_debug_show.ml"
-      ~start_lnum:19 ~start_colnum:19 ~end_lnum:21 ~end_colnum:20
+      ~start_lnum:18 ~start_colnum:19 ~end_lnum:20 ~end_colnum:20
       ~message:"baz" ~entry_id:__entry_id;
     Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
       ~is_result:false (([%show : t]) x));
@@ -75,7 +75,7 @@ let baz (x : t) =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
             Debug_runtime.open_log_preamble_brief ~fname:"test_debug_show.ml"
-              ~pos_lnum:20 ~pos_colnum:17 ~message:"_yz" ~entry_id:__entry_id;
+              ~pos_lnum:19 ~pos_colnum:17 ~message:"_yz" ~entry_id:__entry_id;
             (match ((x.first + 1), 3) with
              | _yz as __res ->
                  ((();
@@ -98,7 +98,7 @@ let rec loop (depth : int) (x : t) =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();
    ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_show.ml"
-       ~start_lnum:25 ~start_colnum:24 ~end_lnum:31 ~end_colnum:9
+       ~start_lnum:24 ~start_colnum:24 ~end_lnum:30 ~end_colnum:9
        ~message:"loop" ~entry_id:__entry_id;
      Debug_runtime.log_value_show ?descr:(Some "depth") ~entry_id:__entry_id
        ~is_result:false (([%show : int]) depth));
@@ -116,7 +116,7 @@ let rec loop (depth : int) (x : t) =
                  let __entry_id = Debug_runtime.get_entry_id () in
                  ();
                  Debug_runtime.open_log_preamble_brief
-                   ~fname:"test_debug_show.ml" ~pos_lnum:29 ~pos_colnum:8
+                   ~fname:"test_debug_show.ml" ~pos_lnum:28 ~pos_colnum:8
                    ~message:"y" ~entry_id:__entry_id;
                  (match loop (depth + 1)
                           { first = (x.second - 1); second = (x.first + 2) }
@@ -133,7 +133,7 @@ let rec loop (depth : int) (x : t) =
                  let __entry_id = Debug_runtime.get_entry_id () in
                  ();
                  Debug_runtime.open_log_preamble_brief
-                   ~fname:"test_debug_show.ml" ~pos_lnum:30 ~pos_colnum:8
+                   ~fname:"test_debug_show.ml" ~pos_lnum:29 ~pos_colnum:8
                    ~message:"z" ~entry_id:__entry_id;
                  (match loop (depth + 1)
                           { first = (x.second + 1); second = y }

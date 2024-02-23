@@ -231,14 +231,20 @@ val debug :
 
 val debug_flushing :
   ?debug_ch:out_channel ->
+  ?filename:string ->
   ?time_tagged:bool ->
   ?elapsed_times:elapsed_times ->
   ?print_entry_ids:bool ->
   ?global_prefix:string ->
+  ?split_files_after:int ->
+  ?for_append:bool ->
   unit ->
   (module Debug_runtime)
 (** Creates a flushing-based debug runtime. By default it will log to [stdout] and will not be
-    time tagged. See {!debug_ch} for the details about shared parameters. *)
+    time tagged. At most one of [debug_ch], [filename] can be provided. Adds the suffix [".log"]
+    to the file name if [filename] is given.
+
+    See {!debug_ch} for the details about shared parameters. *)
 
 val forget_printbox : (module PrintBox_runtime) -> (module Debug_runtime)
 (** Upcasts the runtime. *)

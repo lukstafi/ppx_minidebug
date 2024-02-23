@@ -851,31 +851,45 @@ let debug ?debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default)
   Debug.config.snapshot_every_sec <- snapshot_every_sec;
   (module Debug)
 
-let debug_flushing ?debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default)
-    ?(print_entry_ids = false) ?(global_prefix = "") () : (module Debug_runtime) =
-  (module Flushing (struct
-    let refresh_ch () = false
-    let ch = match debug_ch with None -> stdout | Some ch -> ch
-    let current_snapshot = ref 0
+let debug_flushing ?debug_ch:d_ch ?filename ?(time_tagged = false)
+    ?(elapsed_times = elapsed_default) ?(print_entry_ids = false) ?(global_prefix = "")
+    ?split_files_after ?(for_append = false) () : (module Debug_runtime) =
+  let log_to =
+    match (filename, d_ch) with
+    | None, _ ->
+        (module struct
+          let refresh_ch () = false
+          let ch = match d_ch with None -> stdout | Some ch -> ch
+          let current_snapshot = ref 0
 
-    let snapshot_ch () =
-      match debug_ch with
-      | None -> ()
-      | Some _ ->
-          flush ch;
-          current_snapshot := pos_out ch
+          let snapshot_ch () =
+            match d_ch with
+            | None -> ()
+            | Some _ ->
+                flush ch;
+                current_snapshot := pos_out ch
 
-    let reset_to_snapshot () =
-      match debug_ch with
-      | None -> Printf.fprintf ch "\027[2J\027[1;1H%!"
-      | Some _ -> seek_out ch !current_snapshot
+          let reset_to_snapshot () =
+            match d_ch with
+            | None -> Printf.fprintf ch "\027[2J\027[1;1H%!"
+            | Some _ -> seek_out ch !current_snapshot
 
-    let debug_ch () = ch
-    let time_tagged = time_tagged
-    let elapsed_times = elapsed_times
-    let print_entry_ids = print_entry_ids
-    let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
-    let split_files_after = None
-  end))
+          let debug_ch () = ch
+          let time_tagged = time_tagged
+          let elapsed_times = elapsed_times
+          let print_entry_ids = print_entry_ids
+          let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
+          let split_files_after = split_files_after
+        end : Debug_ch)
+    | Some filename, None ->
+        let filename = filename ^ ".log" in
+        debug_ch ~time_tagged ~elapsed_times ~print_entry_ids ~global_prefix
+          ?split_files_after ~for_append filename
+    | Some _, Some _ ->
+        invalid_arg
+          "Minidebug_runtime.debug_flushing: only one of debug_ch, filename should be \
+           provided"
+  in
+  (module Flushing ((val log_to)))
 
 let forget_printbox (module Runtime : PrintBox_runtime) = (module Runtime : Debug_runtime)

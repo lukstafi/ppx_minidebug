@@ -14,6 +14,7 @@
 - Breaking change: removed the `Pp_format` backend.
 - More informative headers for tracking: e.g. anonymous functions logged with `fun:file_name:LNUM` instead of `__fun`.
 - When printing sexps, don't escape strings for box-level atoms, print them directly. This can be disabled by setting `sexp_unescape_strings` to false.
+- A more configurable `debug_flushing` builder.
 
 ### Fixed
 

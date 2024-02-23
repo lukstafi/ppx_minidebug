@@ -1,5 +1,5 @@
-module Debug_runtime = (Minidebug_runtime.Flushing)((val
-  Minidebug_runtime.debug_ch "debugger_show_interrupts.log"))
+module Debug_runtime = (val
+  Minidebug_runtime.debug_flushing ~filename:"debugger_show_interrupts" ())
 ;;Debug_runtime.max_nesting_depth := (Some 5);
   Debug_runtime.max_num_children := (Some 10)
 ;;()
@@ -13,7 +13,7 @@ let rec loop_exceeded (x : int) =
       failwith "ppx_minidebug: max_num_children exceeded")
    else
      ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_interrupts.ml"
-         ~start_lnum:9 ~start_colnum:33 ~end_lnum:11 ~end_colnum:55
+         ~start_lnum:7 ~start_colnum:33 ~end_lnum:9 ~end_colnum:55
          ~message:"loop_exceeded : int" ~entry_id:__entry_id;
        Debug_runtime.log_value_show ?descr:(Some "x : int")
          ~entry_id:__entry_id ~is_result:false (([%show : int]) x));
@@ -36,7 +36,7 @@ let rec loop_exceeded (x : int) =
                     failwith "ppx_minidebug: max_num_children exceeded")
                  else
                    (Debug_runtime.open_log_preamble_brief
-                      ~fname:"test_debug_interrupts.ml" ~pos_lnum:10
+                      ~fname:"test_debug_interrupts.ml" ~pos_lnum:8
                       ~pos_colnum:6 ~message:"z" ~entry_id:__entry_id;
                     if Debug_runtime.exceeds_max_nesting ()
                     then
@@ -77,7 +77,7 @@ let bar () =
       failwith "ppx_minidebug: max_num_children exceeded")
    else
      (Debug_runtime.open_log_preamble_full ~fname:"test_debug_interrupts.ml"
-        ~start_lnum:17 ~start_colnum:19 ~end_lnum:21 ~end_colnum:6
+        ~start_lnum:15 ~start_colnum:19 ~end_lnum:19 ~end_colnum:6
         ~message:"bar : unit" ~entry_id:__entry_id;
       if Debug_runtime.exceeds_max_nesting ()
       then
@@ -88,8 +88,8 @@ let bar () =
       else
         (match let __entry_id = Debug_runtime.get_entry_id () in
                Debug_runtime.open_log_preamble_brief
-                 ~fname:"test_debug_interrupts.ml" ~pos_lnum:18 ~pos_colnum:2
-                 ~message:"for:test_debug_interrupts:18" ~entry_id:__entry_id;
+                 ~fname:"test_debug_interrupts.ml" ~pos_lnum:16 ~pos_colnum:2
+                 ~message:"for:test_debug_interrupts:16" ~entry_id:__entry_id;
                (match for i = 0 to 100 do
                         let __entry_id = Debug_runtime.get_entry_id () in
                         Debug_runtime.log_value_show ?descr:(Some "i : int")
@@ -104,7 +104,7 @@ let bar () =
                              "ppx_minidebug: max_num_children exceeded")
                         else
                           (Debug_runtime.open_log_preamble_brief
-                             ~fname:"test_debug_interrupts.ml" ~pos_lnum:18
+                             ~fname:"test_debug_interrupts.ml" ~pos_lnum:16
                              ~pos_colnum:6 ~message:"<for i>"
                              ~entry_id:__entry_id;
                            if Debug_runtime.exceeds_max_nesting ()
@@ -132,7 +132,7 @@ let bar () =
                                       else
                                         (Debug_runtime.open_log_preamble_brief
                                            ~fname:"test_debug_interrupts.ml"
-                                           ~pos_lnum:19 ~pos_colnum:8
+                                           ~pos_lnum:17 ~pos_colnum:8
                                            ~message:"_baz"
                                            ~entry_id:__entry_id;
                                          if

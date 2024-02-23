@@ -8,9 +8,9 @@ let sexp_of_float n = Sexplib0.Sexp.Atom (string_of_float n)
 
 let%expect_test "%debug_this_show flushing to a file" =
   let module Debug_runtime =
-    Minidebug_runtime.Flushing
-      ((val Minidebug_runtime.debug_ch ~time_tagged:true
-              "../../../debugger_expect_show_flushing.log")) in
+    (val Minidebug_runtime.debug_flushing
+           ~filename:"../../../debugger_expect_show_flushing" ())
+  in
   let%debug_this_show rec loop (depth : int) (x : t) : int =
     if depth > 6 then x.first + x.second
     else if depth > 3 then loop (depth + 1) { first = x.second + 1; second = x.first / 2 }
@@ -3260,6 +3260,5 @@ let%expect_test "%track_show don't show unannotated non-function bindings" =
       ignore point]
   in
   ignore result;
-  [%expect
-    {|
+  [%expect {|
         BEGIN DEBUG SESSION |}]

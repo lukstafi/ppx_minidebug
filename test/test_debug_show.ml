@@ -1,6 +1,5 @@
 module Debug_runtime =
-  Minidebug_runtime.Flushing
-    ((val Minidebug_runtime.debug_ch "debugger_show_flushing.log"))
+  (val Minidebug_runtime.debug_flushing ~filename:"debugger_show_flushing" ())
 
 let%debug_show foo (x : int) : int list =
   let y : int = x + 1 in
