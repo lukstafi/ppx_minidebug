@@ -29,6 +29,14 @@
   (run ./%{pp} --impl %{input} -o %{targets})))
 
 (rule
+ (targets test_debug_unannot_bindings.actual.ml)
+ (deps
+  (:pp pp.exe)
+  (:input test_debug_unannot_bindings.ml))
+ (action
+  (run ./%{pp} --impl %{input} -o %{targets})))
+
+(rule
  (targets test_debug_interrupts.actual.ml)
  (deps
   (:pp pp.exe)
@@ -66,6 +74,11 @@
  (alias runtest)
  (action
   (diff test_debug_show.expected.ml test_debug_show.actual.ml)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff test_debug_unannot_bindings.expected.ml test_debug_unannot_bindings.actual.ml)))
 
 (rule
  (alias runtest)
@@ -121,6 +134,14 @@
 (executable
  (name test_debug_show)
  (modules test_debug_show)
+ (libraries minidebug_runtime)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_deriving.show)))
+
+(executable
+ (name test_debug_unannot_bindings)
+ (modules test_debug_unannot_bindings)
  (libraries minidebug_runtime)
  (modes exe)
  (preprocess

@@ -1240,12 +1240,12 @@ let traverse_expression =
     method! structure_item context si =
       (* Do not use for an entry_point, because it ignores the toplevel_opt_arg field! *)
       let callback context e = self#expression context e in
-      let context = { context with toplevel_opt_arg = Toplevel_no_arg } in
+      let nested = { context with toplevel_opt_arg = Nested } in
       match si with
       | { pstr_desc = Pstr_value (rec_flag, bindings); pstr_loc = _; _ } ->
-          let bindings = List.map (debug_binding context callback) bindings in
+          let bindings = List.map (debug_binding nested callback) bindings in
           { si with pstr_desc = Pstr_value (rec_flag, bindings) }
-      | _ -> super#structure_item context si
+      | _ -> super#structure_item nested si
   end
 
 let debug_this_expander context payload =
@@ -1362,8 +1362,14 @@ let global_log_level =
   in
   Ppxlib.Context_free.Rule.extension declaration
 
+let noop_for_testing =
+  Ppxlib.Context_free.Rule.extension
+  @@ Extension.declare "ppx_minidebug_noop_for_testing" Extension.Context.expression
+       Ast_pattern.(single_expr_payload __)
+       (fun ~loc:_ ~path:_ payload -> payload)
+
 let rules =
-  global_log_level :: global_output_type_info :: global_interrupts
+  noop_for_testing :: global_log_level :: global_output_type_info :: global_interrupts
   :: List.map
        (fun {
               ext_point;

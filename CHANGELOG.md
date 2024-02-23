@@ -19,6 +19,7 @@
 - Be more defensive about not allowing multiline descriptions and messages.
 - Don't output line breaks in time-tagged headers.
 - Be more consistent about when entries are opened: open toplevel (extension-point) entries even if not binding anything; don't open nested entries when restricted to explicit logs.
+- Nested structure items are not toplevel extension points (fix over-generating log entries e.g. for other ppx extensions).
 
 ## [1.2.1] -- 2024-02-15
 
