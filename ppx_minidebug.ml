@@ -1356,8 +1356,7 @@ let global_log_level =
             A.pstr_eval ~loc
               (A.pexp_extension ~loc
               @@ Location.error_extensionf ~loc
-                   "ppx_minidebug: bad syntax, expacted [%%%%global_debug_interrupts \
-                    {max_nesting_depth=N;max_num_children=M}]")
+                   "ppx_minidebug: bad syntax, expacted [%%%%global_debug_log_level Level]")
               [])
   in
   Ppxlib.Context_free.Rule.extension declaration
