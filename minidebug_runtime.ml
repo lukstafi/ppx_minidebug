@@ -893,3 +893,7 @@ let debug_flushing ?debug_ch:d_ch ?filename ?(time_tagged = false)
   (module Flushing ((val log_to)))
 
 let forget_printbox (module Runtime : PrintBox_runtime) = (module Runtime : Debug_runtime)
+
+let sexp_of_lazy_t sexp_of_a l =
+  if Lazy.is_val l then Sexplib0.Sexp.List [ Atom "lazy"; sexp_of_a @@ Lazy.force l ]
+  else Sexplib0.Sexp.List [ Atom "lazy"; Atom "<thunk>" ]

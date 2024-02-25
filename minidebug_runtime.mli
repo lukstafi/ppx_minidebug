@@ -248,3 +248,7 @@ val debug_flushing :
 
 val forget_printbox : (module PrintBox_runtime) -> (module Debug_runtime)
 (** Upcasts the runtime. *)
+
+val sexp_of_lazy_t : ('a -> Sexplib0.Sexp.t) -> 'a lazy_t -> Sexplib0.Sexp.t
+(** Unlike [Lazy.sexp_of_t] available in the [Base] library, does not force the lazy value,
+    only converts it if it's already computed and non-exception. *)
