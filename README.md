@@ -175,7 +175,7 @@ Tracing only happens in explicitly marked lexical scopes. The entry extension po
 - `%debug_` vs. `%track_` vs. `%diagn_`
   - The prefix `%debug_` means logging fewer things: only let-bound values and functions are logged, and functions only when either: directly in a `%debug_`-annotated let binding, or their return type is annotated.
   - `%track_` also logs: which `if`, `match`, `function` branch is taken, `for` and `while` loops, and all functions, including anonymous ones.
-  - The prefix `%diagn_` means only generating logs for explicitly logged values, i.e. introduced by `[%log ...]` statements.
+  - The prefix `%diagn_` means only generating logs for explicitly logged values, i.e. introduced by `[%log ...]` and `[%log_result ...]` statements.
 - Optional infix `_this_` puts only the body of a `let` definition in scope for logging.
   - `let%debug_this_show v: t = compute value in outer scope` will trace `v` and the type-annotated bindings and functions inside `compute value`, but it will not trace `outer scope`.
 - Optional infixes `_rt_` and `_rtb_` add a first-class module argument to a function, and unpack it as `module Debug_runtime` for the scope of the function.
@@ -187,11 +187,11 @@ Tracing only happens in explicitly marked lexical scopes. The entry extension po
   - `_show` converts values to strings via the `%show` extension provided by `deriving.show`: e.g. `[%show: int list]`.
   - `_sexp` converts values to sexp expressions first using `%sexp_of`, e.g. `[%sexp_of: int list]`. The runtime can decide how to print the sexp expressions. The `PrintBox` backend allows to convert the sexps to box structures first, with the `boxify_sexp_from_size` setting. This means large values can be unfolded gradually for inspection.
 
-Plus, there is a non-entry extension point `%log` for logging values. It is not registered, which as a side effect should somewhat mitigate conflicts with other ppx extensions for logging.
+Plus, there are non-entry extension points `%log` and `%log_results` for logging values. They are not registered, which as a side effect should somewhat mitigate conflicts with other ppx extensions for logging.
 
 See examples in [the test directory](test/), and especially [the inline tests](test/test_expect_test.ml).
 
-Only type-annotated let-bindings, function arguments, function results can be (implicitly) logged. However, the bindings and function arguments can be nested patterns with only parts of them type-annotated! The explicit logger `%log` takes a value (an expression that can be re-parsed as a pattern) and reconstructs its type from partial type annotations, sometimes assuming unknown types are strings.
+Only type-annotated let-bindings, function arguments, function results can be (implicitly) logged. However, the bindings and function arguments can be nested patterns with only parts of them type-annotated! The explicit loggers `%log` and `%log_result` take a value and reconstruct its type from partial type annotations (deconstructing the expression), sometimes assuming unknown types are strings.
 
 To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.debug_file thread_name in ...`
 
@@ -432,7 +432,7 @@ The log levels are:
 - `Nothing` -- the runtime should not generate anything, and when used at compile time, the extension should not generate any `ppx_minidebug`-related code. However, just changing the log level should not break the code, therefore the runtime-passing transformation (i.e. the first-class-module argument added by the `_rt_` and `_rtb_` infixes) happens even for the `Nothing` log level.
 - `Prefixed [| prefix1; ... |]` -- only values starting with one of: prefix1, ... should be logged; at compile time, only logs with literals having one of prefix1, ... as a prefix, should be generated. Moreover, also don't log "empty entries" (see below). To preserve the hierarchical context, also log headers of logging scopes.
 - `Prefixed_or_result [| prefix1; ... |]` as above, but also log results of computations. At runtime doesn't output results of an entry if there are no non-result logs.
-- `Prefixed [||]` is compile-time only -- outputs all and only explicit logs (i.e. `%log` statements).
+- `Prefixed [||]` is compile-time only -- outputs all and only explicit logs (i.e. `%log` and `%log_result` statements).
 - `Prefixed_or_result [||]` at compile-time -- as above, but also log results of computations.
 - `Prefixed_or_result [||]` at runtime -- only log results of computations if an entry has non-result logs.
 - `Nonempty_entries` -- do not log entries, such as functions or control flow blocks, that do not have sub-logs.
@@ -553,6 +553,8 @@ With some "abuse of notation", we use `Prefixed [||]` resp. `Prefixed_or_result 
         └─("for baz, f squared", 64)
         109 |}]
 ```
+
+The extension point `%log_result` lets you benefit from the `values_first_mode` setting even when using only explicit logs. Conveying more information in headers lets you explore logs more quickly.
 
 ### Lexical scopes vs. dynamic scopes
 
@@ -1072,7 +1074,7 @@ Here is a probably incomplete list of the restrictions:
 - Another example of only propagating types top-down:
   - `let%track_show f (l : int option) : int = match l with Some y -> ...` will not log `y` when `f` is applied (but it will log `l`).
   - Both `let%track_show f : int option -> int = function Some y -> ...` and `let%track_show f l : int = match (l : int option) with Some y -> ...` *will* log `y`.
-- We try reconstructing or guessing the types of expressions logged with `%log`, see details below.
+- We try reconstructing or guessing the types of expressions logged with `%log` and `%log_result`, see details below.
 
 As a help in debugging whether the right type information got propagated, we offer the extension `%debug_type_info` (and `%global_debug_type_info`). (The display strips module qualifiers from types.) `%debug_type_info` is not an entry extension point (`%global_debug_type_info` is). Example [from the test suite](test/test_expect_test.ml):
 
@@ -1099,7 +1101,7 @@ As a help in debugging whether the right type information got propagated, we off
 
 You can also use at the module level: `[%%global_debug_type_info true]`, prior to the code of interest.
 
-Explicit logging with `%log` has different but related restrictions compared to logging of let or argument bindings. We reconstruct the type of the expression from partial type information, where in addition to type annotations we take into account: string, int and float literals, tuple, array, list, and `lazy` expresssions. We do not analyze applications, nor constructors other than "nil" `[]` and "cons" `::` for lists. When a type is unknown, for the whole expression and for a tuple element we assume the type `string`. We don't assume string for direct subexpressions of arrays, lists, and `lazy`.
+Explicit logging with `%log` (and `%log_result`) has different but related restrictions compared to logging of let or argument bindings. We reconstruct the type of the expression from partial type information, where in addition to type annotations we take into account: string, int and float literals, tuple, array, list, and `lazy` expresssions. We do not analyze applications, nor constructors other than "nil" `[]` and "cons" `::` for lists. When a type is unknown, for the whole expression and for a tuple element we assume the type `string`. We don't assume string for direct subexpressions of arrays, lists, and `lazy`.
 
 ### Dealing with concurrent execution
 

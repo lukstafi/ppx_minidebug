@@ -1087,6 +1087,9 @@ let traverse_expression =
         | Pexp_extension ({ loc = _; txt = "log" }, PStr [%str [%e? body]]) ->
             let typ = extract_type ~alt_typ:ret_typ body in
             log_value context ~loc ~typ ~is_explicit:true ~is_result:false body
+        | Pexp_extension ({ loc = _; txt = "log_result" }, PStr [%str [%e? body]]) ->
+            let typ = extract_type ~alt_typ:ret_typ body in
+            log_value context ~loc ~typ ~is_explicit:true ~is_result:true body
         | (Pexp_newtype _ | Pexp_fun _)
           when context.toplevel_opt_arg <> Nested || not restrict_to_explicit ->
             debug_fun context callback ?typ:ret_typ exp

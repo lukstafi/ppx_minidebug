@@ -7,6 +7,7 @@
 - `snapshot` in the PrintBox backend as in [#21](https://github.com/lukstafi/ppx_minidebug/issues/21).
 - Optionally, `snapshot ()` at the end of a `log_value` call if elapsed time since last snapshot is greater than given threshold.
 - A replacement `Minidebug_runtime.sexp_of_lazy_t` that does not force the thunk (but prints content if available).
+- A new extension point `[%log_result]` to convey information in a header.
 
 ### Changed
 
