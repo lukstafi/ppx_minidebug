@@ -192,6 +192,7 @@ val debug_file :
   ?truncate_children:int ->
   ?for_append:bool ->
   ?boxify_sexp_from_size:int ->
+  ?max_inline_sexp_length:int ->
   ?backend:[ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ] ->
   ?hyperlink:string ->
   ?values_first_mode:bool ->

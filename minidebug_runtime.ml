@@ -325,7 +325,7 @@ module PrintBox (Log_to : Debug_ch) = struct
       exclude_on_path = None;
       values_first_mode = false;
       max_inline_sexp_size = 20;
-      max_inline_sexp_length = 50;
+      max_inline_sexp_length = 80;
       log_level = Everything;
       snapshot_every_sec = None;
       sexp_unescape_strings = true;
@@ -789,8 +789,9 @@ end
 let debug_file ?(time_tagged = false) ?(elapsed_times = elapsed_default)
     ?(print_entry_ids = false) ?(global_prefix = "") ?split_files_after ?highlight_terms
     ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0) ?(for_append = false)
-    ?(boxify_sexp_from_size = 50) ?backend ?hyperlink ?(values_first_mode = false)
-    ?(log_level = Everything) ?snapshot_every_sec filename : (module PrintBox_runtime) =
+    ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80) ?backend ?hyperlink
+    ?(values_first_mode = false) ?(log_level = Everything) ?snapshot_every_sec filename :
+    (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename ^ ".md"
@@ -803,6 +804,7 @@ let debug_file ?(time_tagged = false) ?(elapsed_times = elapsed_default)
               ~for_append ?split_files_after filename)) in
   Debug.config.backend <- Option.value backend ~default:(`Markdown default_md_config);
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
+  Debug.config.max_inline_sexp_length <- max_inline_sexp_length;
   Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
   Debug.config.prune_upto <- prune_upto;
   Debug.config.truncate_children <- truncate_children;
