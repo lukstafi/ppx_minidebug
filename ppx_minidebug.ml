@@ -222,8 +222,8 @@ let check_log_level context ~is_explicit ~is_result exp thunk =
   | _ -> thunk ()
 
 (* *** The sexplib-based variant. *** *)
-let log_value_sexp context ~loc ~typ ?descr_loc ~is_result exp =
-  check_log_level context ~is_result exp @@ fun () ->
+let log_value_sexp context ~loc ~typ ?descr_loc ~is_explicit ~is_result exp =
+  check_log_level context ~is_explicit ~is_result exp @@ fun () ->
   match typ with
   | {
       ptyp_desc = Ptyp_poly (_, { ptyp_desc = Ptyp_extension ext; _ });
@@ -252,8 +252,8 @@ let rec splice_lident ~id_prefix ident =
   | Ldot (path, id) -> Ldot (path, splice id)
   | Lapply (f, a) -> Lapply (splice_lident ~id_prefix f, a)
 
-let log_value_pp context ~loc ~typ ?descr_loc ~is_result exp =
-  check_log_level context ~is_result exp @@ fun () ->
+let log_value_pp context ~loc ~typ ?descr_loc ~is_explicit ~is_result exp =
+  check_log_level context ~is_explicit ~is_result exp @@ fun () ->
   match typ with
   | {
    ptyp_desc =
@@ -278,8 +278,8 @@ let log_value_pp context ~loc ~typ ?descr_loc ~is_result exp =
             or _sexp"
 
 (* *** The deriving.show string-based variant. *** *)
-let log_value_show context ~loc ~typ ?descr_loc ~is_result exp =
-  check_log_level context ~is_result exp @@ fun () ->
+let log_value_show context ~loc ~typ ?descr_loc ~is_explicit ~is_result exp =
+  check_log_level context ~is_explicit ~is_result exp @@ fun () ->
   match typ with
   | {
       ptyp_desc = Ptyp_poly (_, { ptyp_desc = Ptyp_extension ext; _ });
