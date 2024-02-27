@@ -1,4 +1,4 @@
-## [1.3.0] -- 2024-02-23
+## [1.3.0] -- 2024-02-28
 
 ### Added
 
@@ -8,6 +8,7 @@
 - Optionally, `snapshot ()` at the end of a `log_value` call if elapsed time since last snapshot is greater than given threshold.
 - A replacement `Minidebug_runtime.sexp_of_lazy_t` that does not force the thunk (but prints content if available).
 - A new extension point `[%log_result]` to convey information in a header.
+- A new extension point `[%log_printbox]` that directly embeds a `PrintBox.t` in the logs, instead of a representation of it. A corresponding `log_value_printbox` entry in `Minidebug_runtime.Debug_runtime`.
 
 ### Changed
 

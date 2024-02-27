@@ -556,6 +556,70 @@ With some "abuse of notation", we use `Prefixed [||]` resp. `Prefixed_or_result 
 
 The extension point `%log_result` lets you benefit from the `values_first_mode` setting even when using only explicit logs. Conveying more information in headers lets you explore logs more quickly.
 
+The extension point `%log_printbox` lets you embed a `PrintBox.t` in the logs directly. Example from the test suite:
+
+```ocaml
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let%debug_show foo () : unit =
+    [%log_printbox
+      PrintBox.init_grid ~line:5 ~col:5 (fun ~line ~col ->
+          PrintBox.sprintf "%d/%d" line col)];
+    [%log "No bars but pad:"];
+    [%log_printbox
+      PrintBox.(
+        init_grid ~bars:false ~line:5 ~col:5 (fun ~line ~col ->
+            pad @@ sprintf "%d/%d" line col))];
+    [%log "Now with a frame:"];
+    [%log_printbox
+      PrintBox.(
+        frame
+        @@ init_grid ~line:5 ~col:5 (fun ~line ~col -> PrintBox.sprintf "%d/%d" line col))]
+  in
+  let () = foo () in
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      foo = ()
+      ├─"test/test_expect_test.ml":3324:21-3337:91
+      ├─0/0│0/1│0/2│0/3│0/4
+      │ ───┼───┼───┼───┼───
+      │ 1/0│1/1│1/2│1/3│1/4
+      │ ───┼───┼───┼───┼───
+      │ 2/0│2/1│2/2│2/3│2/4
+      │ ───┼───┼───┼───┼───
+      │ 3/0│3/1│3/2│3/3│3/4
+      │ ───┼───┼───┼───┼───
+      │ 4/0│4/1│4/2│4/3│4/4
+      ├─"No bars but pad:"
+      ├─
+      │  0/0  0/1  0/2  0/3  0/4
+      │
+      │
+      │  1/0  1/1  1/2  1/3  1/4
+      │
+      │
+      │  2/0  2/1  2/2  2/3  2/4
+      │
+      │
+      │  3/0  3/1  3/2  3/3  3/4
+      │
+      │
+      │  4/0  4/1  4/2  4/3  4/4
+      │
+      ├─"Now with a frame:"
+      └─┬───┬───┬───┬───┬───┐
+        │0/0│0/1│0/2│0/3│0/4│
+        ├───┼───┼───┼───┼───┤
+        │1/0│1/1│1/2│1/3│1/4│
+        ├───┼───┼───┼───┼───┤
+        │2/0│2/1│2/2│2/3│2/4│
+        ├───┼───┼───┼───┼───┤
+        │3/0│3/1│3/2│3/3│3/4│
+        ├───┼───┼───┼───┼───┤
+        │4/0│4/1│4/2│4/3│4/4│
+        └───┴───┴───┴───┴───┘ |}
+```
+
 ### Lexical scopes vs. dynamic scopes
 
 We track lexical scoping: every log has access to the `entry_id` number of the lexical scope it is in.

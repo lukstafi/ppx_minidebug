@@ -136,6 +136,7 @@ module type Debug_runtime = sig
     unit
 
   val log_value_show : ?descr:string -> entry_id:int -> is_result:bool -> string -> unit
+  val log_value_printbox : entry_id:int -> PrintBox.t -> unit
   val exceeds_max_nesting : unit -> bool
   val exceeds_max_children : unit -> bool
   val get_entry_id : unit -> int
@@ -244,6 +245,14 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
     let orphaned = bump_stack_entry entry_id in
     let descr = match descr with None -> "" | Some d -> d ^ " = " in
     Printf.fprintf !debug_ch "%s%s%s%s\n%!" (indent ()) orphaned descr v
+
+  let log_value_printbox ~entry_id v =
+    let orphaned = bump_stack_entry entry_id in
+    let orphaned = if orphaned = "" then "" else " " ^ orphaned in
+    let indent = indent () in
+    Printf.fprintf !debug_ch "%a%s\n%!"
+      (PrintBox_text.output ?style:None ~indent:(String.length indent))
+      v orphaned
 
   let exceeds_max_nesting () =
     exceeds ~value:(List.length !stack) ~limit:!max_nesting_depth
@@ -764,6 +773,17 @@ module PrintBox (Log_to : Debug_ch) = struct
     match descr with
     | None -> B.sprintf_with_style B.Style.preformatted "%s" v
     | Some d -> B.sprintf_with_style B.Style.preformatted "%s = %s" d v);
+    opt_auto_snapshot ()
+
+  let log_value_printbox ~entry_id v =
+    let prefixed =
+      match config.log_level with
+      | Prefixed_or_result [||] -> true
+      | Prefixed [||] -> true
+      | Prefixed _ | Prefixed_or_result _ -> false
+      | _ -> true
+    in
+    stack_next ~entry_id ~is_result:false ~prefixed @@ highlight_box v;
     opt_auto_snapshot ()
 
   let no_debug_if cond =

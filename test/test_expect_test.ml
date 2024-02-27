@@ -3318,3 +3318,132 @@ let%expect_test "%track_show don't show unannotated non-function bindings" =
   ignore result;
   [%expect {|
         BEGIN DEBUG SESSION |}]
+
+let%expect_test "%log_printbox" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let%debug_show foo () : unit =
+    [%log_printbox
+      PrintBox.init_grid ~line:5 ~col:5 (fun ~line ~col ->
+          PrintBox.sprintf "%d/%d" line col)];
+    [%log "No bars but pad:"];
+    [%log_printbox
+      PrintBox.(
+        init_grid ~bars:false ~line:5 ~col:5 (fun ~line ~col ->
+            pad @@ sprintf "%d/%d" line col))];
+    [%log "Now with a frame:"];
+    [%log_printbox
+      PrintBox.(
+        frame
+        @@ init_grid ~line:5 ~col:5 (fun ~line ~col -> PrintBox.sprintf "%d/%d" line col))]
+  in
+  let () = foo () in
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      foo = ()
+      ├─"test/test_expect_test.ml":3324:21-3337:91
+      ├─0/0│0/1│0/2│0/3│0/4
+      │ ───┼───┼───┼───┼───
+      │ 1/0│1/1│1/2│1/3│1/4
+      │ ───┼───┼───┼───┼───
+      │ 2/0│2/1│2/2│2/3│2/4
+      │ ───┼───┼───┼───┼───
+      │ 3/0│3/1│3/2│3/3│3/4
+      │ ───┼───┼───┼───┼───
+      │ 4/0│4/1│4/2│4/3│4/4
+      ├─"No bars but pad:"
+      ├─
+      │  0/0  0/1  0/2  0/3  0/4
+      │
+      │
+      │  1/0  1/1  1/2  1/3  1/4
+      │
+      │
+      │  2/0  2/1  2/2  2/3  2/4
+      │
+      │
+      │  3/0  3/1  3/2  3/3  3/4
+      │
+      │
+      │  4/0  4/1  4/2  4/3  4/4
+      │
+      ├─"Now with a frame:"
+      └─┬───┬───┬───┬───┬───┐
+        │0/0│0/1│0/2│0/3│0/4│
+        ├───┼───┼───┼───┼───┤
+        │1/0│1/1│1/2│1/3│1/4│
+        ├───┼───┼───┼───┼───┤
+        │2/0│2/1│2/2│2/3│2/4│
+        ├───┼───┼───┼───┼───┤
+        │3/0│3/1│3/2│3/3│3/4│
+        ├───┼───┼───┼───┼───┤
+        │4/0│4/1│4/2│4/3│4/4│
+        └───┴───┴───┴───┴───┘ |}]
+
+let%expect_test "%log_printbox flushing" =
+  let module Debug_runtime = (val Minidebug_runtime.debug_flushing ()) in
+  let%debug_show foo () : unit =
+    [%log_printbox
+      PrintBox.init_grid ~line:5 ~col:5 (fun ~line ~col ->
+          PrintBox.sprintf "%d/%d" line col)];
+    [%log "No bars but pad:"];
+    [%log_printbox
+      PrintBox.(
+        init_grid ~bars:false ~line:5 ~col:5 (fun ~line ~col ->
+            pad @@ sprintf "%d/%d" line col))];
+    let bar () : unit =
+      [%log "Now with a frame:"];
+      [%log_printbox
+        PrintBox.(
+          frame
+          @@ init_grid ~line:5 ~col:5 (fun ~line ~col ->
+                 PrintBox.sprintf "%d/%d" line col))]
+    in
+    bar ()
+  in
+  let () = foo () in
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      foo begin "test/test_expect_test.ml":3385:21-3402:10
+       0/0│0/1│0/2│0/3│0/4
+       ───┼───┼───┼───┼───
+       1/0│1/1│1/2│1/3│1/4
+       ───┼───┼───┼───┼───
+       2/0│2/1│2/2│2/3│2/4
+       ───┼───┼───┼───┼───
+       3/0│3/1│3/2│3/3│3/4
+       ───┼───┼───┼───┼───
+       4/0│4/1│4/2│4/3│4/4
+       "No bars but pad:"
+
+        0/0  0/1  0/2  0/3  0/4
+
+
+        1/0  1/1  1/2  1/3  1/4
+
+
+        2/0  2/1  2/2  2/3  2/4
+
+
+        3/0  3/1  3/2  3/3  3/4
+
+
+        4/0  4/1  4/2  4/3  4/4
+       bar begin "test/test_expect_test.ml":3394:12-3400:53
+        "Now with a frame:"
+        ┌───┬───┬───┬───┬───┐
+        │0/0│0/1│0/2│0/3│0/4│
+        ├───┼───┼───┼───┼───┤
+        │1/0│1/1│1/2│1/3│1/4│
+        ├───┼───┼───┼───┼───┤
+        │2/0│2/1│2/2│2/3│2/4│
+        ├───┼───┼───┼───┼───┤
+        │3/0│3/1│3/2│3/3│3/4│
+        ├───┼───┼───┼───┼───┤
+        │4/0│4/1│4/2│4/3│4/4│
+        └───┴───┴───┴───┴───┘
+        bar = ()
+       bar end
+       foo = ()
+      foo end |}]

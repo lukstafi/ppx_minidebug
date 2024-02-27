@@ -304,6 +304,12 @@ let log_value context =
   | Show -> log_value_show context
   | Pp -> log_value_pp context
 
+(* *** The sexplib-based variant. *** *)
+let log_value_printbox context ~loc exp =
+  check_log_level context ~is_explicit:true ~is_result:false exp @@ fun () ->
+  incr global_log_count;
+  [%expr Debug_runtime.log_value_printbox ~entry_id:__entry_id [%e exp]]
+
 let log_string ~loc ~descr_loc s =
   if String.contains descr_loc.txt '\n' then
     A.pexp_extension ~loc
@@ -1090,6 +1096,8 @@ let traverse_expression =
         | Pexp_extension ({ loc = _; txt = "log_result" }, PStr [%str [%e? body]]) ->
             let typ = extract_type ~alt_typ:ret_typ body in
             log_value context ~loc ~typ ~is_explicit:true ~is_result:true body
+        | Pexp_extension ({ loc = _; txt = "log_printbox" }, PStr [%str [%e? body]]) ->
+            log_value_printbox context ~loc body
         | (Pexp_newtype _ | Pexp_fun _)
           when context.toplevel_opt_arg <> Nested || not restrict_to_explicit ->
             debug_fun context callback ?typ:ret_typ exp
@@ -1359,7 +1367,8 @@ let global_log_level =
             A.pstr_eval ~loc
               (A.pexp_extension ~loc
               @@ Location.error_extensionf ~loc
-                   "ppx_minidebug: bad syntax, expacted [%%%%global_debug_log_level Level]")
+                   "ppx_minidebug: bad syntax, expacted [%%%%global_debug_log_level \
+                    Level]")
               [])
   in
   Ppxlib.Context_free.Rule.extension declaration

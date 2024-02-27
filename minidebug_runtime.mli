@@ -96,6 +96,7 @@ module type Debug_runtime = sig
     unit
 
   val log_value_show : ?descr:string -> entry_id:int -> is_result:bool -> string -> unit
+  val log_value_printbox : entry_id:int -> PrintBox.t -> unit
   val exceeds_max_nesting : unit -> bool
   val exceeds_max_children : unit -> bool
   val get_entry_id : unit -> int
