@@ -35,7 +35,7 @@
   (printbox-text
    (>= 0.10))
   (printbox-html
-   (>= 0.10))
+   (= 0.10))
   (printbox-md
    (>= 0.10))
   ptime
