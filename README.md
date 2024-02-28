@@ -517,6 +517,18 @@ let%track_sexp nonempty () : int =
 let () = print_endline @@ Int.to_string @@ nonempty ()
 ```
 
+There's also a way to compile the code adaptively, using a shell environment variable: `[%%global_debug_log_level_from_env_var "environment_variable_name"]`. The variable name is case-sensitive, but the values are case-insensitive. The recognized values of the environment variables are:
+
+- `nothing`: translates to `Nothing`
+- `prefixed_error`: translates to `Prefixed [| "ERROR" |]`
+- `prefixed_warn_error`: translates to `Prefixed [| "WARN"; "ERROR" |]`
+- `prefixed_info_warn_error`: translates to `Prefixed [| "INFO"; "WARN"; "ERROR" |]`
+- `explicit_logs`: translates to `Prefixed [||]`
+- `nonempty_entries`: translates to `Nonempty_entries`
+- `everything`: translates to `Everything`
+- `` (empty): no change
+
+
 With some "abuse of notation", we use `Prefixed [||]` resp. `Prefixed_or_result [||]` to mean all-and-only explicit logs (resp. also result logs). `Prefixed [||]` only works at compile time. `Prefixed_or_result [||]` works as intended when set both at compile time and at runtime: then, it will output all explicit logs, but also results in otherwise-nonempty entries. Example from the test suite:
 
 ```ocaml

@@ -9,6 +9,7 @@
 - A replacement `Minidebug_runtime.sexp_of_lazy_t` that does not force the thunk (but prints content if available).
 - A new extension point `[%log_result]` to convey information in a header.
 - A new extension point `[%log_printbox]` that directly embeds a `PrintBox.t` in the logs, instead of a representation of it. A corresponding `log_value_printbox` entry in `Minidebug_runtime.Debug_runtime`.
+- A new registered extension point `[%%global_debug_log_level_from_env_var "env_var_name"]`.
 
 ### Changed
 

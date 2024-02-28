@@ -1373,6 +1373,60 @@ let global_log_level =
   in
   Ppxlib.Context_free.Rule.extension declaration
 
+let global_log_level_from_env_var =
+  let declaration =
+    Extension.V3.declare "global_debug_log_level_from_env_var"
+      Extension.Context.structure_item
+      Ast_pattern.(pstr __)
+      (fun ~ctxt ->
+        let loc = Expansion_context.Extension.extension_point_loc ctxt in
+        function
+        | [
+            {
+              pstr_desc =
+                Pstr_eval
+                  ( { pexp_desc = Pexp_constant (Pconst_string (env_n, _s_loc, _)); _ },
+                    attrs );
+              _;
+            };
+          ] -> (
+            let noop = A.pstr_eval ~loc [%expr ()] attrs in
+            let update log_level =
+              init_context := { !init_context with log_level };
+              noop
+            in
+            match String.lowercase_ascii @@ Sys.getenv env_n with
+            | "nothing" -> update Nothing
+            | "prefixed_error" -> update @@ Prefixed [| "ERROR" |]
+            | "prefixed_warn_error" -> update @@ Prefixed [| "WARN"; "ERROR" |]
+            | "prefixed_info_warn_error" ->
+                update @@ Prefixed [| "INFO"; "WARN"; "ERROR" |]
+            | "explicit_logs" -> update @@ Prefixed [||]
+            | "nonempty_entries" -> update @@ Nonempty_entries
+            | "everything" -> update @@ Everything
+            | "" -> noop
+            | s ->
+                A.pstr_eval ~loc
+                  (A.pexp_extension ~loc
+                  @@ Location.error_extensionf ~loc
+                       "environment variable %s setting should be empty or one of: \
+                        nothing, prefixed_error, prefixed_warn_error, \
+                        prefixed_info_warn_error, explicit_logs, nonempty_entries, \
+                        everything; found: %s"
+                       env_n s)
+                  attrs
+            | exception Not_found -> noop)
+        | _ ->
+            A.pstr_eval ~loc
+              (A.pexp_extension ~loc
+              @@ Location.error_extensionf ~loc
+                   "ppx_minidebug: bad syntax, expacted \
+                    [%%%%global_debug_log_level_from_env_var \
+                    \"string_with_environment_variable_name\"]")
+              [])
+  in
+  Ppxlib.Context_free.Rule.extension declaration
+
 let noop_for_testing =
   Ppxlib.Context_free.Rule.extension
   @@ Extension.declare "ppx_minidebug_noop_for_testing" Extension.Context.expression
@@ -1380,7 +1434,8 @@ let noop_for_testing =
        (fun ~loc:_ ~path:_ payload -> payload)
 
 let rules =
-  noop_for_testing :: global_log_level :: global_output_type_info :: global_interrupts
+  noop_for_testing :: global_log_level_from_env_var :: global_log_level
+  :: global_output_type_info :: global_interrupts
   :: List.map
        (fun {
               ext_point;
