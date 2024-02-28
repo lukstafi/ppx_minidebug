@@ -1036,11 +1036,13 @@ let traverse_expression =
           ->
             let prefix_pos = String.index txt '_' in
             let track_branches, log_level =
-              match String.sub txt 0 prefix_pos with
-              | "debug" -> (false, context.log_level)
-              | "track" -> (true, context.log_level)
-              | "diagn" when context.log_level = Nothing -> (false, Nothing)
-              | "diagn" when context.log_level <> Nothing -> (false, Prefixed [||])
+              match (String.sub txt 0 prefix_pos, context.log_level) with
+              | "debug", _ -> (false, context.log_level)
+              | "track", _ -> (true, context.log_level)
+              | "diagn", Nothing -> (false, Nothing)
+              | "diagn", Prefixed prefixes | "diagn", Prefixed_or_result prefixes ->
+                  (false, Prefixed prefixes)
+              | "diagn", _ -> (false, Prefixed [||])
               | _ -> (context.track_branches, context.log_level)
             in
             let suffix_pos = String.rindex txt '_' in
@@ -1452,9 +1454,12 @@ let rules =
                  Ast_pattern.(single_expr_payload __)
                  (fun ~ctxt:_ ->
                    let log_level =
-                     if restrict_to_explicit && !init_context.log_level <> Nothing then
-                       Prefixed [||]
-                     else !init_context.log_level
+                     match (restrict_to_explicit, !init_context.log_level) with
+                     | _, Nothing -> Nothing
+                     | true, Prefixed prefixes | true, Prefixed_or_result prefixes ->
+                         Prefixed prefixes
+                     | true, _ -> Prefixed [||]
+                     | false, level -> level
                    in
                    debug_expander
                      {

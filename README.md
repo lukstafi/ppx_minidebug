@@ -438,7 +438,7 @@ The log levels are:
 - `Nonempty_entries` -- do not log entries, such as functions or control flow blocks, that do not have sub-logs.
 - `Everything` -- no restrictions.
 
-The `%diagn_` extension points are a shorthand for setting the compile-time log level to `Prefixed [||]`. Example from the test suite:
+The `%diagn_` extension points are a shorthand for setting the compile-time log level to `Prefixed [||]`, or `Prefixed prefixes` when the log level has already been either `Prefixed prefixes` or `Prefixed_or_result prefixes`. Example from the test suite:
 
 ```ocaml
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
