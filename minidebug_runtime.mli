@@ -4,6 +4,14 @@
 
 type elapsed_times = Not_reported | Seconds | Milliseconds | Microseconds | Nanoseconds
 
+type location_format =
+  | No_location
+  | File_only
+  | Beg_line
+  | Beg_pos
+  | Range_line
+  | Range_pos
+
 (** The log levels, for both (in scope) compile time, and for the PrintBox runtime. When considered at
     compile time, inspecting strings requires string literals, at runtime it applies to all string values.
     Not logging at compile time means the corresponding loggingcode is not generated; not logging at
@@ -28,6 +36,7 @@ module type Shared_config = sig
   val reset_to_snapshot : unit -> unit
   val time_tagged : [ `None | `Clock | `Elapsed ]
   val elapsed_times : elapsed_times
+  val location_format : location_format
   val print_entry_ids : bool
   val global_prefix : string
   val split_files_after : int option
@@ -36,6 +45,7 @@ end
 val shared_config :
   ?time_tagged:[ `None | `Clock | `Elapsed ] ->
   ?elapsed_times:elapsed_times ->
+  ?location_format:location_format ->
   ?print_entry_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
@@ -69,15 +79,7 @@ val shared_config :
 module type Debug_runtime = sig
   val close_log : unit -> unit
 
-  val open_log_preamble_brief :
-    fname:string ->
-    pos_lnum:int ->
-    pos_colnum:int ->
-    message:string ->
-    entry_id:int ->
-    unit
-
-  val open_log_preamble_full :
+  val open_log :
     fname:string ->
     start_lnum:int ->
     start_colnum:int ->
@@ -187,6 +189,7 @@ module PrintBox : functor (_ : Shared_config) -> PrintBox_runtime
 val debug_file :
   ?time_tagged:[ `None | `Clock | `Elapsed ] ->
   ?elapsed_times:elapsed_times ->
+  ?location_format:location_format ->
   ?print_entry_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
@@ -217,6 +220,7 @@ val debug :
   ?debug_ch:out_channel ->
   ?time_tagged:[ `None | `Clock | `Elapsed ] ->
   ?elapsed_times:elapsed_times ->
+  ?location_format:location_format ->
   ?print_entry_ids:bool ->
   ?global_prefix:string ->
   ?highlight_terms:Re.t ->
@@ -239,6 +243,7 @@ val debug_flushing :
   ?filename:string ->
   ?time_tagged:[ `None | `Clock | `Elapsed ] ->
   ?elapsed_times:elapsed_times ->
+  ?location_format:location_format ->
   ?print_entry_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->

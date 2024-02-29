@@ -14,6 +14,14 @@ let timestamp_to_string () =
 
 type elapsed_times = Not_reported | Seconds | Milliseconds | Microseconds | Nanoseconds
 
+type location_format =
+  | No_location
+  | File_only
+  | Beg_line
+  | Beg_pos
+  | Range_line
+  | Range_pos
+
 type log_level =
   | Nothing
   | Prefixed of string array
@@ -30,6 +38,7 @@ module type Shared_config = sig
   val reset_to_snapshot : unit -> unit
   val time_tagged : [ `None | `Clock | `Elapsed ]
   val elapsed_times : elapsed_times
+  val location_format : location_format
   val print_entry_ids : bool
   val global_prefix : string
   val split_files_after : int option
@@ -38,8 +47,8 @@ end
 let elapsed_default = Not_reported
 
 let shared_config ?(time_tagged = `None) ?(elapsed_times = elapsed_default)
-    ?(print_entry_ids = false) ?(global_prefix = "") ?split_files_after
-    ?(for_append = true) filename : (module Shared_config) =
+    ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(global_prefix = "")
+    ?split_files_after ?(for_append = true) filename : (module Shared_config) =
   let module Result = struct
     let () =
       match split_files_after with
@@ -97,6 +106,7 @@ let shared_config ?(time_tagged = `None) ?(elapsed_times = elapsed_default)
     let reset_to_snapshot () = seek_out !current_ch !current_snapshot
     let time_tagged = time_tagged
     let elapsed_times = elapsed_times
+    let location_format = location_format
     let print_entry_ids = print_entry_ids
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = split_files_after
@@ -106,15 +116,7 @@ let shared_config ?(time_tagged = `None) ?(elapsed_times = elapsed_default)
 module type Debug_runtime = sig
   val close_log : unit -> unit
 
-  val open_log_preamble_brief :
-    fname:string ->
-    pos_lnum:int ->
-    pos_colnum:int ->
-    message:string ->
-    entry_id:int ->
-    unit
-
-  val open_log_preamble_full :
+  val open_log :
     fname:string ->
     start_lnum:int ->
     start_colnum:int ->
@@ -174,7 +176,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
   let max_num_children = ref None
   let debug_ch = ref @@ debug_ch ()
 
-  type entry = { message : string option; num_children : int; elapsed : Mtime.span }
+  type entry = { message : string; num_children : int; elapsed : Mtime.span }
 
   let stack = ref []
   let indent () = String.make (List.length !stack) ' '
@@ -194,11 +196,8 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
 
   let close_log () =
     match !stack with
-    | [] -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
-    | { message = None; _ } :: tl ->
-        (* FIXME: should we print elapsed time on a brief preamble? *)
-        stack := tl
-    | { message = Some message; elapsed; _ } :: tl ->
+    | [] -> failwith "ppx_minidebug: close_log must follow an earlier open_log"
+    | { message; elapsed; _ } :: tl ->
         stack := tl;
         Printf.fprintf !debug_ch "%s%!" (indent ());
         (match Log_to.time_tagged with
@@ -215,27 +214,26 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         flush !debug_ch;
         if !stack = [] then debug_ch := Log_to.debug_ch ()
 
-  let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum ~message ~entry_id =
-    stack := { message = None; elapsed = time_elapsed (); num_children = 0 } :: !stack;
-    Printf.fprintf !debug_ch "%s\"%s\":%d:%d: %s%s%s\n%!" (indent ()) fname pos_lnum
-      pos_colnum global_prefix
+  let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id =
+    Printf.fprintf !debug_ch "%s%s%s%s begin %!" (indent ()) global_prefix
       (opt_entry_id ~print_entry_ids ~entry_id)
-      message
-
-  let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
-      ~message ~entry_id =
-    Printf.fprintf !debug_ch "%s%!" (indent ());
+      message;
+    (match Log_to.location_format with
+    | No_location -> ()
+    | File_only -> Printf.fprintf !debug_ch "\"%s\":%!" fname
+    | Beg_line -> Printf.fprintf !debug_ch "\"%s\":%d:%!" fname start_lnum
+    | Beg_pos -> Printf.fprintf !debug_ch "\"%s\":%d:%d:%!" fname start_lnum start_colnum
+    | Range_line -> Printf.fprintf !debug_ch "\"%s\":%d-%d:%!" fname start_lnum end_lnum
+    | Range_pos ->
+        Printf.fprintf !debug_ch "\"%s\":%d:%d-%d:%d:%!" fname start_lnum start_colnum
+          end_lnum end_colnum);
     (match Log_to.time_tagged with
-    | `None -> ()
-    | `Clock -> Printf.fprintf !debug_ch "%s - %!" (timestamp_to_string ())
+    | `None -> Printf.fprintf !debug_ch "\n%!"
+    | `Clock -> Printf.fprintf !debug_ch " %s\n%!" (timestamp_to_string ())
     | `Elapsed ->
-        Printf.fprintf !debug_ch "%s - %!"
+        Printf.fprintf !debug_ch " %s\n%!"
           (Format.asprintf "%a" Mtime.Span.pp (time_elapsed ())));
-    Printf.fprintf !debug_ch "%s%s%s begin \"%s\":%d:%d-%d:%d\n%!" global_prefix
-      (opt_entry_id ~print_entry_ids ~entry_id)
-      message fname start_lnum start_colnum end_lnum end_colnum;
-    stack :=
-      { message = Some message; elapsed = time_elapsed (); num_children = 0 } :: !stack
+    stack := { message; elapsed = time_elapsed (); num_children = 0 } :: !stack
 
   let bump_stack_entry entry_id =
     match !stack with
@@ -532,7 +530,7 @@ module PrintBox (Log_to : Shared_config) = struct
           Stdlib.flush ch;
           if not from_snapshot then snapshot_ch ();
           []
-      | _ -> failwith "ppx_minidebug: close_log must follow an earlier open_log_preamble"
+      | _ -> failwith "ppx_minidebug: close_log must follow an earlier open_log"
 
   let close_log () = close_log_impl ~from_snapshot:false ()
 
@@ -594,8 +592,7 @@ module PrintBox (Log_to : Shared_config) = struct
               ];
             close_log ())
 
-  let open_log_preamble ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message
-      ~entry_id ~brief =
+  let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id =
     let uri =
       match config.hyperlink with
       | `Prefix prefix
@@ -607,21 +604,24 @@ module PrintBox (Log_to : Shared_config) = struct
           Printf.sprintf "%s#L%d" fname start_lnum
       | _ -> Printf.sprintf "%s:%d:%d" fname start_lnum (start_colnum + 1)
     in
-
-    let path =
-      if brief then Printf.sprintf "\"%s\":%d:%d" fname start_lnum start_colnum
-      else
-        match time_tagged with
-        | `None ->
-            Format.asprintf "\"%s\":%d:%d-%d:%d" fname start_lnum start_colnum end_lnum
-              end_colnum
-        | `Clock ->
-            Format.asprintf "\"%s\":%d:%d-%d:%d at time %a" fname start_lnum start_colnum
-              end_lnum end_colnum pp_timestamp ()
-        | `Elapsed ->
-            Format.asprintf "\"%s\":%d:%d-%d:%d at elapsed %a" fname start_lnum start_colnum
-              end_lnum end_colnum Mtime.Span.pp (time_elapsed ())
+    let location =
+      match Log_to.location_format with
+      | No_location -> ""
+      | File_only -> Printf.sprintf "\"%s\":" fname
+      | Beg_line -> Printf.sprintf "\"%s\":%d" fname start_lnum
+      | Beg_pos -> Printf.sprintf "\"%s\":%d:%d" fname start_lnum start_colnum
+      | Range_line -> Format.asprintf "\"%s\":%d-%d" fname start_lnum end_lnum
+      | Range_pos ->
+          Format.asprintf "\"%s\":%d:%d-%d:%d" fname start_lnum start_colnum end_lnum
+            end_colnum
     in
+    let time_tag =
+      match time_tagged with
+      | `None -> ""
+      | `Clock -> Format.asprintf " at time %a" pp_timestamp ()
+      | `Elapsed -> Format.asprintf " at elapsed %a" Mtime.Span.pp (time_elapsed ())
+    in
+    let path = location ^ time_tag in
     let exclude =
       match config.exclude_on_path with Some r -> Re.execp r message | None -> false
     in
@@ -642,13 +642,6 @@ module PrintBox (Log_to : Shared_config) = struct
         body = [];
       }
       :: !stack
-
-  let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum =
-    open_log_preamble ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~brief:false
-
-  let open_log_preamble_brief ~fname ~pos_lnum ~pos_colnum =
-    open_log_preamble ~fname ~start_lnum:pos_lnum ~start_colnum:pos_colnum
-      ~end_lnum:pos_lnum ~end_colnum:pos_colnum ~brief:true
 
   let sexp_size sexp =
     let open Sexplib0.Sexp in
@@ -834,11 +827,11 @@ module PrintBox (Log_to : Shared_config) = struct
 end
 
 let debug_file ?(time_tagged = `None) ?(elapsed_times = elapsed_default)
-    ?(print_entry_ids = false) ?(global_prefix = "") ?split_files_after ?highlight_terms
-    ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0) ?(for_append = false)
-    ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80) ?backend ?hyperlink
-    ?(values_first_mode = false) ?(log_level = Everything) ?snapshot_every_sec filename :
-    (module PrintBox_runtime) =
+    ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(global_prefix = "")
+    ?split_files_after ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
+    ?(truncate_children = 0) ?(for_append = false) ?(boxify_sexp_from_size = 50)
+    ?(max_inline_sexp_length = 80) ?backend ?hyperlink ?(values_first_mode = false)
+    ?(log_level = Everything) ?snapshot_every_sec filename : (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename ^ ".md"
@@ -847,8 +840,8 @@ let debug_file ?(time_tagged = `None) ?(elapsed_times = elapsed_default)
   in
   let module Debug =
     PrintBox
-      ((val shared_config ~time_tagged ~elapsed_times ~print_entry_ids ~global_prefix
-              ~for_append ?split_files_after filename)) in
+      ((val shared_config ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
+              ~global_prefix ~for_append ?split_files_after filename)) in
   Debug.config.backend <- Option.value backend ~default:(`Markdown default_md_config);
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
   Debug.config.max_inline_sexp_length <- max_inline_sexp_length;
@@ -864,9 +857,10 @@ let debug_file ?(time_tagged = `None) ?(elapsed_times = elapsed_default)
   (module Debug)
 
 let debug ?debug_ch ?(time_tagged = `None) ?(elapsed_times = elapsed_default)
-    ?(print_entry_ids = false) ?(global_prefix = "") ?highlight_terms ?exclude_on_path
-    ?(prune_upto = 0) ?(truncate_children = 0) ?(values_first_mode = false)
-    ?(log_level = Everything) ?snapshot_every_sec () : (module PrintBox_runtime) =
+    ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(global_prefix = "")
+    ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
+    ?(values_first_mode = false) ?(log_level = Everything) ?snapshot_every_sec () :
+    (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
     let ch = match debug_ch with None -> stdout | Some ch -> ch
@@ -887,6 +881,7 @@ let debug ?debug_ch ?(time_tagged = `None) ?(elapsed_times = elapsed_default)
     let debug_ch () = ch
     let time_tagged = time_tagged
     let elapsed_times = elapsed_times
+    let location_format = location_format
     let print_entry_ids = print_entry_ids
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = None
@@ -901,8 +896,9 @@ let debug ?debug_ch ?(time_tagged = `None) ?(elapsed_times = elapsed_default)
   (module Debug)
 
 let debug_flushing ?debug_ch:d_ch ?filename ?(time_tagged = `None)
-    ?(elapsed_times = elapsed_default) ?(print_entry_ids = false) ?(global_prefix = "")
-    ?split_files_after ?(for_append = false) () : (module Debug_runtime) =
+    ?(elapsed_times = elapsed_default) ?(location_format = Beg_pos)
+    ?(print_entry_ids = false) ?(global_prefix = "") ?split_files_after
+    ?(for_append = false) () : (module Debug_runtime) =
   let log_to =
     match (filename, d_ch) with
     | None, _ ->
@@ -926,14 +922,15 @@ let debug_flushing ?debug_ch:d_ch ?filename ?(time_tagged = `None)
           let debug_ch () = ch
           let time_tagged = time_tagged
           let elapsed_times = elapsed_times
+          let location_format = location_format
           let print_entry_ids = print_entry_ids
           let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
           let split_files_after = split_files_after
         end : Shared_config)
     | Some filename, None ->
         let filename = filename ^ ".log" in
-        shared_config ~time_tagged ~elapsed_times ~print_entry_ids ~global_prefix
-          ?split_files_after ~for_append filename
+        shared_config ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
+          ~global_prefix ?split_files_after ~for_append filename
     | Some _, Some _ ->
         invalid_arg
           "Minidebug_runtime.debug_flushing: only one of debug_ch, filename should be \

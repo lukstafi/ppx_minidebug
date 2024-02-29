@@ -1,20 +1,20 @@
 
 BEGIN DEBUG SESSION 
-loop_exceeded begin "test/test_debug_log_prefixed.ml":6:33-11:55
+loop_exceeded begin "test/test_debug_log_prefixed.ml":6:33:
  ("INFO: inside loop", 7)
- loop_exceeded begin "test/test_debug_log_prefixed.ml":6:33-11:55
+ loop_exceeded begin "test/test_debug_log_prefixed.ml":6:33:
   ("INFO: inside loop", 6)
-  loop_exceeded begin "test/test_debug_log_prefixed.ml":6:33-11:55
+  loop_exceeded begin "test/test_debug_log_prefixed.ml":6:33:
    ("INFO: inside loop", 5)
-   loop_exceeded begin "test/test_debug_log_prefixed.ml":6:33-11:55
+   loop_exceeded begin "test/test_debug_log_prefixed.ml":6:33:
     ("INFO: inside loop", 4)
-    loop_exceeded begin "test/test_debug_log_prefixed.ml":6:33-11:55
+    loop_exceeded begin "test/test_debug_log_prefixed.ml":6:33:
      ("INFO: inside loop", 3)
-     loop_exceeded begin "test/test_debug_log_prefixed.ml":6:33-11:55
+     loop_exceeded begin "test/test_debug_log_prefixed.ml":6:33:
       ("INFO: inside loop", 2)
-      loop_exceeded begin "test/test_debug_log_prefixed.ml":6:33-11:55
+      loop_exceeded begin "test/test_debug_log_prefixed.ml":6:33:
        ("INFO: inside loop", 1)
-       loop_exceeded begin "test/test_debug_log_prefixed.ml":6:33-11:55
+       loop_exceeded begin "test/test_debug_log_prefixed.ml":6:33:
         ("INFO: inside loop", 0)
        loop_exceeded end
       loop_exceeded end
@@ -24,28 +24,40 @@ loop_exceeded begin "test/test_debug_log_prefixed.ml":6:33-11:55
   loop_exceeded end
  loop_exceeded end
 loop_exceeded end
-bar begin "test/test_debug_log_prefixed.ml":17:19-21:6
-  "test/test_debug_log_prefixed.ml":18:2: for:test_debug_log_prefixed:18
-   "test/test_debug_log_prefixed.ml":18:6: <for i>
+bar begin "test/test_debug_log_prefixed.ml":17:19:
+ for:test_debug_log_prefixed:18 begin "test/test_debug_log_prefixed.ml":18:2:
+  <for i> begin "test/test_debug_log_prefixed.ml":18:6:
    ("INFO: loop step", 0, "value", 0)
-   "test/test_debug_log_prefixed.ml":18:6: <for i>
+  <for i> end
+  <for i> begin "test/test_debug_log_prefixed.ml":18:6:
    ("INFO: loop step", 1, "value", 2)
-   "test/test_debug_log_prefixed.ml":18:6: <for i>
+  <for i> end
+  <for i> begin "test/test_debug_log_prefixed.ml":18:6:
    ("INFO: loop step", 2, "value", 4)
-   "test/test_debug_log_prefixed.ml":18:6: <for i>
+  <for i> end
+  <for i> begin "test/test_debug_log_prefixed.ml":18:6:
    ("INFO: loop step", 3, "value", 6)
-   "test/test_debug_log_prefixed.ml":18:6: <for i>
+  <for i> end
+  <for i> begin "test/test_debug_log_prefixed.ml":18:6:
    ("INFO: loop step", 4, "value", 8)
-   "test/test_debug_log_prefixed.ml":18:6: <for i>
+  <for i> end
+  <for i> begin "test/test_debug_log_prefixed.ml":18:6:
    ("INFO: loop step", 5, "value", 10)
-   "test/test_debug_log_prefixed.ml":18:6: <for i>
+  <for i> end
+  <for i> begin "test/test_debug_log_prefixed.ml":18:6:
    ("INFO: loop step", 6, "value", 12)
-   "test/test_debug_log_prefixed.ml":18:6: <for i>
+  <for i> end
+  <for i> begin "test/test_debug_log_prefixed.ml":18:6:
    ("INFO: loop step", 7, "value", 14)
-   "test/test_debug_log_prefixed.ml":18:6: <for i>
+  <for i> end
+  <for i> begin "test/test_debug_log_prefixed.ml":18:6:
    ("INFO: loop step", 8, "value", 16)
-   "test/test_debug_log_prefixed.ml":18:6: <for i>
+  <for i> end
+  <for i> begin "test/test_debug_log_prefixed.ml":18:6:
    ("INFO: loop step", 9, "value", 18)
-   "test/test_debug_log_prefixed.ml":18:6: <for i>
+  <for i> end
+  <for i> begin "test/test_debug_log_prefixed.ml":18:6:
    ("INFO: loop step", 10, "value", 20)
+  <for i> end
+ for:test_debug_log_prefixed:18 end
 bar end

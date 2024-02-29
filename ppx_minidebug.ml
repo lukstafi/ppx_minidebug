@@ -160,22 +160,15 @@ let rec pat2expr pat =
       @@ Location.error_extensionf ~loc
            "ppx_minidebug requires a pattern identifier here: try using an `as` alias."
 
-let open_log_preamble ?(brief = false) ?(message = "") ~loc () =
+let open_log ?(message = "") ~loc () =
   if String.contains message '\n' then
     A.pexp_extension ~loc
     @@ Location.error_extensionf ~loc
          {|ppx_minidebug: multiline messages in log entry headers not allowed, found: "%s"|}
          message
-  else if brief then
-    [%expr
-      Debug_runtime.open_log_preamble_brief
-        ~fname:[%e A.estring ~loc loc.loc_start.pos_fname]
-        ~pos_lnum:[%e A.eint ~loc loc.loc_start.pos_lnum]
-        ~pos_colnum:[%e A.eint ~loc (loc.loc_start.pos_cnum - loc.loc_start.pos_bol)]
-        ~message:[%e A.estring ~loc message] ~entry_id:__entry_id]
   else
     [%expr
-      Debug_runtime.open_log_preamble_full
+      Debug_runtime.open_log
         ~fname:[%e A.estring ~loc loc.loc_start.pos_fname]
         ~start_lnum:[%e A.eint ~loc loc.loc_start.pos_lnum]
         ~start_colnum:[%e A.eint ~loc (loc.loc_start.pos_cnum - loc.loc_start.pos_bol)]
@@ -545,7 +538,7 @@ let debug_body context callback ~loc ~message ~descr_loc ~log_count_before ~arg_
     | Some t when context.output_type_info -> message ^ " : " ^ typ2str t
     | _ -> message
   in
-  let preamble = open_log_preamble ~message ~loc () in
+  let preamble = open_log ~message ~loc () in
   let preamble =
     List.fold_left
       (fun e1 e2 ->
@@ -809,7 +802,7 @@ let debug_binding context callback vb =
                    [%expr ()]
             in
             let preamble =
-              open_log_preamble ~brief:true ~message:descr_loc.txt ~loc:descr_loc.loc ()
+              open_log ~message:descr_loc.txt ~loc:descr_loc.loc ()
             in
             entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
               ~entry:(callback nested exp) ~result ~log_result ()
@@ -1136,7 +1129,7 @@ let traverse_expression =
               let then_' =
                 [%expr
                   let __entry_id = Debug_runtime.get_entry_id () in
-                  [%e open_log_preamble ~brief:true ~message ~loc ()];
+                  [%e open_log ~message ~loc ()];
                   match [%e then_] with
                   | if_then__result ->
                       Debug_runtime.close_log ();
@@ -1159,7 +1152,7 @@ let traverse_expression =
                     let message = "else:" ^ loc_to_name loc in
                     [%expr
                       let __entry_id = Debug_runtime.get_entry_id () in
-                      [%e open_log_preamble ~brief:true ~message ~loc ()];
+                      [%e open_log ~message ~loc ()];
                       match [%e else_] with
                       | if_else__result ->
                           Debug_runtime.close_log ();
@@ -1186,7 +1179,7 @@ let traverse_expression =
                   []
               in
               let preamble =
-                open_log_preamble ~brief:true
+                open_log
                   ~message:("<for " ^ descr_loc.txt ^ ">")
                   ~loc:descr_loc.loc ()
               in
@@ -1205,7 +1198,7 @@ let traverse_expression =
             let transformed =
               [%expr
                 let __entry_id = Debug_runtime.get_entry_id () in
-                [%e open_log_preamble ~brief:true ~message ~loc ()];
+                [%e open_log ~message ~loc ()];
                 match [%e { exp with pexp_desc }] with
                 | () -> Debug_runtime.close_log ()
                 | exception e ->
@@ -1223,7 +1216,7 @@ let traverse_expression =
               let loc = body.pexp_loc in
               let descr_loc = { txt = "<while body>"; loc } in
               let preamble =
-                open_log_preamble ~brief:true ~message:"<while loop>" ~loc:descr_loc.loc
+                open_log ~message:"<while loop>" ~loc:descr_loc.loc
                   ()
               in
               entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
@@ -1236,7 +1229,7 @@ let traverse_expression =
             let transformed =
               [%expr
                 let __entry_id = Debug_runtime.get_entry_id () in
-                [%e open_log_preamble ~brief:true ~message ~loc ()];
+                [%e open_log ~message ~loc ()];
                 match [%e { exp with pexp_desc }] with
                 | () -> Debug_runtime.close_log ()
                 | exception e ->

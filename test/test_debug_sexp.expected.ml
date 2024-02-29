@@ -4,16 +4,17 @@ module Debug_runtime = (Minidebug_runtime.PrintBox)((val
 let foo (x : int) =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();
-   (Debug_runtime.open_log_preamble_full ~fname:"test_debug_sexp.ml"
-      ~start_lnum:7 ~start_colnum:19 ~end_lnum:9 ~end_colnum:17
-      ~message:"foo" ~entry_id:__entry_id;
+   (Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:7
+      ~start_colnum:19 ~end_lnum:9 ~end_colnum:17 ~message:"foo"
+      ~entry_id:__entry_id;
     Debug_runtime.log_value_sexp ?descr:(Some "x") ~entry_id:__entry_id
       ~is_result:false (([%sexp_of : int]) x));
    (match let y : int =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
-            Debug_runtime.open_log_preamble_brief ~fname:"test_debug_sexp.ml"
-              ~pos_lnum:8 ~pos_colnum:6 ~message:"y" ~entry_id:__entry_id;
+            Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:8
+              ~start_colnum:6 ~end_lnum:8 ~end_colnum:7 ~message:"y"
+              ~entry_id:__entry_id;
             (match x + 1 with
              | y as __res ->
                  ((();
@@ -39,16 +40,17 @@ type t = {
 let bar (x : t) =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();
-   (Debug_runtime.open_log_preamble_full ~fname:"test_debug_sexp.ml"
-      ~start_lnum:15 ~start_colnum:19 ~end_lnum:17 ~end_colnum:14
-      ~message:"bar" ~entry_id:__entry_id;
+   (Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:15
+      ~start_colnum:19 ~end_lnum:17 ~end_colnum:14 ~message:"bar"
+      ~entry_id:__entry_id;
     Debug_runtime.log_value_sexp ?descr:(Some "x") ~entry_id:__entry_id
       ~is_result:false (([%sexp_of : t]) x));
    (match let y : int =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
-            Debug_runtime.open_log_preamble_brief ~fname:"test_debug_sexp.ml"
-              ~pos_lnum:16 ~pos_colnum:6 ~message:"y" ~entry_id:__entry_id;
+            Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:16
+              ~start_colnum:6 ~end_lnum:16 ~end_colnum:7 ~message:"y"
+              ~entry_id:__entry_id;
             (match x.first + 1 with
              | y as __res ->
                  ((();
@@ -70,16 +72,17 @@ let () = ignore @@ (bar { first = 7; second = 42 })
 let baz (x : t) =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();
-   (Debug_runtime.open_log_preamble_full ~fname:"test_debug_sexp.ml"
-      ~start_lnum:21 ~start_colnum:19 ~end_lnum:24 ~end_colnum:28
-      ~message:"baz" ~entry_id:__entry_id;
+   (Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:21
+      ~start_colnum:19 ~end_lnum:24 ~end_colnum:28 ~message:"baz"
+      ~entry_id:__entry_id;
     Debug_runtime.log_value_sexp ?descr:(Some "x") ~entry_id:__entry_id
       ~is_result:false (([%sexp_of : t]) x));
    (match let (((y, z) as _yz) : (int * int)) =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
-            Debug_runtime.open_log_preamble_brief ~fname:"test_debug_sexp.ml"
-              ~pos_lnum:22 ~pos_colnum:17 ~message:"_yz" ~entry_id:__entry_id;
+            Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:22
+              ~start_colnum:17 ~end_lnum:22 ~end_colnum:20 ~message:"_yz"
+              ~entry_id:__entry_id;
             (match ((x.first + 1), 3) with
              | _yz as __res ->
                  ((();
@@ -92,8 +95,9 @@ let baz (x : t) =
           let (((u, w) as _uw) : (int * int)) =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
-            Debug_runtime.open_log_preamble_brief ~fname:"test_debug_sexp.ml"
-              ~pos_lnum:23 ~pos_colnum:17 ~message:"_uw" ~entry_id:__entry_id;
+            Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:23
+              ~start_colnum:17 ~end_lnum:23 ~end_colnum:20 ~message:"_uw"
+              ~entry_id:__entry_id;
             (match (7, 13) with
              | _uw as __res ->
                  ((();
@@ -115,16 +119,17 @@ let () = ignore @@ (baz { first = 7; second = 42 })
 let lab ~x:(x : int)  =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();
-   (Debug_runtime.open_log_preamble_full ~fname:"test_debug_sexp.ml"
-      ~start_lnum:28 ~start_colnum:19 ~end_lnum:30 ~end_colnum:17
-      ~message:"lab" ~entry_id:__entry_id;
+   (Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:28
+      ~start_colnum:19 ~end_lnum:30 ~end_colnum:17 ~message:"lab"
+      ~entry_id:__entry_id;
     Debug_runtime.log_value_sexp ?descr:(Some "x") ~entry_id:__entry_id
       ~is_result:false (([%sexp_of : int]) x));
    (match let y : int =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
-            Debug_runtime.open_log_preamble_brief ~fname:"test_debug_sexp.ml"
-              ~pos_lnum:29 ~pos_colnum:6 ~message:"y" ~entry_id:__entry_id;
+            Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:29
+              ~start_colnum:6 ~end_lnum:29 ~end_colnum:7 ~message:"y"
+              ~entry_id:__entry_id;
             (match x + 1 with
              | y as __res ->
                  ((();
@@ -147,9 +152,9 @@ let () = ignore @@ (List.hd @@ (lab ~x:7))
 let rec loop (depth : int) (x : t) =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();
-   ((Debug_runtime.open_log_preamble_full ~fname:"test_debug_sexp.ml"
-       ~start_lnum:34 ~start_colnum:24 ~end_lnum:40 ~end_colnum:9
-       ~message:"loop" ~entry_id:__entry_id;
+   ((Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:34
+       ~start_colnum:24 ~end_lnum:40 ~end_colnum:9 ~message:"loop"
+       ~entry_id:__entry_id;
      Debug_runtime.log_value_sexp ?descr:(Some "depth") ~entry_id:__entry_id
        ~is_result:false (([%sexp_of : int]) depth));
     Debug_runtime.log_value_sexp ?descr:(Some "x") ~entry_id:__entry_id
@@ -165,8 +170,8 @@ let rec loop (depth : int) (x : t) =
               (let y : int =
                  let __entry_id = Debug_runtime.get_entry_id () in
                  ();
-                 Debug_runtime.open_log_preamble_brief
-                   ~fname:"test_debug_sexp.ml" ~pos_lnum:38 ~pos_colnum:8
+                 Debug_runtime.open_log ~fname:"test_debug_sexp.ml"
+                   ~start_lnum:38 ~start_colnum:8 ~end_lnum:38 ~end_colnum:9
                    ~message:"y" ~entry_id:__entry_id;
                  (match loop (depth + 1)
                           { first = (x.second - 1); second = (x.first + 2) }
@@ -182,8 +187,8 @@ let rec loop (depth : int) (x : t) =
                let z : int =
                  let __entry_id = Debug_runtime.get_entry_id () in
                  ();
-                 Debug_runtime.open_log_preamble_brief
-                   ~fname:"test_debug_sexp.ml" ~pos_lnum:39 ~pos_colnum:8
+                 Debug_runtime.open_log ~fname:"test_debug_sexp.ml"
+                   ~start_lnum:39 ~start_colnum:8 ~end_lnum:39 ~end_colnum:9
                    ~message:"z" ~entry_id:__entry_id;
                  (match loop (depth + 1)
                           { first = (x.second + 1); second = y }
