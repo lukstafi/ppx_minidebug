@@ -2,6 +2,7 @@
     {{:http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html}
     [ppx_minidebug]} requires. *)
 
+type time_tagged = Not_tagged | Clock | Elapsed
 type elapsed_times = Not_reported | Seconds | Milliseconds | Microseconds | Nanoseconds
 
 type location_format =
@@ -34,7 +35,7 @@ module type Shared_config = sig
   val debug_ch : unit -> out_channel
   val snapshot_ch : unit -> unit
   val reset_to_snapshot : unit -> unit
-  val time_tagged : [ `None | `Clock | `Elapsed ]
+  val time_tagged : time_tagged
   val elapsed_times : elapsed_times
   val location_format : location_format
   val print_entry_ids : bool
@@ -43,7 +44,7 @@ module type Shared_config = sig
 end
 
 val shared_config :
-  ?time_tagged:[ `None | `Clock | `Elapsed ] ->
+  ?time_tagged:time_tagged ->
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
   ?print_entry_ids:bool ->
@@ -54,8 +55,8 @@ val shared_config :
   (module Shared_config)
 (** Sets up a file with the given path, or if [split_files_after] is given, creates a directory
     to store the files. By default the logging will not be time tagged and will be appending
-    to the file / creating more files. If [time_tagged] is [`Clock], entries will be tagged with a date
-    and clock time; if it is [`Elapsed], they will be tagged with the time span elapsed since the start
+    to the file / creating more files. If [time_tagged] is [Clock], entries will be tagged with a date
+    and clock time; if it is [Elapsed], they will be tagged with the time span elapsed since the start
     of the process (using [Mtime_clock.elapsed]).
     If [split_files_after] is given and [for_append] is false, clears the directory.
     If the opened file exceeds [split_files_after] characters, [Shared_config.refresh_ch ()]
@@ -187,7 +188,7 @@ end
 module PrintBox : functor (_ : Shared_config) -> PrintBox_runtime
 
 val debug_file :
-  ?time_tagged:[ `None | `Clock | `Elapsed ] ->
+  ?time_tagged:time_tagged ->
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
   ?print_entry_ids:bool ->
@@ -218,7 +219,7 @@ val debug_file :
 
 val debug :
   ?debug_ch:out_channel ->
-  ?time_tagged:[ `None | `Clock | `Elapsed ] ->
+  ?time_tagged:time_tagged ->
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
   ?print_entry_ids:bool ->
@@ -241,7 +242,7 @@ val debug :
 val debug_flushing :
   ?debug_ch:out_channel ->
   ?filename:string ->
-  ?time_tagged:[ `None | `Clock | `Elapsed ] ->
+  ?time_tagged:time_tagged ->
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
   ?print_entry_ids:bool ->
