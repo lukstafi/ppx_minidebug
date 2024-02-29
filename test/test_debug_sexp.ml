@@ -2,7 +2,7 @@ open Sexplib0.Sexp_conv
 
 module Debug_runtime =
   Minidebug_runtime.PrintBox
-    ((val Minidebug_runtime.debug_ch "debugger_sexp_printbox.log"))
+    ((val Minidebug_runtime.shared_config "debugger_sexp_printbox.log"))
 
 let%debug_sexp foo (x : int) : int list =
   let y : int = x + 1 in

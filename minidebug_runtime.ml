@@ -23,7 +23,7 @@ type log_level =
 
 let is_prefixed_or_result = function Prefixed_or_result _ -> true | _ -> false
 
-module type Debug_ch = sig
+module type Shared_config = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
   val snapshot_ch : unit -> unit
@@ -37,9 +37,9 @@ end
 
 let elapsed_default = Not_reported
 
-let debug_ch ?(time_tagged = `None) ?(elapsed_times = elapsed_default)
+let shared_config ?(time_tagged = `None) ?(elapsed_times = elapsed_default)
     ?(print_entry_ids = false) ?(global_prefix = "") ?split_files_after
-    ?(for_append = true) filename : (module Debug_ch) =
+    ?(for_append = true) filename : (module Shared_config) =
   let module Result = struct
     let () =
       match split_files_after with
@@ -167,7 +167,7 @@ let time_span ~none ~some elapsed elapsed_times =
 let opt_entry_id ~print_entry_ids ~entry_id =
   if print_entry_ids && entry_id >= 0 then "{#" ^ Int.to_string entry_id ^ "} " else ""
 
-module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
+module Flushing (Log_to : Shared_config) : Debug_runtime = struct
   open Log_to
 
   let max_nesting_depth = ref None
@@ -317,7 +317,7 @@ module type PrintBox_runtime = sig
   val snapshot : unit -> unit
 end
 
-module PrintBox (Log_to : Debug_ch) = struct
+module PrintBox (Log_to : Shared_config) = struct
   open Log_to
 
   let max_nesting_depth = ref None
@@ -847,7 +847,7 @@ let debug_file ?(time_tagged = `None) ?(elapsed_times = elapsed_default)
   in
   let module Debug =
     PrintBox
-      ((val debug_ch ~time_tagged ~elapsed_times ~print_entry_ids ~global_prefix
+      ((val shared_config ~time_tagged ~elapsed_times ~print_entry_ids ~global_prefix
               ~for_append ?split_files_after filename)) in
   Debug.config.backend <- Option.value backend ~default:(`Markdown default_md_config);
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
@@ -929,10 +929,10 @@ let debug_flushing ?debug_ch:d_ch ?filename ?(time_tagged = `None)
           let print_entry_ids = print_entry_ids
           let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
           let split_files_after = split_files_after
-        end : Debug_ch)
+        end : Shared_config)
     | Some filename, None ->
         let filename = filename ^ ".log" in
-        debug_ch ~time_tagged ~elapsed_times ~print_entry_ids ~global_prefix
+        shared_config ~time_tagged ~elapsed_times ~print_entry_ids ~global_prefix
           ?split_files_after ~for_append filename
     | Some _, Some _ ->
         invalid_arg

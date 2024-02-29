@@ -15,7 +15,7 @@ or using the `PrintBox` functor, e.g.:
 
 ```ocaml
 module Debug_runtime =
-  Minidebug_runtime.PrintBox((val Minidebug_runtime.debug_ch "path/to/debugger_printbox.log" end))
+  Minidebug_runtime.PrintBox((val Minidebug_runtime.shared_config "path/to/debugger_printbox.log" end))
 ```
 
 The logged traces will be pretty-printed as trees using the `printbox` package. Truncated example (using `%debug_sexp`):
@@ -73,7 +73,7 @@ The `PrintBox` runtime can be configured to output logs using HTML or Markdown. 
 
 ```ocaml
 module Debug_runtime =
-  Minidebug_runtime.PrintBox ((val Minidebug_runtime.debug_ch "debug.html"))
+  Minidebug_runtime.PrintBox ((val Minidebug_runtime.shared_config "debug.html"))
 let () = Debug_runtime.(html_config := `Html default_html_config)
 let () = Debug_runtime.boxify_sexp_from_size := 50
 ```

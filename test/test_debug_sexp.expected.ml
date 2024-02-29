@@ -1,6 +1,6 @@
 open Sexplib0.Sexp_conv
 module Debug_runtime = (Minidebug_runtime.PrintBox)((val
-  Minidebug_runtime.debug_ch "debugger_sexp_printbox.log"))
+  Minidebug_runtime.shared_config "debugger_sexp_printbox.log"))
 let foo (x : int) =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();

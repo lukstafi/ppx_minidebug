@@ -21,7 +21,7 @@ type log_level =
       (** Does not log entries without children (treating results as children). *)
   | Everything  (** Does not restrict logging. *)
 
-module type Debug_ch = sig
+module type Shared_config = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
   val snapshot_ch : unit -> unit
@@ -33,7 +33,7 @@ module type Debug_ch = sig
   val split_files_after : int option
 end
 
-val debug_ch :
+val shared_config :
   ?time_tagged:[ `None | `Clock | `Elapsed ] ->
   ?elapsed_times:elapsed_times ->
   ?print_entry_ids:bool ->
@@ -41,15 +41,15 @@ val debug_ch :
   ?split_files_after:int ->
   ?for_append:bool ->
   string ->
-  (module Debug_ch)
+  (module Shared_config)
 (** Sets up a file with the given path, or if [split_files_after] is given, creates a directory
     to store the files. By default the logging will not be time tagged and will be appending
     to the file / creating more files. If [time_tagged] is [`Clock], entries will be tagged with a date
     and clock time; if it is [`Elapsed], they will be tagged with the time span elapsed since the start
     of the process (using [Mtime_clock.elapsed]).
     If [split_files_after] is given and [for_append] is false, clears the directory.
-    If the opened file exceeds [split_files_after] characters, [Debug_ch.refresh_ch ()]
-    returns true; if in that case [Debug_ch.debug_ch ()] is called, it will create and return a new file.
+    If the opened file exceeds [split_files_after] characters, [Shared_config.refresh_ch ()]
+    returns true; if in that case [Shared_config.debug_ch ()] is called, it will create and return a new file.
 
     If [elapsed_times] is different from [Not_reported], the elapsed time spans are printed for log
     subtrees, in the corresponding units with precision up to 1%. The times include printing out logs,
@@ -111,7 +111,7 @@ end
 (** The output is flushed line-at-a-time, so no output should be lost if the traced program crashes.
     The logged traces are still indented, but if the values to print are multi-line, their formatting
     might be messy. The indentation is also smaller (half of PrintBox). *)
-module Flushing : functor (_ : Debug_ch) -> Debug_runtime
+module Flushing : functor (_ : Shared_config) -> Debug_runtime
 
 val default_html_config : PrintBox_html.Config.t
 val default_md_config : PrintBox_md.Config.t
@@ -182,7 +182,7 @@ end
 (** The logged traces will be pretty-printed as trees using the `printbox` package. This logger
     supports conditionally disabling a particular nesting of the logs, regardless of where
     in the nesting level [no_debug_if] is called. *)
-module PrintBox : functor (_ : Debug_ch) -> PrintBox_runtime
+module PrintBox : functor (_ : Shared_config) -> PrintBox_runtime
 
 val debug_file :
   ?time_tagged:[ `None | `Clock | `Elapsed ] ->
@@ -211,7 +211,7 @@ val debug_file :
     
     By default [backend] is [`Markdown PrintBox.default_md_config].
     See {!type:PrintBox.config} for details about PrintBox-specific parameters.
-    See {!debug_ch} for the details about shared parameters. *)
+    See {!shared_config} for the details about shared parameters. *)
 
 val debug :
   ?debug_ch:out_channel ->
@@ -232,7 +232,7 @@ val debug :
     and will not be time tagged.
 
     See {!type:PrintBox.config} for details about PrintBox-specific parameters.
-    See {!debug_ch} for the details about shared parameters. *)
+    See {!shared_config} for the details about shared parameters. *)
 
 val debug_flushing :
   ?debug_ch:out_channel ->
@@ -249,7 +249,7 @@ val debug_flushing :
     time tagged. At most one of [debug_ch], [filename] can be provided. Adds the suffix [".log"]
     to the file name if [filename] is given.
 
-    See {!debug_ch} for the details about shared parameters. *)
+    See {!shared_config} for the details about shared parameters. *)
 
 val forget_printbox : (module PrintBox_runtime) -> (module Debug_runtime)
 (** Upcasts the runtime. *)
