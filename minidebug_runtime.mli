@@ -26,7 +26,7 @@ module type Debug_ch = sig
   val debug_ch : unit -> out_channel
   val snapshot_ch : unit -> unit
   val reset_to_snapshot : unit -> unit
-  val time_tagged : bool
+  val time_tagged : [ `None | `Clock | `Elapsed ]
   val elapsed_times : elapsed_times
   val print_entry_ids : bool
   val global_prefix : string
@@ -34,7 +34,7 @@ module type Debug_ch = sig
 end
 
 val debug_ch :
-  ?time_tagged:bool ->
+  ?time_tagged:[ `None | `Clock | `Elapsed ] ->
   ?elapsed_times:elapsed_times ->
   ?print_entry_ids:bool ->
   ?global_prefix:string ->
@@ -44,8 +44,11 @@ val debug_ch :
   (module Debug_ch)
 (** Sets up a file with the given path, or if [split_files_after] is given, creates a directory
     to store the files. By default the logging will not be time tagged and will be appending
-    to the file / creating more files. If [split_files_after] is given and [for_append] is false,
-    clears the directory. If the opened file exceeds [split_files_after] characters, [Debug_ch.refresh_ch ()]
+    to the file / creating more files. If [time_tagged] is [`Clock], entries will be tagged with a date
+    and clock time; if it is [`Elapsed], they will be tagged with the time span elapsed since the start
+    of the process (using [Mtime_clock.elapsed]).
+    If [split_files_after] is given and [for_append] is false, clears the directory.
+    If the opened file exceeds [split_files_after] characters, [Debug_ch.refresh_ch ()]
     returns true; if in that case [Debug_ch.debug_ch ()] is called, it will create and return a new file.
 
     If [elapsed_times] is different from [Not_reported], the elapsed time spans are printed for log
@@ -182,7 +185,7 @@ end
 module PrintBox : functor (_ : Debug_ch) -> PrintBox_runtime
 
 val debug_file :
-  ?time_tagged:bool ->
+  ?time_tagged:[ `None | `Clock | `Elapsed ] ->
   ?elapsed_times:elapsed_times ->
   ?print_entry_ids:bool ->
   ?global_prefix:string ->
@@ -212,7 +215,7 @@ val debug_file :
 
 val debug :
   ?debug_ch:out_channel ->
-  ?time_tagged:bool ->
+  ?time_tagged:[ `None | `Clock | `Elapsed ] ->
   ?elapsed_times:elapsed_times ->
   ?print_entry_ids:bool ->
   ?global_prefix:string ->
@@ -234,7 +237,7 @@ val debug :
 val debug_flushing :
   ?debug_ch:out_channel ->
   ?filename:string ->
-  ?time_tagged:bool ->
+  ?time_tagged:[ `None | `Clock | `Elapsed ] ->
   ?elapsed_times:elapsed_times ->
   ?print_entry_ids:bool ->
   ?global_prefix:string ->

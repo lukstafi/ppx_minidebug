@@ -28,7 +28,7 @@ module type Debug_ch = sig
   val debug_ch : unit -> out_channel
   val snapshot_ch : unit -> unit
   val reset_to_snapshot : unit -> unit
-  val time_tagged : bool
+  val time_tagged : [ `None | `Clock | `Elapsed ]
   val elapsed_times : elapsed_times
   val print_entry_ids : bool
   val global_prefix : string
@@ -37,7 +37,7 @@ end
 
 let elapsed_default = Not_reported
 
-let debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default)
+let debug_ch ?(time_tagged = `None) ?(elapsed_times = elapsed_default)
     ?(print_entry_ids = false) ?(global_prefix = "") ?split_files_after
     ?(for_append = true) filename : (module Debug_ch) =
   let module Result = struct
@@ -180,10 +180,17 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
   let indent () = String.make (List.length !stack) ' '
 
   let () =
-    if Log_to.time_tagged then
-      Printf.fprintf !debug_ch "\nBEGIN DEBUG SESSION %sat time %s\n%!" global_prefix
-        (timestamp_to_string ())
-    else Printf.fprintf !debug_ch "\nBEGIN DEBUG SESSION %s\n%!" global_prefix
+    match Log_to.time_tagged with
+    | `None -> Printf.fprintf !debug_ch "\nBEGIN DEBUG SESSION %s\n%!" global_prefix
+    | `Clock ->
+        Printf.fprintf !debug_ch "\nBEGIN DEBUG SESSION %sat time %s\n%!" global_prefix
+          (timestamp_to_string ())
+    | `Elapsed ->
+        Printf.fprintf !debug_ch
+          "\nBEGIN DEBUG SESSION %sat elapsed %s, corresponding to time %s\n%!"
+          global_prefix
+          (Format.asprintf "%a" Mtime.Span.pp (time_elapsed ()))
+          (timestamp_to_string ())
 
   let close_log () =
     match !stack with
@@ -194,7 +201,12 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
     | { message = Some message; elapsed; _ } :: tl ->
         stack := tl;
         Printf.fprintf !debug_ch "%s%!" (indent ());
-        if time_tagged then Printf.fprintf !debug_ch "%s - %!" (timestamp_to_string ());
+        (match Log_to.time_tagged with
+        | `None -> ()
+        | `Clock -> Printf.fprintf !debug_ch "%s - %!" (timestamp_to_string ())
+        | `Elapsed ->
+            Printf.fprintf !debug_ch "%s - %!"
+              (Format.asprintf "%a" Mtime.Span.pp (time_elapsed ())));
         time_span
           ~none:(fun () -> ())
           ~some:(Printf.fprintf !debug_ch "%s %!")
@@ -213,7 +225,12 @@ module Flushing (Log_to : Debug_ch) : Debug_runtime = struct
   let open_log_preamble_full ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum
       ~message ~entry_id =
     Printf.fprintf !debug_ch "%s%!" (indent ());
-    if Log_to.time_tagged then Printf.fprintf !debug_ch "%s - %!" (timestamp_to_string ());
+    (match Log_to.time_tagged with
+    | `None -> ()
+    | `Clock -> Printf.fprintf !debug_ch "%s - %!" (timestamp_to_string ())
+    | `Elapsed ->
+        Printf.fprintf !debug_ch "%s - %!"
+          (Format.asprintf "%a" Mtime.Span.pp (time_elapsed ())));
     Printf.fprintf !debug_ch "%s%s%s begin \"%s\":%d:%d-%d:%d\n%!" global_prefix
       (opt_entry_id ~print_entry_ids ~entry_id)
       message fname start_lnum start_colnum end_lnum end_colnum;
@@ -365,10 +382,15 @@ module PrintBox (Log_to : Debug_ch) = struct
 
   let () =
     let log_header =
-      if time_tagged then
-        CFormat.asprintf "@.BEGIN DEBUG SESSION %sat time %a@." global_prefix pp_timestamp
-          ()
-      else CFormat.asprintf "@.BEGIN DEBUG SESSION %s@." global_prefix
+      match time_tagged with
+      | `None -> CFormat.asprintf "@.BEGIN DEBUG SESSION %s@." global_prefix
+      | `Clock ->
+          CFormat.asprintf "@.BEGIN DEBUG SESSION %sat time %a@." global_prefix
+            pp_timestamp ()
+      | `Elapsed ->
+          CFormat.asprintf
+            "@.BEGIN DEBUG SESSION %sat elapsed %a, corresponding to time %a@."
+            global_prefix Mtime.Span.pp (time_elapsed ()) pp_timestamp ()
     in
     output_string (debug_ch ()) log_header
 
@@ -588,12 +610,17 @@ module PrintBox (Log_to : Debug_ch) = struct
 
     let path =
       if brief then Printf.sprintf "\"%s\":%d:%d" fname start_lnum start_colnum
-      else if time_tagged then
-        Format.asprintf "\"%s\":%d:%d-%d:%d at time %a" fname start_lnum start_colnum
-          end_lnum end_colnum pp_timestamp ()
       else
-        Format.asprintf "\"%s\":%d:%d-%d:%d" fname start_lnum start_colnum end_lnum
-          end_colnum
+        match time_tagged with
+        | `None ->
+            Format.asprintf "\"%s\":%d:%d-%d:%d" fname start_lnum start_colnum end_lnum
+              end_colnum
+        | `Clock ->
+            Format.asprintf "\"%s\":%d:%d-%d:%d at time %a" fname start_lnum start_colnum
+              end_lnum end_colnum pp_timestamp ()
+        | `Elapsed ->
+            Format.asprintf "\"%s\":%d:%d-%d:%d at elapsed %a" fname start_lnum start_colnum
+              end_lnum end_colnum Mtime.Span.pp (time_elapsed ())
     in
     let exclude =
       match config.exclude_on_path with Some r -> Re.execp r message | None -> false
@@ -806,7 +833,7 @@ module PrintBox (Log_to : Debug_ch) = struct
   let global_prefix = global_prefix
 end
 
-let debug_file ?(time_tagged = false) ?(elapsed_times = elapsed_default)
+let debug_file ?(time_tagged = `None) ?(elapsed_times = elapsed_default)
     ?(print_entry_ids = false) ?(global_prefix = "") ?split_files_after ?highlight_terms
     ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0) ?(for_append = false)
     ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80) ?backend ?hyperlink
@@ -836,7 +863,7 @@ let debug_file ?(time_tagged = false) ?(elapsed_times = elapsed_default)
   Debug.config.snapshot_every_sec <- snapshot_every_sec;
   (module Debug)
 
-let debug ?debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default)
+let debug ?debug_ch ?(time_tagged = `None) ?(elapsed_times = elapsed_default)
     ?(print_entry_ids = false) ?(global_prefix = "") ?highlight_terms ?exclude_on_path
     ?(prune_upto = 0) ?(truncate_children = 0) ?(values_first_mode = false)
     ?(log_level = Everything) ?snapshot_every_sec () : (module PrintBox_runtime) =
@@ -873,7 +900,7 @@ let debug ?debug_ch ?(time_tagged = false) ?(elapsed_times = elapsed_default)
   Debug.config.snapshot_every_sec <- snapshot_every_sec;
   (module Debug)
 
-let debug_flushing ?debug_ch:d_ch ?filename ?(time_tagged = false)
+let debug_flushing ?debug_ch:d_ch ?filename ?(time_tagged = `None)
     ?(elapsed_times = elapsed_default) ?(print_entry_ids = false) ?(global_prefix = "")
     ?split_files_after ?(for_append = false) () : (module Debug_runtime) =
   let log_to =
