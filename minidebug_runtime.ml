@@ -125,7 +125,7 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   (module Result)
 
 module type Debug_runtime = sig
-  val close_log : unit -> unit
+  val close_log : entry_id:int -> unit
 
   val open_log :
     fname:string ->
@@ -205,9 +205,11 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
           (Format.asprintf "%a" pp_elapsed ())
           (timestamp_to_string ())
 
-  let close_log () =
+  let close_log ~entry_id =
     match !stack with
-    | [] -> failwith "ppx_minidebug: close_log must follow an earlier open_log"
+    | [] ->
+        failwith @@ "ppx_minidebug: close_log must follow an earlier open_log; entry_id="
+        ^ Int.to_string entry_id
     | { message; elapsed; _ } :: tl ->
         stack := tl;
         Printf.fprintf !debug_ch "%s%!" (indent ());
@@ -497,7 +499,7 @@ module PrintBox (Log_to : Shared_config) = struct
       reset_to_snapshot ();
       needs_snapshot_reset := false)
 
-  let close_log_impl ~from_snapshot () =
+  let close_log_impl ~from_snapshot ~entry_id =
     (* Note: we treat a tree under a box as part of that box. *)
     stack :=
       (* Design choice: exclude does not apply to its own entry -- its about propagating children. *)
@@ -538,15 +540,20 @@ module PrintBox (Log_to : Shared_config) = struct
           Stdlib.flush ch;
           if not from_snapshot then snapshot_ch ();
           []
-      | _ -> failwith "ppx_minidebug: close_log must follow an earlier open_log"
+      | _ ->
+          failwith
+          @@ "ppx_minidebug: close_log must follow an earlier open_log; entry_id="
+          ^ Int.to_string entry_id
 
-  let close_log () = close_log_impl ~from_snapshot:false ()
+  let close_log ~entry_id = close_log_impl ~from_snapshot:false ~entry_id
 
   let snapshot () =
     let current_stack = !stack in
     try
       while !stack <> [] do
-        close_log_impl ~from_snapshot:true ()
+        match !stack with
+        | { entry_id; _ } :: _ -> close_log_impl ~from_snapshot:true ~entry_id
+        | _ -> assert false
       done;
       needs_snapshot_reset := true;
       stack := current_stack
@@ -598,7 +605,7 @@ module PrintBox (Log_to : Shared_config) = struct
                   body = [ subentry ];
                 };
               ];
-            close_log ())
+            close_log ~entry_id)
 
   let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id =
     let uri =

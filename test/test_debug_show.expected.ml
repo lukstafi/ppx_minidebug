@@ -19,17 +19,19 @@ let foo (x : int) =
                  ((();
                    Debug_runtime.log_value_show ?descr:(Some "y")
                      ~entry_id:__entry_id ~is_result:true (([%show : int]) y));
-                  Debug_runtime.close_log ();
+                  Debug_runtime.close_log ~entry_id:__entry_id;
                   __res)
-             | exception e -> (Debug_runtime.close_log (); raise e)) in
+             | exception e ->
+                 (Debug_runtime.close_log ~entry_id:__entry_id; raise e)) in
           [x; y; 2 * y]
     with
     | __res ->
         (Debug_runtime.log_value_show ?descr:(Some "foo")
            ~entry_id:__entry_id ~is_result:true (([%show : int list]) __res);
-         Debug_runtime.close_log ();
+         Debug_runtime.close_log ~entry_id:__entry_id;
          __res)
-    | exception e -> (Debug_runtime.close_log (); raise e)) : int list)
+    | exception e -> (Debug_runtime.close_log ~entry_id:__entry_id; raise e)) : 
+  int list)
 let () = ignore @@ (List.hd @@ (foo 7))
 type t = {
   first: int ;
@@ -53,17 +55,19 @@ let bar (x : t) =
                  ((();
                    Debug_runtime.log_value_show ?descr:(Some "y")
                      ~entry_id:__entry_id ~is_result:true (([%show : int]) y));
-                  Debug_runtime.close_log ();
+                  Debug_runtime.close_log ~entry_id:__entry_id;
                   __res)
-             | exception e -> (Debug_runtime.close_log (); raise e)) in
+             | exception e ->
+                 (Debug_runtime.close_log ~entry_id:__entry_id; raise e)) in
           x.second * y
     with
     | __res ->
         (Debug_runtime.log_value_show ?descr:(Some "bar")
            ~entry_id:__entry_id ~is_result:true (([%show : int]) __res);
-         Debug_runtime.close_log ();
+         Debug_runtime.close_log ~entry_id:__entry_id;
          __res)
-    | exception e -> (Debug_runtime.close_log (); raise e)) : int)
+    | exception e -> (Debug_runtime.close_log ~entry_id:__entry_id; raise e)) : 
+  int)
 let () = ignore @@ (bar { first = 7; second = 42 })
 let baz (x : t) =
   (let __entry_id = Debug_runtime.get_entry_id () in
@@ -85,17 +89,19 @@ let baz (x : t) =
                    Debug_runtime.log_value_show ?descr:(Some "_yz")
                      ~entry_id:__entry_id ~is_result:true
                      (([%show : (int * int)]) _yz));
-                  Debug_runtime.close_log ();
+                  Debug_runtime.close_log ~entry_id:__entry_id;
                   __res)
-             | exception e -> (Debug_runtime.close_log (); raise e)) in
+             | exception e ->
+                 (Debug_runtime.close_log ~entry_id:__entry_id; raise e)) in
           (x.second * y) + z
     with
     | __res ->
         (Debug_runtime.log_value_show ?descr:(Some "baz")
            ~entry_id:__entry_id ~is_result:true (([%show : int]) __res);
-         Debug_runtime.close_log ();
+         Debug_runtime.close_log ~entry_id:__entry_id;
          __res)
-    | exception e -> (Debug_runtime.close_log (); raise e)) : int)
+    | exception e -> (Debug_runtime.close_log ~entry_id:__entry_id; raise e)) : 
+  int)
 let () = ignore @@ (baz { first = 7; second = 42 })
 let rec loop (depth : int) (x : t) =
   (let __entry_id = Debug_runtime.get_entry_id () in
@@ -129,9 +135,10 @@ let rec loop (depth : int) (x : t) =
                         Debug_runtime.log_value_show ?descr:(Some "y")
                           ~entry_id:__entry_id ~is_result:true
                           (([%show : int]) y));
-                       Debug_runtime.close_log ();
+                       Debug_runtime.close_log ~entry_id:__entry_id;
                        __res)
-                  | exception e -> (Debug_runtime.close_log (); raise e)) in
+                  | exception e ->
+                      (Debug_runtime.close_log ~entry_id:__entry_id; raise e)) in
                let z : int =
                  let __entry_id = Debug_runtime.get_entry_id () in
                  ();
@@ -146,15 +153,17 @@ let rec loop (depth : int) (x : t) =
                         Debug_runtime.log_value_show ?descr:(Some "z")
                           ~entry_id:__entry_id ~is_result:true
                           (([%show : int]) z));
-                       Debug_runtime.close_log ();
+                       Debug_runtime.close_log ~entry_id:__entry_id;
                        __res)
-                  | exception e -> (Debug_runtime.close_log (); raise e)) in
+                  | exception e ->
+                      (Debug_runtime.close_log ~entry_id:__entry_id; raise e)) in
                z + 7)
     with
     | __res ->
         (Debug_runtime.log_value_show ?descr:(Some "loop")
            ~entry_id:__entry_id ~is_result:true (([%show : int]) __res);
-         Debug_runtime.close_log ();
+         Debug_runtime.close_log ~entry_id:__entry_id;
          __res)
-    | exception e -> (Debug_runtime.close_log (); raise e)) : int)
+    | exception e -> (Debug_runtime.close_log ~entry_id:__entry_id; raise e)) : 
+  int)
 let () = ignore @@ (loop 0 { first = 7; second = 42 })
