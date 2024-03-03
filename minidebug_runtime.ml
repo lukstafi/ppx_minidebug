@@ -51,6 +51,7 @@ module type Shared_config = sig
   val elapsed_times : elapsed_times
   val location_format : location_format
   val print_entry_ids : bool
+  val verbose_entry_ids : bool
   val global_prefix : string
   val split_files_after : int option
 end
@@ -58,8 +59,9 @@ end
 let elapsed_default = Not_reported
 
 let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
-    ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(global_prefix = "")
-    ?split_files_after ?(for_append = true) filename : (module Shared_config) =
+    ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
+    ?(global_prefix = "") ?split_files_after ?(for_append = true) filename :
+    (module Shared_config) =
   let module Result = struct
     let () =
       match split_files_after with
@@ -119,6 +121,7 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     let elapsed_times = elapsed_times
     let location_format = location_format
     let print_entry_ids = print_entry_ids
+    let verbose_entry_ids = verbose_entry_ids
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = split_files_after
   end in
@@ -180,6 +183,9 @@ let time_span ~none ~some elapsed elapsed_times =
 let opt_entry_id ~print_entry_ids ~entry_id =
   if print_entry_ids && entry_id >= 0 then "{#" ^ Int.to_string entry_id ^ "} " else ""
 
+let opt_verbose_entry_id ~verbose_entry_ids ~entry_id =
+  if verbose_entry_ids && entry_id >= 0 then "{#" ^ Int.to_string entry_id ^ "} " else ""
+
 module Flushing (Log_to : Shared_config) : Debug_runtime = struct
   open Log_to
 
@@ -240,6 +246,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
     Printf.fprintf !debug_ch "%s%s%s%s begin %!" (indent ()) global_prefix
       (opt_entry_id ~print_entry_ids ~entry_id)
       message;
+    let message = opt_verbose_entry_id ~verbose_entry_ids ~entry_id ^ message in
     (match Log_to.location_format with
     | No_location -> ()
     | File_only -> Printf.fprintf !debug_ch "\"%s\":%!" fname
@@ -591,6 +598,20 @@ module PrintBox (Log_to : Shared_config) = struct
             snapshot ())
 
   let stack_next ~entry_id ~is_result ~prefixed (hl, b) =
+    let opt_eid = opt_verbose_entry_id ~verbose_entry_ids ~entry_id in
+    let rec eid b =
+      match B.view b with
+      | B.Empty -> B.line opt_eid
+      | B.Text { l = []; style } -> B.line_with_style style opt_eid
+      | B.Text { l = s :: more; style } -> B.lines_with_style style ((opt_eid ^ s) :: more)
+      | B.Frame b -> B.frame @@ eid b
+      | B.Pad ({ x; y }, b) -> B.pad' ~col:x ~lines:y @@ eid b
+      | B.Align { h; v; inner } -> B.align ~h ~v @@ eid inner
+      | B.Grid _ -> B.hlist ~bars:false [ B.line opt_eid; b ]
+      | B.Tree (indent, h, b) -> B.tree ~indent (eid h) @@ Array.to_list b
+      | B.Link { uri; inner } -> B.link ~uri @@ eid inner
+    in
+    let b = if opt_eid = "" then b else eid b in
     match config.log_level with
     | Nothing -> ()
     | Prefixed _ when not prefixed -> ()
@@ -859,11 +880,12 @@ module PrintBox (Log_to : Shared_config) = struct
 end
 
 let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
-    ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(global_prefix = "")
-    ?split_files_after ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
-    ?(truncate_children = 0) ?(for_append = false) ?(boxify_sexp_from_size = 50)
-    ?(max_inline_sexp_length = 80) ?backend ?hyperlink ?(values_first_mode = false)
-    ?(log_level = Everything) ?snapshot_every_sec filename : (module PrintBox_runtime) =
+    ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
+    ?(global_prefix = "") ?split_files_after ?highlight_terms ?exclude_on_path
+    ?(prune_upto = 0) ?(truncate_children = 0) ?(for_append = false)
+    ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80) ?backend ?hyperlink
+    ?(values_first_mode = false) ?(log_level = Everything) ?snapshot_every_sec filename :
+    (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename ^ ".md"
@@ -873,7 +895,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   let module Debug =
     PrintBox
       ((val shared_config ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
-              ~global_prefix ~for_append ?split_files_after filename)) in
+              ~verbose_entry_ids ~global_prefix ~for_append ?split_files_after filename)) in
   Debug.config.backend <- Option.value backend ~default:(`Markdown default_md_config);
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
   Debug.config.max_inline_sexp_length <- max_inline_sexp_length;
@@ -889,10 +911,10 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   (module Debug)
 
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
-    ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(global_prefix = "")
-    ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
-    ?(values_first_mode = false) ?(log_level = Everything) ?snapshot_every_sec () :
-    (module PrintBox_runtime) =
+    ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
+    ?(global_prefix = "") ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
+    ?(truncate_children = 0) ?(values_first_mode = false) ?(log_level = Everything)
+    ?snapshot_every_sec () : (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
     let ch = match debug_ch with None -> stdout | Some ch -> ch
@@ -915,6 +937,7 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
     let elapsed_times = elapsed_times
     let location_format = location_format
     let print_entry_ids = print_entry_ids
+    let verbose_entry_ids = verbose_entry_ids
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = None
   end) in
@@ -929,8 +952,8 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
 
 let debug_flushing ?debug_ch:d_ch ?filename ?(time_tagged = Not_tagged)
     ?(elapsed_times = elapsed_default) ?(location_format = Beg_pos)
-    ?(print_entry_ids = false) ?(global_prefix = "") ?split_files_after
-    ?(for_append = false) () : (module Debug_runtime) =
+    ?(print_entry_ids = false) ?(verbose_entry_ids = false) ?(global_prefix = "")
+    ?split_files_after ?(for_append = false) () : (module Debug_runtime) =
   let log_to =
     match (filename, d_ch) with
     | None, _ ->
@@ -956,6 +979,7 @@ let debug_flushing ?debug_ch:d_ch ?filename ?(time_tagged = Not_tagged)
           let elapsed_times = elapsed_times
           let location_format = location_format
           let print_entry_ids = print_entry_ids
+          let verbose_entry_ids = verbose_entry_ids
           let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
           let split_files_after = split_files_after
         end : Shared_config)

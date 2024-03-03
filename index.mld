@@ -695,6 +695,8 @@ the runtime, and look for the header with the log's entry id. Example from the t
           └─{orphaned from #1} |}]
 ]}
 
+[~verbose_entry_ids:true] tags all logs with entry ids, it shouldn't be needed in regular use.
+
 {2 Reducing the size of generated logs}
 
 Summary of possibilities:

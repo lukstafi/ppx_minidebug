@@ -1,5 +1,9 @@
 ## [1.4.0] -- current
 
+### Added
+
+- A setting `verbose_entry_ids` that prefixes logged values with entry id tags.
+
 ### Changed
 
 - Fixes [#32](https://github.com/lukstafi/ppx_minidebug/issues/32): optionally output time spans instead of clock times.

@@ -39,6 +39,7 @@ module type Shared_config = sig
   val elapsed_times : elapsed_times
   val location_format : location_format
   val print_entry_ids : bool
+  val verbose_entry_ids : bool
   val global_prefix : string
   val split_files_after : int option
 end
@@ -48,6 +49,7 @@ val shared_config :
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
   ?print_entry_ids:bool ->
+  ?verbose_entry_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?for_append:bool ->
@@ -68,7 +70,8 @@ val shared_config :
     defaults to [Not_reported].
 
     If [print_entry_ids] is true, the [entry_id] identifiers are printed on log headers with the syntax
-    [{#ID}]; by default they are omitted.
+    [{#ID}]; by default they are omitted. If [verbose_entry_ids] is true, the [entry_id] identifiers
+    are also printed on logged values.
 
     If [global_prefix] is given, the log header messages (and the log closing messages for the flushing
     backend) are prefixed with it. *)
@@ -192,6 +195,7 @@ val debug_file :
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
   ?print_entry_ids:bool ->
+  ?verbose_entry_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?highlight_terms:Re.t ->
@@ -223,6 +227,7 @@ val debug :
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
   ?print_entry_ids:bool ->
+  ?verbose_entry_ids:bool ->
   ?global_prefix:string ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
@@ -246,6 +251,7 @@ val debug_flushing :
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
   ?print_entry_ids:bool ->
+  ?verbose_entry_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?for_append:bool ->
