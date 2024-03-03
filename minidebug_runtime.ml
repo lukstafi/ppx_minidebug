@@ -187,7 +187,12 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
   let max_num_children = ref None
   let debug_ch = ref @@ debug_ch ()
 
-  type entry = { message : string; num_children : int; elapsed : Mtime.span }
+  type entry = {
+    message : string;
+    num_children : int;
+    elapsed : Mtime.span;
+    entry_id : int;
+  }
 
   let stack = ref []
   let indent () = String.make (List.length !stack) ' '
@@ -210,8 +215,13 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
     | [] ->
         failwith @@ "ppx_minidebug: close_log must follow an earlier open_log; entry_id="
         ^ Int.to_string entry_id
-    | { message; elapsed; _ } :: tl ->
+    | { message; elapsed; entry_id = open_entry_id; _ } :: tl ->
         stack := tl;
+        if open_entry_id <> entry_id then
+          failwith
+            ("ppx_minidebug: lexical scope of close_log not matching its dynamic scope; \
+              open entry_id=" ^ Int.to_string open_entry_id ^ ", close entry_id="
+           ^ Int.to_string entry_id);
         Printf.fprintf !debug_ch "%s%!" (indent ());
         (match Log_to.time_tagged with
         | Not_tagged -> ()
@@ -243,7 +253,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
     | Not_tagged -> Printf.fprintf !debug_ch "\n%!"
     | Clock -> Printf.fprintf !debug_ch " %s\n%!" (timestamp_to_string ())
     | Elapsed -> Printf.fprintf !debug_ch " %s\n%!" (Format.asprintf "%a" pp_elapsed ()));
-    stack := { message; elapsed = time_elapsed (); num_children = 0 } :: !stack
+    stack := { message; elapsed = time_elapsed (); num_children = 0; entry_id } :: !stack
 
   let bump_stack_entry entry_id =
     match !stack with
@@ -500,6 +510,16 @@ module PrintBox (Log_to : Shared_config) = struct
       needs_snapshot_reset := false)
 
   let close_log_impl ~from_snapshot ~entry_id =
+    (match !stack with
+    | { entry_id = open_entry_id; _ } :: _ when open_entry_id <> entry_id ->
+        failwith
+          ("ppx_minidebug: lexical scope of close_log not matching its dynamic scope; \
+            open entry_id=" ^ Int.to_string open_entry_id ^ ", close entry_id="
+         ^ Int.to_string entry_id)
+    | [] ->
+        failwith @@ "ppx_minidebug: close_log must follow an earlier open_log; entry_id="
+        ^ Int.to_string entry_id
+    | _ -> ());
     (* Note: we treat a tree under a box as part of that box. *)
     stack :=
       (* Design choice: exclude does not apply to its own entry -- its about propagating children. *)
@@ -540,10 +560,7 @@ module PrintBox (Log_to : Shared_config) = struct
           Stdlib.flush ch;
           if not from_snapshot then snapshot_ch ();
           []
-      | _ ->
-          failwith
-          @@ "ppx_minidebug: close_log must follow an earlier open_log; entry_id="
-          ^ Int.to_string entry_id
+      | [] -> assert false
 
   let close_log ~entry_id = close_log_impl ~from_snapshot:false ~entry_id
 
@@ -605,7 +622,7 @@ module PrintBox (Log_to : Shared_config) = struct
                   body = [ subentry ];
                 };
               ];
-            close_log ~entry_id)
+            close_log ~entry_id:(-1))
 
   let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id =
     let uri =
