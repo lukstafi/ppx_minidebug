@@ -15,9 +15,15 @@ let rec loop_exceeded (x : int) =
             (x - 1) / 2 in
           if x <= 0 then 0 else z + (loop_exceeded (z + (x / 2)))
     with
-    | __res -> ((); Debug_runtime.close_log ~entry_id:__entry_id; __res)
-    | exception e -> (Debug_runtime.close_log ~entry_id:__entry_id; raise e)) : 
-  int)
+    | __res ->
+        (();
+         Debug_runtime.close_log ~fname:"test_debug_log_prefixed.ml"
+           ~start_lnum:6 ~entry_id:__entry_id;
+         __res)
+    | exception e ->
+        (Debug_runtime.close_log ~fname:"test_debug_log_prefixed.ml"
+           ~start_lnum:6 ~entry_id:__entry_id;
+         raise e)) : int)
 let () =
   try print_endline @@ (Int.to_string @@ (loop_exceeded 7))
   with | _ -> print_endline "Raised exception."
@@ -45,17 +51,33 @@ let bar () =
                                  (_baz : int)))
                     with
                     | () ->
-                        ((); Debug_runtime.close_log ~entry_id:__entry_id; ())
+                        (();
+                         Debug_runtime.close_log
+                           ~fname:"test_debug_log_prefixed.ml" ~start_lnum:19
+                           ~entry_id:__entry_id;
+                         ())
                     | exception e ->
-                        (Debug_runtime.close_log ~entry_id:__entry_id;
+                        (Debug_runtime.close_log
+                           ~fname:"test_debug_log_prefixed.ml" ~start_lnum:19
+                           ~entry_id:__entry_id;
                          raise e))
                  done
            with
-           | () -> Debug_runtime.close_log ~entry_id:__entry_id
+           | () ->
+               Debug_runtime.close_log ~fname:"test_debug_log_prefixed.ml"
+                 ~start_lnum:18 ~entry_id:__entry_id
            | exception e ->
-               (Debug_runtime.close_log ~entry_id:__entry_id; raise e))
+               (Debug_runtime.close_log ~fname:"test_debug_log_prefixed.ml"
+                  ~start_lnum:18 ~entry_id:__entry_id;
+                raise e))
     with
-    | __res -> ((); Debug_runtime.close_log ~entry_id:__entry_id; __res)
-    | exception e -> (Debug_runtime.close_log ~entry_id:__entry_id; raise e)) : 
-  unit)
+    | __res ->
+        (();
+         Debug_runtime.close_log ~fname:"test_debug_log_prefixed.ml"
+           ~start_lnum:17 ~entry_id:__entry_id;
+         __res)
+    | exception e ->
+        (Debug_runtime.close_log ~fname:"test_debug_log_prefixed.ml"
+           ~start_lnum:17 ~entry_id:__entry_id;
+         raise e)) : unit)
 let () = try bar () with | _ -> print_endline "Raised exception."

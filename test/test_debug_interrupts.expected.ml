@@ -22,7 +22,8 @@ let rec loop_exceeded (x : int) =
         (Debug_runtime.log_value_show ~descr:"loop_exceeded"
            ~entry_id:__entry_id ~is_result:false
            "<max_nesting_depth exceeded>";
-         Debug_runtime.close_log ~entry_id:__entry_id;
+         Debug_runtime.close_log ~fname:"test_debug_interrupts.ml"
+           ~start_lnum:7 ~entry_id:__entry_id;
          failwith "ppx_minidebug: max_nesting_depth exceeded")
       else
         (match let z : int =
@@ -43,7 +44,9 @@ let rec loop_exceeded (x : int) =
                       (Debug_runtime.log_value_show ~descr:"z"
                          ~entry_id:__entry_id ~is_result:false
                          "<max_nesting_depth exceeded>";
-                       Debug_runtime.close_log ~entry_id:__entry_id;
+                       Debug_runtime.close_log
+                         ~fname:"test_debug_interrupts.ml" ~start_lnum:8
+                         ~entry_id:__entry_id;
                        failwith "ppx_minidebug: max_nesting_depth exceeded")
                     else
                       (match (x - 1) / 2 with
@@ -52,10 +55,14 @@ let rec loop_exceeded (x : int) =
                              Debug_runtime.log_value_show
                                ?descr:(Some "z : int") ~entry_id:__entry_id
                                ~is_result:true (([%show : int]) z));
-                            Debug_runtime.close_log ~entry_id:__entry_id;
+                            Debug_runtime.close_log
+                              ~fname:"test_debug_interrupts.ml" ~start_lnum:8
+                              ~entry_id:__entry_id;
                             __res)
                        | exception e ->
-                           (Debug_runtime.close_log ~entry_id:__entry_id;
+                           (Debug_runtime.close_log
+                              ~fname:"test_debug_interrupts.ml" ~start_lnum:8
+                              ~entry_id:__entry_id;
                             raise e))) in
                if x <= 0 then 0 else z + (loop_exceeded (z + (x / 2)))
          with
@@ -63,11 +70,13 @@ let rec loop_exceeded (x : int) =
              (Debug_runtime.log_value_show
                 ?descr:(Some "loop_exceeded : int") ~entry_id:__entry_id
                 ~is_result:true (([%show : int]) __res);
-              Debug_runtime.close_log ~entry_id:__entry_id;
+              Debug_runtime.close_log ~fname:"test_debug_interrupts.ml"
+                ~start_lnum:7 ~entry_id:__entry_id;
               __res)
          | exception e ->
-             (Debug_runtime.close_log ~entry_id:__entry_id; raise e))) : 
-  int)
+             (Debug_runtime.close_log ~fname:"test_debug_interrupts.ml"
+                ~start_lnum:7 ~entry_id:__entry_id;
+              raise e))) : int)
 let () =
   try print_endline @@ (Int.to_string @@ (loop_exceeded 17))
   with | _ -> print_endline "Raised exception."
@@ -87,7 +96,8 @@ let bar () =
       then
         (Debug_runtime.log_value_show ~descr:"bar" ~entry_id:__entry_id
            ~is_result:false "<max_nesting_depth exceeded>";
-         Debug_runtime.close_log ~entry_id:__entry_id;
+         Debug_runtime.close_log ~fname:"test_debug_interrupts.ml"
+           ~start_lnum:15 ~entry_id:__entry_id;
          failwith "ppx_minidebug: max_nesting_depth exceeded")
       else
         (match let __entry_id = Debug_runtime.get_entry_id () in
@@ -116,7 +126,9 @@ let bar () =
                              (Debug_runtime.log_value_show ~descr:"i"
                                 ~entry_id:__entry_id ~is_result:false
                                 "<max_nesting_depth exceeded>";
-                              Debug_runtime.close_log ~entry_id:__entry_id;
+                              Debug_runtime.close_log
+                                ~fname:"test_debug_interrupts.ml"
+                                ~start_lnum:17 ~entry_id:__entry_id;
                               failwith
                                 "ppx_minidebug: max_nesting_depth exceeded")
                            else
@@ -150,6 +162,8 @@ let bar () =
                                               ~is_result:false
                                               "<max_nesting_depth exceeded>";
                                             Debug_runtime.close_log
+                                              ~fname:"test_debug_interrupts.ml"
+                                              ~start_lnum:17
                                               ~entry_id:__entry_id;
                                             failwith
                                               "ppx_minidebug: max_nesting_depth exceeded")
@@ -163,10 +177,14 @@ let bar () =
                                                     ~is_result:true
                                                     (([%show : int]) _baz));
                                                  Debug_runtime.close_log
+                                                   ~fname:"test_debug_interrupts.ml"
+                                                   ~start_lnum:17
                                                    ~entry_id:__entry_id;
                                                  __res)
                                             | exception e ->
                                                 (Debug_runtime.close_log
+                                                   ~fname:"test_debug_interrupts.ml"
+                                                   ~start_lnum:17
                                                    ~entry_id:__entry_id;
                                                  raise e))) in
                                     ()
@@ -174,24 +192,33 @@ let bar () =
                               | () ->
                                   (();
                                    Debug_runtime.close_log
-                                     ~entry_id:__entry_id;
+                                     ~fname:"test_debug_interrupts.ml"
+                                     ~start_lnum:17 ~entry_id:__entry_id;
                                    ())
                               | exception e ->
                                   (Debug_runtime.close_log
-                                     ~entry_id:__entry_id;
+                                     ~fname:"test_debug_interrupts.ml"
+                                     ~start_lnum:17 ~entry_id:__entry_id;
                                    raise e)))
                       done
                 with
-                | () -> Debug_runtime.close_log ~entry_id:__entry_id
+                | () ->
+                    Debug_runtime.close_log ~fname:"test_debug_interrupts.ml"
+                      ~start_lnum:16 ~entry_id:__entry_id
                 | exception e ->
-                    (Debug_runtime.close_log ~entry_id:__entry_id; raise e))
+                    (Debug_runtime.close_log
+                       ~fname:"test_debug_interrupts.ml" ~start_lnum:16
+                       ~entry_id:__entry_id;
+                     raise e))
          with
          | __res ->
              (Debug_runtime.log_value_show ?descr:(Some "bar : unit")
                 ~entry_id:__entry_id ~is_result:true (([%show : unit]) __res);
-              Debug_runtime.close_log ~entry_id:__entry_id;
+              Debug_runtime.close_log ~fname:"test_debug_interrupts.ml"
+                ~start_lnum:15 ~entry_id:__entry_id;
               __res)
          | exception e ->
-             (Debug_runtime.close_log ~entry_id:__entry_id; raise e))) : 
-  unit)
+             (Debug_runtime.close_log ~fname:"test_debug_interrupts.ml"
+                ~start_lnum:15 ~entry_id:__entry_id;
+              raise e))) : unit)
 let () = try bar () with | _ -> print_endline "Raised exception."

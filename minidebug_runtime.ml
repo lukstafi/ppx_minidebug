@@ -128,7 +128,7 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   (module Result)
 
 module type Debug_runtime = sig
-  val close_log : entry_id:int -> unit
+  val close_log : fname:string -> start_lnum:int -> entry_id:int -> unit
 
   val open_log :
     fname:string ->
@@ -216,18 +216,21 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
           (Format.asprintf "%a" pp_elapsed ())
           (timestamp_to_string ())
 
-  let close_log ~entry_id =
+  let close_log ~fname ~start_lnum ~entry_id =
     match !stack with
     | [] ->
-        failwith @@ "ppx_minidebug: close_log must follow an earlier open_log; entry_id="
-        ^ Int.to_string entry_id
+        let log_loc = Printf.sprintf "\"%s\":%d: entry_id=%d" fname start_lnum entry_id in
+        failwith @@ "ppx_minidebug: close_log must follow an earlier open_log; " ^ log_loc
     | { message; elapsed; entry_id = open_entry_id; _ } :: tl ->
         stack := tl;
-        if open_entry_id <> entry_id then
-          failwith
-            ("ppx_minidebug: lexical scope of close_log not matching its dynamic scope; \
-              open entry_id=" ^ Int.to_string open_entry_id ^ ", close entry_id="
-           ^ Int.to_string entry_id);
+        (if open_entry_id <> entry_id then
+           let log_loc =
+             Printf.sprintf "\"%s\":%d: open entry_id=%d, close entry_id=%d" fname
+               start_lnum open_entry_id entry_id
+           in
+           failwith
+           @@ "ppx_minidebug: lexical scope of close_log not matching its dynamic scope; "
+           ^ log_loc);
         Printf.fprintf !debug_ch "%s%!" (indent ());
         (match Log_to.time_tagged with
         | Not_tagged -> ()
@@ -516,16 +519,19 @@ module PrintBox (Log_to : Shared_config) = struct
       reset_to_snapshot ();
       needs_snapshot_reset := false)
 
-  let close_log_impl ~from_snapshot ~entry_id =
+  let close_log_impl ~from_snapshot ~fname ~start_lnum ~entry_id =
     (match !stack with
     | { entry_id = open_entry_id; _ } :: _ when open_entry_id <> entry_id ->
+        let log_loc =
+          Printf.sprintf "\"%s\":%d: open entry_id=%d, close entry_id=%d" fname start_lnum
+            open_entry_id entry_id
+        in
         failwith
-          ("ppx_minidebug: lexical scope of close_log not matching its dynamic scope; \
-            open entry_id=" ^ Int.to_string open_entry_id ^ ", close entry_id="
-         ^ Int.to_string entry_id)
+        @@ "ppx_minidebug: lexical scope of close_log not matching its dynamic scope; "
+        ^ log_loc
     | [] ->
-        failwith @@ "ppx_minidebug: close_log must follow an earlier open_log; entry_id="
-        ^ Int.to_string entry_id
+        let log_loc = Printf.sprintf "\"%s\":%d: entry_id=%d" fname start_lnum entry_id in
+        failwith @@ "ppx_minidebug: close_log must follow an earlier open_log; " ^ log_loc
     | _ -> ());
     (* Note: we treat a tree under a box as part of that box. *)
     stack :=
@@ -569,14 +575,17 @@ module PrintBox (Log_to : Shared_config) = struct
           []
       | [] -> assert false
 
-  let close_log ~entry_id = close_log_impl ~from_snapshot:false ~entry_id
+  let close_log ~fname ~start_lnum ~entry_id =
+    close_log_impl ~from_snapshot:false ~fname ~start_lnum ~entry_id
 
   let snapshot () =
     let current_stack = !stack in
     try
       while !stack <> [] do
         match !stack with
-        | { entry_id; _ } :: _ -> close_log_impl ~from_snapshot:true ~entry_id
+        | { entry_id; _ } :: _ ->
+            close_log_impl ~from_snapshot:true ~fname:"snapshotting"
+              ~start_lnum:(List.length !stack) ~entry_id
         | _ -> assert false
       done;
       needs_snapshot_reset := true;
@@ -643,7 +652,7 @@ module PrintBox (Log_to : Shared_config) = struct
                   body = [ subentry ];
                 };
               ];
-            close_log ~entry_id:(-1))
+            close_log ~fname:"orphaned" ~start_lnum:entry_id ~entry_id:(-1))
 
   let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id =
     let uri =

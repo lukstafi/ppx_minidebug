@@ -81,7 +81,7 @@ val shared_config :
     [ppx_minidebug]} syntax extension, provide a module called [Debug_runtime] with
     this signature in scope of the instrumented code. *)
 module type Debug_runtime = sig
-  val close_log : entry_id:int -> unit
+  val close_log : fname:string -> start_lnum:int -> entry_id:int -> unit
 
   val open_log :
     fname:string ->

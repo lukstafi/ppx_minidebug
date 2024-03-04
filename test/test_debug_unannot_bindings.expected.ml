@@ -7,5 +7,12 @@ let _result =
     ~start_lnum:4 ~start_colnum:15 ~end_lnum:4 ~end_colnum:22
     ~message:"_result" ~entry_id:__entry_id;
   (match let a = 1 in let b = 2 in let point = (a, b) in ignore point with
-   | _ as __res -> ((); Debug_runtime.close_log ~entry_id:__entry_id; __res)
-   | exception e -> (Debug_runtime.close_log ~entry_id:__entry_id; raise e))
+   | _ as __res ->
+       (();
+        Debug_runtime.close_log ~fname:"test_debug_unannot_bindings.ml"
+          ~start_lnum:4 ~entry_id:__entry_id;
+        __res)
+   | exception e ->
+       (Debug_runtime.close_log ~fname:"test_debug_unannot_bindings.ml"
+          ~start_lnum:4 ~entry_id:__entry_id;
+        raise e))

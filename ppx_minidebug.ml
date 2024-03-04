@@ -176,6 +176,13 @@ let open_log ?(message = "") ~loc () =
         ~end_colnum:[%e A.eint ~loc (loc.loc_end.pos_cnum - loc.loc_end.pos_bol)]
         ~message:[%e A.estring ~loc message] ~entry_id:__entry_id]
 
+let close_log ~loc =
+  [%expr
+    Debug_runtime.close_log
+      ~fname:[%e A.estring ~loc loc.loc_start.pos_fname]
+      ~start_lnum:[%e A.eint ~loc loc.loc_start.pos_lnum]
+      ~entry_id:__entry_id]
+
 let to_descr context ~loc ~descr_loc typ =
   match descr_loc with
   | None -> [%expr None]
@@ -506,16 +513,16 @@ let entry_with_interrupts context ~loc ~descr_loc ~log_count_before ?header ~pre
           [%e preamble];
           if Debug_runtime.exceeds_max_nesting () then (
             [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
-            Debug_runtime.close_log ~entry_id:__entry_id;
+            [%e close_log ~loc];
             failwith "ppx_minidebug: max_nesting_depth exceeded")
           else
             match [%e entry] with
             | [%p result] ->
                 [%e log_result];
-                Debug_runtime.close_log ~entry_id:__entry_id;
+                [%e close_log ~loc];
                 [%e pat2expr result]
             | exception e ->
-                Debug_runtime.close_log ~entry_id:__entry_id;
+                [%e close_log ~loc];
                 raise e)]
     else
       [%expr
@@ -525,10 +532,10 @@ let entry_with_interrupts context ~loc ~descr_loc ~log_count_before ?header ~pre
         match [%e entry] with
         | [%p result] ->
             [%e log_result];
-            Debug_runtime.close_log ~entry_id:__entry_id;
+            [%e close_log ~loc];
             [%e pat2expr result]
         | exception e ->
-            Debug_runtime.close_log ~entry_id:__entry_id;
+            [%e close_log ~loc];
             raise e]
 
 let debug_body context callback ~loc ~message ~descr_loc ~log_count_before ~arg_logs typ
@@ -801,9 +808,7 @@ let debug_binding context callback vb =
                        [%e e2]])
                    [%expr ()]
             in
-            let preamble =
-              open_log ~message:descr_loc.txt ~loc:descr_loc.loc ()
-            in
+            let preamble = open_log ~message:descr_loc.txt ~loc:descr_loc.loc () in
             entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
               ~entry:(callback nested exp) ~result ~log_result ()
     in
@@ -1132,10 +1137,10 @@ let traverse_expression =
                   [%e open_log ~message ~loc ()];
                   match [%e then_] with
                   | if_then__result ->
-                      Debug_runtime.close_log ~entry_id:__entry_id;
+                      [%e close_log ~loc];
                       if_then__result
                   | exception e ->
-                      Debug_runtime.close_log ~entry_id:__entry_id;
+                      [%e close_log ~loc];
                       raise e]
               in
               if context.log_level <> Everything && log_count_before = !global_log_count
@@ -1155,10 +1160,10 @@ let traverse_expression =
                       [%e open_log ~message ~loc ()];
                       match [%e else_] with
                       | if_else__result ->
-                          Debug_runtime.close_log ~entry_id:__entry_id;
+                          [%e close_log ~loc];
                           if_else__result
                       | exception e ->
-                          Debug_runtime.close_log ~entry_id:__entry_id;
+                          [%e close_log ~loc];
                           raise e])
                   else_
               in
@@ -1179,9 +1184,7 @@ let traverse_expression =
                   []
               in
               let preamble =
-                open_log
-                  ~message:("<for " ^ descr_loc.txt ^ ">")
-                  ~loc:descr_loc.loc ()
+                open_log ~message:("<for " ^ descr_loc.txt ^ ">") ~loc:descr_loc.loc ()
               in
               let header =
                 log_value context ~loc ~typ ~descr_loc ~is_explicit:false ~is_result:false
@@ -1200,9 +1203,9 @@ let traverse_expression =
                 let __entry_id = Debug_runtime.get_entry_id () in
                 [%e open_log ~message ~loc ()];
                 match [%e { exp with pexp_desc }] with
-                | () -> Debug_runtime.close_log ~entry_id:__entry_id
+                | () -> [%e close_log ~loc]
                 | exception e ->
-                    Debug_runtime.close_log ~entry_id:__entry_id;
+                    [%e close_log ~loc];
                     raise e]
             in
             if context.log_level <> Everything && log_count_before = !global_log_count
@@ -1215,10 +1218,7 @@ let traverse_expression =
             let body =
               let loc = body.pexp_loc in
               let descr_loc = { txt = "<while body>"; loc } in
-              let preamble =
-                open_log ~message:"<while loop>" ~loc:descr_loc.loc
-                  ()
-              in
+              let preamble = open_log ~message:"<while loop>" ~loc:descr_loc.loc () in
               entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
                 ~entry:(callback context body)
                 ~result:[%pat? ()]
@@ -1231,9 +1231,9 @@ let traverse_expression =
                 let __entry_id = Debug_runtime.get_entry_id () in
                 [%e open_log ~message ~loc ()];
                 match [%e { exp with pexp_desc }] with
-                | () -> Debug_runtime.close_log ~entry_id:__entry_id
+                | () -> [%e close_log ~loc]
                 | exception e ->
-                    Debug_runtime.close_log ~entry_id:__entry_id;
+                    [%e close_log ~loc];
                     raise e]
             in
             if context.log_level <> Everything && log_count_before = !global_log_count

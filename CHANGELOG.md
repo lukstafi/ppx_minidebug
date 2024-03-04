@@ -9,7 +9,7 @@
 - Fixes [#32](https://github.com/lukstafi/ppx_minidebug/issues/32): optionally output time spans instead of clock times.
 - Breaking: renames `Debug_ch` to `Shared_config`.
 - Breaking: replaces the `open_log_preamble_brief` and `open_log_preamble_full` with `open_log` and a setting `location_format`.
-- Breaking: Adds an `entry_id` parameter to `close_log` to debug lexical-vs-dynamic scope mismatches.
+- Breaking: Adds `fname`, `start_lnum`, `entry_id` parameters to `close_log` to debug lexical-vs-dynamic scope mismatches and spurious closes.
 
 ## [1.3.0] -- 2024-02-28
 
