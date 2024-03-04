@@ -219,14 +219,17 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
   let close_log ~fname ~start_lnum ~entry_id =
     match !stack with
     | [] ->
-        let log_loc = Printf.sprintf "\"%s\":%d: entry_id=%d" fname start_lnum entry_id in
+        let log_loc =
+          Printf.sprintf "%s\"%s\":%d: entry_id=%d" global_prefix fname start_lnum
+            entry_id
+        in
         failwith @@ "ppx_minidebug: close_log must follow an earlier open_log; " ^ log_loc
     | { message; elapsed; entry_id = open_entry_id; _ } :: tl ->
         stack := tl;
         (if open_entry_id <> entry_id then
            let log_loc =
-             Printf.sprintf "\"%s\":%d: open entry_id=%d, close entry_id=%d" fname
-               start_lnum open_entry_id entry_id
+             Printf.sprintf "%s\"%s\":%d: open entry_id=%d, close entry_id=%d"
+               global_prefix fname start_lnum open_entry_id entry_id
            in
            failwith
            @@ "ppx_minidebug: lexical scope of close_log not matching its dynamic scope; "
@@ -523,14 +526,17 @@ module PrintBox (Log_to : Shared_config) = struct
     (match !stack with
     | { entry_id = open_entry_id; _ } :: _ when open_entry_id <> entry_id ->
         let log_loc =
-          Printf.sprintf "\"%s\":%d: open entry_id=%d, close entry_id=%d" fname start_lnum
-            open_entry_id entry_id
+          Printf.sprintf "%s\"%s\":%d: open entry_id=%d, close entry_id=%d" global_prefix
+            fname start_lnum open_entry_id entry_id
         in
         failwith
         @@ "ppx_minidebug: lexical scope of close_log not matching its dynamic scope; "
         ^ log_loc
     | [] ->
-        let log_loc = Printf.sprintf "\"%s\":%d: entry_id=%d" fname start_lnum entry_id in
+        let log_loc =
+          Printf.sprintf "%s\"%s\":%d: entry_id=%d" global_prefix fname start_lnum
+            entry_id
+        in
         failwith @@ "ppx_minidebug: close_log must follow an earlier open_log; " ^ log_loc
     | _ -> ());
     (* Note: we treat a tree under a box as part of that box. *)

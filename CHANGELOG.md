@@ -10,6 +10,7 @@
 - Breaking: renames `Debug_ch` to `Shared_config`.
 - Breaking: replaces the `open_log_preamble_brief` and `open_log_preamble_full` with `open_log` and a setting `location_format`.
 - Breaking: Adds `fname`, `start_lnum`, `entry_id` parameters to `close_log` to debug lexical-vs-dynamic scope mismatches and spurious closes.
+- Adds `global_prefix` to the error message on `close_log` failure.
 
 ## [1.3.0] -- 2024-02-28
 
