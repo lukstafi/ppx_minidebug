@@ -35,6 +35,7 @@ module type Shared_config = sig
   val debug_ch : unit -> out_channel
   val snapshot_ch : unit -> unit
   val reset_to_snapshot : unit -> unit
+  val table_of_contents_ch : (out_channel * string) option
   val time_tagged : time_tagged
   val elapsed_times : elapsed_times
   val location_format : location_format
@@ -42,6 +43,8 @@ module type Shared_config = sig
   val verbose_entry_ids : bool
   val global_prefix : string
   val split_files_after : int option
+  val toc_entry_minimal_depth : int
+  val toc_entry_minimal_size : int
 end
 
 val shared_config :
@@ -52,6 +55,9 @@ val shared_config :
   ?verbose_entry_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
+  ?with_table_of_contents:string ->
+  ?toc_entry_minimal_depth:int ->
+  ?toc_entry_minimal_size:int ->
   ?for_append:bool ->
   string ->
   (module Shared_config)
@@ -74,7 +80,11 @@ val shared_config :
     are also printed on logged values.
 
     If [global_prefix] is given, the log header messages (and the log closing messages for the flushing
-    backend) are prefixed with it. *)
+    backend) are prefixed with it.
+    
+    If [table_of_contents_ch] is given, outputs selected log headers to this channel, with the string
+    used as a prefix for links to anchors of the log headers. The settings [toc_entry_minimal_depth]
+    and [toc_entry_minimal_size], when non-zero, control the selection of headers to include in a ToC. *)
 
 (** When using the
     {{:http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html}
@@ -198,6 +208,9 @@ val debug_file :
   ?verbose_entry_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
+  ?with_table_of_contents:string ->
+  ?toc_entry_minimal_depth:int ->
+  ?toc_entry_minimal_size:int ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
   ?prune_upto:int ->
@@ -229,6 +242,9 @@ val debug :
   ?print_entry_ids:bool ->
   ?verbose_entry_ids:bool ->
   ?global_prefix:string ->
+  ?table_of_contents_ch:out_channel * string ->
+  ?toc_entry_minimal_depth:int ->
+  ?toc_entry_minimal_size:int ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
   ?prune_upto:int ->
@@ -246,6 +262,7 @@ val debug :
 
 val debug_flushing :
   ?debug_ch:out_channel ->
+  ?toc_ch:out_channel ->
   ?filename:string ->
   ?time_tagged:time_tagged ->
   ?elapsed_times:elapsed_times ->
@@ -254,6 +271,9 @@ val debug_flushing :
   ?verbose_entry_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
+  ?with_table_of_contents:string ->
+  ?toc_entry_minimal_depth:int ->
+  ?toc_entry_minimal_size:int ->
   ?for_append:bool ->
   unit ->
   (module Debug_runtime)
