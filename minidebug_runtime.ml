@@ -45,9 +45,10 @@ let is_prefixed_or_result = function Prefixed_or_result _ -> true | _ -> false
 module type Shared_config = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
+  val debug_ch_name : unit -> string
   val snapshot_ch : unit -> unit
   val reset_to_snapshot : unit -> unit
-  val table_of_contents_ch : (out_channel * string) option
+  val table_of_contents_ch : out_channel option
   val time_tagged : time_tagged
   val elapsed_times : elapsed_times
   val location_format : location_format
@@ -63,7 +64,7 @@ let elapsed_default = Not_reported
 
 let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
-    ?(global_prefix = "") ?split_files_after ?with_table_of_contents
+    ?(global_prefix = "") ?split_files_after ?(with_table_of_contents = false)
     ?(toc_entry_minimal_depth = 0) ?(toc_entry_minimal_size = 0) ?(for_append = true)
     filename : (module Shared_config) =
   let module Result = struct
@@ -75,6 +76,8 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
           Array.iter (fun file -> Sys.remove @@ Filename.concat dirname file)
           @@ Sys.readdir dirname
       | _ -> ()
+
+    let current_ch_name = ref ""
 
     let find_ch () =
       match split_files_after with
@@ -96,6 +99,7 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
             else fname ^ suffix
           in
           let filename = find 1 in
+          current_ch_name := filename;
           if for_append then open_out_gen [ Open_creat; Open_append ] 0o640 filename
           else open_out filename
 
@@ -116,6 +120,8 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
         current_snapshot := 0);
       !current_ch
 
+    let debug_ch_name () = !current_ch_name
+
     let snapshot_ch () =
       flush !current_ch;
       current_snapshot := pos_out !current_ch
@@ -123,16 +129,15 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     let reset_to_snapshot () = seek_out !current_ch !current_snapshot
 
     let table_of_contents_ch =
-      match with_table_of_contents with
-      | None -> None
-      | Some prefix_anchors ->
-          let suffix = Filename.extension filename in
-          let filename = Filename.remove_extension filename ^ "-toc" ^ suffix in
-          let ch =
-            if for_append then open_out_gen [ Open_creat; Open_append ] 0o640 filename
-            else open_out filename
-          in
-          Some (ch, prefix_anchors)
+      if with_table_of_contents then
+        let suffix = Filename.extension filename in
+        let filename = Filename.remove_extension filename ^ "-toc" ^ suffix in
+        let ch =
+          if for_append then open_out_gen [ Open_creat; Open_append ] 0o640 filename
+          else open_out filename
+        in
+        Some ch
+      else None
 
     let time_tagged = time_tagged
     let elapsed_times = elapsed_times
@@ -211,6 +216,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
   let max_nesting_depth = ref None
   let max_num_children = ref None
   let debug_ch = ref @@ debug_ch ()
+  let debug_ch_name = ref @@ debug_ch_name ()
 
   type entry = {
     message : string;
@@ -266,13 +272,14 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
           elapsed elapsed_times;
         Printf.fprintf !debug_ch "%s%s end\n%!" global_prefix message;
         flush !debug_ch;
-        if !stack = [] then debug_ch := Log_to.debug_ch ();
+        if !stack = [] then (
+          debug_ch := Log_to.debug_ch ();
+          debug_ch_name := Log_to.debug_ch_name ());
         (match (table_of_contents_ch, !depth_stack) with
         | None, _ | _, [] -> ()
-        | Some (toc_ch, toc_prefix), (depth, size) :: _ ->
+        | Some toc_ch, (depth, size) :: _ ->
             if depth > toc_entry_minimal_depth && size > toc_entry_minimal_size then
-              Printf.fprintf toc_ch "%s{%s#%d} %s\n%!" (indent ()) toc_prefix entry_id
-                message);
+              Printf.fprintf toc_ch "%s{#%d} %s\n%!" (indent ()) entry_id message);
         match !depth_stack with
         | [] -> ()
         | [ _ ] -> depth_stack := []
@@ -564,7 +571,12 @@ module PrintBox (Log_to : Shared_config) = struct
     match table_of_contents_ch with
     | None -> B.empty
     | _ when depth <= toc_entry_minimal_depth || size <= toc_entry_minimal_size -> B.empty
-    | Some (_toc_ch, prefix) ->
+    | Some _toc_ch ->
+        let prefix =
+          match config.hyperlink with
+          | `Prefix prefix -> prefix ^ debug_ch_name ()
+          | `No_hyperlinks -> debug_ch_name ()
+        in
         let uri = prefix ^ "#" ^ Int.to_string entry_id in
         let rec replace_link b =
           match B.view b with
@@ -587,16 +599,22 @@ module PrintBox (Log_to : Shared_config) = struct
       reset_to_snapshot ();
       needs_snapshot_reset := false)
 
-  let output_box ~for_toc:_ ch box =
+  let output_box ~for_toc ch box =
     match B.view box with
     | Empty -> ()
     | _ ->
         (match config.backend with
         | `Text -> PrintBox_text.output ch box
         | `Html config ->
+            let config =
+              if for_toc then PrintBox_html.Config.tree_summary false config else config
+            in
             let log_str = PrintBox_html.(to_string ~config box) in
             output_string ch log_str
         | `Markdown config ->
+            let config =
+              if for_toc then PrintBox_md.Config.unfolded_trees config else config
+            in
             output_string ch @@ PrintBox_md.(to_string Config.(foldable_trees config) box));
         output_string ch "\n";
         Stdlib.flush ch
@@ -676,7 +694,7 @@ module PrintBox (Log_to : Shared_config) = struct
           if not from_snapshot then snapshot_ch ();
           (match table_of_contents_ch with
           | None -> ()
-          | Some (toc_ch, _) ->
+          | Some toc_ch ->
               let toc_box = stack_to_toc header entry in
               output_box ~for_toc:true toc_ch toc_box);
           []
@@ -1010,7 +1028,7 @@ end
 
 let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
-    ?(global_prefix = "") ?split_files_after ?with_table_of_contents
+    ?(global_prefix = "") ?split_files_after ?(with_table_of_contents = false)
     ?(toc_entry_minimal_depth = 0) ?(toc_entry_minimal_size = 0) ?highlight_terms
     ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0) ?(for_append = false)
     ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80) ?backend ?hyperlink
@@ -1026,8 +1044,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     PrintBox
       ((val shared_config ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
               ~verbose_entry_ids ~global_prefix ~for_append ?split_files_after
-              ?with_table_of_contents ~toc_entry_minimal_depth ~toc_entry_minimal_size
-              filename)) in
+              ~with_table_of_contents ~toc_entry_minimal_depth ~toc_entry_minimal_size filename)) in
   Debug.config.backend <- Option.value backend ~default:(`Markdown default_md_config);
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
   Debug.config.max_inline_sexp_length <- max_inline_sexp_length;
@@ -1066,6 +1083,7 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
       | Some _ -> seek_out ch !current_snapshot
 
     let debug_ch () = ch
+    let debug_ch_name () = global_prefix
     let table_of_contents_ch = table_of_contents_ch
     let time_tagged = time_tagged
     let elapsed_times = elapsed_times
@@ -1086,11 +1104,12 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
   Debug.config.snapshot_every_sec <- snapshot_every_sec;
   (module Debug)
 
-let debug_flushing ?debug_ch:d_ch ?toc_ch ?filename ?(time_tagged = Not_tagged)
-    ?(elapsed_times = elapsed_default) ?(location_format = Beg_pos)
-    ?(print_entry_ids = false) ?(verbose_entry_ids = false) ?(global_prefix = "")
-    ?split_files_after ?with_table_of_contents ?(toc_entry_minimal_depth = 0)
-    ?(toc_entry_minimal_size = 0) ?(for_append = false) () : (module Debug_runtime) =
+let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename
+    ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
+    ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
+    ?(global_prefix = "") ?split_files_after ?(with_table_of_contents = false)
+    ?(toc_entry_minimal_depth = 0) ?(toc_entry_minimal_size = 0) ?(for_append = false) ()
+    : (module Debug_runtime) =
   let log_to =
     match (filename, d_ch) with
     | None, _ ->
@@ -1112,18 +1131,12 @@ let debug_flushing ?debug_ch:d_ch ?toc_ch ?filename ?(time_tagged = Not_tagged)
             | Some _ -> seek_out ch !current_snapshot
 
           let debug_ch () = ch
+          let debug_ch_name () = global_prefix
 
           let table_of_contents_ch =
-            match (toc_ch, with_table_of_contents) with
-            | Some toc_ch, Some prefix -> Some (toc_ch, prefix)
-            | Some _, None ->
-                invalid_arg
-                  "Minidebug_runtime.debug_flushing: to set up Table of Contents you \
-                   must provide with_table_of_contents"
-            | None, Some _ ->
-                invalid_arg
-                  "Minidebug_runtime.debug_flushing: to set up Table of Contents you \
-                   must provide either a filename or toc_ch"
+            match (table_of_contents_ch, with_table_of_contents) with
+            | Some toc_ch, _ -> Some toc_ch
+            | None, true -> Some ch
             | _ -> None
 
           let time_tagged = time_tagged
@@ -1139,7 +1152,7 @@ let debug_flushing ?debug_ch:d_ch ?toc_ch ?filename ?(time_tagged = Not_tagged)
     | Some filename, None ->
         let filename = filename ^ ".log" in
         shared_config ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
-          ~global_prefix ?split_files_after ?with_table_of_contents
+          ~global_prefix ?split_files_after ~with_table_of_contents
           ~toc_entry_minimal_depth ~toc_entry_minimal_size ~for_append filename
     | Some _, Some _ ->
         invalid_arg

@@ -33,9 +33,10 @@ type log_level =
 module type Shared_config = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
+  val debug_ch_name : unit -> string
   val snapshot_ch : unit -> unit
   val reset_to_snapshot : unit -> unit
-  val table_of_contents_ch : (out_channel * string) option
+  val table_of_contents_ch : out_channel option
   val time_tagged : time_tagged
   val elapsed_times : elapsed_times
   val location_format : location_format
@@ -55,7 +56,7 @@ val shared_config :
   ?verbose_entry_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
-  ?with_table_of_contents:string ->
+  ?with_table_of_contents:bool ->
   ?toc_entry_minimal_depth:int ->
   ?toc_entry_minimal_size:int ->
   ?for_append:bool ->
@@ -82,9 +83,11 @@ val shared_config :
     If [global_prefix] is given, the log header messages (and the log closing messages for the flushing
     backend) are prefixed with it.
     
-    If [table_of_contents_ch] is given, outputs selected log headers to this channel, with the string
-    used as a prefix for links to anchors of the log headers. The settings [toc_entry_minimal_depth]
-    and [toc_entry_minimal_size], when non-zero, control the selection of headers to include in a ToC. *)
+    If [table_of_contents_ch] is given, outputs selected log headers to this channel. The provided
+    file name is used as a prefix for links to anchors of the log headers. Note that debug runtime
+    builders that take a channel instead of a file name, will use [global_prefix] instead for the
+    anchor links. The settings [toc_entry_minimal_depth] and [toc_entry_minimal_size] control
+    the selection of headers to include in a ToC (they default to 0). *)
 
 (** When using the
     {{:http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html}
@@ -208,7 +211,7 @@ val debug_file :
   ?verbose_entry_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
-  ?with_table_of_contents:string ->
+  ?with_table_of_contents:bool ->
   ?toc_entry_minimal_depth:int ->
   ?toc_entry_minimal_size:int ->
   ?highlight_terms:Re.t ->
@@ -242,7 +245,7 @@ val debug :
   ?print_entry_ids:bool ->
   ?verbose_entry_ids:bool ->
   ?global_prefix:string ->
-  ?table_of_contents_ch:out_channel * string ->
+  ?table_of_contents_ch:out_channel ->
   ?toc_entry_minimal_depth:int ->
   ?toc_entry_minimal_size:int ->
   ?highlight_terms:Re.t ->
@@ -262,7 +265,7 @@ val debug :
 
 val debug_flushing :
   ?debug_ch:out_channel ->
-  ?toc_ch:out_channel ->
+  ?table_of_contents_ch:out_channel ->
   ?filename:string ->
   ?time_tagged:time_tagged ->
   ?elapsed_times:elapsed_times ->
@@ -271,7 +274,7 @@ val debug_flushing :
   ?verbose_entry_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
-  ?with_table_of_contents:string ->
+  ?with_table_of_contents:bool ->
   ?toc_entry_minimal_depth:int ->
   ?toc_entry_minimal_size:int ->
   ?for_append:bool ->
