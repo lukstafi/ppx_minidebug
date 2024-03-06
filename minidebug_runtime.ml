@@ -220,6 +220,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
   }
 
   let stack = ref []
+  let depth_stack = ref []
   let indent () = String.make (List.length !stack) ' '
 
   let () =
@@ -243,16 +244,16 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
             entry_id
         in
         failwith @@ "ppx_minidebug: close_log must follow an earlier open_log; " ^ log_loc
-    | { message; elapsed; entry_id = open_entry_id; _ } :: tl ->
+    | { message; elapsed; entry_id = open_entry_id; _ } :: tl -> (
         stack := tl;
         (if open_entry_id <> entry_id then
-           let log_loc =
-             Printf.sprintf "%s\"%s\":%d: open entry_id=%d, close entry_id=%d"
-               global_prefix fname start_lnum open_entry_id entry_id
-           in
-           failwith
-           @@ "ppx_minidebug: lexical scope of close_log not matching its dynamic scope; "
-           ^ log_loc);
+         let log_loc =
+           Printf.sprintf "%s\"%s\":%d: open entry_id=%d, close entry_id=%d" global_prefix
+             fname start_lnum open_entry_id entry_id
+         in
+         failwith
+         @@ "ppx_minidebug: lexical scope of close_log not matching its dynamic scope; "
+         ^ log_loc);
         Printf.fprintf !debug_ch "%s%!" (indent ());
         (match Log_to.time_tagged with
         | Not_tagged -> ()
@@ -265,7 +266,18 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
           elapsed elapsed_times;
         Printf.fprintf !debug_ch "%s%s end\n%!" global_prefix message;
         flush !debug_ch;
-        if !stack = [] then debug_ch := Log_to.debug_ch ()
+        if !stack = [] then debug_ch := Log_to.debug_ch ();
+        (match (table_of_contents_ch, !depth_stack) with
+        | None, _ | _, [] -> ()
+        | Some (toc_ch, toc_prefix), (depth, size) :: _ ->
+            if depth > toc_entry_minimal_depth && size > toc_entry_minimal_size then
+              Printf.fprintf toc_ch "%s{%s#%d} %s\n%!" (indent ()) toc_prefix entry_id
+                message);
+        match !depth_stack with
+        | [] -> ()
+        | [ _ ] -> depth_stack := []
+        | (cur_depth, cur_size) :: (depth, size) :: tl ->
+            depth_stack := (max depth (cur_depth + 1), cur_size + size) :: tl)
 
   let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id =
     Printf.fprintf !debug_ch "%s%s%s%s begin %!" (indent ()) global_prefix
@@ -409,7 +421,7 @@ module PrintBox (Log_to : Shared_config) = struct
 
   module B = PrintBox
 
-  type subentry = { result_id : int; is_result : bool; subtree : B.t }
+  type subentry = { result_id : int; is_result : bool; subtree : B.t; toc_subtree : B.t }
 
   type entry = {
     cond : bool;
@@ -421,6 +433,8 @@ module PrintBox (Log_to : Shared_config) = struct
     entry_message : string;
     entry_id : int;
     body : subentry list;
+    depth : int;
+    size : int;
   }
 
   let stack : entry list ref = ref []
@@ -447,6 +461,20 @@ module PrintBox (Log_to : Shared_config) = struct
   let apply_highlight hl b =
     match B.view b with B.Frame _ -> b | _ -> if hl then B.frame b else b
 
+  let unpack ~f l =
+    let f sub acc =
+      let b = f sub in
+      match B.view b with B.Empty -> acc | _ -> b :: acc
+    in
+    let rec unpack truncate acc = function
+      | [] -> acc
+      | [ sub ] -> f sub acc
+      | sub :: tl ->
+          if truncate = 0 then B.line "<earlier entries truncated>" :: f sub acc
+          else unpack (truncate - 1) (f sub acc) tl
+    in
+    unpack (config.truncate_children - 1) [] l
+
   let stack_to_tree
       {
         cond = _;
@@ -458,6 +486,8 @@ module PrintBox (Log_to : Shared_config) = struct
         entry_message;
         entry_id;
         body;
+        depth = _;
+        size = _;
       } =
     let non_id_message =
       (* Being defensive: checking for '=' not required so far. *)
@@ -478,18 +508,10 @@ module PrintBox (Log_to : Shared_config) = struct
       else colon path (opt_id ^ entry_message) ^ span
     in
     let b_path = hyperlink_path ~uri ~inner:b_path in
-    let rec unpack truncate acc = function
-      | [] -> acc
-      | [ { subtree; _ } ] -> subtree :: acc
-      | { subtree; _ } :: tl ->
-          if truncate = 0 then B.line "<earlier entries truncated>" :: subtree :: acc
-          else unpack (truncate - 1) (subtree :: acc) tl
-    in
-    let unpack l = unpack (config.truncate_children - 1) [] l in
     if config.values_first_mode then
+      let header = B.line @@ opt_id ^ entry_message ^ span in
       let hl_header =
-        if entry_id = -1 then B.empty
-        else apply_highlight highlight @@ B.line @@ opt_id ^ entry_message ^ span
+        if entry_id = -1 then B.empty else apply_highlight highlight header
       in
       let results, body =
         if entry_id = -1 then (body, [])
@@ -498,7 +520,8 @@ module PrintBox (Log_to : Shared_config) = struct
             (fun { result_id; is_result; _ } -> is_result && result_id = entry_id)
             body
       in
-      let results = unpack results and body = unpack body in
+      let results = unpack ~f:(fun { subtree; _ } -> subtree) results
+      and body = unpack ~f:(fun { subtree; _ } -> subtree) body in
       match results with
       | [ subtree ] -> (
           let opt_message = if non_id_message then [ hl_header ] else [] in
@@ -508,31 +531,54 @@ module PrintBox (Log_to : Shared_config) = struct
                 if elapsed_times = Not_reported then result_header
                 else B.hlist ~bars:false [ result_header; B.line span ]
               in
-              B.tree
-                (apply_highlight highlight value_header)
-                (b_path
-                 :: B.tree
-                      (B.line @@ if body = [] then "<values>" else "<returns>")
-                      (Array.to_list result_body)
-                 :: opt_message
-                @ body)
+              ( value_header,
+                B.tree
+                  (apply_highlight highlight value_header)
+                  (b_path
+                   :: B.tree
+                        (B.line @@ if body = [] then "<values>" else "<returns>")
+                        (Array.to_list result_body)
+                   :: opt_message
+                  @ body) )
           | _ ->
               let value_header =
                 if elapsed_times = Not_reported then subtree
                 else B.hlist ~bars:false [ subtree; B.line span ]
               in
-              B.tree
-                (apply_highlight highlight value_header)
-                ((b_path :: opt_message) @ body))
-      | [] -> B.tree hl_header (b_path :: body)
+              ( value_header,
+                B.tree
+                  (apply_highlight highlight value_header)
+                  ((b_path :: opt_message) @ body) ))
+      | [] -> (header, B.tree hl_header (b_path :: body))
       | _ ->
-          B.tree hl_header
-          @@ b_path
-             :: B.tree (B.line @@ if body = [] then "<values>" else "<returns>") results
-             :: body
+          ( header,
+            B.tree hl_header
+            @@ b_path
+               :: B.tree (B.line @@ if body = [] then "<values>" else "<returns>") results
+               :: body )
     else
       let hl_header = apply_highlight highlight b_path in
-      B.tree hl_header (unpack body)
+      (b_path, B.tree hl_header (unpack ~f:(fun { subtree; _ } -> subtree) body))
+
+  let stack_to_toc header { entry_id; depth; size; body; _ } =
+    match table_of_contents_ch with
+    | None -> B.empty
+    | _ when depth <= toc_entry_minimal_depth || size <= toc_entry_minimal_size -> B.empty
+    | Some (_toc_ch, prefix) ->
+        let uri = prefix ^ "#" ^ Int.to_string entry_id in
+        let rec replace_link b =
+          match B.view b with
+          | B.Frame b -> B.frame @@ replace_link b
+          | B.Pad ({ x; y }, b) -> B.pad' ~col:x ~lines:y @@ replace_link b
+          | B.Align { h; v; inner } -> B.align ~h ~v @@ replace_link inner
+          | B.Grid (bars, m) -> B.grid ~bars:(bars = `Bars) @@ B.map_matrix replace_link m
+          | B.Tree (indent, h, b) -> B.tree ~indent (replace_link h) @@ Array.to_list b
+          | B.Link { inner; _ } -> replace_link inner
+          | B.Anchor { inner; _ } -> replace_link inner
+          | _ -> B.link ~uri b
+        in
+        let header = replace_link header in
+        B.tree header @@ unpack ~f:(fun { toc_subtree; _ } -> toc_subtree) body
 
   let needs_snapshot_reset = ref false
 
@@ -540,6 +586,20 @@ module PrintBox (Log_to : Shared_config) = struct
     if !needs_snapshot_reset then (
       reset_to_snapshot ();
       needs_snapshot_reset := false)
+
+  let output_box ~for_toc:_ ch box =
+    match B.view box with
+    | Empty -> ()
+    | _ ->
+        (match config.backend with
+        | `Text -> PrintBox_text.output ch box
+        | `Html config ->
+            let log_str = PrintBox_html.(to_string ~config box) in
+            output_string ch log_str
+        | `Markdown config ->
+            output_string ch @@ PrintBox_md.(to_string Config.(foldable_trees config) box));
+        output_string ch "\n";
+        Stdlib.flush ch
 
   let close_log_impl ~from_snapshot ~fname ~start_lnum ~entry_id =
     (match !stack with
@@ -568,9 +628,31 @@ module PrintBox (Log_to : Shared_config) = struct
         when is_prefixed_or_result config.log_level
              && List.for_all (fun e -> e.is_result) body ->
           bs
-      | ({ cond = true; highlight = hl; exclude = _; entry_id = result_id; _ } as entry)
-        :: { cond; highlight; exclude; uri; path; elapsed; entry_message; entry_id; body }
+      | ({
+           cond = true;
+           highlight = hl;
+           exclude = _;
+           entry_id = result_id;
+           depth = result_depth;
+           size = result_size;
+           _;
+         } as entry)
+        :: {
+             cond;
+             highlight;
+             exclude;
+             uri;
+             path;
+             elapsed;
+             entry_message;
+             entry_id;
+             body;
+             depth;
+             size;
+           }
         :: bs3 ->
+          let header, subtree = stack_to_tree entry in
+          let toc_subtree = stack_to_toc header entry in
           {
             cond;
             highlight = highlight || ((not exclude) && hl);
@@ -580,23 +662,23 @@ module PrintBox (Log_to : Shared_config) = struct
             elapsed;
             entry_message;
             entry_id;
-            body = { result_id; is_result = false; subtree = stack_to_tree entry } :: body;
+            body = { result_id; is_result = false; subtree; toc_subtree } :: body;
+            depth = max (result_depth + 1) depth;
+            size = result_size + size;
           }
           :: bs3
       | { cond = false; _ } :: bs -> bs
       | [ ({ cond = true; _ } as entry) ] ->
-          let box = stack_to_tree entry in
+          let header, box = stack_to_tree entry in
           let ch = debug_ch () in
           pop_snapshot ();
-          (match config.backend with
-          | `Text -> PrintBox_text.output ch box
-          | `Html config -> output_string ch @@ PrintBox_html.(to_string ~config box)
-          | `Markdown config ->
-              output_string ch
-              @@ PrintBox_md.(to_string Config.(foldable_trees config) box));
-          output_string ch "\n";
-          Stdlib.flush ch;
+          output_box ~for_toc:false ch box;
           if not from_snapshot then snapshot_ch ();
+          (match table_of_contents_ch with
+          | None -> ()
+          | Some (toc_ch, _) ->
+              let toc_box = stack_to_toc header entry in
+              output_box ~for_toc:true toc_ch toc_box);
           []
       | [] -> assert false
 
@@ -631,7 +713,7 @@ module PrintBox (Log_to : Shared_config) = struct
             last_snapshot := now;
             snapshot ())
 
-  let stack_next ~entry_id ~is_result ~prefixed (hl, b) =
+  let stack_next ~entry_id ~is_result ~prefixed ~result_depth ~result_size (hl, b) =
     let opt_eid = opt_verbose_entry_id ~verbose_entry_ids ~entry_id in
     let rec eid b =
       match B.view b with
@@ -653,16 +735,22 @@ module PrintBox (Log_to : Shared_config) = struct
     | Prefixed_or_result _ when not (is_result || prefixed) -> ()
     | _ -> (
         match !stack with
-        | ({ highlight; exclude; body; _ } as entry) :: bs2 ->
+        | ({ highlight; exclude; body; depth; size; _ } as entry) :: bs2 ->
             stack :=
               {
                 entry with
                 highlight = highlight || ((not exclude) && hl);
-                body = { result_id = entry_id; is_result; subtree = b } :: body;
+                body =
+                  { result_id = entry_id; is_result; subtree = b; toc_subtree = B.empty }
+                  :: body;
+                depth = max (result_depth + 1) depth;
+                size = size + result_size;
               }
               :: bs2
         | [] ->
-            let subentry = { result_id = entry_id; is_result; subtree = b } in
+            let subentry =
+              { result_id = entry_id; is_result; subtree = b; toc_subtree = B.empty }
+            in
             let entry_message = "{orphaned from #" ^ Int.to_string entry_id ^ "}" in
             stack :=
               [
@@ -676,6 +764,8 @@ module PrintBox (Log_to : Shared_config) = struct
                   entry_message;
                   entry_id = -1;
                   body = [ subentry ];
+                  depth = 1;
+                  size = 1;
                 };
               ];
             close_log ~fname:"orphaned" ~start_lnum:entry_id ~entry_id:(-1))
@@ -728,6 +818,8 @@ module PrintBox (Log_to : Shared_config) = struct
         entry_message;
         entry_id;
         body = [];
+        depth = 0;
+        size = 0;
       }
       :: !stack
 
@@ -825,14 +917,15 @@ module PrintBox (Log_to : Shared_config) = struct
       | _ -> true
     in
     (if config.boxify_sexp_from_size >= 0 then
-       stack_next ~entry_id ~is_result ~prefixed @@ boxify ?descr sexp
-     else
-       stack_next ~entry_id ~is_result ~prefixed
-       @@ highlight_box
-       @@
-       match descr with
-       | None -> B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
-       | Some d -> B.asprintf_with_style B.Style.preformatted "%s = %a" d pp_sexp sexp);
+     stack_next ~entry_id ~is_result ~prefixed ~result_depth:0 ~result_size:1
+     @@ boxify ?descr sexp
+    else
+      stack_next ~entry_id ~is_result ~prefixed ~result_depth:0 ~result_size:1
+      @@ highlight_box
+      @@
+      match descr with
+      | None -> B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
+      | Some d -> B.asprintf_with_style B.Style.preformatted "%s = %a" d pp_sexp sexp);
     opt_auto_snapshot ()
 
   let skip_parens s =
@@ -856,7 +949,7 @@ module PrintBox (Log_to : Shared_config) = struct
           Array.exists (fun prefix -> String.starts_with ~prefix s) prefixes
       | _ -> true
     in
-    (stack_next ~entry_id ~is_result ~prefixed
+    (stack_next ~entry_id ~is_result ~prefixed ~result_depth:0 ~result_size:1
     @@ highlight_box
     @@
     match descr with
@@ -875,7 +968,7 @@ module PrintBox (Log_to : Shared_config) = struct
           Array.exists (fun prefix -> String.starts_with ~prefix s) prefixes
       | _ -> true
     in
-    (stack_next ~entry_id ~is_result ~prefixed
+    (stack_next ~entry_id ~is_result ~prefixed ~result_depth:0 ~result_size:1
     @@ highlight_box
     @@
     match descr with
@@ -891,7 +984,8 @@ module PrintBox (Log_to : Shared_config) = struct
       | Prefixed _ | Prefixed_or_result _ -> false
       | _ -> true
     in
-    stack_next ~entry_id ~is_result:false ~prefixed @@ highlight_box v;
+    stack_next ~entry_id ~is_result:false ~prefixed ~result_depth:0 ~result_size:1
+    @@ highlight_box v;
     opt_auto_snapshot ()
 
   let no_debug_if cond =
