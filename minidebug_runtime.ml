@@ -68,6 +68,8 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(toc_entry_minimal_depth = 0) ?(toc_entry_minimal_size = 0) ?(for_append = true)
     filename : (module Shared_config) =
   let module Result = struct
+    let current_ch_name = ref filename
+
     let () =
       match split_files_after with
       | Some _ when not for_append ->
@@ -76,8 +78,6 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
           Array.iter (fun file -> Sys.remove @@ Filename.concat dirname file)
           @@ Sys.readdir dirname
       | _ -> ()
-
-    let current_ch_name = ref ""
 
     let find_ch () =
       match split_files_after with
@@ -367,6 +367,7 @@ module type PrintBox_runtime = sig
 
   type config = {
     mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
+    mutable toc_specific_hyperlink : string option;
     mutable backend :
       [ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ];
     mutable boxify_sexp_from_size : int;
@@ -394,6 +395,7 @@ module PrintBox (Log_to : Shared_config) = struct
 
   type config = {
     mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
+    mutable toc_specific_hyperlink : string option;
     mutable backend :
       [ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ];
     mutable boxify_sexp_from_size : int;
@@ -412,6 +414,7 @@ module PrintBox (Log_to : Shared_config) = struct
   let config =
     {
       hyperlink = `No_hyperlinks;
+      toc_specific_hyperlink = None;
       backend = `Text;
       boxify_sexp_from_size = -1;
       highlight_terms = None;
@@ -573,9 +576,9 @@ module PrintBox (Log_to : Shared_config) = struct
     | _ when depth <= toc_entry_minimal_depth || size <= toc_entry_minimal_size -> B.empty
     | Some _toc_ch ->
         let prefix =
-          match config.hyperlink with
-          | `Prefix prefix -> prefix ^ debug_ch_name ()
-          | `No_hyperlinks -> debug_ch_name ()
+          match (config.toc_specific_hyperlink, config.hyperlink) with
+          | Some prefix, _ | None, `Prefix prefix -> prefix ^ debug_ch_name ()
+          | None, `No_hyperlinks -> debug_ch_name ()
         in
         let uri = prefix ^ "#" ^ Int.to_string entry_id in
         let rec replace_link b =
@@ -1032,8 +1035,8 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(toc_entry_minimal_depth = 0) ?(toc_entry_minimal_size = 0) ?highlight_terms
     ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0) ?(for_append = false)
     ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80) ?backend ?hyperlink
-    ?(values_first_mode = false) ?(log_level = Everything) ?snapshot_every_sec filename :
-    (module PrintBox_runtime) =
+    ?toc_specific_hyperlink ?(values_first_mode = false) ?(log_level = Everything)
+    ?snapshot_every_sec filename : (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename ^ ".md"
@@ -1044,7 +1047,8 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     PrintBox
       ((val shared_config ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
               ~verbose_entry_ids ~global_prefix ~for_append ?split_files_after
-              ~with_table_of_contents ~toc_entry_minimal_depth ~toc_entry_minimal_size filename)) in
+              ~with_table_of_contents ~toc_entry_minimal_depth ~toc_entry_minimal_size
+              filename)) in
   Debug.config.backend <- Option.value backend ~default:(`Markdown default_md_config);
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
   Debug.config.max_inline_sexp_length <- max_inline_sexp_length;
@@ -1055,6 +1059,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   Debug.config.values_first_mode <- values_first_mode;
   Debug.config.hyperlink <-
     (match hyperlink with None -> `No_hyperlinks | Some prefix -> `Prefix prefix);
+  Debug.config.toc_specific_hyperlink <- toc_specific_hyperlink;
   Debug.config.log_level <- log_level;
   Debug.config.snapshot_every_sec <- snapshot_every_sec;
   (module Debug)
@@ -1063,8 +1068,8 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
     ?(global_prefix = "") ?table_of_contents_ch ?(toc_entry_minimal_depth = 0)
     ?(toc_entry_minimal_size = 0) ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
-    ?(truncate_children = 0) ?(values_first_mode = false) ?(log_level = Everything)
-    ?snapshot_every_sec () : (module PrintBox_runtime) =
+    ?(truncate_children = 0) ?toc_specific_hyperlink ?(values_first_mode = false)
+    ?(log_level = Everything) ?snapshot_every_sec () : (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
     let ch = match debug_ch with None -> stdout | Some ch -> ch
@@ -1102,6 +1107,7 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
   Debug.config.values_first_mode <- values_first_mode;
   Debug.config.log_level <- log_level;
   Debug.config.snapshot_every_sec <- snapshot_every_sec;
+  Debug.config.toc_specific_hyperlink <- toc_specific_hyperlink;
   (module Debug)
 
 let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename

@@ -1,7 +1,8 @@
 open Sexplib0.Sexp_conv
 
 module Debug_runtime =
-  (val Minidebug_runtime.debug_file ~hyperlink:"../"
+  (val Minidebug_runtime.debug_file ~hyperlink:"../" ~toc_specific_hyperlink:"./"
+         ~with_table_of_contents:true
          ~backend:(`Html PrintBox_html.Config.(tree_summary true default))
          "debugger_sexp_html")
 
@@ -20,8 +21,8 @@ let%debug_sexp bar (x : t) : int =
 let () = ignore @@ bar { first = 7; second = 42 }
 
 let%debug_sexp baz (x : t) : int =
-  let ((y, z) as _yz) : int * int = (x.first + 1, 3) in
-  let ((u, w) as _uw) : int * int = (7, 13) in
+  let ((y, z) as _yz : int * int) = (x.first + 1, 3) in
+  let ((u, w) as _uw : int * int) = (7, 13) in
   (x.second * y) + z + u + w
 
 let () = ignore @@ baz { first = 7; second = 42 }

@@ -153,6 +153,9 @@ module type PrintBox_runtime = sig
 
             Note that rendering a link on a node will make the node non-foldable, therefore it is best
             to combine [`prefix prefix] with [values_first_mode]. *)
+    mutable toc_specific_hyperlink : string option;
+        (** If provided, overrides [hyperlink] as the prefix used for generating URIs pointing to anchors
+            in logs. *)
     mutable backend :
       [ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ];
         (** If the content is [`Text], logs are generated as monospaced text; for other settings as html
@@ -223,6 +226,7 @@ val debug_file :
   ?max_inline_sexp_length:int ->
   ?backend:[ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ] ->
   ?hyperlink:string ->
+  ?toc_specific_hyperlink:string ->
   ?values_first_mode:bool ->
   ?log_level:log_level ->
   ?snapshot_every_sec:float ->
@@ -252,6 +256,7 @@ val debug :
   ?exclude_on_path:Re.t ->
   ?prune_upto:int ->
   ?truncate_children:int ->
+  ?toc_specific_hyperlink:string ->
   ?values_first_mode:bool ->
   ?log_level:log_level ->
   ?snapshot_every_sec:float ->

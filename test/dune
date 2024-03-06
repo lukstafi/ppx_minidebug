@@ -78,7 +78,9 @@
 (rule
  (alias runtest)
  (action
-  (diff test_debug_unannot_bindings.expected.ml test_debug_unannot_bindings.actual.ml)))
+  (diff
+   test_debug_unannot_bindings.expected.ml
+   test_debug_unannot_bindings.actual.ml)))
 
 (rule
  (alias runtest)
@@ -93,7 +95,9 @@
 (rule
  (alias runtest)
  (action
-  (diff test_debug_log_prefixed.expected.ml test_debug_log_prefixed.actual.ml)))
+  (diff
+   test_debug_log_prefixed.expected.ml
+   test_debug_log_prefixed.actual.ml)))
 
 (executable
  (name test_debug_sexp)
@@ -209,7 +213,9 @@
 (rule
  (alias runtest)
  (action
-  (diff debugger_show_log_prefixed.expected.log debugger_show_log_prefixed.log)))
+  (diff
+   debugger_show_log_prefixed.expected.log
+   debugger_show_log_prefixed.log)))
 
 (executable
  (name test_debug_html)
@@ -244,7 +250,9 @@
   (pps ppx_minidebug ppx_sexp_conv)))
 
 (rule
- (target debugger_sexp_html.html)
+ (targets debugger_sexp_html.html debugger_sexp_html-toc.html)
+ (mode
+  (promote (until-clean)))
  (action
   (run %{dep:test_debug_html.exe})))
 
@@ -272,6 +280,11 @@
  (alias runtest)
  (action
   (diff debugger_sexp_html.expected.html debugger_sexp_html.html)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_sexp_html-toc.expected.html debugger_sexp_html-toc.html)))
 
 (rule
  (alias runtest)
