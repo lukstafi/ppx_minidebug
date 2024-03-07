@@ -251,8 +251,8 @@
 
 (rule
  (targets debugger_sexp_html.html debugger_sexp_html-toc.html)
- (mode
-  (promote (until-clean)))
+ ;  (mode
+ ;   (promote (until-clean)))
  (action
   (run %{dep:test_debug_html.exe})))
 

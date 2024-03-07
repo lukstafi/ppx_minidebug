@@ -2,7 +2,7 @@ open Sexplib0.Sexp_conv
 
 module Debug_runtime =
   (val Minidebug_runtime.debug_file ~hyperlink:"../"
-         ~backend:(`Markdown PrintBox_md.Config.uniform) ~values_first_mode:true
+         ~backend:(`Markdown Minidebug_runtime.default_md_config) ~values_first_mode:true
          "debugger_sexp_md")
 
 let%debug_sexp foo (x : int) : int list =

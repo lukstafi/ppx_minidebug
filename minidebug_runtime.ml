@@ -1,4 +1,5 @@
 module CFormat = Format
+module B = PrintBox
 
 let time_elapsed () = Mtime_clock.elapsed ()
 
@@ -387,6 +388,15 @@ module type PrintBox_runtime = sig
   val snapshot : unit -> unit
 end
 
+let anchor_entry_id ~is_pure_text ~print_entry_ids ~entry_id =
+  if entry_id = -1 || (is_pure_text && not print_entry_ids) then B.empty
+  else
+    let id = Int.to_string entry_id in
+    let uri = "{#" ^ id ^ "}" in
+    let inner = if print_entry_ids then B.line uri else B.empty in
+    let anchor = B.anchor ~id inner in
+    if is_pure_text then B.hlist ~bars:false [ anchor; B.line " " ] else anchor
+
 module PrintBox (Log_to : Shared_config) = struct
   open Log_to
 
@@ -429,8 +439,6 @@ module PrintBox (Log_to : Shared_config) = struct
       sexp_unescape_strings = true;
     }
 
-  module B = PrintBox
-
   type subentry = { result_id : int; is_result : bool; subtree : B.t; toc_subtree : B.t }
 
   type entry = {
@@ -469,7 +477,19 @@ module PrintBox (Log_to : Shared_config) = struct
     output_string (debug_ch ()) log_header
 
   let apply_highlight hl b =
-    match B.view b with B.Frame _ -> b | _ -> if hl then B.frame b else b
+    let rec loop b =
+      match B.view b with
+      | B.Empty | B.Frame _ -> b
+      | B.Anchor { inner; _ } -> (
+          match B.view inner with B.Empty | B.Frame _ -> b | _ -> B.frame b)
+      | B.Pad ({ x; y }, b) -> B.pad' ~col:x ~lines:y @@ loop b
+      | B.Align { h; v; inner } -> B.align ~h ~v @@ loop inner
+      | B.Grid (bars, [| hl |]) -> B.grid ~bars:(bars = `Bars) [| Array.map loop hl |]
+      | B.Tree (indent, h, ch) ->
+          B.tree ~indent (loop h) @@ List.map loop @@ Array.to_list ch
+      | B.Grid _ | B.Link _ | B.Text _ -> B.frame b
+    in
+    if hl then loop b else b
 
   let unpack ~f l =
     let f sub acc =
@@ -508,18 +528,23 @@ module PrintBox (Log_to : Shared_config) = struct
     let span =
       time_span ~none:(fun () -> "") ~some:(fun span -> " " ^ span) elapsed elapsed_times
     in
-    let opt_id = opt_entry_id ~print_entry_ids ~entry_id in
     let colon a b = if a = "" || b = "" then a ^ b else a ^ ": " ^ b in
     let b_path =
       B.line
       @@
       if config.values_first_mode then
-        if entry_id = -1 then colon path entry_message else colon path opt_id
-      else colon path (opt_id ^ entry_message) ^ span
+        if entry_id = -1 then colon path entry_message else path
+      else colon path entry_message ^ span
+    in
+    let anchor_opt_id =
+      anchor_entry_id ~is_pure_text:(config.backend = `Text) ~print_entry_ids ~entry_id
     in
     let b_path = hyperlink_path ~uri ~inner:b_path in
+    let span_line = if elapsed_times = Not_reported then [] else [ B.line span ] in
     if config.values_first_mode then
-      let header = B.line @@ opt_id ^ entry_message ^ span in
+      let header =
+        B.hlist ~bars:false [ anchor_opt_id; B.line @@ entry_message ^ span ]
+      in
       let hl_header =
         if entry_id = -1 then B.empty else apply_highlight highlight header
       in
@@ -538,8 +563,7 @@ module PrintBox (Log_to : Shared_config) = struct
           match B.view subtree with
           | B.Tree (_ident, result_header, result_body) ->
               let value_header =
-                if elapsed_times = Not_reported then result_header
-                else B.hlist ~bars:false [ result_header; B.line span ]
+                B.hlist ~bars:false (anchor_opt_id :: result_header :: span_line)
               in
               ( value_header,
                 B.tree
@@ -552,8 +576,7 @@ module PrintBox (Log_to : Shared_config) = struct
                   @ body) )
           | _ ->
               let value_header =
-                if elapsed_times = Not_reported then subtree
-                else B.hlist ~bars:false [ subtree; B.line span ]
+                B.hlist ~bars:false (anchor_opt_id :: subtree :: span_line)
               in
               ( value_header,
                 B.tree
@@ -567,7 +590,9 @@ module PrintBox (Log_to : Shared_config) = struct
                :: B.tree (B.line @@ if body = [] then "<values>" else "<returns>") results
                :: body )
     else
-      let hl_header = apply_highlight highlight b_path in
+      let hl_header =
+        apply_highlight highlight @@ B.hlist ~bars:false [ anchor_opt_id; b_path ]
+      in
       (b_path, B.tree hl_header (unpack ~f:(fun { subtree; _ } -> subtree) body))
 
   let stack_to_toc header { entry_id; depth; size; body; _ } =
@@ -607,7 +632,7 @@ module PrintBox (Log_to : Shared_config) = struct
     | Empty -> ()
     | _ ->
         (match config.backend with
-        | `Text -> PrintBox_text.output ch box
+        | `Text -> PrintBox_text.output ~style:false ch box
         | `Html config ->
             let config =
               if for_toc then PrintBox_html.Config.tree_summary false config else config
