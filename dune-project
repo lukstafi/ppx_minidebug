@@ -15,7 +15,7 @@
 
 (documentation https://lukstafi.github.io/ppx_minidebug/ppx_minidebug)
 
-(version 1.3.0)
+(version 1.4.0)
 
 (package
  (name ppx_minidebug)
@@ -31,13 +31,13 @@
   (ppxlib
    (>= 0.26.0))
   (printbox
-   (>= 0.10))
+   (>= 0.11))
   (printbox-text
-   (>= 0.10))
+   (>= 0.11))
   (printbox-html
-   (= 0.10))
+   (= 0.11))
   (printbox-md
-   (>= 0.10))
+   (>= 0.11))
   ptime
   (mtime
    (>= 2.0))

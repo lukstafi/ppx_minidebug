@@ -792,9 +792,16 @@ If you provide the [split_files_after] setting, the logging will transition to a
 
 {2 Navigating large logs}
 
-In the future, [ppx_minidebug] will have native flame graphs in the HTML output (issue #19), which will then serve as a "table of contents" for the logs. Currently the best option to navigate large logs is to use the HTML backend with foldable trees and [elapsed_times] set. Unlike with the Markdown backend, HTML browsers can render really large files.
+There are a few ways [ppx_minidebug] is helpful with large logs. You can:
+{ul {- Use the HTML backend with foldable trees. Unlike with the Markdown backend, HTML browsers can render really large files.
+}{- Set [elapsed_times] to see how much time was spent in a subtree even if it is folded.
+}{- Use [~time_tagged:Elapsed] to keep track of when in the course of the program particular entries are computed.
+}{- Enable the {e Table of Contents} feature by e.g. passing [~with_table_of_contents:true]; tune [toc_entry_minimal_depth] and [toc_entry_minimal_size] so that the tables of contents are concise enough to provide an overview.
+}}
 
-Example:
+The {e table of contents} generation is enabled via [~with_table_of_contents:true] (for file-based runtimes -- via [table_of_contents_ch] for channel-based runtimes). This will create an additional file (name ending in [-toc]), mirroring the main logs in a summarized way. Selected log headers are output there preserving the tree structure, and there is no folding. The headers are hyperlinks pointing to the main log file (or files, if file splitting is enabled).
+
+Example demonstrating foldable trees in Markdown:
 
 {@ocaml[
 module Debug_runtime =

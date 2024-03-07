@@ -236,6 +236,10 @@ val debug_file :
     the given name suffixed with [".log"], [".html"] or [".md"] depending on the backend.
     By default the logging will not be time tagged and the file will be created or erased by
     this function. The default [boxify_sexp_from_size] value is 50.
+
+    Setting [~with_table_of_contents:true] will create an additional log file, the given name
+    suffixed with ["-toc"] and the corresponding file name extension. This file will collect
+    selected entries, hyperlinking to anchors in the main logging file(s).
     
     By default [backend] is [`Markdown PrintBox.default_md_config].
     See {!type:PrintBox.config} for details about PrintBox-specific parameters.
