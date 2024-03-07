@@ -3,7 +3,7 @@
 ### Added
 
 - A setting `verbose_entry_ids` that prefixes logged values with entry id tags.
-- TODO: Table of Contents, initial version (in the future this might be optionally a flame graph).
+- Table of Contents, initial version (in the future this might be optionally a flame graph).
 
 ### Changed
 

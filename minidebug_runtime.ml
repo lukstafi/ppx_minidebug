@@ -223,6 +223,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
     message : string;
     num_children : int;
     elapsed : Mtime.span;
+    time_tag : string;
     entry_id : int;
   }
 
@@ -251,7 +252,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
             entry_id
         in
         failwith @@ "ppx_minidebug: close_log must follow an earlier open_log; " ^ log_loc
-    | { message; elapsed; entry_id = open_entry_id; _ } :: tl -> (
+    | { message; elapsed; time_tag; entry_id = open_entry_id; _ } :: tl -> (
         stack := tl;
         (if open_entry_id <> entry_id then
          let log_loc =
@@ -280,7 +281,8 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         | None, _ | _, [] -> ()
         | Some toc_ch, (depth, size) :: _ ->
             if depth > toc_entry_minimal_depth && size > toc_entry_minimal_size then
-              Printf.fprintf toc_ch "%s{#%d} %s\n%!" (indent ()) entry_id message);
+              Printf.fprintf toc_ch "%s{#%d} %s%s\n%!" (indent ()) entry_id message
+                time_tag);
         match !depth_stack with
         | [] -> ()
         | [ _ ] -> depth_stack := []
@@ -301,11 +303,16 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
     | Range_pos ->
         Printf.fprintf !debug_ch "\"%s\":%d:%d-%d:%d:%!" fname start_lnum start_colnum
           end_lnum end_colnum);
-    (match Log_to.time_tagged with
-    | Not_tagged -> Printf.fprintf !debug_ch "\n%!"
-    | Clock -> Printf.fprintf !debug_ch " %s\n%!" (timestamp_to_string ())
-    | Elapsed -> Printf.fprintf !debug_ch " %s\n%!" (Format.asprintf "%a" pp_elapsed ()));
-    stack := { message; elapsed = time_elapsed (); num_children = 0; entry_id } :: !stack
+    let time_tag =
+      match Log_to.time_tagged with
+      | Not_tagged -> ""
+      | Clock -> " " ^ timestamp_to_string ()
+      | Elapsed -> Format.asprintf " %a" pp_elapsed ()
+    in
+    Printf.fprintf !debug_ch "%s\n%!" time_tag;
+    stack :=
+      { message; elapsed = time_elapsed (); time_tag; num_children = 0; entry_id }
+      :: !stack
 
   let bump_stack_entry entry_id =
     match !stack with
@@ -446,6 +453,7 @@ module PrintBox (Log_to : Shared_config) = struct
     highlight : bool;
     exclude : bool;
     elapsed : Mtime.span;
+    time_tag : string;
     uri : string;
     path : string;
     entry_message : string;
@@ -511,6 +519,7 @@ module PrintBox (Log_to : Shared_config) = struct
         highlight;
         exclude = _;
         elapsed;
+        time_tag = _;
         uri;
         path;
         entry_message;
@@ -595,7 +604,7 @@ module PrintBox (Log_to : Shared_config) = struct
       in
       (b_path, B.tree hl_header (unpack ~f:(fun { subtree; _ } -> subtree) body))
 
-  let stack_to_toc header { entry_id; depth; size; body; _ } =
+  let stack_to_toc header { entry_id; depth; size; body; time_tag; _ } =
     match table_of_contents_ch with
     | None -> B.empty
     | _ when depth <= toc_entry_minimal_depth || size <= toc_entry_minimal_size -> B.empty
@@ -618,6 +627,10 @@ module PrintBox (Log_to : Shared_config) = struct
           | _ -> B.link ~uri b
         in
         let header = replace_link header in
+        let header =
+          if time_tag = "" then header
+          else B.hlist ~bars:false [ header; B.line time_tag ]
+        in
         B.tree header @@ unpack ~f:(fun { toc_subtree; _ } -> toc_subtree) body
 
   let needs_snapshot_reset = ref false
@@ -690,6 +703,7 @@ module PrintBox (Log_to : Shared_config) = struct
              uri;
              path;
              elapsed;
+             time_tag;
              entry_message;
              entry_id;
              body;
@@ -706,6 +720,7 @@ module PrintBox (Log_to : Shared_config) = struct
             uri;
             path;
             elapsed;
+            time_tag;
             entry_message;
             entry_id;
             body = { result_id; is_result = false; subtree; toc_subtree } :: body;
@@ -805,6 +820,7 @@ module PrintBox (Log_to : Shared_config) = struct
                   highlight = hl;
                   exclude = false;
                   elapsed = Mtime.Span.zero;
+                  time_tag = "";
                   uri = "";
                   path = "";
                   entry_message;
@@ -861,6 +877,7 @@ module PrintBox (Log_to : Shared_config) = struct
         uri;
         path;
         elapsed = time_elapsed ();
+        time_tag;
         entry_message;
         entry_id;
         body = [];
