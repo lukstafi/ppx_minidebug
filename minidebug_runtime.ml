@@ -865,7 +865,7 @@ module PrintBox (Log_to : Shared_config) = struct
         entry_id;
         body = [];
         depth = 0;
-        size = 0;
+        size = 1;
       }
       :: !stack
 
