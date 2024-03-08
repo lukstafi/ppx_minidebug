@@ -2988,7 +2988,7 @@ let%expect_test "%log without scope" =
   [%expect
     {|
           BEGIN DEBUG SESSION
-          {#1} "test/test_expect_test.ml":2978:17: _bar
+          "test/test_expect_test.ml":2978:17: _bar {#1}
           └─_bar = ()
           {orphaned from #1}
           └─("This is like", 3, "or", 3.14, "above")
@@ -3022,8 +3022,8 @@ let%expect_test "%log without scope values_first_mode" =
   [%expect
     {|
           BEGIN DEBUG SESSION
-          {#1} _bar = ()
-          └─"test/test_expect_test.ml":3012:17
+          _bar = ()
+          └─"test/test_expect_test.ml":3012:17 {#1}
           ("This is like", 3, "or", 3.14, "above")
           └─{orphaned from #1}
           ("tau =", 6.28)
@@ -3069,14 +3069,14 @@ let%expect_test "%log with print_entry_ids, mixed up scopes" =
   [%expect
     {|
           BEGIN DEBUG SESSION
-          {#1} bar = ()
-          └─"test/test_expect_test.ml":3048:21
-          {#2} baz = ()
-          └─"test/test_expect_test.ml":3055:21
-          {#3} bar = ()
-          └─"test/test_expect_test.ml":3048:21
-          {#4} _foobar = ()
-          ├─"test/test_expect_test.ml":3067:17
+          bar = ()
+          └─"test/test_expect_test.ml":3048:21 {#1}
+          baz = ()
+          └─"test/test_expect_test.ml":3055:21 {#2}
+          bar = ()
+          └─"test/test_expect_test.ml":3048:21 {#3}
+          _foobar = ()
+          ├─"test/test_expect_test.ml":3067:17 {#4}
           ├─("This is like", 3, "or", 3.14, "above")
           ├─("tau =", 6.28)
           ├─[3; 1; 2; 3]

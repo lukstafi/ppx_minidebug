@@ -3,6 +3,7 @@
 ### Added
 
 - A setting `verbose_entry_ids` that prefixes logged values with entry id tags.
+- Log entries now generate anchors, HTML syntax: `<a id=ENTRY_ID></a>`
 - Table of Contents, initial version (in the future this might be optionally a flame graph).
 
 ### Changed
@@ -12,6 +13,7 @@
 - Breaking: replaces the `open_log_preamble_brief` and `open_log_preamble_full` with `open_log` and a setting `location_format`.
 - Breaking: Adds `fname`, `start_lnum`, `entry_id` parameters to `close_log` to debug lexical-vs-dynamic scope mismatches and spurious closes.
 - Adds `global_prefix` to the error message on `close_log` failure.
+- Entry ids output with `~print_entry_ids:true` now link to the entry anchors.
 
 ## [1.3.0] -- 2024-02-28
 

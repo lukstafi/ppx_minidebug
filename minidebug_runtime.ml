@@ -395,13 +395,15 @@ module type PrintBox_runtime = sig
   val snapshot : unit -> unit
 end
 
-let anchor_entry_id ~is_pure_text ~print_entry_ids ~entry_id =
-  if entry_id = -1 || (is_pure_text && not print_entry_ids) then B.empty
+let anchor_entry_id ~is_pure_text ~entry_id =
+  if entry_id = -1 || is_pure_text then B.empty
   else
     let id = Int.to_string entry_id in
-    let uri = "{#" ^ id ^ "}" in
-    let inner = if print_entry_ids then B.line uri else B.empty in
-    let anchor = B.anchor ~id inner in
+    (* TODO(#40): Not outputting a self-link, since we want the anchor in summaries,
+       mostly to avoid generating tables in HTML. *)
+    (* let uri = "{#" ^ id ^ "}" in
+       let inner = if print_entry_ids then B.line uri else B.empty in *)
+    let anchor = B.anchor ~id B.empty in
     if is_pure_text then B.hlist ~bars:false [ anchor; B.line " " ] else anchor
 
 module PrintBox (Log_to : Shared_config) = struct
@@ -539,21 +541,28 @@ module PrintBox (Log_to : Shared_config) = struct
     in
     let colon a b = if a = "" || b = "" then a ^ b else a ^ ": " ^ b in
     let b_path =
-      B.line
-      @@
-      if config.values_first_mode then
-        if entry_id = -1 then colon path entry_message else path
-      else colon path entry_message ^ span
+      let inner =
+        B.line
+        @@
+        if config.values_first_mode then
+          if entry_id = -1 then colon path entry_message else path
+        else colon path entry_message ^ span
+      in
+      hyperlink_path ~uri ~inner
     in
-    let anchor_opt_id =
-      anchor_entry_id ~is_pure_text:(config.backend = `Text) ~print_entry_ids ~entry_id
+    let is_pure_text = config.backend = `Text in
+    let anchor_id = anchor_entry_id ~is_pure_text ~entry_id in
+    let b_path =
+      if print_entry_ids && entry_id <> -1 then
+        let uri = "#" ^ Int.to_string entry_id in
+        let inner = B.line @@ "{" ^ uri ^ "}" in
+        if is_pure_text then B.hlist ~bars:false [ b_path; B.line " "; inner ]
+        else B.hlist ~bars:false [ b_path; B.link ~uri inner ]
+      else b_path
     in
-    let b_path = hyperlink_path ~uri ~inner:b_path in
     let span_line = if elapsed_times = Not_reported then [] else [ B.line span ] in
     if config.values_first_mode then
-      let header =
-        B.hlist ~bars:false [ anchor_opt_id; B.line @@ entry_message ^ span ]
-      in
+      let header = B.hlist ~bars:false [ anchor_id; B.line @@ entry_message ^ span ] in
       let hl_header =
         if entry_id = -1 then B.empty else apply_highlight highlight header
       in
@@ -572,7 +581,7 @@ module PrintBox (Log_to : Shared_config) = struct
           match B.view subtree with
           | B.Tree (_ident, result_header, result_body) ->
               let value_header =
-                B.hlist ~bars:false (anchor_opt_id :: result_header :: span_line)
+                B.hlist ~bars:false (anchor_id :: result_header :: span_line)
               in
               ( value_header,
                 B.tree
@@ -585,7 +594,7 @@ module PrintBox (Log_to : Shared_config) = struct
                   @ body) )
           | _ ->
               let value_header =
-                B.hlist ~bars:false (anchor_opt_id :: subtree :: span_line)
+                B.hlist ~bars:false (anchor_id :: subtree :: span_line)
               in
               ( value_header,
                 B.tree
@@ -600,7 +609,7 @@ module PrintBox (Log_to : Shared_config) = struct
                :: body )
     else
       let hl_header =
-        apply_highlight highlight @@ B.hlist ~bars:false [ anchor_opt_id; b_path ]
+        apply_highlight highlight @@ B.hlist ~bars:false [ anchor_id; b_path ]
       in
       (b_path, B.tree hl_header (unpack ~f:(fun { subtree; _ } -> subtree) body))
 
