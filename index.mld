@@ -641,10 +641,10 @@ The extension point [%log_printbox] lets you embed a [PrintBox.t] in the logs di
 We track lexical scoping: every log has access to the [entry_id] number of the lexical scope it is in.
 Lexical scopes are computations: bindings, functions, tracked code branches (even if not annotated
 with an extension point, but always within some [ppx_minidebug] registered extension point). There is
-also dynamic scoping: which entry a particular log actually ends up belonging in. Currently, we do not
+also dynamic scoping: which entry a particular log actually ends up belonging in. We do not
 expose the (lexical) entry id of an individual log, except when the log "wandered" out of all dynamic
-scopes. To be able to locate where such log originates from, pass [~print_entry_ids:true] when creating
-the runtime, and look for the header with the log's entry id. Example from the test suite:
+scopes, or you passed [~verbose_entry_ids:true] when creating a runtime. To be able to locate where such log originates from, pass [~print_entry_ids:true] when creating
+the runtime, and look for the path line with the log's entry id. When the backend is HTML or Markdown, the entry id is a hyperlink to the anchor of the entry. Example from the test suite:
 
 {@ocaml[
   let module Debug_runtime =
@@ -800,6 +800,8 @@ There are a few ways [ppx_minidebug] is helpful with large logs. You can:
 }}
 
 The {e table of contents} generation is enabled via [~with_table_of_contents:true] (for file-based runtimes -- via [table_of_contents_ch] for channel-based runtimes). This will create an additional file (name ending in [-toc]), mirroring the main logs in a summarized way. Selected log headers are output there preserving the tree structure, and there is no folding. The headers are hyperlinks pointing to the main log file (or files, if file splitting is enabled).
+
+If you collaborate with someone or take notes, you can pass [~print_entry_ids:true]. In HTML and Markdown, this will output links to the anchors of the corresponding log entries. You can share them to point to specific log file locations.
 
 Example demonstrating foldable trees in Markdown:
 
