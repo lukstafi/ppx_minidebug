@@ -175,7 +175,7 @@ Tracing only happens in explicitly marked lexical scopes. The entry extension po
 {ul {- [%debug_] vs. [%track_] vs. [%diagn_]
 {ul {- The prefix [%debug_] means logging fewer things: only let-bound values and functions are logged, and functions only when either: directly in a [%debug_]-annotated let binding, or their return type is annotated.
 }{- [%track_] also logs: which [if], [match], [function] branch is taken, [for] and [while] loops, and all functions, including anonymous ones.
-}{- The prefix [%diagn_] means only generating logs for explicitly logged values, i.e. introduced by [[%log ...]] and [[%log_result ...]] statements.
+}{- The prefix [%diagn_] means only generating logs for explicitly logged values, i.e. introduced by [[%log_entry]], [[%log ...]], [[%log_result ...]] and [[%log_printbox ...]] statements.
 }}
 }{- Optional infix [_this_] puts only the body of a [let] definition in scope for logging.
 {ul {- [let%debug_this_show v: t = compute value in outer scope] will trace [v] and the type-annotated bindings and functions inside [compute value], but it will not trace [outer scope].
@@ -192,11 +192,11 @@ Tracing only happens in explicitly marked lexical scopes. The entry extension po
 }}
 }}
 
-Plus, there are non-entry extension points [%log] and [%log_results] for logging values. They are not registered, which as a side effect should somewhat mitigate conflicts with other ppx extensions for logging.
+Plus, there are non-entry extension points [%log], [%log_printbox] and [%log_result] for logging values. They are not registered, which as a side effect should somewhat mitigate conflicts with other ppx extensions for logging. There's also an un-registered extension point [%log_entry] for opening a log subtree.
 
 See examples in {{: test/} the test directory}, and especially {{: test/test_expect_test.ml} the inline tests}.
 
-Only type-annotated let-bindings, function arguments, function results can be (implicitly) logged. However, the bindings and function arguments can be nested patterns with only parts of them type-annotated! The explicit loggers [%log] and [%log_result] take a value and reconstruct its type from partial type annotations (deconstructing the expression), sometimes assuming unknown types are strings.
+Only type-annotated let-bindings, function arguments, function results can be implicitly logged. However, the bindings and function arguments can be nested patterns with only parts of them type-annotated! The explicit loggers [%log] and [%log_result] take a value and reconstruct its type from partial type annotations (deconstructing the expression), sometimes assuming unknown types are strings. The [%log_printbox] logger takes a [PrintBox.t] value. The [%log_entry] logger takes a string value for the header of the log subtree.
 
 To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can bind [Debug_runtime] locally: [let module Debug_runtime = Minidebug_runtime.debug_file thread_name in ...]
 
@@ -436,10 +436,10 @@ The log levels are:
 {ul {- [Nothing] -- the runtime should not generate anything, and when used at compile time, the extension should not generate any [ppx_minidebug]-related code. However, just changing the log level should not break the code, therefore the runtime-passing transformation (i.e. the first-class-module argument added by the [_rt_] and [_rtb_] infixes) happens even for the [Nothing] log level.
 }{- [Prefixed [| prefix1; ... |]] -- only values starting with one of: prefix1, ... should be logged; at compile time, only logs with literals having one of prefix1, ... as a prefix, should be generated. Moreover, also don't log "empty entries" (see below). To preserve the hierarchical context, also log headers of logging scopes.
 }{- [Prefixed_or_result [| prefix1; ... |]] as above, but also log results of computations. At runtime doesn't output results of an entry if there are no non-result logs.
-}{- [Prefixed [||]] is compile-time only -- outputs all and only explicit logs (i.e. [%log] and [%log_result] statements).
+}{- [Prefixed [||]] is compile-time only -- outputs all and only explicit logs (i.e. [%log], [%log_result], [%log_printbox], [%log_entry] statements).
 }{- [Prefixed_or_result [||]] at compile-time -- as above, but also log results of computations.
 }{- [Prefixed_or_result [||]] at runtime -- only log results of computations if an entry has non-result logs.
-}{- [Nonempty_entries] -- do not log entries, such as functions or control flow blocks, that do not have sub-logs.
+}{- [Nonempty_entries] -- do not log subtrees, such as functions or control flow blocks, that do not have sub-logs. Exception: explicit [%log_entry] subtrees.
 }{- [Everything] -- no restrictions.
 }}
 
@@ -634,6 +634,62 @@ The extension point [%log_printbox] lets you embed a [PrintBox.t] in the logs di
         ├───┼───┼───┼───┼───┤
         │4/0│4/1│4/2│4/3│4/4│
         └───┴───┴───┴───┴───┘ |}
+]}
+
+The extension point [%log_entry] lets you shape arbitrary log tree structures. Example from the test suite:
+
+{@ocaml[
+  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
+  let%diagn_show _logging_logic : unit =
+    let rec loop logs =
+      match logs with
+      | "start" :: header :: tl ->
+          let more =
+            [%log_entry
+              header;
+              loop tl]
+          in
+          loop more
+      | "end" :: tl -> tl
+      | msg :: tl ->
+          [%log msg];
+          loop tl
+      | [] -> []
+    in
+    ignore
+    @@ loop
+         [
+           "preamble";
+           "start";
+           "header 1";
+           "log 1";
+           "start";
+           "nested header";
+           "log 2";
+           "end";
+           "log 3";
+           "end";
+           "start";
+           "header 2";
+           "log 4";
+           "end";
+           "postscript";
+         ]
+  in
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      "test/test_expect_test.ml":3507:17: _logging_logic
+      ├─"preamble"
+      ├─header 1
+      │ ├─"log 1"
+      │ ├─nested header
+      │ │ └─"log 2"
+      │ └─"log 3"
+      ├─header 2
+      │ └─"log 4"
+      └─"postscript"
+    |}]
 ]}
 
 {2 Lexical scopes vs. dynamic scopes}
