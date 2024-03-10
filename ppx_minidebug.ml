@@ -176,6 +176,9 @@ let open_log ?(message = "") ~loc () =
         ~end_colnum:[%e A.eint ~loc (loc.loc_end.pos_cnum - loc.loc_end.pos_bol)]
         ~message:[%e A.estring ~loc message] ~entry_id:__entry_id]
 
+let open_log_no_source ~message ~loc () =
+  [%expr Debug_runtime.open_log_no_source ~message:[%e message] ~entry_id:__entry_id]
+
 let close_log ~loc =
   [%expr
     Debug_runtime.close_log
@@ -320,6 +323,11 @@ let log_string ~loc ~descr_loc s =
       Debug_runtime.log_value_show
         ~descr:[%e A.estring ~loc:descr_loc.loc descr_loc.txt]
         ~entry_id:__entry_id ~is_result:false [%e A.estring ~loc s]]
+
+let log_string_with_descr ~loc ~message s =
+  [%expr
+    Debug_runtime.log_value_show ~descr:[%e message] ~entry_id:__entry_id ~is_result:false
+      [%e A.estring ~loc s]]
 
 type fun_arg =
   | Pexp_fun_arg of
@@ -497,9 +505,19 @@ let bound_patterns ~alt_typ pat =
   let loc = pat.ppat_loc in
   (A.ppat_alias ~loc bind_pat { txt = "__res"; loc }, bound)
 
-let entry_with_interrupts context ~loc ~descr_loc ~log_count_before ?header ~preamble
-    ~entry ~result ~log_result () =
-  if context.log_level <> Everything && log_count_before = !global_log_count then entry
+let entry_with_interrupts context ~loc ?descr_loc ?message ~log_count_before ?header
+    ~preamble ~entry ~result ~log_result () =
+  let log_string =
+    match (descr_loc, message) with
+    | Some descr_loc, None -> log_string ~loc ~descr_loc
+    | None, Some message -> log_string_with_descr ~loc ~message
+    | _ -> assert false
+  in
+  if
+    context.log_level <> Everything
+    && log_count_before = !global_log_count
+    && message = None
+  then entry
   else
     let header = match header with Some h -> h | None -> [%expr ()] in
     if context.interrupts then
@@ -507,12 +525,12 @@ let entry_with_interrupts context ~loc ~descr_loc ~log_count_before ?header ~pre
         let __entry_id = Debug_runtime.get_entry_id () in
         [%e header];
         if Debug_runtime.exceeds_max_children () then (
-          [%e log_string ~loc ~descr_loc "<max_num_children exceeded>"];
+          [%e log_string "<max_num_children exceeded>"];
           failwith "ppx_minidebug: max_num_children exceeded")
         else (
           [%e preamble];
           if Debug_runtime.exceeds_max_nesting () then (
-            [%e log_string ~loc ~descr_loc "<max_nesting_depth exceeded>"];
+            [%e log_string "<max_nesting_depth exceeded>"];
             [%e close_log ~loc];
             failwith "ppx_minidebug: max_nesting_depth exceeded")
           else
@@ -1098,6 +1116,24 @@ let traverse_expression =
             log_value context ~loc ~typ ~is_explicit:true ~is_result:true body
         | Pexp_extension ({ loc = _; txt = "log_printbox" }, PStr [%str [%e? body]]) ->
             log_value_printbox context ~loc body
+        | Pexp_extension
+            ( { loc = _; txt = "log_entry" },
+              PStr
+                [%str
+                  [%e? message];
+                  [%e? entry]] ) ->
+            let log_count_before = !global_log_count in
+            let preamble = open_log_no_source ~message ~loc () in
+            let result = A.ppat_var ~loc { loc; txt = "__res" } in
+            let entry = callback { context with toplevel_opt_arg = Nested } entry in
+            let log_result = [%expr ()] in
+            entry_with_interrupts context ~loc ~message ~log_count_before ~preamble ~entry
+              ~result ~log_result ()
+        | Pexp_extension ({ loc = _; txt = "log_entry" }, PStr [%str [%e? _entry]]) ->
+            A.pexp_extension ~loc
+            @@ Location.error_extensionf ~loc
+                 "ppx_minidebug: bad syntax, expacted [%%log_entry <HEADER MESSAGE>; \
+                  <BODY>]"
         | (Pexp_newtype _ | Pexp_fun _)
           when context.toplevel_opt_arg <> Nested || not restrict_to_explicit ->
             debug_fun context callback ?typ:ret_typ exp

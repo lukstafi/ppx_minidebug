@@ -106,6 +106,11 @@ module type Debug_runtime = sig
     entry_id:int ->
     unit
 
+  val open_log_no_source :
+    message:string ->
+    entry_id:int ->
+    unit
+
   val log_value_sexp :
     ?descr:string -> entry_id:int -> is_result:bool -> Sexplib0.Sexp.t -> unit
 

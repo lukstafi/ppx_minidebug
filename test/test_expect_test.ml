@@ -3501,3 +3501,56 @@ let%expect_test "%log_printbox flushing" =
        bar end
        foo = ()
       foo end |}]
+
+let%expect_test "%log_entry" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
+  let%diagn_show _logging_logic : unit =
+    let rec loop logs =
+      match logs with
+      | "start" :: header :: tl ->
+          let more =
+            [%log_entry
+              header;
+              loop tl]
+          in
+          loop more
+      | "end" :: tl -> tl
+      | msg :: tl ->
+          [%log msg];
+          loop tl
+      | [] -> []
+    in
+    ignore
+    @@ loop
+         [
+           "preamble";
+           "start";
+           "header 1";
+           "log 1";
+           "start";
+           "nested header";
+           "log 2";
+           "end";
+           "log 3";
+           "end";
+           "start";
+           "header 2";
+           "log 4";
+           "end";
+           "postscript";
+         ]
+  in
+  [%expect
+    {|
+      BEGIN DEBUG SESSION
+      "test/test_expect_test.ml":3507:17: _logging_logic
+      ├─"preamble"
+      ├─header 1
+      │ ├─"log 1"
+      │ ├─nested header
+      │ │ └─"log 2"
+      │ └─"log 3"
+      ├─header 2
+      │ └─"log 4"
+      └─"postscript"
+    |}]

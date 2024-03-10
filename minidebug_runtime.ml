@@ -165,6 +165,8 @@ module type Debug_runtime = sig
     entry_id:int ->
     unit
 
+  val open_log_no_source : message:string -> entry_id:int -> unit
+
   val log_value_sexp :
     ?descr:string -> entry_id:int -> is_result:bool -> Sexplib0.Sexp.t -> unit
 
@@ -255,13 +257,13 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
     | { message; elapsed; time_tag; entry_id = open_entry_id; _ } :: tl -> (
         stack := tl;
         (if open_entry_id <> entry_id then
-         let log_loc =
-           Printf.sprintf "%s\"%s\":%d: open entry_id=%d, close entry_id=%d" global_prefix
-             fname start_lnum open_entry_id entry_id
-         in
-         failwith
-         @@ "ppx_minidebug: lexical scope of close_log not matching its dynamic scope; "
-         ^ log_loc);
+           let log_loc =
+             Printf.sprintf "%s\"%s\":%d: open entry_id=%d, close entry_id=%d"
+               global_prefix fname start_lnum open_entry_id entry_id
+           in
+           failwith
+           @@ "ppx_minidebug: lexical scope of close_log not matching its dynamic scope; "
+           ^ log_loc);
         Printf.fprintf !debug_ch "%s%!" (indent ());
         (match Log_to.time_tagged with
         | Not_tagged -> ()
@@ -303,6 +305,22 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
     | Range_pos ->
         Printf.fprintf !debug_ch "\"%s\":%d:%d-%d:%d:%!" fname start_lnum start_colnum
           end_lnum end_colnum);
+    let time_tag =
+      match Log_to.time_tagged with
+      | Not_tagged -> ""
+      | Clock -> " " ^ timestamp_to_string ()
+      | Elapsed -> Format.asprintf " %a" pp_elapsed ()
+    in
+    Printf.fprintf !debug_ch "%s\n%!" time_tag;
+    stack :=
+      { message; elapsed = time_elapsed (); time_tag; num_children = 0; entry_id }
+      :: !stack
+
+  let open_log_no_source ~message ~entry_id =
+    Printf.fprintf !debug_ch "%s%s%s%s begin %!" (indent ()) global_prefix
+      (opt_entry_id ~print_entry_ids ~entry_id)
+      message;
+    let message = opt_verbose_entry_id ~verbose_entry_ids ~entry_id ^ message in
     let time_tag =
       match Log_to.time_tagged with
       | Not_tagged -> ""
@@ -541,14 +559,19 @@ module PrintBox (Log_to : Shared_config) = struct
     in
     let colon a b = if a = "" || b = "" then a ^ b else a ^ ": " ^ b in
     let b_path =
-      let inner =
-        B.line
-        @@
+      if uri = "" then
         if config.values_first_mode then
-          if entry_id = -1 then colon path entry_message else path
-        else colon path entry_message ^ span
-      in
-      hyperlink_path ~uri ~inner
+          if entry_id = -1 then B.line entry_message else B.empty
+        else B.line @@ entry_message ^ span
+      else
+        let inner =
+          B.line
+          @@
+          if config.values_first_mode then
+            if entry_id = -1 then colon path entry_message else path
+          else colon path entry_message ^ span
+        in
+        hyperlink_path ~uri ~inner
     in
     let is_pure_text = config.backend = `Text in
     let anchor_id = anchor_entry_id ~is_pure_text ~entry_id in
@@ -688,7 +711,7 @@ module PrintBox (Log_to : Shared_config) = struct
     | _ -> ());
     (* Note: we treat a tree under a box as part of that box. *)
     stack :=
-      (* Design choice: exclude does not apply to its own entry -- its about propagating children. *)
+      (* Design choice: exclude does not apply to its own entry -- it's about propagating children. *)
       match !stack with
       | { highlight = false; _ } :: bs when config.prune_upto >= List.length !stack -> bs
       | { body = []; _ } :: bs when config.log_level <> Everything -> bs
@@ -895,6 +918,37 @@ module PrintBox (Log_to : Shared_config) = struct
       }
       :: !stack
 
+  let open_log_no_source ~message ~entry_id =
+    let time_tag =
+      match time_tagged with
+      | Not_tagged -> ""
+      | Clock -> Format.asprintf " at time %a" pp_timestamp ()
+      | Elapsed -> Format.asprintf " at elapsed %a" pp_elapsed ()
+    in
+    let exclude =
+      match config.exclude_on_path with Some r -> Re.execp r message | None -> false
+    in
+    let highlight =
+      match config.highlight_terms with Some r -> Re.execp r message | None -> false
+    in
+    let entry_message = global_prefix ^ message in
+    stack :=
+      {
+        cond = true;
+        highlight;
+        exclude;
+        uri = "";
+        path = "";
+        elapsed = time_elapsed ();
+        time_tag;
+        entry_message;
+        entry_id;
+        body = [];
+        depth = 0;
+        size = 1;
+      }
+      :: !stack
+
   let sexp_size sexp =
     let open Sexplib0.Sexp in
     let rec loop = function
@@ -989,15 +1043,15 @@ module PrintBox (Log_to : Shared_config) = struct
       | _ -> true
     in
     (if config.boxify_sexp_from_size >= 0 then
-     stack_next ~entry_id ~is_result ~prefixed ~result_depth:0 ~result_size:1
-     @@ boxify ?descr sexp
-    else
-      stack_next ~entry_id ~is_result ~prefixed ~result_depth:0 ~result_size:1
-      @@ highlight_box
-      @@
-      match descr with
-      | None -> B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
-      | Some d -> B.asprintf_with_style B.Style.preformatted "%s = %a" d pp_sexp sexp);
+       stack_next ~entry_id ~is_result ~prefixed ~result_depth:0 ~result_size:1
+       @@ boxify ?descr sexp
+     else
+       stack_next ~entry_id ~is_result ~prefixed ~result_depth:0 ~result_size:1
+       @@ highlight_box
+       @@
+       match descr with
+       | None -> B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
+       | Some d -> B.asprintf_with_style B.Style.preformatted "%s = %a" d pp_sexp sexp);
     opt_auto_snapshot ()
 
   let skip_parens s =

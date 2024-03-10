@@ -1,3 +1,9 @@
+## [1.5.0] -- current
+
+### Added
+
+- An API function `Debug_runtime.open_log_no_source` for log entries without associated source code locations, and a corresponding `[%log_entry]` extension point.
+
 ## [1.4.0] -- 2024-03-08
 
 ### Added
