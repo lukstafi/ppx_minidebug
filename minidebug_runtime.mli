@@ -106,10 +106,7 @@ module type Debug_runtime = sig
     entry_id:int ->
     unit
 
-  val open_log_no_source :
-    message:string ->
-    entry_id:int ->
-    unit
+  val open_log_no_source : message:string -> entry_id:int -> unit
 
   val log_value_sexp :
     ?descr:string -> entry_id:int -> is_result:bool -> Sexplib0.Sexp.t -> unit
@@ -197,6 +194,10 @@ module type PrintBox_runtime = sig
     mutable sexp_unescape_strings : bool;
         (** If true, when a value is a sexp atom or is decomposed into a sexp atom by boxification, it is
             not printed as a sexp, but the string of the atom is printed directly. Defaults to [true]. *)
+    mutable toc_flame_graph : bool;
+        (** If true, outputs a minimalistic rendering of a flame graph in the Table of Contents files, with
+            boxes positioned to reflect both the ToC entries hierarchy and elapsed times for the opening
+            and closing of entries. *)
   }
 
   val config : config
@@ -222,6 +223,7 @@ val debug_file :
   ?with_table_of_contents:bool ->
   ?toc_entry_minimal_depth:int ->
   ?toc_entry_minimal_size:int ->
+  ?toc_flame_graph:bool ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
   ?prune_upto:int ->
@@ -261,6 +263,7 @@ val debug :
   ?table_of_contents_ch:out_channel ->
   ?toc_entry_minimal_depth:int ->
   ?toc_entry_minimal_size:int ->
+  ?toc_flame_graph:bool ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
   ?prune_upto:int ->

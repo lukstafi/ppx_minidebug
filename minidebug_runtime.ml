@@ -190,8 +190,8 @@ end
 
 let exceeds ~value ~limit = match limit with None -> false | Some limit -> limit < value
 
-let time_span ~none ~some elapsed elapsed_times =
-  let span = Mtime.Span.to_float_ns (Mtime.Span.abs_diff (time_elapsed ()) elapsed) in
+let time_span ~none ~some ~elapsed ~elapsed_on_close elapsed_times =
+  let span = Mtime.Span.to_float_ns (Mtime.Span.abs_diff elapsed_on_close elapsed) in
   match elapsed_times with
   | Not_reported -> none ()
   | Seconds ->
@@ -255,6 +255,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         in
         failwith @@ "ppx_minidebug: close_log must follow an earlier open_log; " ^ log_loc
     | { message; elapsed; time_tag; entry_id = open_entry_id; _ } :: tl -> (
+        let elapsed_on_close = time_elapsed () in
         stack := tl;
         (if open_entry_id <> entry_id then
            let log_loc =
@@ -273,7 +274,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         time_span
           ~none:(fun () -> ())
           ~some:(Printf.fprintf !debug_ch "%s %!")
-          elapsed elapsed_times;
+          ~elapsed ~elapsed_on_close elapsed_times;
         Printf.fprintf !debug_ch "%s%s end\n%!" global_prefix message;
         flush !debug_ch;
         if !stack = [] then (
@@ -407,6 +408,7 @@ module type PrintBox_runtime = sig
     mutable log_level : log_level;
     mutable snapshot_every_sec : float option;
     mutable sexp_unescape_strings : bool;
+    mutable toc_flame_graph : bool;
   }
 
   val config : config
@@ -446,6 +448,7 @@ module PrintBox (Log_to : Shared_config) = struct
     mutable log_level : log_level;
     mutable snapshot_every_sec : float option;
     mutable sexp_unescape_strings : bool;
+    mutable toc_flame_graph : bool;
   }
 
   let config =
@@ -464,9 +467,18 @@ module PrintBox (Log_to : Shared_config) = struct
       log_level = Everything;
       snapshot_every_sec = None;
       sexp_unescape_strings = true;
+      toc_flame_graph = false;
     }
 
-  type subentry = { result_id : int; is_result : bool; subtree : B.t; toc_subtree : B.t }
+  type subentry = {
+    result_id : int;
+    is_result : bool;
+    elapsed_start : Mtime.span;
+    elapsed_end : Mtime.span;
+    subtree : B.t;
+    toc_subtree : B.t;
+    flame_subtree : string;
+  }
 
   type entry = {
     cond : bool;
@@ -533,7 +545,7 @@ module PrintBox (Log_to : Shared_config) = struct
     in
     unpack (config.truncate_children - 1) [] l
 
-  let stack_to_tree
+  let stack_to_tree ~elapsed_on_close
       {
         cond = _;
         highlight;
@@ -555,7 +567,10 @@ module PrintBox (Log_to : Shared_config) = struct
       || String.contains entry_message '='
     in
     let span =
-      time_span ~none:(fun () -> "") ~some:(fun span -> " " ^ span) elapsed elapsed_times
+      time_span
+        ~none:(fun () -> "")
+        ~some:(fun span -> " " ^ span)
+        ~elapsed ~elapsed_on_close elapsed_times
     in
     let colon a b = if a = "" || b = "" then a ^ b else a ^ ": " ^ b in
     let b_path =
@@ -638,8 +653,9 @@ module PrintBox (Log_to : Shared_config) = struct
 
   let stack_to_toc header { entry_id; depth; size; body; time_tag; _ } =
     match table_of_contents_ch with
-    | None -> B.empty
-    | _ when depth <= toc_entry_minimal_depth || size <= toc_entry_minimal_size -> B.empty
+    | None -> (B.empty, B.empty)
+    | _ when depth <= toc_entry_minimal_depth || size <= toc_entry_minimal_size ->
+        (B.empty, B.empty)
     | Some _toc_ch ->
         let prefix =
           match (config.toc_specific_hyperlink, config.hyperlink) with
@@ -663,7 +679,58 @@ module PrintBox (Log_to : Shared_config) = struct
           if time_tag = "" then header
           else B.hlist ~bars:false [ header; B.line time_tag ]
         in
-        B.tree header @@ unpack ~f:(fun { toc_subtree; _ } -> toc_subtree) body
+        (header, B.tree header @@ unpack ~f:(fun { toc_subtree; _ } -> toc_subtree) body)
+
+  let colors = [| "#ee7777"; "#779077"; "#cc77cc" |]
+  let flame_box_num = ref 0
+
+  let stack_to_flame ~elapsed_on_close header { body; elapsed; _ } =
+    let e2f = Mtime.Span.to_float_ns in
+    let total = e2f @@ Mtime.Span.abs_diff elapsed_on_close elapsed in
+    let left_pc ~elapsed_start =
+      let left = Mtime.Span.abs_diff elapsed_start elapsed in
+      e2f left *. 100. /. total
+    in
+    let width_pc ~elapsed_start ~elapsed_end =
+      let width = Mtime.Span.abs_diff elapsed_end elapsed_start in
+      e2f width *. 100. /. total
+    in
+    let result = Buffer.create 256 in
+    let out = Buffer.add_string result in
+    let subentry ~flame_subtree ~elapsed_start ~elapsed_end =
+      let apply = function
+        | "left" -> Float.to_string @@ left_pc ~elapsed_start
+        | "width" -> Float.to_string @@ width_pc ~elapsed_start ~elapsed_end
+        | "flame_subtree" -> flame_subtree
+        | _ -> assert false
+      in
+      Buffer.add_substitute result apply
+        {|<div style="position: relative; top:10%; height: 90%; left:$(left)%; width:$(width)%;">
+       $(flame_subtree)</div>
+       |}
+    in
+    let header =
+      match config.backend with
+      | `Text -> PrintBox_text.to_string header
+      | `Html config ->
+          let config = PrintBox_html.Config.tree_summary false config in
+          PrintBox_html.(to_string ~config header)
+      | `Markdown config ->
+          let config = PrintBox_md.Config.unfolded_trees config in
+          PrintBox_md.(to_string Config.(foldable_trees config) header)
+    in
+    out
+      {|<div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: |};
+    out colors.(!flame_box_num mod Array.length colors);
+    incr flame_box_num;
+    out {|;">|};
+    out header;
+    out {|</div>|};
+    List.iter (fun { flame_subtree; elapsed_start; elapsed_end; _ } ->
+        subentry ~flame_subtree ~elapsed_start ~elapsed_end)
+    @@ List.rev body;
+    out "</div>";
+    result
 
   let needs_snapshot_reset = ref false
 
@@ -692,7 +759,7 @@ module PrintBox (Log_to : Shared_config) = struct
         output_string ch "\n";
         Stdlib.flush ch
 
-  let close_log_impl ~from_snapshot ~fname ~start_lnum ~entry_id =
+  let close_log_impl ~from_snapshot ~elapsed_on_close ~fname ~start_lnum ~entry_id =
     (match !stack with
     | { entry_id = open_entry_id; _ } :: _ when open_entry_id <> entry_id ->
         let log_loc =
@@ -726,6 +793,7 @@ module PrintBox (Log_to : Shared_config) = struct
            entry_id = result_id;
            depth = result_depth;
            size = result_size;
+           elapsed = elapsed_start;
            _;
          } as entry)
         :: {
@@ -743,8 +811,12 @@ module PrintBox (Log_to : Shared_config) = struct
              size;
            }
         :: bs3 ->
-          let header, subtree = stack_to_tree entry in
-          let toc_subtree = stack_to_toc header entry in
+          let header, subtree = stack_to_tree ~elapsed_on_close entry in
+          let toc_header, toc_subtree = stack_to_toc header entry in
+          let flame_subtree =
+            Buffer.contents @@ stack_to_flame ~elapsed_on_close toc_header entry
+          in
+
           {
             cond;
             highlight = highlight || ((not exclude) && hl);
@@ -755,14 +827,24 @@ module PrintBox (Log_to : Shared_config) = struct
             time_tag;
             entry_message;
             entry_id;
-            body = { result_id; is_result = false; subtree; toc_subtree } :: body;
+            body =
+              {
+                result_id;
+                is_result = false;
+                elapsed_start;
+                elapsed_end = elapsed_on_close;
+                subtree;
+                toc_subtree;
+                flame_subtree;
+              }
+              :: body;
             depth = max (result_depth + 1) depth;
             size = result_size + size;
           }
           :: bs3
       | { cond = false; _ } :: bs -> bs
-      | [ ({ cond = true; _ } as entry) ] ->
-          let header, box = stack_to_tree entry in
+      | [ ({ cond = true; depth; _ } as entry) ] ->
+          let header, box = stack_to_tree ~elapsed_on_close entry in
           let ch = debug_ch () in
           pop_snapshot ();
           output_box ~for_toc:false ch box;
@@ -770,21 +852,33 @@ module PrintBox (Log_to : Shared_config) = struct
           (match table_of_contents_ch with
           | None -> ()
           | Some toc_ch ->
-              let toc_box = stack_to_toc header entry in
-              output_box ~for_toc:true toc_ch toc_box);
+              let toc_header, toc_box = stack_to_toc header entry in
+              output_box ~for_toc:true toc_ch toc_box;
+              if config.toc_flame_graph then (
+                output_string toc_ch
+                  {|
+                    <div style="position: relative; height: 0px;">|};
+                Buffer.output_buffer toc_ch
+                @@ stack_to_flame ~elapsed_on_close toc_header entry;
+                output_string toc_ch @@ {|</div><div style="position: relative; height: |}
+                ^ Int.to_string (depth * 40)
+                ^ {|px;"></div>|};
+                flush toc_ch));
           []
       | [] -> assert false
 
   let close_log ~fname ~start_lnum ~entry_id =
-    close_log_impl ~from_snapshot:false ~fname ~start_lnum ~entry_id
+    let elapsed_on_close = time_elapsed () in
+    close_log_impl ~from_snapshot:false ~elapsed_on_close ~fname ~start_lnum ~entry_id
 
   let snapshot () =
     let current_stack = !stack in
+    let elapsed_on_close = time_elapsed () in
     try
       while !stack <> [] do
         match !stack with
         | { entry_id; _ } :: _ ->
-            close_log_impl ~from_snapshot:true ~fname:"snapshotting"
+            close_log_impl ~from_snapshot:true ~elapsed_on_close ~fname:"snapshotting"
               ~start_lnum:(List.length !stack) ~entry_id
         | _ -> assert false
       done;
@@ -828,21 +922,38 @@ module PrintBox (Log_to : Shared_config) = struct
     | Prefixed_or_result _ when not (is_result || prefixed) -> ()
     | _ -> (
         match !stack with
-        | ({ highlight; exclude; body; depth; size; _ } as entry) :: bs2 ->
+        | ({ highlight; exclude; body; depth; size; elapsed; _ } as entry) :: bs2 ->
             stack :=
               {
                 entry with
                 highlight = highlight || ((not exclude) && hl);
                 body =
-                  { result_id = entry_id; is_result; subtree = b; toc_subtree = B.empty }
+                  {
+                    result_id = entry_id;
+                    is_result;
+                    elapsed_start = elapsed;
+                    elapsed_end = elapsed;
+                    subtree = b;
+                    toc_subtree = B.empty;
+                    flame_subtree = "";
+                  }
                   :: body;
                 depth = max (result_depth + 1) depth;
                 size = size + result_size;
               }
               :: bs2
         | [] ->
+            let elapsed = time_elapsed () in
             let subentry =
-              { result_id = entry_id; is_result; subtree = b; toc_subtree = B.empty }
+              {
+                result_id = entry_id;
+                is_result;
+                elapsed_start = elapsed;
+                elapsed_end = elapsed;
+                subtree = b;
+                toc_subtree = B.empty;
+                flame_subtree = "";
+              }
             in
             let entry_message = "{orphaned from #" ^ Int.to_string entry_id ^ "}" in
             stack :=
@@ -851,7 +962,7 @@ module PrintBox (Log_to : Shared_config) = struct
                   cond = true;
                   highlight = hl;
                   exclude = false;
-                  elapsed = Mtime.Span.zero;
+                  elapsed;
                   time_tag = "";
                   uri = "";
                   path = "";
@@ -865,6 +976,7 @@ module PrintBox (Log_to : Shared_config) = struct
             close_log ~fname:"orphaned" ~start_lnum:entry_id ~entry_id:(-1))
 
   let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id =
+    let elapsed = time_elapsed () in
     let uri =
       match config.hyperlink with
       | `Prefix prefix
@@ -908,7 +1020,7 @@ module PrintBox (Log_to : Shared_config) = struct
         exclude;
         uri;
         path;
-        elapsed = time_elapsed ();
+        elapsed;
         time_tag;
         entry_message;
         entry_id;
@@ -1137,11 +1249,12 @@ end
 let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
     ?(global_prefix = "") ?split_files_after ?(with_table_of_contents = false)
-    ?(toc_entry_minimal_depth = 0) ?(toc_entry_minimal_size = 0) ?highlight_terms
-    ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0) ?(for_append = false)
-    ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80) ?backend ?hyperlink
-    ?toc_specific_hyperlink ?(values_first_mode = false) ?(log_level = Everything)
-    ?snapshot_every_sec filename : (module PrintBox_runtime) =
+    ?(toc_entry_minimal_depth = 0) ?(toc_entry_minimal_size = 0)
+    ?(toc_flame_graph = false) ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
+    ?(truncate_children = 0) ?(for_append = false) ?(boxify_sexp_from_size = 50)
+    ?(max_inline_sexp_length = 80) ?backend ?hyperlink ?toc_specific_hyperlink
+    ?(values_first_mode = false) ?(log_level = Everything) ?snapshot_every_sec filename :
+    (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename ^ ".md"
@@ -1167,14 +1280,16 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   Debug.config.toc_specific_hyperlink <- toc_specific_hyperlink;
   Debug.config.log_level <- log_level;
   Debug.config.snapshot_every_sec <- snapshot_every_sec;
+  Debug.config.toc_flame_graph <- toc_flame_graph;
   (module Debug)
 
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
     ?(global_prefix = "") ?table_of_contents_ch ?(toc_entry_minimal_depth = 0)
-    ?(toc_entry_minimal_size = 0) ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
-    ?(truncate_children = 0) ?toc_specific_hyperlink ?(values_first_mode = false)
-    ?(log_level = Everything) ?snapshot_every_sec () : (module PrintBox_runtime) =
+    ?(toc_entry_minimal_size = 0) ?(toc_flame_graph = false) ?highlight_terms
+    ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0) ?toc_specific_hyperlink
+    ?(values_first_mode = false) ?(log_level = Everything) ?snapshot_every_sec () :
+    (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
     let ch = match debug_ch with None -> stdout | Some ch -> ch
@@ -1213,6 +1328,7 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
   Debug.config.log_level <- log_level;
   Debug.config.snapshot_every_sec <- snapshot_every_sec;
   Debug.config.toc_specific_hyperlink <- toc_specific_hyperlink;
+  Debug.config.toc_flame_graph <- toc_flame_graph;
   (module Debug)
 
 let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename

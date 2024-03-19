@@ -1,8 +1,9 @@
-## [1.5.0] -- current
+## [1.5.0] -- 2024-03-20
 
 ### Added
 
 - An API function `Debug_runtime.open_log_no_source` for log entries without associated source code locations, and a corresponding `[%log_entry]` extension point.
+- A simple, minimalistic, initial version of a Flame Graph output in ToC files (PrintBox backend only).
 
 ## [1.4.0] -- 2024-03-08
 
