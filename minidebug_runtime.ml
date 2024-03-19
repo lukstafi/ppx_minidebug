@@ -681,8 +681,16 @@ module PrintBox (Log_to : Shared_config) = struct
         in
         (header, B.tree header @@ unpack ~f:(fun { toc_subtree; _ } -> toc_subtree) body)
 
-  let colors = [| "#ee7777"; "#779077"; "#cc77cc" |]
-  let flame_box_num = ref 0
+  let pseudo_random_color =
+    let rand = ref 1 in
+    fun () ->
+      (rand := Int.(logxor !rand (shift_left !rand 13)));
+      let r = 128 + 64 + (!rand mod 50) in
+      (rand := Int.(logxor !rand (shift_right_logical !rand 17)));
+      let g = 128 + 64 + (!rand mod 50) in
+      (rand := Int.(logxor !rand (shift_left !rand 5)));
+      let b = 128 + 64 + (!rand mod 50) in
+      Printf.sprintf "%x%x%x" r g b
 
   let stack_to_flame ~elapsed_on_close header { body; elapsed; _ } =
     let e2f = Mtime.Span.to_float_ns in
@@ -720,9 +728,8 @@ module PrintBox (Log_to : Shared_config) = struct
           PrintBox_md.(to_string Config.(foldable_trees config) header)
     in
     out
-      {|<div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: |};
-    out colors.(!flame_box_num mod Array.length colors);
-    incr flame_box_num;
+      {|<div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #|};
+    out @@ pseudo_random_color ();
     out {|;">|};
     out header;
     out {|</div>|};
