@@ -860,7 +860,7 @@ module PrintBox (Log_to : Shared_config) = struct
                     <div style="position: relative; height: 0px;">|};
                 Buffer.output_buffer toc_ch
                 @@ stack_to_flame ~elapsed_on_close toc_header entry;
-                output_string toc_ch @@ {|</div><div style="position: relative; height: |}
+                output_string toc_ch @@ {|</div><div style="height: |}
                 ^ Int.to_string (depth * 40)
                 ^ {|px;"></div>|};
                 flush toc_ch));
