@@ -423,6 +423,7 @@ module type PrintBox_runtime = sig
     mutable log_level : log_level;
     mutable snapshot_every_sec : float option;
     mutable sexp_unescape_strings : bool;
+    mutable with_toc_listing : bool;
     mutable toc_flame_graph : bool;
   }
 
@@ -463,6 +464,7 @@ module PrintBox (Log_to : Shared_config) = struct
     mutable log_level : log_level;
     mutable snapshot_every_sec : float option;
     mutable sexp_unescape_strings : bool;
+    mutable with_toc_listing : bool;
     mutable toc_flame_graph : bool;
   }
 
@@ -483,6 +485,7 @@ module PrintBox (Log_to : Shared_config) = struct
       snapshot_every_sec = None;
       sexp_unescape_strings = true;
       toc_flame_graph = false;
+      with_toc_listing = false;
     }
 
   type subentry = {
@@ -671,7 +674,7 @@ module PrintBox (Log_to : Shared_config) = struct
     let span = Mtime.Span.abs_diff elapsed_on_close elapsed in
     match table_of_contents_ch with
     | None -> (B.empty, B.empty)
-    | _ when toc_entry_passes ~depth ~size ~span toc_entry -> (B.empty, B.empty)
+    | _ when not @@ toc_entry_passes ~depth ~size ~span toc_entry -> (B.empty, B.empty)
     | Some _toc_ch ->
         let prefix =
           match (config.toc_specific_hyperlink, config.hyperlink) with
@@ -695,7 +698,10 @@ module PrintBox (Log_to : Shared_config) = struct
           if time_tag = "" then header
           else B.hlist ~bars:false [ header; B.line time_tag ]
         in
-        (header, B.tree header @@ unpack ~f:(fun { toc_subtree; _ } -> toc_subtree) body)
+        ( header,
+          if config.with_toc_listing then
+            B.tree header @@ unpack ~f:(fun { toc_subtree; _ } -> toc_subtree) body
+          else B.empty )
 
   let pseudo_random_color =
     let rand = ref 1 in
@@ -837,9 +843,10 @@ module PrintBox (Log_to : Shared_config) = struct
           let header, subtree = stack_to_tree ~elapsed_on_close entry in
           let toc_header, toc_subtree = stack_to_toc ~elapsed_on_close header entry in
           let flame_subtree =
-            Buffer.contents @@ stack_to_flame ~elapsed_on_close toc_header entry
+            if config.toc_flame_graph then
+              Buffer.contents @@ stack_to_flame ~elapsed_on_close toc_header entry
+            else ""
           in
-
           {
             cond;
             highlight = highlight || ((not exclude) && hl);
@@ -876,7 +883,7 @@ module PrintBox (Log_to : Shared_config) = struct
           | None -> ()
           | Some toc_ch ->
               let toc_header, toc_box = stack_to_toc ~elapsed_on_close header entry in
-              output_box ~for_toc:true toc_ch toc_box;
+              if config.with_toc_listing then output_box ~for_toc:true toc_ch toc_box;
               if config.toc_flame_graph then (
                 output_string toc_ch
                   {|
@@ -1271,7 +1278,7 @@ end
 
 let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
-    ?(global_prefix = "") ?split_files_after ?(with_table_of_contents = false)
+    ?(global_prefix = "") ?split_files_after ?(with_toc_listing = false)
     ?(toc_entry = And []) ?(toc_flame_graph = false) ?highlight_terms ?exclude_on_path
     ?(prune_upto = 0) ?(truncate_children = 0) ?(for_append = false)
     ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80) ?backend ?hyperlink
@@ -1283,6 +1290,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     | Some (`Html _) -> filename ^ ".html"
     | Some `Text -> filename ^ ".log"
   in
+  let with_table_of_contents = toc_flame_graph || with_toc_listing in
   let module Debug =
     PrintBox
       ((val shared_config ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
@@ -1301,6 +1309,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   Debug.config.toc_specific_hyperlink <- toc_specific_hyperlink;
   Debug.config.log_level <- log_level;
   Debug.config.snapshot_every_sec <- snapshot_every_sec;
+  Debug.config.with_toc_listing <- with_toc_listing;
   if toc_flame_graph && backend = Some `Text then
     invalid_arg
       "Minidebug_runtime.debug_file: flame graphs are not supported in the Text backend";

@@ -88,11 +88,11 @@ val shared_config :
     If [global_prefix] is given, the log header messages (and the log closing messages for the flushing
     backend) are prefixed with it.
     
-    If [table_of_contents_ch] is given, outputs selected log headers to this channel. The provided
-    file name is used as a prefix for links to anchors of the log headers. Note that debug runtime
-    builders that take a channel instead of a file name, will use [global_prefix] instead for the
-    anchor links. The setting [toc_entry] controls the selection of headers to include in a ToC
-    (it defaults to [And []], which means including all entries). *)
+    If [table_of_contents_ch] is given or [with_table_of_contents=true], outputs selected log headers
+    to this channel. The provided file name is used as a prefix for links to anchors of the log headers.
+    Note that debug runtime builders that take a channel instead of a file name, will use [global_prefix]
+    instead for the anchor links. The setting [toc_entry] controls the selection of headers to include
+    in a ToC (it defaults to [And []], which means including all entries). *)
 
 (** When using the
     {{:http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html}
@@ -199,6 +199,8 @@ module type PrintBox_runtime = sig
     mutable sexp_unescape_strings : bool;
         (** If true, when a value is a sexp atom or is decomposed into a sexp atom by boxification, it is
             not printed as a sexp, but the string of the atom is printed directly. Defaults to [true]. *)
+    mutable with_toc_listing : bool;
+        (** If true, outputs non-collapsed trees of ToC entries in the Table of Contents files. *)
     mutable toc_flame_graph : bool;
         (** If true, outputs a minimalistic rendering of a flame graph in the Table of Contents files, with
             boxes positioned to reflect both the ToC entries hierarchy and elapsed times for the opening
@@ -225,7 +227,7 @@ val debug_file :
   ?verbose_entry_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
-  ?with_table_of_contents:bool ->
+  ?with_toc_listing:bool ->
   ?toc_entry:toc_entry_criteria ->
   ?toc_flame_graph:bool ->
   ?highlight_terms:Re.t ->
@@ -248,9 +250,9 @@ val debug_file :
     By default the logging will not be time tagged and the file will be created or erased by
     this function. The default [boxify_sexp_from_size] value is 50.
 
-    Setting [~with_table_of_contents:true] will create an additional log file, the given name
-    suffixed with ["-toc"] and the corresponding file name extension. This file will collect
-    selected entries, hyperlinking to anchors in the main logging file(s).
+    Setting [~with_toc_listing:true] or [~toc_flame_graph:true] or both will create an additional
+    log file, the given name suffixed with ["-toc"] and the corresponding file name extension. This file
+    will collect selected entries, hyperlinking to anchors in the main logging file(s).
     
     By default [backend] is [`Markdown PrintBox.default_md_config].
     See {!type:PrintBox.config} for details about PrintBox-specific parameters.
