@@ -851,7 +851,10 @@ There are a few ways `ppx_minidebug` is helpful with large logs. You can:
 - Use `~time_tagged:Elapsed` to keep track of when in the course of the program particular entries are computed.
 - Enable the _Table of Contents_ feature by e.g. passing `~with_table_of_contents:true`; tune `toc_entry` so that the tables of contents are concise enough to provide an overview.
 
-The _table of contents_ generation is enabled via `~with_table_of_contents:true` (for file-based runtimes -- via `table_of_contents_ch` for channel-based runtimes). This will create an additional file (name ending in `-toc`), mirroring the main logs in a summarized way. Selected log headers are output there preserving the tree structure, and there is no folding. The headers are hyperlinks pointing to the main log file (or files, if file splitting is enabled).
+The _table of contents_ generation is enabled via `~with_toc_listing:true` or `~toc_flame_graph:true` or both (for file-based runtimes -- via `table_of_contents_ch` for channel-based runtimes). This will create an additional file (name ending in `-toc`), mirroring the main logs in a summarized way. Selected log headers are output there preserving the tree structure, and for `~with_toc_listing:true` they look the same as in the main file except there is no folding. The headers are hyperlinks pointing to the main log file (or files, if file splitting is enabled). For `~toc_flame_graph:true`, the entries are put in boxes, like in the depicted example from the test suite. Presenting two configurations here:
+
+![Flame graph with paths, no time tags](docs/flame_graph_paths_no_time.png)
+![Flame graph with values first mode, elapsed times](docs/flame_graph_values_first_elapsed.png)
 
 If you collaborate with someone or take notes, you can pass `~print_entry_ids:true`. In HTML and Markdown, this will output links to the anchors of the corresponding log entries. You can share them to point to specific log file locations.
 
