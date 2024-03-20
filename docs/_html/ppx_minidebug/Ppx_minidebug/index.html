@@ -8,7 +8,11 @@
   <span>?message:string <span class="arrow">&#45;&gt;</span></span>
   <span>loc:<span class="xref-unresolved">Ppxlib__</span>.Import.location <span class="arrow">&#45;&gt;</span></span>
   <span>unit <span class="arrow">&#45;&gt;</span></span>
-  <span class="xref-unresolved">Ppxlib__</span>.Import.expression</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-close_log"><a href="#val-close_log" class="anchor"></a><code><span><span class="keyword">val</span> close_log : <span>loc:<span class="xref-unresolved">Ppxlib</span>.location <span class="arrow">&#45;&gt;</span></span> <span class="xref-unresolved">Ppxlib_ast</span>.Ast.expression</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-to_descr"><a href="#val-to_descr" class="anchor"></a><code><span><span class="keyword">val</span> to_descr : 
+  <span class="xref-unresolved">Ppxlib__</span>.Import.expression</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-open_log_no_source"><a href="#val-open_log_no_source" class="anchor"></a><code><span><span class="keyword">val</span> open_log_no_source : 
+  <span>message:<span class="xref-unresolved">Ppxlib_ast</span>.Ast.expression <span class="arrow">&#45;&gt;</span></span>
+  <span>loc:<span class="xref-unresolved">Ppxlib</span>.location <span class="arrow">&#45;&gt;</span></span>
+  <span>unit <span class="arrow">&#45;&gt;</span></span>
+  <span class="xref-unresolved">Ppxlib_ast</span>.Ast.expression</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-close_log"><a href="#val-close_log" class="anchor"></a><code><span><span class="keyword">val</span> close_log : <span>loc:<span class="xref-unresolved">Ppxlib</span>.location <span class="arrow">&#45;&gt;</span></span> <span class="xref-unresolved">Ppxlib_ast</span>.Ast.expression</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-to_descr"><a href="#val-to_descr" class="anchor"></a><code><span><span class="keyword">val</span> to_descr : 
   <span><a href="#type-context">context</a> <span class="arrow">&#45;&gt;</span></span>
   <span>loc:<span class="xref-unresolved">Ppxlib</span>.location <span class="arrow">&#45;&gt;</span></span>
   <span>descr_loc:<span><span>string <span class="xref-unresolved">Ppxlib</span>.loc</span> option</span> <span class="arrow">&#45;&gt;</span></span>
@@ -62,7 +66,11 @@
   <span>loc:<span class="xref-unresolved">Ppxlib__</span>.Import.location <span class="arrow">&#45;&gt;</span></span>
   <span>descr_loc:<span>string <span class="xref-unresolved">Ppxlib</span>.loc</span> <span class="arrow">&#45;&gt;</span></span>
   <span>string <span class="arrow">&#45;&gt;</span></span>
-  <span class="xref-unresolved">Ppxlib__</span>.Import.expression</span></code></div></div><div class="odoc-spec"><div class="spec type anchored" id="type-fun_arg"><a href="#type-fun_arg" class="anchor"></a><code><span><span class="keyword">type</span> fun_arg</span><span> = </span></code><ol><li id="type-fun_arg.Pexp_fun_arg" class="def variant constructor anchored"><a href="#type-fun_arg.Pexp_fun_arg" class="anchor"></a><code><span>| </span><span><span class="constructor">Pexp_fun_arg</span> <span class="keyword">of</span> <span class="xref-unresolved">Ppxlib</span>.arg_label
+  <span class="xref-unresolved">Ppxlib__</span>.Import.expression</span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-log_string_with_descr"><a href="#val-log_string_with_descr" class="anchor"></a><code><span><span class="keyword">val</span> log_string_with_descr : 
+  <span>loc:<span class="xref-unresolved">Ppxlib</span>.location <span class="arrow">&#45;&gt;</span></span>
+  <span>message:<span class="xref-unresolved">Ppxlib_ast</span>.Ast.expression <span class="arrow">&#45;&gt;</span></span>
+  <span>string <span class="arrow">&#45;&gt;</span></span>
+  <span class="xref-unresolved">Ppxlib_ast</span>.Ast.expression</span></code></div></div><div class="odoc-spec"><div class="spec type anchored" id="type-fun_arg"><a href="#type-fun_arg" class="anchor"></a><code><span><span class="keyword">type</span> fun_arg</span><span> = </span></code><ol><li id="type-fun_arg.Pexp_fun_arg" class="def variant constructor anchored"><a href="#type-fun_arg.Pexp_fun_arg" class="anchor"></a><code><span>| </span><span><span class="constructor">Pexp_fun_arg</span> <span class="keyword">of</span> <span class="xref-unresolved">Ppxlib</span>.arg_label
   * <span><span class="xref-unresolved">Ppxlib</span>.expression option</span>
   * <span class="xref-unresolved">Ppxlib</span>.pattern
   * <span class="xref-unresolved">Ppxlib</span>.location
@@ -83,8 +91,9 @@
   <span class="xref-unresolved">Ppxlib__</span>.Import.pattern
   * <span><span>(<span><span class="xref-unresolved">Stdlib</span>.String.t <span class="xref-unresolved">Ppxlib</span>.loc</span> * <span class="xref-unresolved">Ppxlib</span>.pattern * <span class="xref-unresolved">Ppxlib</span>.core_type)</span> list</span></span></code></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-entry_with_interrupts"><a href="#val-entry_with_interrupts" class="anchor"></a><code><span><span class="keyword">val</span> entry_with_interrupts : 
   <span><a href="#type-context">context</a> <span class="arrow">&#45;&gt;</span></span>
-  <span>loc:<span class="xref-unresolved">Ppxlib</span>.location <span class="arrow">&#45;&gt;</span></span>
-  <span>descr_loc:<span>string <span class="xref-unresolved">Ppxlib</span>.loc</span> <span class="arrow">&#45;&gt;</span></span>
+  <span>loc:<span class="xref-unresolved">Ppxlib__</span>.Import.location <span class="arrow">&#45;&gt;</span></span>
+  <span>?descr_loc:<span>string <span class="xref-unresolved">Ppxlib</span>.loc</span> <span class="arrow">&#45;&gt;</span></span>
+  <span>?message:<span class="xref-unresolved">Ppxlib_ast</span>.Ast.expression <span class="arrow">&#45;&gt;</span></span>
   <span>log_count_before:int <span class="arrow">&#45;&gt;</span></span>
   <span>?header:<span class="xref-unresolved">Ppxlib_ast</span>.Ast.expression <span class="arrow">&#45;&gt;</span></span>
   <span>preamble:<span class="xref-unresolved">Ppxlib_ast</span>.Ast.expression <span class="arrow">&#45;&gt;</span></span>
