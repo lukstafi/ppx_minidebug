@@ -30,6 +30,13 @@ type log_level =
       (** Does not log entries without children (treating results as children). *)
   | Everything  (** Does not restrict logging. *)
 
+type toc_entry_criteria =
+  | Minimal_depth of int
+  | Minimal_size of int
+  | Minimal_span of Mtime.span
+  | And of toc_entry_criteria list
+  | Or of toc_entry_criteria list
+
 module type Shared_config = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
@@ -44,8 +51,7 @@ module type Shared_config = sig
   val verbose_entry_ids : bool
   val global_prefix : string
   val split_files_after : int option
-  val toc_entry_minimal_depth : int
-  val toc_entry_minimal_size : int
+  val toc_entry : toc_entry_criteria
 end
 
 val shared_config :
@@ -57,8 +63,7 @@ val shared_config :
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?with_table_of_contents:bool ->
-  ?toc_entry_minimal_depth:int ->
-  ?toc_entry_minimal_size:int ->
+  ?toc_entry:toc_entry_criteria ->
   ?for_append:bool ->
   string ->
   (module Shared_config)
@@ -86,8 +91,8 @@ val shared_config :
     If [table_of_contents_ch] is given, outputs selected log headers to this channel. The provided
     file name is used as a prefix for links to anchors of the log headers. Note that debug runtime
     builders that take a channel instead of a file name, will use [global_prefix] instead for the
-    anchor links. The settings [toc_entry_minimal_depth] and [toc_entry_minimal_size] control
-    the selection of headers to include in a ToC (they default to 0). *)
+    anchor links. The setting [toc_entry] controls the selection of headers to include in a ToC
+    (it defaults to [And []], which means including all entries). *)
 
 (** When using the
     {{:http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html}
@@ -197,7 +202,7 @@ module type PrintBox_runtime = sig
     mutable toc_flame_graph : bool;
         (** If true, outputs a minimalistic rendering of a flame graph in the Table of Contents files, with
             boxes positioned to reflect both the ToC entries hierarchy and elapsed times for the opening
-            and closing of entries. *)
+            and closing of entries. Not supported in the [`Text] backend. *)
   }
 
   val config : config
@@ -221,8 +226,7 @@ val debug_file :
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?with_table_of_contents:bool ->
-  ?toc_entry_minimal_depth:int ->
-  ?toc_entry_minimal_size:int ->
+  ?toc_entry:toc_entry_criteria ->
   ?toc_flame_graph:bool ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
@@ -261,9 +265,7 @@ val debug :
   ?verbose_entry_ids:bool ->
   ?global_prefix:string ->
   ?table_of_contents_ch:out_channel ->
-  ?toc_entry_minimal_depth:int ->
-  ?toc_entry_minimal_size:int ->
-  ?toc_flame_graph:bool ->
+  ?toc_entry:toc_entry_criteria ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
   ?prune_upto:int ->
@@ -292,8 +294,7 @@ val debug_flushing :
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?with_table_of_contents:bool ->
-  ?toc_entry_minimal_depth:int ->
-  ?toc_entry_minimal_size:int ->
+  ?toc_entry:toc_entry_criteria ->
   ?for_append:bool ->
   unit ->
   (module Debug_runtime)

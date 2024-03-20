@@ -3,7 +3,9 @@
 ### Added
 
 - An API function `Debug_runtime.open_log_no_source` for log entries without associated source code locations, and a corresponding `[%log_entry]` extension point.
-- A simple, minimalistic, initial version of a Flame Graph output in ToC files (PrintBox backend only).
+- A simple, minimalistic version of a Flame Graph output in ToC files (PrintBox backend only).
+- A new ToC criterion: elapsed time threshold.
+- And-or gates for ToC criteria.
 
 ## [1.4.0] -- 2024-03-08
 

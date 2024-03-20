@@ -41,6 +41,23 @@ type log_level =
   | Nonempty_entries
   | Everything
 
+type toc_entry_criteria =
+  | Minimal_depth of int
+  | Minimal_size of int
+  | Minimal_span of Mtime.span
+  | And of toc_entry_criteria list
+  | Or of toc_entry_criteria list
+
+let toc_entry_passes ~depth ~size ~span criteria =
+  let rec loop = function
+    | Minimal_depth d -> depth > d
+    | Minimal_size s -> size > s
+    | Minimal_span sp -> Mtime.Span.compare span sp > 0
+    | And conjs -> List.for_all loop conjs
+    | Or disjs -> List.exists loop disjs
+  in
+  loop criteria
+
 let is_prefixed_or_result = function Prefixed_or_result _ -> true | _ -> false
 
 module type Shared_config = sig
@@ -57,8 +74,7 @@ module type Shared_config = sig
   val verbose_entry_ids : bool
   val global_prefix : string
   val split_files_after : int option
-  val toc_entry_minimal_depth : int
-  val toc_entry_minimal_size : int
+  val toc_entry : toc_entry_criteria
 end
 
 let elapsed_default = Not_reported
@@ -66,8 +82,7 @@ let elapsed_default = Not_reported
 let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
     ?(global_prefix = "") ?split_files_after ?(with_table_of_contents = false)
-    ?(toc_entry_minimal_depth = 0) ?(toc_entry_minimal_size = 0) ?(for_append = true)
-    filename : (module Shared_config) =
+    ?(toc_entry = And []) ?(for_append = true) filename : (module Shared_config) =
   let module Result = struct
     let current_ch_name = ref filename
 
@@ -147,8 +162,7 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     let verbose_entry_ids = verbose_entry_ids
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = split_files_after
-    let toc_entry_minimal_depth = toc_entry_minimal_depth
-    let toc_entry_minimal_size = toc_entry_minimal_size
+    let toc_entry = toc_entry
   end in
   (module Result)
 
@@ -283,7 +297,8 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         (match (table_of_contents_ch, !depth_stack) with
         | None, _ | _, [] -> ()
         | Some toc_ch, (depth, size) :: _ ->
-            if depth > toc_entry_minimal_depth && size > toc_entry_minimal_size then
+            let span = Mtime.Span.abs_diff elapsed_on_close elapsed in
+            if toc_entry_passes ~depth ~size ~span toc_entry then
               Printf.fprintf toc_ch "%s{#%d} %s%s\n%!" (indent ()) entry_id message
                 time_tag);
         match !depth_stack with
@@ -651,11 +666,12 @@ module PrintBox (Log_to : Shared_config) = struct
       in
       (b_path, B.tree hl_header (unpack ~f:(fun { subtree; _ } -> subtree) body))
 
-  let stack_to_toc header { entry_id; depth; size; body; time_tag; _ } =
+  let stack_to_toc ~elapsed_on_close header
+      { entry_id; depth; size; elapsed; body; time_tag; _ } =
+    let span = Mtime.Span.abs_diff elapsed_on_close elapsed in
     match table_of_contents_ch with
     | None -> (B.empty, B.empty)
-    | _ when depth <= toc_entry_minimal_depth || size <= toc_entry_minimal_size ->
-        (B.empty, B.empty)
+    | _ when toc_entry_passes ~depth ~size ~span toc_entry -> (B.empty, B.empty)
     | Some _toc_ch ->
         let prefix =
           match (config.toc_specific_hyperlink, config.hyperlink) with
@@ -819,7 +835,7 @@ module PrintBox (Log_to : Shared_config) = struct
            }
         :: bs3 ->
           let header, subtree = stack_to_tree ~elapsed_on_close entry in
-          let toc_header, toc_subtree = stack_to_toc header entry in
+          let toc_header, toc_subtree = stack_to_toc ~elapsed_on_close header entry in
           let flame_subtree =
             Buffer.contents @@ stack_to_flame ~elapsed_on_close toc_header entry
           in
@@ -859,7 +875,7 @@ module PrintBox (Log_to : Shared_config) = struct
           (match table_of_contents_ch with
           | None -> ()
           | Some toc_ch ->
-              let toc_header, toc_box = stack_to_toc header entry in
+              let toc_header, toc_box = stack_to_toc ~elapsed_on_close header entry in
               output_box ~for_toc:true toc_ch toc_box;
               if config.toc_flame_graph then (
                 output_string toc_ch
@@ -1256,12 +1272,11 @@ end
 let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
     ?(global_prefix = "") ?split_files_after ?(with_table_of_contents = false)
-    ?(toc_entry_minimal_depth = 0) ?(toc_entry_minimal_size = 0)
-    ?(toc_flame_graph = false) ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
-    ?(truncate_children = 0) ?(for_append = false) ?(boxify_sexp_from_size = 50)
-    ?(max_inline_sexp_length = 80) ?backend ?hyperlink ?toc_specific_hyperlink
-    ?(values_first_mode = false) ?(log_level = Everything) ?snapshot_every_sec filename :
-    (module PrintBox_runtime) =
+    ?(toc_entry = And []) ?(toc_flame_graph = false) ?highlight_terms ?exclude_on_path
+    ?(prune_upto = 0) ?(truncate_children = 0) ?(for_append = false)
+    ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80) ?backend ?hyperlink
+    ?toc_specific_hyperlink ?(values_first_mode = false) ?(log_level = Everything)
+    ?snapshot_every_sec filename : (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename ^ ".md"
@@ -1272,8 +1287,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     PrintBox
       ((val shared_config ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
               ~verbose_entry_ids ~global_prefix ~for_append ?split_files_after
-              ~with_table_of_contents ~toc_entry_minimal_depth ~toc_entry_minimal_size
-              filename)) in
+              ~with_table_of_contents ~toc_entry filename)) in
   Debug.config.backend <- Option.value backend ~default:(`Markdown default_md_config);
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
   Debug.config.max_inline_sexp_length <- max_inline_sexp_length;
@@ -1287,13 +1301,15 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   Debug.config.toc_specific_hyperlink <- toc_specific_hyperlink;
   Debug.config.log_level <- log_level;
   Debug.config.snapshot_every_sec <- snapshot_every_sec;
+  if toc_flame_graph && backend = Some `Text then
+    invalid_arg
+      "Minidebug_runtime.debug_file: flame graphs are not supported in the Text backend";
   Debug.config.toc_flame_graph <- toc_flame_graph;
   (module Debug)
 
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
-    ?(global_prefix = "") ?table_of_contents_ch ?(toc_entry_minimal_depth = 0)
-    ?(toc_entry_minimal_size = 0) ?(toc_flame_graph = false) ?highlight_terms
+    ?(global_prefix = "") ?table_of_contents_ch ?(toc_entry = And []) ?highlight_terms
     ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0) ?toc_specific_hyperlink
     ?(values_first_mode = false) ?(log_level = Everything) ?snapshot_every_sec () :
     (module PrintBox_runtime) =
@@ -1324,8 +1340,7 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
     let verbose_entry_ids = verbose_entry_ids
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = None
-    let toc_entry_minimal_depth = toc_entry_minimal_depth
-    let toc_entry_minimal_size = toc_entry_minimal_size
+    let toc_entry = toc_entry
   end) in
   Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
   Debug.config.prune_upto <- prune_upto;
@@ -1335,15 +1350,13 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
   Debug.config.log_level <- log_level;
   Debug.config.snapshot_every_sec <- snapshot_every_sec;
   Debug.config.toc_specific_hyperlink <- toc_specific_hyperlink;
-  Debug.config.toc_flame_graph <- toc_flame_graph;
   (module Debug)
 
 let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename
     ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
     ?(global_prefix = "") ?split_files_after ?(with_table_of_contents = false)
-    ?(toc_entry_minimal_depth = 0) ?(toc_entry_minimal_size = 0) ?(for_append = false) ()
-    : (module Debug_runtime) =
+    ?(toc_entry = And []) ?(for_append = false) () : (module Debug_runtime) =
   let log_to =
     match (filename, d_ch) with
     | None, _ ->
@@ -1380,14 +1393,13 @@ let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename
           let verbose_entry_ids = verbose_entry_ids
           let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
           let split_files_after = split_files_after
-          let toc_entry_minimal_depth = toc_entry_minimal_depth
-          let toc_entry_minimal_size = toc_entry_minimal_size
+          let toc_entry = toc_entry
         end : Shared_config)
     | Some filename, None ->
         let filename = filename ^ ".log" in
         shared_config ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
-          ~global_prefix ?split_files_after ~with_table_of_contents
-          ~toc_entry_minimal_depth ~toc_entry_minimal_size ~for_append filename
+          ~global_prefix ?split_files_after ~with_table_of_contents ~toc_entry ~for_append
+          filename
     | Some _, Some _ ->
         invalid_arg
           "Minidebug_runtime.debug_flushing: only one of debug_ch, filename should be \

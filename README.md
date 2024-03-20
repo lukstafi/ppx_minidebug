@@ -849,7 +849,7 @@ There are a few ways `ppx_minidebug` is helpful with large logs. You can:
 - Use the HTML backend with foldable trees. Unlike with the Markdown backend, HTML browsers can render really large files.
 - Set `elapsed_times` to see how much time was spent in a subtree even if it is folded.
 - Use `~time_tagged:Elapsed` to keep track of when in the course of the program particular entries are computed.
-- Enable the _Table of Contents_ feature by e.g. passing `~with_table_of_contents:true`; tune `toc_entry_minimal_depth` and `toc_entry_minimal_size` so that the tables of contents are concise enough to provide an overview.
+- Enable the _Table of Contents_ feature by e.g. passing `~with_table_of_contents:true`; tune `toc_entry` so that the tables of contents are concise enough to provide an overview.
 
 The _table of contents_ generation is enabled via `~with_table_of_contents:true` (for file-based runtimes -- via `table_of_contents_ch` for channel-based runtimes). This will create an additional file (name ending in `-toc`), mirroring the main logs in a summarized way. Selected log headers are output there preserving the tree structure, and there is no folding. The headers are hyperlinks pointing to the main log file (or files, if file splitting is enabled).
 
