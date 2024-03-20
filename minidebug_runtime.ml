@@ -717,11 +717,11 @@ module PrintBox (Log_to : Shared_config) = struct
     fun () ->
       let ( + ) = Int32.add in
       let ( mod ) = Int32.rem in
-      (rand := Int32.(logxor !rand (shift_left !rand 13)));
+      rand := logxor !rand (shift_left !rand 13);
       let r = to_int (128l + 64l + (!rand mod 50l)) in
-      (rand := Int32.(logxor !rand (shift_right_logical !rand 17)));
+      rand := logxor !rand (shift_right_logical !rand 17);
       let g = to_int (128l + 64l + (!rand mod 50l)) in
-      (rand := Int32.(logxor !rand (shift_left !rand 5)));
+      rand := logxor !rand (shift_left !rand 5);
       let b = to_int (128l + 64l + (!rand mod 50l)) in
       Printf.sprintf "%x%x%x" r g b
 
