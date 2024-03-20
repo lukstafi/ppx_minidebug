@@ -728,14 +728,15 @@ module PrintBox (Log_to : Shared_config) = struct
     let result = Buffer.create 256 in
     let out = Buffer.add_string result in
     let subentry ~flame_subtree ~elapsed_start ~elapsed_end =
-      let apply = function
-        | "left" -> Float.to_string @@ left_pc ~elapsed_start
-        | "width" -> Float.to_string @@ width_pc ~elapsed_start ~elapsed_end
-        | "flame_subtree" -> flame_subtree
-        | _ -> assert false
-      in
-      Buffer.add_substitute result apply
-        {|<div style="position: relative; top:10%; height: 90%; left:$(left)%; width:$(width)%;">
+      if flame_subtree <> "" then
+        let apply = function
+          | "left" -> Float.to_string @@ left_pc ~elapsed_start
+          | "width" -> Float.to_string @@ width_pc ~elapsed_start ~elapsed_end
+          | "flame_subtree" -> flame_subtree
+          | _ -> assert false
+        in
+        Buffer.add_substitute result apply
+          {|<div style="position: relative; top:10%; height: 90%; left:$(left)%; width:$(width)%;">
        $(flame_subtree)</div>
        |}
     in
