@@ -755,16 +755,26 @@ module PrintBox (Log_to : Shared_config) = struct
           let config = PrintBox_md.Config.unfolded_trees config in
           PrintBox_md.(to_string Config.(foldable_trees config) header)
     in
-    out
-      {|<div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #|};
-    out @@ pseudo_random_color ();
-    out {|;">|};
-    out header;
-    out {|</div>|};
-    List.iter (fun { flame_subtree; elapsed_start; elapsed_end; _ } ->
-        subentry ~flame_subtree ~elapsed_start ~elapsed_end)
-    @@ List.rev body;
-    out "</div>";
+    let no_children =
+      List.for_all (fun { flame_subtree; _ } -> flame_subtree = "") body
+    in
+    let out_header () =
+      out
+        {|<div style="position: relative; top: 0px; left: 0px; width: 100%; background: #|};
+      out @@ pseudo_random_color ();
+      out {|;">|};
+      out header;
+      out {|</div>|}
+    in
+    if header = "" && no_children then ()
+    else if no_children then out_header ()
+    else (
+      out {|<div style="position: relative; top: 0%; width: 100%; height: 100%;">|};
+      out_header ();
+      List.iter (fun { flame_subtree; elapsed_start; elapsed_end; _ } ->
+          subentry ~flame_subtree ~elapsed_start ~elapsed_end)
+      @@ List.rev body;
+      out "</div>");
     result
 
   let needs_snapshot_reset = ref false
@@ -793,6 +803,13 @@ module PrintBox (Log_to : Shared_config) = struct
             output_string ch @@ PrintBox_md.(to_string Config.(foldable_trees config) box));
         output_string ch "\n";
         Stdlib.flush ch
+
+  let rec is_empty b =
+    match B.view b with
+    | B.Empty -> true
+    | B.Frame b | B.Pad (_, b) | B.Align { inner = b; _ } -> is_empty b
+    | B.Grid (_, [| [||] |]) -> true
+    | _ -> false
 
   let close_log_impl ~from_snapshot ~elapsed_on_close ~fname ~start_lnum ~entry_id =
     (match !stack with
@@ -852,7 +869,7 @@ module PrintBox (Log_to : Shared_config) = struct
             stack_to_toc ~toc_depth ~elapsed_on_close header entry
           in
           let flame_subtree =
-            if config.toc_flame_graph then
+            if config.toc_flame_graph && not (is_empty toc_header) then
               Buffer.contents @@ stack_to_flame ~elapsed_on_close toc_header entry
             else ""
           in
@@ -896,7 +913,7 @@ module PrintBox (Log_to : Shared_config) = struct
                 stack_to_toc ~toc_depth ~elapsed_on_close header entry
               in
               if config.with_toc_listing then output_box ~for_toc:true toc_ch toc_box;
-              if config.toc_flame_graph then (
+              if config.toc_flame_graph && not (is_empty toc_header) then (
                 output_string toc_ch
                   {|
                     <div style="position: relative; height: 0px;">|};
