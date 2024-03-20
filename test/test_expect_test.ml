@@ -3580,7 +3580,7 @@ let%expect_test "flame graph" =
   close_in file;
   let output = [%expect.output] in
   let output =
-    Str.global_replace (Str.regexp {|[0-9]+\.[0-9][0-9][0-9]+|}) "N.NNNN" output
+    Str.global_replace (Str.regexp {|[0-9]+\.[0-9]+%|}) "N.NNNN%" output
   in
   print_endline output;
   [%expect
@@ -3685,7 +3685,7 @@ let%expect_test "flame graph reduced ToC" =
   close_in file;
   let output = [%expect.output] in
   let output =
-    Str.global_replace (Str.regexp {|[0-9]+\.[0-9][0-9][0-9]+|}) "N.NNNN" output
+    Str.global_replace (Str.regexp {|[0-9]+\.[0-9]+%|}) "N.NNNN%" output
   in
   print_endline output;
   [%expect
