@@ -205,6 +205,10 @@ module type PrintBox_runtime = sig
         (** If true, outputs a minimalistic rendering of a flame graph in the Table of Contents files, with
             boxes positioned to reflect both the ToC entries hierarchy and elapsed times for the opening
             and closing of entries. Not supported in the [`Text] backend. *)
+    mutable flame_graph_separation : int;
+        (** How many pixels a single box, for a log header, is expected to take in a flame graph. Defaults to [40].
+        Note: ideally the height of a flame tree should be calculated automatically, then this setting
+        would disappear. *)
   }
 
   val config : config
@@ -230,6 +234,7 @@ val debug_file :
   ?with_toc_listing:bool ->
   ?toc_entry:toc_entry_criteria ->
   ?toc_flame_graph:bool ->
+  ?flame_graph_separation:int ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
   ?prune_upto:int ->

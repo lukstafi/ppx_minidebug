@@ -425,6 +425,7 @@ module type PrintBox_runtime = sig
     mutable sexp_unescape_strings : bool;
     mutable with_toc_listing : bool;
     mutable toc_flame_graph : bool;
+    mutable flame_graph_separation : int;
   }
 
   val config : config
@@ -466,6 +467,7 @@ module PrintBox (Log_to : Shared_config) = struct
     mutable sexp_unescape_strings : bool;
     mutable with_toc_listing : bool;
     mutable toc_flame_graph : bool;
+    mutable flame_graph_separation : int;
   }
 
   let config =
@@ -486,6 +488,7 @@ module PrintBox (Log_to : Shared_config) = struct
       sexp_unescape_strings = true;
       toc_flame_graph = false;
       with_toc_listing = false;
+      flame_graph_separation = 40;
     }
 
   type subentry = {
@@ -920,7 +923,7 @@ module PrintBox (Log_to : Shared_config) = struct
                 Buffer.output_buffer toc_ch
                 @@ stack_to_flame ~elapsed_on_close toc_header entry;
                 output_string toc_ch @@ {|</div><div style="height: |}
-                ^ Int.to_string (toc_depth * 40)
+                ^ Int.to_string (toc_depth * config.flame_graph_separation)
                 ^ {|px;"></div>|};
                 flush toc_ch));
           []
@@ -1311,11 +1314,11 @@ end
 let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
     ?(global_prefix = "") ?split_files_after ?(with_toc_listing = false)
-    ?(toc_entry = And []) ?(toc_flame_graph = false) ?highlight_terms ?exclude_on_path
-    ?(prune_upto = 0) ?(truncate_children = 0) ?(for_append = false)
-    ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80) ?backend ?hyperlink
-    ?toc_specific_hyperlink ?(values_first_mode = false) ?(log_level = Everything)
-    ?snapshot_every_sec filename : (module PrintBox_runtime) =
+    ?(toc_entry = And []) ?(toc_flame_graph = false) ?(flame_graph_separation = 40)
+    ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
+    ?(for_append = false) ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80)
+    ?backend ?hyperlink ?toc_specific_hyperlink ?(values_first_mode = false)
+    ?(log_level = Everything) ?snapshot_every_sec filename : (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename ^ ".md"
@@ -1346,6 +1349,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     invalid_arg
       "Minidebug_runtime.debug_file: flame graphs are not supported in the Text backend";
   Debug.config.toc_flame_graph <- toc_flame_graph;
+  Debug.config.flame_graph_separation <- flame_graph_separation;
   (module Debug)
 
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
