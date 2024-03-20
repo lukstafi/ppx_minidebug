@@ -712,14 +712,14 @@ module PrintBox (Log_to : Shared_config) = struct
           else B.empty )
 
   let pseudo_random_color =
-    let rand = ref 1 in
+    let rand = ref (1l : int32) in
     fun () ->
-      (rand := Int.(logxor !rand (shift_left !rand 13)));
-      let r = 128 + 64 + (!rand mod 50) in
-      (rand := Int.(logxor !rand (shift_right_logical !rand 17)));
-      let g = 128 + 64 + (!rand mod 50) in
-      (rand := Int.(logxor !rand (shift_left !rand 5)));
-      let b = 128 + 64 + (!rand mod 50) in
+      (rand := Int32.(logxor !rand (shift_left !rand 13)));
+      let r = 128 + 64 + (Int32.to_int !rand mod 50) in
+      (rand := Int32.(logxor !rand (shift_right_logical !rand 17)));
+      let g = 128 + 64 + (Int32.to_int !rand mod 50) in
+      (rand := Int32.(logxor !rand (shift_left !rand 5)));
+      let b = 128 + 64 + (Int32.to_int !rand mod 50) in
       Printf.sprintf "%x%x%x" r g b
 
   let stack_to_flame ~elapsed_on_close header { body; elapsed; _ } =
