@@ -510,6 +510,7 @@ module PrintBox (Log_to : Shared_config) = struct
     entry_id : int;
     body : subentry list;
     depth : int;
+    toc_depth : int;
     size : int;
   }
 
@@ -576,6 +577,7 @@ module PrintBox (Log_to : Shared_config) = struct
         entry_id;
         body;
         depth = _;
+        toc_depth = _;
         size = _;
       } =
     let non_id_message =
@@ -669,12 +671,14 @@ module PrintBox (Log_to : Shared_config) = struct
       in
       (b_path, B.tree hl_header (unpack ~f:(fun { subtree; _ } -> subtree) body))
 
-  let stack_to_toc ~elapsed_on_close header
-      { entry_id; depth; size; elapsed; body; time_tag; _ } =
+  let stack_to_toc ~toc_depth ~elapsed_on_close header
+      { entry_id; depth; toc_depth = result_toc_depth; size; elapsed; body; time_tag; _ }
+      =
     let span = Mtime.Span.abs_diff elapsed_on_close elapsed in
     match table_of_contents_ch with
-    | None -> (B.empty, B.empty)
-    | _ when not @@ toc_entry_passes ~depth ~size ~span toc_entry -> (B.empty, B.empty)
+    | None -> (toc_depth, B.empty, B.empty)
+    | _ when not @@ toc_entry_passes ~depth ~size ~span toc_entry ->
+        (toc_depth, B.empty, B.empty)
     | Some _toc_ch ->
         let prefix =
           match (config.toc_specific_hyperlink, config.hyperlink) with
@@ -698,7 +702,8 @@ module PrintBox (Log_to : Shared_config) = struct
           if time_tag = "" then header
           else B.hlist ~bars:false [ header; B.line time_tag ]
         in
-        ( header,
+        ( max (result_toc_depth + 1) toc_depth,
+          header,
           if config.with_toc_listing then
             B.tree header @@ unpack ~f:(fun { toc_subtree; _ } -> toc_subtree) body
           else B.empty )
@@ -838,11 +843,14 @@ module PrintBox (Log_to : Shared_config) = struct
              entry_id;
              body;
              depth;
+             toc_depth;
              size;
            }
         :: bs3 ->
           let header, subtree = stack_to_tree ~elapsed_on_close entry in
-          let toc_header, toc_subtree = stack_to_toc ~elapsed_on_close header entry in
+          let toc_depth, toc_header, toc_subtree =
+            stack_to_toc ~toc_depth ~elapsed_on_close header entry
+          in
           let flame_subtree =
             if config.toc_flame_graph then
               Buffer.contents @@ stack_to_flame ~elapsed_on_close toc_header entry
@@ -870,11 +878,12 @@ module PrintBox (Log_to : Shared_config) = struct
               }
               :: body;
             depth = max (result_depth + 1) depth;
+            toc_depth;
             size = result_size + size;
           }
           :: bs3
       | { cond = false; _ } :: bs -> bs
-      | [ ({ cond = true; depth; _ } as entry) ] ->
+      | [ ({ cond = true; toc_depth; _ } as entry) ] ->
           let header, box = stack_to_tree ~elapsed_on_close entry in
           let ch = debug_ch () in
           pop_snapshot ();
@@ -883,7 +892,9 @@ module PrintBox (Log_to : Shared_config) = struct
           (match table_of_contents_ch with
           | None -> ()
           | Some toc_ch ->
-              let toc_header, toc_box = stack_to_toc ~elapsed_on_close header entry in
+              let toc_depth, toc_header, toc_box =
+                stack_to_toc ~toc_depth ~elapsed_on_close header entry
+              in
               if config.with_toc_listing then output_box ~for_toc:true toc_ch toc_box;
               if config.toc_flame_graph then (
                 output_string toc_ch
@@ -892,7 +903,7 @@ module PrintBox (Log_to : Shared_config) = struct
                 Buffer.output_buffer toc_ch
                 @@ stack_to_flame ~elapsed_on_close toc_header entry;
                 output_string toc_ch @@ {|</div><div style="height: |}
-                ^ Int.to_string (depth * 40)
+                ^ Int.to_string (toc_depth * 40)
                 ^ {|px;"></div>|};
                 flush toc_ch));
           []
@@ -1001,6 +1012,7 @@ module PrintBox (Log_to : Shared_config) = struct
                   entry_id = -1;
                   body = [ subentry ];
                   depth = 1;
+                  toc_depth = 0;
                   size = 1;
                 };
               ];
@@ -1057,6 +1069,7 @@ module PrintBox (Log_to : Shared_config) = struct
         entry_id;
         body = [];
         depth = 0;
+        toc_depth = 0;
         size = 1;
       }
       :: !stack
@@ -1088,6 +1101,7 @@ module PrintBox (Log_to : Shared_config) = struct
         entry_id;
         body = [];
         depth = 0;
+        toc_depth = 0;
         size = 1;
       }
       :: !stack
