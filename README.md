@@ -528,6 +528,7 @@ There's also a way to compile the code adaptively, using a shell environment var
 - `everything`: translates to `Everything`
 - `` (empty): no change
 
+**BEWARE**: using `%%global_debug_log_level_from_env_var` is very prone to workflow bugs where different parts of a codebase are compiled with different log levels, leading to very confusing behavior.
 
 With some "abuse of notation", we use `Prefixed [||]` resp. `Prefixed_or_result [||]` to mean all-and-only explicit logs (resp. also result logs). `Prefixed [||]` only works at compile time. `Prefixed_or_result [||]` works as intended when set both at compile time and at runtime: then, it will output all explicit logs, but also results in otherwise-nonempty entries. Example from the test suite:
 
