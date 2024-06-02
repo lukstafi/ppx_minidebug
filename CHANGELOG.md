@@ -1,3 +1,9 @@
+## [1.6.0] -- current
+
+### Changed
+
+- Outputs entry ids on the stack when reporting static vs. dynamic scope mismatch failure.
+
 ## [1.5.0] -- 2024-03-20
 
 ### Added
