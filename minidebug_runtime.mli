@@ -132,6 +132,11 @@ module type Debug_runtime = sig
   val max_nesting_depth : int option ref
   val max_num_children : int option ref
   val global_prefix : string
+
+  val snapshot : unit -> unit
+  (** For [PrintBox] runtimes, outputs the current logging stack to the logging channel.
+      If the logging channel supports that, an output following a snapshot will rewind the channel
+      to the state prior to the snapshot. Does nothing for the [Flushing] runtimes. *)
 end
 
 (** The output is flushed line-at-a-time, so no output should be lost if the traced program crashes.
@@ -212,10 +217,6 @@ module type PrintBox_runtime = sig
   }
 
   val config : config
-
-  val snapshot : unit -> unit
-  (** Outputs the current logging stack to the logging channel. If the logging channel supports that,
-      an output following a snapshot will rewind the channel to the state prior to the snapshot. *)
 end
 
 (** The logged traces will be pretty-printed as trees using the `printbox` package. This logger
