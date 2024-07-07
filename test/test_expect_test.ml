@@ -3579,9 +3579,7 @@ let%expect_test "flame graph" =
    with End_of_file -> ());
   close_in file;
   let output = [%expect.output] in
-  let output =
-    Str.global_replace (Str.regexp {|[0-9]+\.[0-9]*%|}) "N.NNNN%" output
-  in
+  let output = Str.global_replace (Str.regexp {|[0-9]+\.[0-9]*%|}) "N.NNNN%" output in
   print_endline output;
   [%expect
     {|
@@ -3684,71 +3682,95 @@ let%expect_test "flame graph reduced ToC" =
    with End_of_file -> ());
   close_in file;
   let output = [%expect.output] in
-  let output =
-    Str.global_replace (Str.regexp {|[0-9]+\.[0-9]*%|}) "N.NNNN%" output
-  in
+  let output = Str.global_replace (Str.regexp {|[0-9]+\.[0-9]*%|}) "N.NNNN%" output in
   print_endline output;
   [%expect
     {|
-                      <div style="position: relative; height: 0px;"><div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d7efa5;"><div><div><a href="./test_expect_test_flame_graph.html#1"><div>&quot;test/test_expect_test.ml&quot;:3670:26: loop</div></a></div></div>
-  </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9994b2;"><div><div><a href="./test_expect_test_flame_graph.html#2"><div>&quot;test/test_expect_test.ml&quot;:3674:10: y</div></a></div></div>
-  </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #c4efdd;"><div><div><a href="./test_expect_test_flame_graph.html#3"><div>&quot;test/test_expect_test.ml&quot;:3670:26: loop</div></a></div></div>
-  </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #c5c7ed;"><div><div><a href="./test_expect_test_flame_graph.html#4"><div>&quot;test/test_expect_test.ml&quot;:3674:10: y</div></a></div></div>
-  </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #ebdf9d;"><div><div><a href="./test_expect_test_flame_graph.html#5"><div>&quot;test/test_expect_test.ml&quot;:3670:26: loop</div></a></div></div>
-  </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bfbbe7;"><div><div><a href="./test_expect_test_flame_graph.html#6"><div>&quot;test/test_expect_test.ml&quot;:3670:26: loop</div></a></div></div>
-  </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #ebebd3;"><div><div><a href="./test_expect_test_flame_graph.html#7"><div>&quot;test/test_expect_test.ml&quot;:3670:26: loop</div></a></div></div>
-  </div></div>
-         </div></div>
-         </div></div>
-         </div></div>
-         <div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d8eeca;"><div><div><a href="./test_expect_test_flame_graph.html#9"><div>&quot;test/test_expect_test.ml&quot;:3675:10: z</div></a></div></div>
-  </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bea2e0;"><div><div><a href="./test_expect_test_flame_graph.html#10"><div>&quot;test/test_expect_test.ml&quot;:3670:26: loop</div></a></div></div>
-  </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9192c4;"><div><div><a href="./test_expect_test_flame_graph.html#11"><div>&quot;test/test_expect_test.ml&quot;:3670:26: loop</div></a></div></div>
-  </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bfadb3;"><div><div><a href="./test_expect_test_flame_graph.html#12"><div>&quot;test/test_expect_test.ml&quot;:3670:26: loop</div></a></div></div>
-  </div></div>
-         </div></div>
-         </div></div>
-         </div></div>
-         </div></div>
-         </div></div>
-         <div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #f1e7a3;"><div><div><a href="./test_expect_test_flame_graph.html#14"><div>&quot;test/test_expect_test.ml&quot;:3675:10: z</div></a></div></div>
-  </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9295dd;"><div><div><a href="./test_expect_test_flame_graph.html#15"><div>&quot;test/test_expect_test.ml&quot;:3670:26: loop</div></a></div></div>
-  </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a0b0f0;"><div><div><a href="./test_expect_test_flame_graph.html#16"><div>&quot;test/test_expect_test.ml&quot;:3674:10: y</div></a></div></div>
-  </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a39abc;"><div><div><a href="./test_expect_test_flame_graph.html#17"><div>&quot;test/test_expect_test.ml&quot;:3670:26: loop</div></a></div></div>
-  </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a7a1eb;"><div><div><a href="./test_expect_test_flame_graph.html#18"><div>&quot;test/test_expect_test.ml&quot;:3670:26: loop</div></a></div></div>
-  </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #b88f91;"><div><div><a href="./test_expect_test_flame_graph.html#19"><div>&quot;test/test_expect_test.ml&quot;:3670:26: loop</div></a></div></div>
-  </div></div>
-         </div></div>
-         </div></div>
-         </div></div>
-         <div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d6dcaa;"><div><div><a href="./test_expect_test_flame_graph.html#21"><div>&quot;test/test_expect_test.ml&quot;:3675:10: z</div></a></div></div>
-  </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d7decc;"><div><div><a href="./test_expect_test_flame_graph.html#22"><div>&quot;test/test_expect_test.ml&quot;:3670:26: loop</div></a></div></div>
-  </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9fbbbd;"><div><div><a href="./test_expect_test_flame_graph.html#23"><div>&quot;test/test_expect_test.ml&quot;:3670:26: loop</div></a></div></div>
-  </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-         <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #e2e7d3;"><div><div><a href="./test_expect_test_flame_graph.html#24"><div>&quot;test/test_expect_test.ml&quot;:3670:26: loop</div></a></div></div>
-  </div></div>
-         </div></div>
-         </div></div>
-         </div></div>
-         </div></div>
-         </div></div>
-         </div></div><div style="height: 280px;"></div> |}]
+                        <div style="position: relative; height: 0px;"><div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d7efa5;"><div><div><a href="./test_expect_test_flame_graph.html#1"><div>&quot;test/test_expect_test.ml&quot;:3668:26: loop</div></a></div></div>
+    </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9994b2;"><div><div><a href="./test_expect_test_flame_graph.html#2"><div>&quot;test/test_expect_test.ml&quot;:3672:10: y</div></a></div></div>
+    </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #c4efdd;"><div><div><a href="./test_expect_test_flame_graph.html#3"><div>&quot;test/test_expect_test.ml&quot;:3668:26: loop</div></a></div></div>
+    </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #c5c7ed;"><div><div><a href="./test_expect_test_flame_graph.html#4"><div>&quot;test/test_expect_test.ml&quot;:3672:10: y</div></a></div></div>
+    </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #ebdf9d;"><div><div><a href="./test_expect_test_flame_graph.html#5"><div>&quot;test/test_expect_test.ml&quot;:3668:26: loop</div></a></div></div>
+    </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bfbbe7;"><div><div><a href="./test_expect_test_flame_graph.html#6"><div>&quot;test/test_expect_test.ml&quot;:3668:26: loop</div></a></div></div>
+    </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #ebebd3;"><div><div><a href="./test_expect_test_flame_graph.html#7"><div>&quot;test/test_expect_test.ml&quot;:3668:26: loop</div></a></div></div>
+    </div></div>
+           </div></div>
+           </div></div>
+           </div></div>
+           <div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d8eeca;"><div><div><a href="./test_expect_test_flame_graph.html#9"><div>&quot;test/test_expect_test.ml&quot;:3673:10: z</div></a></div></div>
+    </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bea2e0;"><div><div><a href="./test_expect_test_flame_graph.html#10"><div>&quot;test/test_expect_test.ml&quot;:3668:26: loop</div></a></div></div>
+    </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9192c4;"><div><div><a href="./test_expect_test_flame_graph.html#11"><div>&quot;test/test_expect_test.ml&quot;:3668:26: loop</div></a></div></div>
+    </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bfadb3;"><div><div><a href="./test_expect_test_flame_graph.html#12"><div>&quot;test/test_expect_test.ml&quot;:3668:26: loop</div></a></div></div>
+    </div></div>
+           </div></div>
+           </div></div>
+           </div></div>
+           </div></div>
+           </div></div>
+           <div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #f1e7a3;"><div><div><a href="./test_expect_test_flame_graph.html#14"><div>&quot;test/test_expect_test.ml&quot;:3673:10: z</div></a></div></div>
+    </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9295dd;"><div><div><a href="./test_expect_test_flame_graph.html#15"><div>&quot;test/test_expect_test.ml&quot;:3668:26: loop</div></a></div></div>
+    </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a0b0f0;"><div><div><a href="./test_expect_test_flame_graph.html#16"><div>&quot;test/test_expect_test.ml&quot;:3672:10: y</div></a></div></div>
+    </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a39abc;"><div><div><a href="./test_expect_test_flame_graph.html#17"><div>&quot;test/test_expect_test.ml&quot;:3668:26: loop</div></a></div></div>
+    </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a7a1eb;"><div><div><a href="./test_expect_test_flame_graph.html#18"><div>&quot;test/test_expect_test.ml&quot;:3668:26: loop</div></a></div></div>
+    </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #b88f91;"><div><div><a href="./test_expect_test_flame_graph.html#19"><div>&quot;test/test_expect_test.ml&quot;:3668:26: loop</div></a></div></div>
+    </div></div>
+           </div></div>
+           </div></div>
+           </div></div>
+           <div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d6dcaa;"><div><div><a href="./test_expect_test_flame_graph.html#21"><div>&quot;test/test_expect_test.ml&quot;:3673:10: z</div></a></div></div>
+    </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d7decc;"><div><div><a href="./test_expect_test_flame_graph.html#22"><div>&quot;test/test_expect_test.ml&quot;:3668:26: loop</div></a></div></div>
+    </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9fbbbd;"><div><div><a href="./test_expect_test_flame_graph.html#23"><div>&quot;test/test_expect_test.ml&quot;:3668:26: loop</div></a></div></div>
+    </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
+           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #e2e7d3;"><div><div><a href="./test_expect_test_flame_graph.html#24"><div>&quot;test/test_expect_test.ml&quot;:3668:26: loop</div></a></div></div>
+    </div></div>
+           </div></div>
+           </div></div>
+           </div></div>
+           </div></div>
+           </div></div>
+           </div></div><div style="height: 280px;"></div>
+    |}]
+
+let%expect_test "%debug_show skip module bindings" =
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let%track_sexp bar ?(rt : (module Minidebug_runtime.Debug_runtime) option) (x : int) :
+      int =
+    let y : int = x + 1 in
+    let module Debug_runtime =
+      (val match rt with None -> (module Debug_runtime : Minidebug_runtime.Debug_runtime) | Some rt -> rt)
+    in
+    let z = y * 2 in
+    z - 1
+  in
+  let () = print_endline @@ Int.to_string @@ bar ~rt:(module Debug_runtime) 7 in
+  [%expect
+    {|
+    BEGIN DEBUG SESSION
+    bar = 15
+    ├─"test/test_expect_test.ml":3755:21
+    ├─x = 7
+    ├─y = 8
+    │ └─"test/test_expect_test.ml":3757:8
+    └─<match -- branch 1> Some rt
+      └─"test/test_expect_test.ml":3759:103
+    15
+    |}]

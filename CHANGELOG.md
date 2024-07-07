@@ -1,9 +1,10 @@
-## [1.5.1] -- 2024-07-04
+## [1.5.1] -- 2024-07-07
 
 ### Changed
 
 - Outputs entry ids on the stack when reporting static vs. dynamic scope mismatch failure.
 - Promotes `val snapshot : unit -> unit` to the generic interface, implemented as no-op in the flushing backend.
+- Does not try to debug module bindings.
 
 ## [1.5.0] -- 2024-03-20
 

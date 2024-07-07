@@ -413,6 +413,16 @@ let rec pick ~typ ?alt_typ () =
       | _ -> typ)
   | _ -> typ
 
+let rec has_unprintable_type typ =
+  match typ.ptyp_desc with
+  | Ptyp_alias (typ, _) | Ptyp_poly (_, typ) -> has_unprintable_type typ
+  | Ptyp_any | Ptyp_var _ | Ptyp_package _ | Ptyp_extension _ -> true
+  | Ptyp_arrow (_, arg, ret) ->
+      (* TODO: maybe add Ptyp_object, Ptyp_class? *)
+      has_unprintable_type arg || has_unprintable_type ret
+  | Ptyp_tuple args | Ptyp_constr (_, args) -> List.exists has_unprintable_type args
+  | _ -> false
+
 let bound_patterns ~alt_typ pat =
   let rec loop ?alt_typ pat =
     let loc = pat.ppat_loc in
@@ -422,8 +432,8 @@ let bound_patterns ~alt_typ pat =
       | _ -> (alt_typ, pat)
     in
     match (typ, pat) with
-    | ( Some { ptyp_desc = Ptyp_any | Ptyp_var _ | Ptyp_package _ | Ptyp_extension _; _ },
-        { ppat_desc = Ppat_var _ | Ppat_alias (_, _); _ } ) ->
+    | Some t, { ppat_desc = Ppat_var _ | Ppat_alias (_, _); _ }
+      when has_unprintable_type t ->
         (* Skip abstract types and types unlikely to have derivable printers. *)
         (A.ppat_any ~loc, [])
     | Some typ, ({ ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat)
@@ -936,7 +946,8 @@ let extract_type ?default ~alt_typ exp =
           [%type: [%t typ] Lazy.t]
         with Not_transforming -> (
           match typ with Some typ -> typ | None -> raise Not_transforming))
-    | Some { ptyp_desc = Ptyp_any | Ptyp_var _ | Ptyp_extension _; _ }, _ ->
+    | Some { ptyp_desc = Ptyp_any | Ptyp_var _ | Ptyp_package _ | Ptyp_extension _; _ }, _
+      ->
         raise Not_transforming
     | Some typ, _ -> typ
     | None, _ when use_default ->
