@@ -586,12 +586,17 @@ let debug_body context callback ~loc ~message ~descr_loc ~log_count_before ~arg_
     let loc = descr_loc.loc in
     A.ppat_var ~loc { loc; txt = "__res" }
   in
-  let log_result =
+  let body, log_result =
     match typ with
-    | None -> [%expr ()]
+    | None -> (body, [%expr ()])
+    | Some ({ ptyp_desc = Ptyp_package _; _ } as typ) ->
+        (* Restore an obligatory type annotation. *)
+        ([%expr ([%e body] : [%t typ])], [%expr ()])
+    | Some typ when has_unprintable_type typ -> (body, [%expr ()])
     | Some typ ->
-        log_value context ~loc ~typ ~descr_loc ~is_explicit:false ~is_result:true
-          (pat2expr result)
+        ( body,
+          log_value context ~loc ~typ ~descr_loc ~is_explicit:false ~is_result:true
+            (pat2expr result) )
   in
   entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
     ~entry:(callback context body) ~result ~log_result ()

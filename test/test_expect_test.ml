@@ -3751,13 +3751,13 @@ let%expect_test "flame graph reduced ToC" =
     |}]
 
 let%expect_test "%debug_show skip module bindings" =
+  let optional v thunk = match v with Some v -> v | None -> thunk () in
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
   let%track_sexp bar ?(rt : (module Minidebug_runtime.Debug_runtime) option) (x : int) :
       int =
     let y : int = x + 1 in
     let module Debug_runtime =
-      (val match rt with None -> (module Debug_runtime : Minidebug_runtime.Debug_runtime) | Some rt -> rt)
-    in
+      (val optional rt (fun () -> (module Debug_runtime : Minidebug_runtime.Debug_runtime))) in
     let z = y * 2 in
     z - 1
   in
@@ -3766,11 +3766,9 @@ let%expect_test "%debug_show skip module bindings" =
     {|
     BEGIN DEBUG SESSION
     bar = 15
-    ├─"test/test_expect_test.ml":3755:21
+    ├─"test/test_expect_test.ml":3756:21
     ├─x = 7
-    ├─y = 8
-    │ └─"test/test_expect_test.ml":3757:8
-    └─<match -- branch 1> Some rt
-      └─"test/test_expect_test.ml":3759:103
+    └─y = 8
+      └─"test/test_expect_test.ml":3758:8
     15
     |}]
