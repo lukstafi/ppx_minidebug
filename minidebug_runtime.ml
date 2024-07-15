@@ -75,6 +75,7 @@ module type Shared_config = sig
   val global_prefix : string
   val split_files_after : int option
   val toc_entry : toc_entry_criteria
+  val description : string
 end
 
 let elapsed_default = Not_reported
@@ -163,6 +164,7 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = split_files_after
     let toc_entry = toc_entry
+    let description = filename ^ (if global_prefix = "" then "" else ":") ^ global_prefix
   end in
   (module Result)
 
@@ -201,6 +203,7 @@ module type Debug_runtime = sig
   val max_num_children : int option ref
   val global_prefix : string
   val snapshot : unit -> unit
+  val description : string
 end
 
 let exceeds ~value ~limit = match limit with None -> false | Some limit -> limit < value
@@ -402,6 +405,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
 
   let global_prefix = global_prefix
   let snapshot () = ()
+  let description = Log_to.description
 end
 
 let default_html_config = PrintBox_html.Config.(tree_summary true default)
@@ -1319,6 +1323,7 @@ module PrintBox (Log_to : Shared_config) = struct
       !global_id
 
   let global_prefix = global_prefix
+  let description = Log_to.description
 end
 
 let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
@@ -1364,14 +1369,22 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
 
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
-    ?(global_prefix = "") ?table_of_contents_ch ?(toc_entry = And []) ?highlight_terms
-    ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0) ?toc_specific_hyperlink
-    ?(values_first_mode = false) ?(log_level = Everything) ?snapshot_every_sec () :
-    (module PrintBox_runtime) =
+    ?description ?(global_prefix = "") ?table_of_contents_ch ?(toc_entry = And [])
+    ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
+    ?toc_specific_hyperlink ?(values_first_mode = false) ?(log_level = Everything)
+    ?snapshot_every_sec () : (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
     let ch = match debug_ch with None -> stdout | Some ch -> ch
     let current_snapshot = ref 0
+
+    let description =
+      match (description, global_prefix, debug_ch) with
+      | Some descr, _, _ -> descr
+      | None, "", None -> "stdout"
+      | None, "", Some _ ->
+          invalid_arg "Minidebug_runtime.debug: provide description of the channel"
+      | None, _, _ -> global_prefix
 
     let snapshot_ch () =
       match debug_ch with
@@ -1410,8 +1423,9 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
 let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename
     ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
-    ?(global_prefix = "") ?split_files_after ?(with_table_of_contents = false)
-    ?(toc_entry = And []) ?(for_append = false) () : (module Debug_runtime) =
+    ?description ?(global_prefix = "") ?split_files_after
+    ?(with_table_of_contents = false) ?(toc_entry = And []) ?(for_append = false) () :
+    (module Debug_runtime) =
   let log_to =
     match (filename, d_ch) with
     | None, _ ->
@@ -1419,6 +1433,14 @@ let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename
           let refresh_ch () = false
           let ch = match d_ch with None -> stdout | Some ch -> ch
           let current_snapshot = ref 0
+
+          let description =
+            match (description, global_prefix, d_ch) with
+            | Some descr, _, _ -> descr
+            | None, "", None -> "stdout"
+            | None, "", Some _ ->
+                invalid_arg "Minidebug_runtime.debug: provide description of the channel"
+            | None, _, _ -> global_prefix
 
           let snapshot_ch () =
             match d_ch with

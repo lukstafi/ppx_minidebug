@@ -1,3 +1,13 @@
+## [1.6.0] -- current
+
+### Added
+
+- Runtime `description`: where the logs are directed to.
+
+### Changed
+
+- Runtime builders take a `description` optional argument.
+
 ## [1.5.1] -- 2024-07-07
 
 ### Changed

@@ -52,6 +52,7 @@ module type Shared_config = sig
   val global_prefix : string
   val split_files_after : int option
   val toc_entry : toc_entry_criteria
+  val description : string
 end
 
 val shared_config :
@@ -137,6 +138,11 @@ module type Debug_runtime = sig
   (** For [PrintBox] runtimes, outputs the current logging stack to the logging channel.
       If the logging channel supports that, an output following a snapshot will rewind the channel
       to the state prior to the snapshot. Does nothing for the [Flushing] runtimes. *)
+
+  val description : string
+  (** A description that should be sufficient to locate where the logs end up.
+      If not configured explicitly, it will be some combination of:
+      the global prefix, the file name or "stdout". *)
 end
 
 (** The output is flushed line-at-a-time, so no output should be lost if the traced program crashes.
@@ -271,6 +277,7 @@ val debug :
   ?location_format:location_format ->
   ?print_entry_ids:bool ->
   ?verbose_entry_ids:bool ->
+  ?description:string ->
   ?global_prefix:string ->
   ?table_of_contents_ch:out_channel ->
   ?toc_entry:toc_entry_criteria ->
@@ -299,6 +306,7 @@ val debug_flushing :
   ?location_format:location_format ->
   ?print_entry_ids:bool ->
   ?verbose_entry_ids:bool ->
+  ?description:string ->
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?with_table_of_contents:bool ->
