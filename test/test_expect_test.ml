@@ -3757,7 +3757,9 @@ let%expect_test "%debug_show skip module bindings" =
       int =
     let y : int = x + 1 in
     let module Debug_runtime =
-      (val optional rt (fun () -> (module Debug_runtime : Minidebug_runtime.Debug_runtime))) in
+      (val optional rt (fun () ->
+               (module Debug_runtime : Minidebug_runtime.Debug_runtime)))
+    in
     let z = y * 2 in
     z - 1
   in
@@ -3771,4 +3773,40 @@ let%expect_test "%debug_show skip module bindings" =
     └─y = 8
       └─"test/test_expect_test.ml":3758:8
     15
+    |}]
+
+let%expect_test "%track_l_show procedure runtime passing" =
+  let i = ref 0 in
+  let _get_local_debug_runtime () =
+    Minidebug_runtime.debug_flushing ~global_prefix:("foo-" ^ string_of_int !i) ()
+  in
+  let%track_this_l_show foo () =
+    let () = () in
+    ()
+  in
+  while !i < 5 do
+    incr i;
+    foo ()
+  done;
+  [%expect
+    {|
+    BEGIN DEBUG SESSION foo-1
+    foo-1 foo begin "test/test_expect_test.ml":3783:28:
+    foo-1 foo end
+
+    BEGIN DEBUG SESSION foo-2
+    foo-2 foo begin "test/test_expect_test.ml":3783:28:
+    foo-2 foo end
+
+    BEGIN DEBUG SESSION foo-3
+    foo-3 foo begin "test/test_expect_test.ml":3783:28:
+    foo-3 foo end
+
+    BEGIN DEBUG SESSION foo-4
+    foo-4 foo begin "test/test_expect_test.ml":3783:28:
+    foo-4 foo end
+
+    BEGIN DEBUG SESSION foo-5
+    foo-5 foo begin "test/test_expect_test.ml":3783:28:
+    foo-5 foo end
     |}]

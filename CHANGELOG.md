@@ -3,6 +3,7 @@
 ### Added
 
 - Runtime `description`: where the logs are directed to.
+- A new family of entry points `_l_` resp. `_lb_` that retrieve debug runtimes via a call `_get_local_debug_runtime ()` resp. `_get_local_printbox_debug_runtime ()`: these functions are correspondingly expected in the scope. The entry points facilitate using thread-local (and domain-local) debug runtimes.
 
 ### Changed
 

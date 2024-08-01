@@ -14,7 +14,17 @@ type log_level =
 let no_results = function Nothing | Prefixed _ -> true | _ -> false
 let is_prefixed_or_result = function Prefixed_or_result _ -> true | _ -> false
 
-type toplevel_opt_arg = Nested | Toplevel_no_arg | Generic | PrintBox
+type toplevel_opt_arg =
+  | Nested
+  | Toplevel_no_arg
+  | Generic
+  | PrintBox
+  | Generic_local
+  | PrintBox_local
+
+let is_local_debug_runtime = function
+  | Generic_local | PrintBox_local -> true
+  | _ -> false
 
 let global_log_count = ref 0
 
@@ -622,6 +632,14 @@ let unpack_runtime toplevel_opt_arg exp =
   let loc = exp.pexp_loc in
   match toplevel_opt_arg with
   | Nested | Toplevel_no_arg -> exp
+  | Generic_local ->
+      [%expr
+        let module Debug_runtime = (val _get_local_debug_runtime ()) in
+        [%e exp]]
+  | PrintBox_local ->
+      [%expr
+        let module Debug_runtime = (val _get_local_printbox_debug_runtime ()) in
+        [%e exp]]
   | Generic | PrintBox ->
       [%expr
         let module Debug_runtime = (val _debug_runtime) in
@@ -743,6 +761,11 @@ let debug_case context callback ?ret_descr ?ret_typ ?arg_typ kind i
     debug_body context callback ~loc:pc_rhs.pexp_loc ~message ~descr_loc:ret_descr
       ~log_count_before ~arg_logs ret_typ pc_rhs
   in
+  let pc_rhs =
+    if is_local_debug_runtime context.toplevel_opt_arg then
+      unpack_runtime context.toplevel_opt_arg pc_rhs
+    else pc_rhs
+  in
   { pc_lhs; pc_guard; pc_rhs }
 
 let debug_function context callback ~loc ?ret_descr ?ret_typ ?arg_typ cases =
@@ -754,7 +777,7 @@ let debug_function context callback ~loc ?ret_descr ?ret_typ ?arg_typ cases =
          cases)
   in
   match context.toplevel_opt_arg with
-  | Nested | Toplevel_no_arg -> exp
+  | Nested | Toplevel_no_arg | Generic_local | PrintBox_local -> exp
   | Generic ->
       [%expr
         fun (_debug_runtime : (module Minidebug_runtime.Debug_runtime)) ->
@@ -847,8 +870,9 @@ let debug_binding context callback vb =
     in
     let pvb_expr =
       match (typ2, context.toplevel_opt_arg) with
-      | None, (Nested | Toplevel_no_arg) -> exp
-      | Some typ, (Nested | Toplevel_no_arg) -> [%expr ([%e exp] : [%t typ])]
+      | None, (Nested | Toplevel_no_arg | Generic_local | PrintBox_local) -> exp
+      | Some typ, (Nested | Toplevel_no_arg | Generic_local | PrintBox_local) ->
+          [%expr ([%e exp] : [%t typ])]
       | Some typ, Generic ->
           [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> [%t typ])]
       | Some typ, PrintBox ->
@@ -1006,6 +1030,8 @@ let rules =
                              | Toplevel_no_arg -> ext_point
                              | Generic -> ext_point ^ "_rt"
                              | PrintBox -> ext_point ^ "_rtb"
+                             | Generic_local -> ext_point ^ "_l"
+                             | PrintBox_local -> ext_point ^ "_lb"
                            in
                            let ext_point =
                              ext_point ^ "_"
@@ -1025,7 +1051,7 @@ let rules =
                            })
                          [ Pp; Sexp; Show ])
                      [ `Debug; `Debug_this; `Str ])
-              [ Toplevel_no_arg; Generic; PrintBox ])
+              [ Toplevel_no_arg; Generic; PrintBox; Generic_local; PrintBox_local ])
        [ `Track; `Debug; `Diagn ]
 
 let is_ext_point =
@@ -1088,6 +1114,10 @@ let traverse_expression =
             let toplevel_opt_arg =
               if String.length txt > 9 && String.sub txt 5 4 = "_rt_" then Generic
               else if String.length txt > 10 && String.sub txt 5 5 = "_rtb_" then PrintBox
+              else if String.length txt > 8 && String.sub txt 5 3 = "_l_" then
+                Generic_local
+              else if String.length txt > 9 && String.sub txt 5 4 = "_lb_" then
+                PrintBox_local
               else Toplevel_no_arg
             in
             self#expression

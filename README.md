@@ -1,5 +1,26 @@
 # ppx_minidebug
 
+<!-- TOC -->
+
+- [ppx_minidebug](#ppx_minidebug)
+  - [ppx_minidebug: Debug logs for selected functions and let-bindings](#ppx_minidebug-debug-logs-for-selected-functions-and-let-bindings)
+    - [Traces in HTML or Markdown as collapsible trees](#traces-in-html-or-markdown-as-collapsible-trees)
+    - [Highlighting search terms](#highlighting-search-terms)
+    - [PrintBox creating helpers with defaults: debug and debug_file](#printbox-creating-helpers-with-defaults-debug-and-debug_file)
+    - [Hyperlinks to source locations](#hyperlinks-to-source-locations)
+    - [Recommended: values_first_mode](#recommended-values_first_mode)
+  - [Usage](#usage)
+    - [Breaking infinite recursion with max_nesting_depth and looping with max_num_children; Flushing-based traces](#breaking-infinite-recursion-with-max_nesting_depth-and-looping-with-max_num_children-flushing-based-traces)
+    - [Tracking: control flow branches, anonymous and insufficiently annotated functions](#tracking-control-flow-branches-anonymous-and-insufficiently-annotated-functions)
+    - [Using as a logging framework](#using-as-a-logging-framework)
+    - [Lexical scopes vs. dynamic scopes](#lexical-scopes-vs-dynamic-scopes)
+    - [Reducing the size of generated logs](#reducing-the-size-of-generated-logs)
+    - [Navigating large logs](#navigating-large-logs)
+    - [Providing the necessary type information](#providing-the-necessary-type-information)
+    - [Dealing with concurrent execution](#dealing-with-concurrent-execution)
+
+<!-- /TOC -->
+
 ## `ppx_minidebug`: Debug logs for selected functions and let-bindings
 
 `ppx_minidebug` traces let bindings and functions within a selected scope if they have type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` (also `%track_pp`, `%diagn_pp` and `%track_show`, `%diagn_show`), based on `deriving.show`, and `%debug_sexp` (also `%track_sexp`, `%diagn_sexp`) based on `sexplib0` and `ppx_sexp_conv`. Explicit logs can be added with `%log` within a debug scope (`%log` is not a registered extension point to avoid conflicts with other logging frameworks). The syntax extension expects a module `Debug_runtime` in the scope. The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers multiple ways of logging the traces, as helper functions generating `Debug_runtime` modules. See [the generated documentation for `Minidebug_runtime`](https://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html).
@@ -1256,9 +1277,17 @@ Explicit logging with `%log` (and `%log_result`) has different but related restr
 
 For programs with threads or domains running concurrently, you need to ensure that each thread uses its own instance of a debug runtime, writing to its own log file. Currently, `ppx_minidebug` doesn't do any checks to prevent abuse: using the same debug runtime instance from multiple threads or opening the same file by multiple debug runtime instances.
 
-We offer two helpers for dealing with multiple debug runtimes. There is an optional runtime instance-level setting `global_prefix`, which adds the given information to all log headers coming from the instance.
+We offer three helpers for dealing with multiple debug runtimes. There is an optional runtime instance-level setting `global_prefix`, which adds the given information to all log headers coming from the instance.
 
-Another feature is the extension points `%debug_rtb_sexp`, `%debug_this_rtb_sexp`, `%track_rtb_sexp`, etc. They add a first-class module argument to a function, and unpack the argument as `module Debug_runtime`. The feature helps using a runtime instance dedicated to a thread. At present, passing of the runtime instance to functions needs to be done manually. Note that only the function attached to the `_rt_` or `_rtb_` extension point is modified, regardless of whether there is a `_this_`.
+There are extension points `%debug_lb_sexp`, `%debug_this_lb_sexp`, `%track_lb_sexp`, etc. They call a function `_get_local_printbox_debug_runtime ()`, or `_get_local_debug_runtime ()` for the `_l_` variants, and unpack the argument as `module Debug_runtime` (in a function body). The feature helps using a runtime instance dedicated to a thread or domain, since for example `_get_local_debug_runtime` can retrieve the runtime using `Domain.DLS`. To avoid surprises, this feature only takes effect for directly annotated functions, and unpacks a `Debug_runtime` inside the function body (regardless of whether there is a `_this_`), so that we get the appropriate runtime for the dynamic local scope.
+
+Example from the test suite:
+
+```ocaml
+
+```
+
+Another similar feature is the extension points `%debug_rtb_sexp`, `%debug_this_rtb_sexp`, `%track_rtb_sexp`, etc. They add a first-class module argument to a function, and unpack the argument as `module Debug_runtime`. At present, passing of the runtime instance to functions needs to be done manually. Note that only the function attached to the `_rt_` or `_rtb_` extension point is modified, regardless of whether there is a `_this_`.
 
 Example from the test suite:
 

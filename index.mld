@@ -1,4 +1,26 @@
 {0 ppx_minidebug}
+<!-- TOC -->
+{ul {- {{: #ppx_minidebug} ppx_minidebug}
+{ul {- {{: #ppx_minidebug-debug-logs-for-selected-functions-and-let-bindings} ppx_minidebug: Debug logs for selected functions and let-bindings}
+{ul {- {{: #traces-in-html-or-markdown-as-collapsible-trees} Traces in HTML or Markdown as collapsible trees}
+}{- {{: #highlighting-search-terms} Highlighting search terms}
+}{- {{: #printbox-creating-helpers-with-defaults-debug-and-debug_file} PrintBox creating helpers with defaults: debug and debug_file}
+}{- {{: #hyperlinks-to-source-locations} Hyperlinks to source locations}
+}{- {{: #recommended-values_first_mode} Recommended: values_first_mode}
+}}
+}{- {{: #usage} Usage}
+{ul {- {{: #breaking-infinite-recursion-with-max_nesting_depth-and-looping-with-max_num_children-flushing-based-traces} Breaking infinite recursion with max_nesting_depth and looping with max_num_children; Flushing-based traces}
+}{- {{: #tracking-control-flow-branches-anonymous-and-insufficiently-annotated-functions} Tracking: control flow branches, anonymous and insufficiently annotated functions}
+}{- {{: #using-as-a-logging-framework} Using as a logging framework}
+}{- {{: #lexical-scopes-vs-dynamic-scopes} Lexical scopes vs. dynamic scopes}
+}{- {{: #reducing-the-size-of-generated-logs} Reducing the size of generated logs}
+}{- {{: #navigating-large-logs} Navigating large logs}
+}{- {{: #providing-the-necessary-type-information} Providing the necessary type information}
+}{- {{: #dealing-with-concurrent-execution} Dealing with concurrent execution}
+}}
+}}
+}}
+<!-- /TOC -->
 
 {1 [ppx_minidebug]: Debug logs for selected functions and let-bindings}
 
@@ -1325,9 +1347,17 @@ Explicit logging with [%log] (and [%log_result]) has different but related restr
 
 For programs with threads or domains running concurrently, you need to ensure that each thread uses its own instance of a debug runtime, writing to its own log file. Currently, [ppx_minidebug] doesn't do any checks to prevent abuse: using the same debug runtime instance from multiple threads or opening the same file by multiple debug runtime instances.
 
-We offer two helpers for dealing with multiple debug runtimes. There is an optional runtime instance-level setting [global_prefix], which adds the given information to all log headers coming from the instance.
+We offer three helpers for dealing with multiple debug runtimes. There is an optional runtime instance-level setting [global_prefix], which adds the given information to all log headers coming from the instance.
 
-Another feature is the extension points [%debug_rtb_sexp], [%debug_this_rtb_sexp], [%track_rtb_sexp], etc. They add a first-class module argument to a function, and unpack the argument as [module Debug_runtime]. The feature helps using a runtime instance dedicated to a thread. At present, passing of the runtime instance to functions needs to be done manually. Note that only the function attached to the [_rt_] or [_rtb_] extension point is modified, regardless of whether there is a [_this_].
+There are extension points [%debug_lb_sexp], [%debug_this_lb_sexp], [%track_lb_sexp], etc. They call a function [_get_local_printbox_debug_runtime ()], or [_get_local_debug_runtime ()] for the [_l_] variants, and unpack the argument as [module Debug_runtime] (in a function body). The feature helps using a runtime instance dedicated to a thread or domain, since for example [_get_local_debug_runtime] can retrieve the runtime using [Domain.DLS]. To avoid surprises, this feature only takes effect for directly annotated functions, and unpacks a [Debug_runtime] inside the function body (regardless of whether there is a [_this_]), so that we get the appropriate runtime for the dynamic local scope.
+
+Example from the test suite:
+
+{@ocaml[
+
+]}
+
+Another similar feature is the extension points [%debug_rtb_sexp], [%debug_this_rtb_sexp], [%track_rtb_sexp], etc. They add a first-class module argument to a function, and unpack the argument as [module Debug_runtime]. At present, passing of the runtime instance to functions needs to be done manually. Note that only the function attached to the [_rt_] or [_rtb_] extension point is modified, regardless of whether there is a [_this_].
 
 Example from the test suite:
 
