@@ -3782,11 +3782,16 @@ let%expect_test "%track_l_show procedure runtime passing" =
   in
   let%track_this_l_show foo () =
     let () = () in
-    ()
+    [%log "inside foo"]
+  in
+  let%track_this_l_show bar = function () ->
+    let () = () in
+    [%log "inside bar"]
   in
   while !i < 5 do
     incr i;
-    foo ()
+    foo ();
+    bar ()
   done;
   [%expect
     {|
@@ -3810,3 +3815,17 @@ let%expect_test "%track_l_show procedure runtime passing" =
     foo-5 foo begin "test/test_expect_test.ml":3783:28:
     foo-5 foo end
     |}]
+
+let%expect_test "%track_rt_show expression runtime passing" =
+  [%track_rt_show
+    [%log_entry
+      "test A";
+      [%log "line A"]]]
+    (Minidebug_runtime.debug_flushing ~global_prefix:"t1" ());
+  [%track_rt_show
+    [%log_entry
+      "test B";
+      [%log "line B"]]]
+    (Minidebug_runtime.debug_flushing ~global_prefix:"t2" ());
+  [%expect {| |}]
+

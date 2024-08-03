@@ -1323,7 +1323,21 @@ let traverse_expression =
             else transformed
         | _ -> super#expression { context with toplevel_opt_arg = Nested } exp
       in
-      match ret_typ with None -> exp | Some typ -> [%expr ([%e exp] : [%t typ])]
+      let exp =
+        match (exp.pexp_desc, context.toplevel_opt_arg) with
+        | Pexp_let (_, [_], _), _
+        | Pexp_function _, _
+        | Pexp_newtype _, _
+        | Pexp_fun _, _
+        | _, Nested
+        | _, Toplevel_no_arg ->
+            exp
+        | _ -> unpack_runtime context.toplevel_opt_arg exp
+      in
+      let exp =
+        match ret_typ with None -> exp | Some typ -> [%expr ([%e exp] : [%t typ])]
+      in
+      exp
 
     method! structure_item context si =
       (* Do not use for an entry_point, because it ignores the toplevel_opt_arg field! *)
@@ -1344,9 +1358,10 @@ let debug_this_expander context payload =
       let bindings = List.map (debug_binding context callback) bindings in
       { payload with pexp_desc = Pexp_let (recflag, bindings, body) }
   | expr ->
-    A.pexp_extension ~loc:expr.pexp_loc
+      A.pexp_extension ~loc:expr.pexp_loc
       @@ Location.error_extensionf ~loc:expr.pexp_loc
-           "ppx_minidebug: to avoid confusion, _this_ indicator is only allowed on let-bindings"
+           "ppx_minidebug: to avoid confusion, _this_ indicator is only allowed on \
+            let-bindings"
 
 let debug_expander context payload = traverse_expression#expression context payload
 
