@@ -61,6 +61,14 @@
   (run ./%{pp} --impl %{input} -o %{targets})))
 
 (rule
+ (targets test_debug_show_error_this.actual.ml)
+ (deps
+  (:pp pp.exe)
+  (:input test_debug_show_error_this.ml))
+ (action
+  (run ./%{pp} --impl %{input} -o %{targets})))
+
+(rule
  (alias runtest)
  (action
   (diff test_debug_sexp.expected.ml test_debug_sexp.actual.ml)))
@@ -98,6 +106,13 @@
   (diff
    test_debug_log_prefixed.expected.ml
    test_debug_log_prefixed.actual.ml)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff
+   test_debug_show_error_this.expected.ml
+   test_debug_show_error_this.actual.ml)))
 
 (executable
  (name test_debug_sexp)

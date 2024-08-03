@@ -646,8 +646,8 @@ let unpack_runtime toplevel_opt_arg exp =
         [%e exp]]
 
 let has_runtime_arg = function
-  | { toplevel_opt_arg = Nested | Toplevel_no_arg; _ } -> false
-  | _ -> true
+  | { toplevel_opt_arg = PrintBox | Generic; _ } -> true
+  | _ -> false
 
 let loc_to_name loc =
   let fname = Filename.basename loc.loc_start.pos_fname |> Filename.remove_extension in
@@ -1343,7 +1343,10 @@ let debug_this_expander context payload =
       (* This is the [let%debug_this ... in] use-case: do not debug the whole body. *)
       let bindings = List.map (debug_binding context callback) bindings in
       { payload with pexp_desc = Pexp_let (recflag, bindings, body) }
-  | expr -> expr
+  | expr ->
+    A.pexp_extension ~loc:expr.pexp_loc
+      @@ Location.error_extensionf ~loc:expr.pexp_loc
+           "ppx_minidebug: to avoid confusion, _this_ indicator is only allowed on let-bindings"
 
 let debug_expander context payload = traverse_expression#expression context payload
 

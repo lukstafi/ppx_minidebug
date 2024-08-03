@@ -9,6 +9,11 @@
 
 - Runtime builders take a `description` optional argument.
 
+### Fixed
+
+- `_this_` infix on non-let-binding expressions throws a syntax error instead of being a no-op.
+  - As a design decision aligned with [#51](https://github.com/lukstafi/ppx_minidebug/issues/51), we output the error instead of processing the expression, i.e. we don't ignore the `_this_` infix.
+
 ## [1.5.1] -- 2024-07-07
 
 ### Changed
