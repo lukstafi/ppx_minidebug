@@ -2241,7 +2241,7 @@ let%expect_test "%track_show list values_first_mode" =
       10 |}]
 
 let%expect_test "%track_rtb_show list runtime passing" =
-  let%track_rtb_show foo l : int =
+  let%track_this_rtb_show foo l : int =
     match (l : int list) with [] -> 7 | y :: _ -> y * 2
   in
   let () =
@@ -2250,7 +2250,7 @@ let%expect_test "%track_rtb_show list runtime passing" =
          (Minidebug_runtime.debug ~global_prefix:"foo-1" ~values_first_mode:true ())
          [ 7 ]
   in
-  let%track_rtb_show baz : int list -> int = function
+  let%track_this_rtb_show baz : int list -> int = function
     | [] -> 7
     | [ y ] -> y * 2
     | [ y; z ] -> y + z
@@ -2272,7 +2272,7 @@ let%expect_test "%track_rtb_show list runtime passing" =
     {|
       BEGIN DEBUG SESSION foo-1
       foo = 14
-      ├─"test/test_expect_test.ml":2244:25
+      ├─"test/test_expect_test.ml":2244:30
       └─foo-1 <match -- branch 1> :: (y, _)
         ├─"test/test_expect_test.ml":2245:50
         └─y = 7
@@ -2294,10 +2294,10 @@ let%expect_test "%track_rtb_show list runtime passing" =
       10 |}]
 
 let%expect_test "%track_rt_show procedure runtime passing" =
-  let%track_rt_show bar () = (fun () -> ()) () in
+  let%track_this_rt_show bar () = (fun () -> ()) () in
   let () = bar (Minidebug_runtime.debug_flushing ~global_prefix:"bar-1" ()) () in
   let () = bar (Minidebug_runtime.debug_flushing ~global_prefix:"bar-2" ()) () in
-  let%track_rt_show foo () =
+  let%track_this_rt_show foo () =
     let () = () in
     ()
   in
@@ -2306,23 +2306,23 @@ let%expect_test "%track_rt_show procedure runtime passing" =
   [%expect
     {|
       BEGIN DEBUG SESSION bar-1
-      bar-1 bar begin "test/test_expect_test.ml":2297:24:
-       bar-1 fun:test_expect_test:2297 begin "test/test_expect_test.ml":2297:29:
+      bar-1 bar begin "test/test_expect_test.ml":2297:29:
+       bar-1 fun:test_expect_test:2297 begin "test/test_expect_test.ml":2297:34:
        bar-1 fun:test_expect_test:2297 end
       bar-1 bar end
 
       BEGIN DEBUG SESSION bar-2
-      bar-2 bar begin "test/test_expect_test.ml":2297:24:
-       bar-2 fun:test_expect_test:2297 begin "test/test_expect_test.ml":2297:29:
+      bar-2 bar begin "test/test_expect_test.ml":2297:29:
+       bar-2 fun:test_expect_test:2297 begin "test/test_expect_test.ml":2297:34:
        bar-2 fun:test_expect_test:2297 end
       bar-2 bar end
 
       BEGIN DEBUG SESSION foo-1
-      foo-1 foo begin "test/test_expect_test.ml":2300:24:
+      foo-1 foo begin "test/test_expect_test.ml":2300:29:
       foo-1 foo end
 
       BEGIN DEBUG SESSION foo-2
-      foo-2 foo begin "test/test_expect_test.ml":2300:24:
+      foo-2 foo begin "test/test_expect_test.ml":2300:29:
       foo-2 foo end |}]
 
 let%expect_test "%track_rt_show nested procedure runtime passing" =
@@ -3797,23 +3797,53 @@ let%expect_test "%track_l_show procedure runtime passing" =
     {|
     BEGIN DEBUG SESSION foo-1
     foo-1 foo begin "test/test_expect_test.ml":3783:28:
+     "inside foo"
     foo-1 foo end
+
+    BEGIN DEBUG SESSION foo-1
+    foo-1 <function -- branch 0> () begin "test/test_expect_test.ml":3788:4:
+     "inside bar"
+    foo-1 <function -- branch 0> () end
 
     BEGIN DEBUG SESSION foo-2
     foo-2 foo begin "test/test_expect_test.ml":3783:28:
+     "inside foo"
     foo-2 foo end
+
+    BEGIN DEBUG SESSION foo-2
+    foo-2 <function -- branch 0> () begin "test/test_expect_test.ml":3788:4:
+     "inside bar"
+    foo-2 <function -- branch 0> () end
 
     BEGIN DEBUG SESSION foo-3
     foo-3 foo begin "test/test_expect_test.ml":3783:28:
+     "inside foo"
     foo-3 foo end
+
+    BEGIN DEBUG SESSION foo-3
+    foo-3 <function -- branch 0> () begin "test/test_expect_test.ml":3788:4:
+     "inside bar"
+    foo-3 <function -- branch 0> () end
 
     BEGIN DEBUG SESSION foo-4
     foo-4 foo begin "test/test_expect_test.ml":3783:28:
+     "inside foo"
     foo-4 foo end
+
+    BEGIN DEBUG SESSION foo-4
+    foo-4 <function -- branch 0> () begin "test/test_expect_test.ml":3788:4:
+     "inside bar"
+    foo-4 <function -- branch 0> () end
 
     BEGIN DEBUG SESSION foo-5
     foo-5 foo begin "test/test_expect_test.ml":3783:28:
+     "inside foo"
     foo-5 foo end
+
+    BEGIN DEBUG SESSION foo-5
+    foo-5 <function -- branch 0> () begin "test/test_expect_test.ml":3788:4:
+     "inside bar"
+    foo-5 <function -- branch 0> () end
     |}]
 
 let%expect_test "%track_rt_show expression runtime passing" =
@@ -3827,5 +3857,14 @@ let%expect_test "%track_rt_show expression runtime passing" =
       "test B";
       [%log "line B"]]]
     (Minidebug_runtime.debug_flushing ~global_prefix:"t2" ());
-  [%expect {| |}]
+  [%expect {|
+    BEGIN DEBUG SESSION t1
+    t1 test A begin
+     "line A"
+    t1 test A end
+
+    BEGIN DEBUG SESSION t2
+    t2 test B begin
+     "line B"
+    t2 test B end |}]
 

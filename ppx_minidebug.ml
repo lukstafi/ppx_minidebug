@@ -617,13 +617,15 @@ let rec collect_fun_typs arg_typs typ =
   | Ptyp_arrow (_, arg_typ, typ) -> collect_fun_typs (arg_typ :: arg_typs) typ
   | _ -> (List.rev arg_typs, typ)
 
-let pass_runtime toplevel_opt_arg exp =
+let pass_runtime ?(always = false) toplevel_opt_arg exp =
   let loc = exp.pexp_loc in
   (* Only pass runtime to functions. *)
-  match (toplevel_opt_arg, exp) with
-  | Generic, { pexp_desc = Pexp_newtype _ | Pexp_fun _ | Pexp_function _; _ } ->
+  match (always, toplevel_opt_arg, exp) with
+  | true, Generic, _
+  | _, Generic, { pexp_desc = Pexp_newtype _ | Pexp_fun _ | Pexp_function _; _ } ->
       [%expr fun (_debug_runtime : (module Minidebug_runtime.Debug_runtime)) -> [%e exp]]
-  | PrintBox, { pexp_desc = Pexp_newtype _ | Pexp_fun _ | Pexp_function _; _ } ->
+  | true, PrintBox, _
+  | _, PrintBox, { pexp_desc = Pexp_newtype _ | Pexp_fun _ | Pexp_function _; _ } ->
       [%expr
         fun (_debug_runtime : (module Minidebug_runtime.PrintBox_runtime)) -> [%e exp]]
   | _ -> exp
@@ -736,8 +738,8 @@ let debug_fun context callback ?typ ?ret_descr ?ret_typ exp =
       let exp = expand_fun (unpack_runtime context.toplevel_opt_arg body) args in
       pass_runtime context.toplevel_opt_arg exp
 
-let debug_case context callback ?ret_descr ?ret_typ ?arg_typ kind i
-    { pc_lhs; pc_guard; pc_rhs } =
+let debug_case ?(unpack_context = Nested) context callback ?ret_descr ?ret_typ ?arg_typ
+    kind i { pc_lhs; pc_guard; pc_rhs } =
   let log_count_before = !global_log_count in
   let pc_guard = Option.map (callback context) pc_guard in
   let loc = pc_lhs.ppat_loc in
@@ -762,18 +764,24 @@ let debug_case context callback ?ret_descr ?ret_typ ?arg_typ kind i
       ~log_count_before ~arg_logs ret_typ pc_rhs
   in
   let pc_rhs =
-    if is_local_debug_runtime context.toplevel_opt_arg then
+    if is_local_debug_runtime unpack_context then unpack_runtime unpack_context pc_rhs
+    else if is_local_debug_runtime context.toplevel_opt_arg then
       unpack_runtime context.toplevel_opt_arg pc_rhs
     else pc_rhs
   in
   { pc_lhs; pc_guard; pc_rhs }
 
-let debug_function context callback ~loc ?ret_descr ?ret_typ ?arg_typ cases =
+let debug_function ?unpack_context context callback ~loc ?ret_descr ?ret_typ ?arg_typ
+    cases =
+  let unpack_context =
+    match unpack_context with None -> context.toplevel_opt_arg | Some ctx -> ctx
+  in
   let nested = { context with toplevel_opt_arg = Nested } in
   let exp =
     A.pexp_function ~loc
       (List.mapi
-         (debug_case nested callback ?ret_descr ?ret_typ ?arg_typ "function")
+         (debug_case ~unpack_context nested callback ?ret_descr ?ret_typ ?arg_typ
+            "function")
          cases)
   in
   match context.toplevel_opt_arg with
@@ -1063,7 +1071,7 @@ let traverse_expression =
   object (self)
     inherit [context] Ast_traverse.map_with_context as super
 
-    method! expression context exp =
+    method! expression context orig_exp =
       let callback context e = self#expression context e in
       let restrict_to_explicit =
         match context.log_level with Nothing | Prefixed _ -> true | _ -> false
@@ -1071,12 +1079,13 @@ let traverse_expression =
       let track_cases ?ret_descr ?ret_typ ?arg_typ kind =
         List.mapi (debug_case context callback ?ret_descr ?ret_typ ?arg_typ kind)
       in
-      let exp, ret_typ =
-        match exp with
+      let orig_exp, ret_typ =
+        match orig_exp with
         | [%expr ([%e? exp] : [%t? typ])] -> (exp, Some typ)
-        | _ -> (exp, None)
+        | _ -> (orig_exp, None)
       in
-      let loc = exp.pexp_loc in
+      let loc = orig_exp.pexp_loc in
+      let exp = orig_exp in
       let exp =
         match exp.pexp_desc with
         | Pexp_let (rec_flag, bindings, body)
@@ -1111,6 +1120,7 @@ let traverse_expression =
               | "_sexp" -> Sexp
               | _ -> context.log_value
             in
+            (* NOTE: it's a current bug to ignore _this_ here, but _this_ will go away. *)
             let toplevel_opt_arg =
               if String.length txt > 9 && String.sub txt 5 4 = "_rt_" then Generic
               else if String.length txt > 10 && String.sub txt 5 5 = "_rtb_" then PrintBox
@@ -1200,6 +1210,15 @@ let traverse_expression =
             }
         | Pexp_function cases when context.track_branches && context.log_level <> Nothing
           ->
+            let arg_typ, ret_typ =
+              match ret_typ with
+              | Some { ptyp_desc = Ptyp_arrow (_, arg, ret); _ } -> (Some arg, Some ret)
+              | _ -> (None, None)
+            in
+            debug_function context callback ~loc:exp.pexp_loc ?arg_typ ?ret_typ cases
+        | Pexp_function cases
+          when is_local_debug_runtime context.toplevel_opt_arg
+               && context.log_level <> Nothing ->
             let arg_typ, ret_typ =
               match ret_typ with
               | Some { ptyp_desc = Ptyp_arrow (_, arg, ret); _ } -> (Some arg, Some ret)
@@ -1323,21 +1342,34 @@ let traverse_expression =
             else transformed
         | _ -> super#expression { context with toplevel_opt_arg = Nested } exp
       in
-      let exp =
-        match (exp.pexp_desc, context.toplevel_opt_arg) with
-        | Pexp_let (_, [_], _), _
+      let unpacked_runtime, exp =
+        match (orig_exp.pexp_desc, context.toplevel_opt_arg) with
+        | ( Pexp_let
+              ( _,
+                [
+                  {
+                    pvb_expr =
+                      { pexp_desc = Pexp_function _ | Pexp_newtype _ | Pexp_fun _; _ };
+                    _;
+                  };
+                ],
+                _ ),
+            _ )
         | Pexp_function _, _
         | Pexp_newtype _, _
         | Pexp_fun _, _
         | _, Nested
         | _, Toplevel_no_arg ->
-            exp
-        | _ -> unpack_runtime context.toplevel_opt_arg exp
+            (false, exp)
+        | _ -> (true, unpack_runtime context.toplevel_opt_arg exp)
       in
       let exp =
         match ret_typ with None -> exp | Some typ -> [%expr ([%e exp] : [%t typ])]
       in
-      exp
+      match (unpacked_runtime, context.toplevel_opt_arg) with
+      | true, (PrintBox | Generic) ->
+          pass_runtime ~always:true context.toplevel_opt_arg exp
+      | _ -> exp
 
     method! structure_item context si =
       (* Do not use for an entry_point, because it ignores the toplevel_opt_arg field! *)
