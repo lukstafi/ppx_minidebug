@@ -1178,13 +1178,16 @@ let traverse_expression =
                 [%str
                   [%e? message];
                   [%e? entry]] ) ->
-            let log_count_before = !global_log_count in
-            let preamble = open_log_no_source ~message ~loc () in
-            let result = A.ppat_var ~loc { loc; txt = "__res" } in
-            let entry = callback { context with toplevel_opt_arg = Nested } entry in
-            let log_result = [%expr ()] in
-            entry_with_interrupts context ~loc ~message ~log_count_before ~preamble ~entry
-              ~result ~log_result ()
+            if context.log_level = Nothing then
+              callback { context with toplevel_opt_arg = Nested } entry
+            else
+              let log_count_before = !global_log_count in
+              let preamble = open_log_no_source ~message ~loc () in
+              let result = A.ppat_var ~loc { loc; txt = "__res" } in
+              let entry = callback { context with toplevel_opt_arg = Nested } entry in
+              let log_result = [%expr ()] in
+              entry_with_interrupts context ~loc ~message ~log_count_before ~preamble
+                ~entry ~result ~log_result ()
         | Pexp_extension ({ loc = _; txt = "log_entry" }, PStr [%str [%e? _entry]]) ->
             A.pexp_extension ~loc
             @@ Location.error_extensionf ~loc
