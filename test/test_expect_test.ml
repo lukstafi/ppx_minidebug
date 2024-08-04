@@ -3876,3 +3876,78 @@ let%expect_test "%track_rt_show expression runtime passing" =
     t2 test B end
 
     BEGIN DEBUG SESSION t3 |}]
+
+let%expect_test "%debug_show tuples values_first_mode highlighted" =
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug
+           ~highlight_terms:Re.(alt [ str "339"; str "8" ])
+           ~values_first_mode:true ())
+  in
+  let%debug_show bar ((first : int), (second : int)) : int =
+    let y : int = first + 1 in
+    second * y
+  in
+  let () = print_endline @@ Int.to_string @@ bar (7, 42) in
+  let baz ((first, second) : int * int) : int * int =
+    let (y, z) : int * int = (first + 1, 3) in
+    let (a : int), (b : int) = (first + 1, second + 3) in
+    ((second * y) + z, (a * a) + b)
+  in
+  let r1, r2 = (baz (7, 42) : int * int) in
+  let () = print_endline @@ Int.to_string r1 in
+  let () = print_endline @@ Int.to_string r2 in
+  [%expect
+    {|
+  BEGIN DEBUG SESSION
+  ┌─────────┐
+  │bar = 336│
+  ├─────────┘
+  ├─"test/test_expect_test.ml":3886:21
+  ├─first = 7
+  ├─second = 42
+  └─┬─────┐
+    │y = 8│
+    ├─────┘
+    └─"test/test_expect_test.ml":3887:8
+  336
+  ┌────────┐
+  │(r1, r2)│
+  ├────────┘
+  ├─"test/test_expect_test.ml":3896:6
+  ├─┬─────────┐
+  │ │<returns>│
+  │ ├─────────┘
+  │ ├─┬────────┐
+  │ │ │r1 = 339│
+  │ │ └────────┘
+  │ └─r2 = 109
+  └─┬────────────────┐
+    │baz = (339, 109)│
+    ├────────────────┘
+    ├─"test/test_expect_test.ml":3891:10
+    ├─first = 7
+    ├─second = 42
+    ├─┬──────┐
+    │ │(y, z)│
+    │ ├──────┘
+    │ ├─"test/test_expect_test.ml":3892:8
+    │ └─┬────────┐
+    │   │<values>│
+    │   ├────────┘
+    │   ├─┬─────┐
+    │   │ │y = 8│
+    │   │ └─────┘
+    │   └─z = 3
+    └─┬──────┐
+      │(a, b)│
+      ├──────┘
+      ├─"test/test_expect_test.ml":3893:8
+      └─┬────────┐
+        │<values>│
+        ├────────┘
+        ├─┬─────┐
+        │ │a = 8│
+        │ └─────┘
+        └─b = 45
+  339
+  109 |}]

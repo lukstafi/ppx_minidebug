@@ -502,6 +502,7 @@ module PrintBox (Log_to : Shared_config) = struct
   type subentry = {
     result_id : int;
     is_result : bool;
+    highlighted : bool;
     elapsed_start : Mtime.span;
     elapsed_end : Mtime.span;
     subtree : B.t;
@@ -642,6 +643,7 @@ module PrintBox (Log_to : Shared_config) = struct
             (fun { result_id; is_result; _ } -> is_result && result_id = entry_id)
             body
       in
+      let results_hl = List.exists (fun { highlighted; _ } -> highlighted) results in
       let results = unpack ~f:(fun { subtree; _ } -> subtree) results
       and body = unpack ~f:(fun { subtree; _ } -> subtree) body in
       match results with
@@ -657,7 +659,8 @@ module PrintBox (Log_to : Shared_config) = struct
                   (apply_highlight highlight value_header)
                   (b_path
                    :: B.tree
-                        (B.line @@ if body = [] then "<values>" else "<returns>")
+                        (apply_highlight results_hl @@ B.line
+                        @@ if body = [] then "<values>" else "<returns>")
                         (Array.to_list result_body)
                    :: opt_message
                   @ body) )
@@ -674,7 +677,10 @@ module PrintBox (Log_to : Shared_config) = struct
           ( header,
             B.tree hl_header
             @@ b_path
-               :: B.tree (B.line @@ if body = [] then "<values>" else "<returns>") results
+               :: B.tree
+                    (apply_highlight results_hl @@ B.line
+                    @@ if body = [] then "<values>" else "<returns>")
+                    results
                :: body )
     else
       let hl_header =
@@ -904,6 +910,7 @@ module PrintBox (Log_to : Shared_config) = struct
               {
                 result_id;
                 is_result = false;
+                highlighted = hl;
                 elapsed_start;
                 elapsed_end = elapsed_on_close;
                 subtree;
@@ -1007,6 +1014,7 @@ module PrintBox (Log_to : Shared_config) = struct
                   {
                     result_id = entry_id;
                     is_result;
+                    highlighted = hl;
                     elapsed_start = elapsed;
                     elapsed_end = elapsed;
                     subtree = b;
@@ -1024,6 +1032,7 @@ module PrintBox (Log_to : Shared_config) = struct
               {
                 result_id = entry_id;
                 is_result;
+                highlighted = hl;
                 elapsed_start = elapsed;
                 elapsed_end = elapsed;
                 subtree = b;
