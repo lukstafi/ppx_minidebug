@@ -14,6 +14,16 @@ type log_level =
 let no_results = function Nothing | Prefixed _ -> true | _ -> false
 let is_prefixed_or_result = function Prefixed_or_result _ -> true | _ -> false
 
+let lift_log_level loc = function
+  | Nothing -> [%expr Nothing]
+  | Prefixed [||] -> [%expr Prefixed [||]]
+  | Prefixed_or_result [||] -> [%expr Prefixed_or_result [||]]
+  | Nonempty_entries -> [%expr Nonempty_entries]
+  | Everything -> [%expr Everything]
+  | _ ->
+      (* FIXME: this becomes obsolete with linear log levels. *)
+      failwith "lift_log_level: prefixes NOT IMPLEMENTED YET"
+
 type toplevel_opt_arg =
   | Nested
   | Toplevel_no_arg
@@ -1503,9 +1513,11 @@ let global_log_level =
   in
   Ppxlib.Context_free.Rule.extension declaration
 
-let global_log_level_from_env_var =
+let global_log_level_from_env_var ~check_consistency =
   let declaration =
-    Extension.V3.declare "global_debug_log_level_from_env_var"
+    Extension.V3.declare
+      (if check_consistency then "global_debug_log_level_from_env_var"
+       else "global_debug_log_level_from_env_var_unsafe")
       Extension.Context.structure_item
       Ast_pattern.(pstr __)
       (fun ~ctxt ->
@@ -1515,7 +1527,7 @@ let global_log_level_from_env_var =
             {
               pstr_desc =
                 Pstr_eval
-                  ( { pexp_desc = Pexp_constant (Pconst_string (env_n, _s_loc, _)); _ },
+                  ( { pexp_desc = Pexp_constant (Pconst_string (env_n, s_loc, _)); _ },
                     attrs );
               _;
             };
@@ -1523,7 +1535,17 @@ let global_log_level_from_env_var =
             let noop = A.pstr_eval ~loc [%expr ()] attrs in
             let update log_level =
               init_context := { !init_context with log_level };
-              noop
+              if check_consistency then
+                A.pstr_eval ~loc
+                  [%expr
+                    assert (
+                      [%e lift_log_level loc log_level]
+                      = Sys.getenv
+                          [%e
+                            Ast_helper.Exp.constant ~loc:s_loc
+                            @@ Ast_helper.Const.string ~loc:s_loc env_n])]
+                  attrs
+              else noop
             in
             match String.lowercase_ascii @@ Sys.getenv env_n with
             | "nothing" -> update Nothing
@@ -1564,8 +1586,10 @@ let noop_for_testing =
        (fun ~loc:_ ~path:_ payload -> payload)
 
 let rules =
-  noop_for_testing :: global_log_level_from_env_var :: global_log_level
-  :: global_output_type_info :: global_interrupts
+  noop_for_testing
+  :: global_log_level_from_env_var ~check_consistency:true
+  :: global_log_level_from_env_var ~check_consistency:false
+  :: global_log_level :: global_output_type_info :: global_interrupts
   :: List.map
        (fun {
               ext_point;
