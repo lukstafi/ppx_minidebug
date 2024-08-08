@@ -14,16 +14,6 @@ type log_level =
 let no_results = function Nothing | Prefixed _ -> true | _ -> false
 let is_prefixed_or_result = function Prefixed_or_result _ -> true | _ -> false
 
-let lift_log_level loc = function
-  | Nothing -> [%expr Nothing]
-  | Prefixed [||] -> [%expr Prefixed [||]]
-  | Prefixed_or_result [||] -> [%expr Prefixed_or_result [||]]
-  | Nonempty_entries -> [%expr Nonempty_entries]
-  | Everything -> [%expr Everything]
-  | _ ->
-      (* FIXME: this becomes obsolete with linear log levels. *)
-      failwith "lift_log_level: prefixes NOT IMPLEMENTED YET"
-
 type toplevel_opt_arg =
   | Nested
   | Toplevel_no_arg
@@ -85,13 +75,16 @@ let parse_log_level ll =
                   "ppx_minidebug: expected an array literal with log level prefixes")
   in
   match ll with
-  | [%expr Nothing] -> Either.Left Nothing
-  | [%expr Prefixed [%e? prefixes]] -> (
+  | [%expr Nothing] | [%expr Minidebug_runtime.Nothing] -> Either.Left Nothing
+  | [%expr Prefixed [%e? prefixes]] | [%expr Minidebug_runtime.Prefixed [%e? prefixes]]
+    -> (
       try Left (Prefixed (parse_prefixes prefixes)) with Error e -> Right e)
-  | [%expr Prefixed_or_result [%e? prefixes]] -> (
+  | [%expr Prefixed_or_result [%e? prefixes]]
+  | [%expr Minidebug_runtime.Prefixed_or_result [%e? prefixes]] -> (
       try Left (Prefixed_or_result (parse_prefixes prefixes)) with Error e -> Right e)
-  | [%expr Nonempty_entries] -> Left Nonempty_entries
-  | [%expr Everything] -> Left Everything
+  | [%expr Nonempty_entries] | [%expr Minidebug_runtime.Nonempty_entries] ->
+      Left Nonempty_entries
+  | [%expr Everything] | [%expr Minidebug_runtime.Everything] -> Left Everything
   | _ ->
       let loc = ll.pexp_loc in
       Right
@@ -1533,29 +1526,33 @@ let global_log_level_from_env_var ~check_consistency =
             };
           ] -> (
             let noop = A.pstr_eval ~loc [%expr ()] attrs in
-            let update log_level =
+            let update log_level_string log_level =
               init_context := { !init_context with log_level };
               if check_consistency then
                 A.pstr_eval ~loc
                   [%expr
                     assert (
-                      [%e lift_log_level loc log_level]
-                      = Sys.getenv
-                          [%e
-                            Ast_helper.Exp.constant ~loc:s_loc
-                            @@ Ast_helper.Const.string ~loc:s_loc env_n])]
+                      Stdlib.String.equal
+                        [%e
+                          Ast_helper.Exp.constant ~loc
+                          @@ Ast_helper.Const.string ~loc log_level_string]
+                        (Stdlib.String.lowercase_ascii
+                        @@ Stdlib.Sys.getenv
+                             [%e
+                               Ast_helper.Exp.constant ~loc:s_loc
+                               @@ Ast_helper.Const.string ~loc:s_loc env_n]))]
                   attrs
               else noop
             in
             match String.lowercase_ascii @@ Sys.getenv env_n with
-            | "nothing" -> update Nothing
-            | "prefixed_error" -> update @@ Prefixed [| "ERROR" |]
-            | "prefixed_warn_error" -> update @@ Prefixed [| "WARN"; "ERROR" |]
-            | "prefixed_info_warn_error" ->
-                update @@ Prefixed [| "INFO"; "WARN"; "ERROR" |]
-            | "explicit_logs" -> update @@ Prefixed [||]
-            | "nonempty_entries" -> update @@ Nonempty_entries
-            | "everything" -> update @@ Everything
+            | "nothing" as s -> update s Nothing
+            | "prefixed_error" as s -> update s @@ Prefixed [| "ERROR" |]
+            | "prefixed_warn_error" as s -> update s @@ Prefixed [| "WARN"; "ERROR" |]
+            | "prefixed_info_warn_error" as s ->
+                update s @@ Prefixed [| "INFO"; "WARN"; "ERROR" |]
+            | "explicit_logs" as s -> update s @@ Prefixed [||]
+            | "nonempty_entries" as s -> update s @@ Nonempty_entries
+            | "everything" as s -> update s @@ Everything
             | "" -> noop
             | s ->
                 A.pstr_eval ~loc

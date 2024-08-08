@@ -30,6 +30,8 @@ type log_level =
       (** Does not log entries without children (treating results as children). *)
   | Everything  (** Does not restrict logging. *)
 
+val equal_log_level : log_level -> log_level -> bool
+
 type toc_entry_criteria =
   | Minimal_depth of int
   | Minimal_size of int

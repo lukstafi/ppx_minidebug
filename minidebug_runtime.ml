@@ -41,6 +41,14 @@ type log_level =
   | Nonempty_entries
   | Everything
 
+let equal_log_level l1 l2 =
+  match (l1, l2) with
+  | (Prefixed p1, Prefixed p2 | Prefixed_or_result p1, Prefixed_or_result p2)
+    when Array.for_all2 String.equal p1 p2 ->
+      true
+  | Nothing, Nothing | Nonempty_entries, Nonempty_entries | Everything, Everything -> true
+  | _ -> false
+
 type toc_entry_criteria =
   | Minimal_depth of int
   | Minimal_size of int
