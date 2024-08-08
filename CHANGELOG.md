@@ -1,4 +1,4 @@
-## [1.6.0] -- current
+## [1.6.0] -- 2024-08-08
 
 ### Added
 
@@ -8,11 +8,15 @@
 ### Changed
 
 - Runtime builders take a `description` optional argument.
+- We now check for the compile-time vs. runtime consistency of log level specifications (#45).
 
 ### Fixed
 
 - `_this_` infix on non-let-binding expressions throws a syntax error instead of being a no-op.
   - As a design decision aligned with [#51](https://github.com/lukstafi/ppx_minidebug/issues/51), we output the error instead of processing the expression, i.e. we don't ignore the `_this_` infix.
+- `_rt_` / `_rtb_` entry points now work correctly on non-function expressions, making them functions of the debug runtime.
+- Not outputting `%log_entry` when `log_level=Nothing`.
+- Highlighting of `<returns>` and `<values>`.
 
 ## [1.5.1] -- 2024-07-07
 
