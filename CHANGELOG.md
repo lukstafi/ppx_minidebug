@@ -1,3 +1,9 @@
+## [1.6.1] -- current
+
+### Fixed
+
+- Write the log tree on the error "lexical scope of close_log not matching its dynamic scope", so the entries from the error message can be looked up.
+
 ## [1.6.0] -- 2024-08-08
 
 ### Added

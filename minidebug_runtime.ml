@@ -840,8 +840,33 @@ module PrintBox (Log_to : Shared_config) = struct
     | _ -> false
 
   let close_log_impl ~from_snapshot ~elapsed_on_close ~fname ~start_lnum ~entry_id =
+    let close_tree ~entry ~toc_depth =
+      let header, box = stack_to_tree ~elapsed_on_close entry in
+      let ch = debug_ch () in
+      pop_snapshot ();
+      output_box ~for_toc:false ch box;
+      if not from_snapshot then snapshot_ch ();
+      match table_of_contents_ch with
+      | None -> ()
+      | Some toc_ch ->
+          let toc_depth, toc_header, toc_box =
+            stack_to_toc ~toc_depth ~elapsed_on_close header entry
+          in
+          if config.with_toc_listing then output_box ~for_toc:true toc_ch toc_box;
+          if config.toc_flame_graph && not (is_empty toc_header) then (
+            output_string toc_ch
+              {|
+                <div style="position: relative; height: 0px;">|};
+            Buffer.output_buffer toc_ch
+            @@ stack_to_flame ~elapsed_on_close toc_header entry;
+            output_string toc_ch @@ {|</div><div style="height: |}
+            ^ Int.to_string (toc_depth * config.flame_graph_separation)
+            ^ {|px;"></div>|};
+            flush toc_ch)
+    in
     (match !stack with
-    | { entry_id = open_entry_id; _ } :: tl when open_entry_id <> entry_id ->
+    | ({ entry_id = open_entry_id; toc_depth; _ } as entry) :: tl
+      when open_entry_id <> entry_id ->
         let log_loc =
           Printf.sprintf
             "%s\"%s\":%d: open entry_id=%d, close entry_id=%d, stack entries %s"
@@ -849,6 +874,7 @@ module PrintBox (Log_to : Shared_config) = struct
             (String.concat ", "
             @@ List.map (fun { entry_id; _ } -> Int.to_string entry_id) tl)
         in
+        close_tree ~entry ~toc_depth;
         failwith
         @@ "ppx_minidebug: lexical scope of close_log not matching its dynamic scope; "
         ^ log_loc
@@ -933,28 +959,7 @@ module PrintBox (Log_to : Shared_config) = struct
           :: bs3
       | { cond = false; _ } :: bs -> bs
       | [ ({ cond = true; toc_depth; _ } as entry) ] ->
-          let header, box = stack_to_tree ~elapsed_on_close entry in
-          let ch = debug_ch () in
-          pop_snapshot ();
-          output_box ~for_toc:false ch box;
-          if not from_snapshot then snapshot_ch ();
-          (match table_of_contents_ch with
-          | None -> ()
-          | Some toc_ch ->
-              let toc_depth, toc_header, toc_box =
-                stack_to_toc ~toc_depth ~elapsed_on_close header entry
-              in
-              if config.with_toc_listing then output_box ~for_toc:true toc_ch toc_box;
-              if config.toc_flame_graph && not (is_empty toc_header) then (
-                output_string toc_ch
-                  {|
-                    <div style="position: relative; height: 0px;">|};
-                Buffer.output_buffer toc_ch
-                @@ stack_to_flame ~elapsed_on_close toc_header entry;
-                output_string toc_ch @@ {|</div><div style="height: |}
-                ^ Int.to_string (toc_depth * config.flame_graph_separation)
-                ^ {|px;"></div>|};
-                flush toc_ch));
+          close_tree ~entry ~toc_depth;
           []
       | [] -> assert false
 
