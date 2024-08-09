@@ -3,6 +3,7 @@
 ### Fixed
 
 - Write the log tree on the error "lexical scope of close_log not matching its dynamic scope", so the entries from the error message can be looked up.
+- Uncaught exception in the `[%%global_debug_log_level_from_env_var "..."]` consistency check when the environment variable is not defined.
 
 ## [1.6.0] -- 2024-08-08
 

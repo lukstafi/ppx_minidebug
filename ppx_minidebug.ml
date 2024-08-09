@@ -1535,19 +1535,24 @@ let global_log_level_from_env_var ~check_consistency =
                 in
                 A.pstr_eval ~loc
                   [%expr
-                    let runtime_log_level =
-                      Stdlib.String.lowercase_ascii
-                      @@ Stdlib.Sys.getenv
-                           [%e
-                             Ast_helper.Exp.constant ~loc:s_loc
-                             @@ Ast_helper.Const.string ~loc:s_loc env_n]
-                    in
-                    if not (Stdlib.String.equal [%e lifted_log_level] runtime_log_level)
-                    then
-                      failwith
-                        ("ppx_minidebug: compile-time vs. runtime log level mismatch, \
-                          found '" ^ [%e lifted_log_level] ^ "' at compile time, '"
-                       ^ runtime_log_level ^ "' at runtime")]
+                    try
+                      let runtime_log_level =
+                        Stdlib.String.lowercase_ascii
+                        @@ Stdlib.Sys.getenv
+                             [%e
+                               Ast_helper.Exp.constant ~loc:s_loc
+                               @@ Ast_helper.Const.string ~loc:s_loc env_n]
+                      in
+                      if
+                        (not (Stdlib.String.equal "" runtime_log_level))
+                        && not
+                             (Stdlib.String.equal [%e lifted_log_level] runtime_log_level)
+                      then
+                        failwith
+                          ("ppx_minidebug: compile-time vs. runtime log level mismatch, \
+                            found '" ^ [%e lifted_log_level] ^ "' at compile time, '"
+                         ^ runtime_log_level ^ "' at runtime")
+                    with Stdlib.Not_found -> ()]
                   attrs
               else noop
             in
