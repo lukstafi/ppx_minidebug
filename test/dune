@@ -69,6 +69,17 @@
   (run ./%{pp} --impl %{input} -o %{targets})))
 
 (rule
+ (targets test_debug_log_level_consistency.actual.ml)
+ (deps
+  (:pp pp.exe)
+  (:input test_debug_log_level_consistency.ml))
+ (action
+  (setenv
+   PPX_MINIDEBUG_TEST_LOG_LEVEL_CONSISTENCY
+   everything
+   (run ./%{pp} --impl %{input} -o %{targets}))))
+
+(rule
  (alias runtest)
  (action
   (diff test_debug_sexp.expected.ml test_debug_sexp.actual.ml)))
@@ -113,6 +124,13 @@
   (diff
    test_debug_show_error_this.expected.ml
    test_debug_show_error_this.actual.ml)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff
+   test_debug_log_level_consistency.expected.ml
+   test_debug_log_level_consistency.actual.ml)))
 
 (executable
  (name test_debug_sexp)
