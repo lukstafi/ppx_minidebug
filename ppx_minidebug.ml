@@ -1506,6 +1506,19 @@ let global_log_level =
   in
   Ppxlib.Context_free.Rule.extension declaration
 
+let string_to_log_level s =
+  let s = String.lowercase_ascii s in
+  ( s,
+    match s with
+    | "nothing" -> Some Nothing
+    | "prefixed_error" -> Some (Prefixed [| "ERROR" |])
+    | "prefixed_warn_error" -> Some (Prefixed [| "WARN"; "ERROR" |])
+    | "prefixed_info_warn_error" -> Some (Prefixed [| "INFO"; "WARN"; "ERROR" |])
+    | "explicit_logs" -> Some (Prefixed [||])
+    | "nonempty_entries" -> Some Nonempty_entries
+    | "everything" -> Some Everything
+    | _ -> None )
+
 let global_log_level_from_env_var ~check_consistency =
   let declaration =
     Extension.V3.declare
@@ -1543,6 +1556,8 @@ let global_log_level_from_env_var ~check_consistency =
                                Ast_helper.Exp.constant ~loc:s_loc
                                @@ Ast_helper.Const.string ~loc:s_loc env_n]
                       in
+                      (* TODO(#53): instead of equality, for verbosity log levels, check that
+                         the compile time level is greater-or-equal to the runtime level. *)
                       if
                         (not (Stdlib.String.equal "" runtime_log_level))
                         && not
@@ -1556,17 +1571,10 @@ let global_log_level_from_env_var ~check_consistency =
                   attrs
               else noop
             in
-            match String.lowercase_ascii @@ Sys.getenv env_n with
-            | "nothing" as s -> update s Nothing
-            | "prefixed_error" as s -> update s @@ Prefixed [| "ERROR" |]
-            | "prefixed_warn_error" as s -> update s @@ Prefixed [| "WARN"; "ERROR" |]
-            | "prefixed_info_warn_error" as s ->
-                update s @@ Prefixed [| "INFO"; "WARN"; "ERROR" |]
-            | "explicit_logs" as s -> update s @@ Prefixed [||]
-            | "nonempty_entries" as s -> update s @@ Nonempty_entries
-            | "everything" as s -> update s @@ Everything
-            | "" -> noop
-            | s ->
+            match string_to_log_level @@ Sys.getenv env_n with
+            | s, Some log_level -> update s log_level
+            | "", None -> noop
+            | s, None ->
                 A.pstr_eval ~loc
                   (A.pexp_extension ~loc
                   @@ Location.error_extensionf ~loc
