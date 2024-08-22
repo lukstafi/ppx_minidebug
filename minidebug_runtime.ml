@@ -212,6 +212,7 @@ module type Debug_runtime = sig
   val global_prefix : string
   val snapshot : unit -> unit
   val description : string
+  val no_debug_if : bool -> unit
 end
 
 let exceeds ~value ~limit = match limit with None -> false | Some limit -> limit < value
@@ -414,6 +415,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
   let global_prefix = global_prefix
   let snapshot () = ()
   let description = Log_to.description
+  let no_debug_if _condition = ()
 end
 
 let default_html_config = PrintBox_html.Config.(tree_summary true default)
@@ -421,8 +423,6 @@ let default_md_config = PrintBox_md.Config.(foldable_trees default)
 
 module type PrintBox_runtime = sig
   include Debug_runtime
-
-  val no_debug_if : bool -> unit
 
   type config = {
     mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
@@ -454,8 +454,8 @@ let anchor_entry_id ~is_pure_text ~entry_id =
     let id = Int.to_string entry_id in
     (* TODO(#40): Not outputting a self-link, since we want the anchor in summaries,
        mostly to avoid generating tables in HTML. *)
-    (* let uri = "{#" ^ id ^ "}" in
-       let inner = if print_entry_ids then B.line uri else B.empty in *)
+    (* let uri = "{#" ^ id ^ "}" in let inner = if print_entry_ids then B.line uri else
+       B.empty in *)
     let anchor = B.anchor ~id B.empty in
     if is_pure_text then B.hlist ~bars:false [ anchor; B.line " " ] else anchor
 
@@ -887,7 +887,8 @@ module PrintBox (Log_to : Shared_config) = struct
     | _ -> ());
     (* Note: we treat a tree under a box as part of that box. *)
     stack :=
-      (* Design choice: exclude does not apply to its own entry -- it's about propagating children. *)
+      (* Design choice: exclude does not apply to its own entry -- it's about propagating
+         children. *)
       match !stack with
       | { highlight = false; _ } :: bs when config.prune_upto >= List.length !stack -> bs
       | { body = []; _ } :: bs when config.log_level <> Everything -> bs
@@ -1171,8 +1172,8 @@ module PrintBox (Log_to : Shared_config) = struct
     loop sexp
 
   let highlight_box ?(hl_body = false) b =
-    (* Recall the design choice: [exclude] does not apply to its own entry.
-       Therefore, an entry "propagates its highlight". *)
+    (* Recall the design choice: [exclude] does not apply to its own entry. Therefore, an
+       entry "propagates its highlight". *)
     let hl =
       match (config.exclude_on_path, config.highlight_terms, hl_body) with
       | None, None, _ | Some _, None, false -> false
@@ -1206,7 +1207,8 @@ module PrintBox (Log_to : Shared_config) = struct
             let hl_body, bs = List.split @@ List.map loop l in
             let hl_body = List.exists (fun x -> x) hl_body in
             let hl, b =
-              (* Design choice: Don't render headers of multiline values as monospace, to emphasize them. *)
+              (* Design choice: Don't render headers of multiline values as monospace, to
+                 emphasize them. *)
               highlight_box ~hl_body
               @@ if as_tree then B.text s else B.text_with_style B.Style.preformatted s
             in
@@ -1229,7 +1231,7 @@ module PrintBox (Log_to : Shared_config) = struct
           else ""
         in
         if String.length str > 0 && String.length str < config.max_inline_sexp_length then
-          (* TODO: Desing choice: consider not using monospace, at least for descr.  *)
+          (* TODO: Desing choice: consider not using monospace, at least for descr. *)
           highlight_box
           @@ B.text_with_style B.Style.preformatted
           @@ match descr with None -> str | Some d -> d ^ " = " ^ str
