@@ -20,8 +20,7 @@ let global_log_count = ref 0
 
 type context = {
   log_value : log_value;
-  track_branches : bool;
-  restrict_to_explicit : bool;
+  track_or_explicit : [ `Diagn | `Debug | `Track ];
   output_type_info : bool;
   interrupts : bool;
   comptime_log_level : int;
@@ -34,8 +33,7 @@ let init_context =
   ref
     {
       log_value = Sexp;
-      track_branches = false;
-      restrict_to_explicit = false;
+      track_or_explicit = `Debug;
       output_type_info = false;
       interrupts = false;
       comptime_log_level = 9;
@@ -181,8 +179,8 @@ let to_descr context ~loc ~descr_loc typ =
 
 let check_comptime_log_level context ~is_explicit ~is_result:_ ~log_level exp thunk =
   let loc = exp.pexp_loc in
-  (* TODO: consider also allowing non-explicit result logs when restrict_to_explicit. *)
-  if context.restrict_to_explicit && not is_explicit then [%expr ()]
+  (* TODO: consider also allowing non-explicit result logs. *)
+  if context.track_or_explicit = `Diagn && not is_explicit then [%expr ()]
   else if context.comptime_log_level < log_level then [%expr ()]
   else thunk ()
 
@@ -649,7 +647,7 @@ let debug_fun context callback ?typ ?ret_descr ?ret_typ exp =
       | Some typ, None, _ -> Some (pick ~typ ?alt_typ:ret_typ3 ())
     in
     if
-      (not context.track_branches)
+      (not (context.track_or_explicit = `Track))
       && (context.toplevel_opt_arg = Nested || ret_descr = None)
       && Option.is_none typ
     then no_change_exp ()
@@ -964,10 +962,9 @@ let extract_type ?default ~alt_typ exp =
 
 type rule = {
   ext_point : string;
-  track_branches : bool;
+  track_or_explicit : [ `Diagn | `Debug | `Track ];
   toplevel_opt_arg : toplevel_opt_arg;
   expander : [ `Debug | `Debug_this | `Str ];
-  restrict_to_explicit : bool;
   log_value : log_value;
   entry_log_level : int option;
 }
@@ -1024,10 +1021,9 @@ let rules =
                                   in
                                   {
                                     ext_point;
-                                    track_branches = track_or_explicit = `Track;
+                                    track_or_explicit;
                                     toplevel_opt_arg;
                                     expander;
-                                    restrict_to_explicit = track_or_explicit = `Diagn;
                                     log_value;
                                     entry_log_level =
                                       (if log_level = 0 then None else Some log_level);
@@ -1078,7 +1074,8 @@ let traverse_expression =
       let exp =
         match exp.pexp_desc with
         | Pexp_let (rec_flag, bindings, body)
-          when context.toplevel_opt_arg <> Nested || not context.restrict_to_explicit ->
+          when context.toplevel_opt_arg <> Nested
+               || not (context.track_or_explicit = `Diagn) ->
             let bindings = List.map (debug_binding context callback) bindings in
             {
               exp with
@@ -1101,13 +1098,19 @@ let traverse_expression =
               {
                 context with
                 log_value = r.log_value;
-                track_branches = r.track_branches;
+                track_or_explicit = r.track_or_explicit;
                 toplevel_opt_arg = r.toplevel_opt_arg;
                 entry_log_level;
               }
               body
         | Pexp_extension ({ loc = _; txt = "debug_notrace" }, PStr [%str [%e? body]]) ->
-            callback { context with track_branches = false } body
+            callback
+              {
+                context with
+                track_or_explicit =
+                  (if context.track_or_explicit = `Diagn then `Diagn else `Debug);
+              }
+              body
         | Pexp_extension
             ( { loc = _; txt = "log_level" },
               PStr
@@ -1191,10 +1194,11 @@ let traverse_expression =
                  "ppx_minidebug: bad syntax, expacted [%%log_entry <HEADER MESSAGE>; \
                   <BODY>]"
         | (Pexp_newtype _ | Pexp_fun _)
-          when context.toplevel_opt_arg <> Nested || not context.restrict_to_explicit ->
+          when context.toplevel_opt_arg <> Nested
+               || not (context.track_or_explicit = `Diagn) ->
             debug_fun context callback ?typ:ret_typ exp
         | Pexp_match ([%expr ([%e? expr] : [%t? arg_typ])], cases)
-          when context.track_branches && context.comptime_log_level > 0 ->
+          when context.track_or_explicit = `Track && context.comptime_log_level > 0 ->
             {
               exp with
               pexp_desc =
@@ -1202,14 +1206,14 @@ let traverse_expression =
                   (callback context expr, track_cases ~arg_typ ?ret_typ "match" cases);
             }
         | Pexp_match (expr, cases)
-          when context.track_branches && context.comptime_log_level > 0 ->
+          when context.track_or_explicit = `Track && context.comptime_log_level > 0 ->
             {
               exp with
               pexp_desc =
                 Pexp_match (callback context expr, track_cases ?ret_typ "match" cases);
             }
         | Pexp_function cases
-          when context.track_branches && context.comptime_log_level > 0 ->
+          when context.track_or_explicit = `Track && context.comptime_log_level > 0 ->
             let arg_typ, ret_typ =
               match ret_typ with
               | Some { ptyp_desc = Ptyp_arrow (_, arg, ret); _ } -> (Some arg, Some ret)
@@ -1226,7 +1230,7 @@ let traverse_expression =
             in
             debug_function context callback ~loc:exp.pexp_loc ?arg_typ ?ret_typ cases
         | Pexp_ifthenelse (if_, then_, else_)
-          when context.track_branches && context.comptime_log_level > 0 ->
+          when context.track_or_explicit = `Track && context.comptime_log_level > 0 ->
             let then_ =
               let log_count_before = !global_log_count in
               let loc = then_.pexp_loc in
@@ -1244,8 +1248,9 @@ let traverse_expression =
                       [%e close_log ~loc];
                       raise e]
               in
-              if context.restrict_to_explicit && log_count_before = !global_log_count then
-                then_
+              if
+                context.track_or_explicit = `Diagn && log_count_before = !global_log_count
+              then then_
               else then_'
             in
             let else_ =
@@ -1268,13 +1273,14 @@ let traverse_expression =
                           raise e])
                   else_
               in
-              if context.restrict_to_explicit && log_count_before = !global_log_count then
-                else_
+              if
+                context.track_or_explicit = `Diagn && log_count_before = !global_log_count
+              then else_
               else else_'
             in
             { exp with pexp_desc = Pexp_ifthenelse (callback context if_, then_, else_) }
         | Pexp_for (pat, from, to_, dir, body)
-          when context.track_branches && context.comptime_log_level > 0 ->
+          when context.track_or_explicit = `Track && context.comptime_log_level > 0 ->
             let log_count_before = !global_log_count in
             let body =
               let loc = body.pexp_loc in
@@ -1311,11 +1317,11 @@ let traverse_expression =
                     [%e close_log ~loc];
                     raise e]
             in
-            if context.restrict_to_explicit && log_count_before = !global_log_count then
-              { exp with pexp_desc }
+            if context.track_or_explicit = `Diagn && log_count_before = !global_log_count
+            then { exp with pexp_desc }
             else transformed
         | Pexp_while (cond, body)
-          when context.track_branches && context.comptime_log_level > 0 ->
+          when context.track_or_explicit = `Track && context.comptime_log_level > 0 ->
             let log_count_before = !global_log_count in
             let message = "while:" ^ loc_to_name loc in
             let body =
@@ -1342,8 +1348,8 @@ let traverse_expression =
                     [%e close_log ~loc];
                     raise e]
             in
-            if context.restrict_to_explicit && log_count_before = !global_log_count then
-              { exp with pexp_desc }
+            if context.track_or_explicit = `Diagn && log_count_before = !global_log_count
+            then { exp with pexp_desc }
             else transformed
         | _ -> super#expression { context with toplevel_opt_arg = Nested } exp
       in
@@ -1598,10 +1604,9 @@ let rules =
   :: List.map
        (fun {
               ext_point;
-              track_branches;
+              track_or_explicit;
               toplevel_opt_arg;
               expander;
-              restrict_to_explicit;
               log_value;
               entry_log_level;
             } ->
@@ -1615,8 +1620,7 @@ let rules =
                      {
                        !init_context with
                        toplevel_opt_arg;
-                       track_branches;
-                       restrict_to_explicit;
+                       track_or_explicit;
                        entry_log_level = Option.value entry_log_level ~default:1;
                        log_value;
                      })
@@ -1628,8 +1632,7 @@ let rules =
                      {
                        !init_context with
                        toplevel_opt_arg;
-                       track_branches;
-                       restrict_to_explicit;
+                       track_or_explicit;
                        entry_log_level = Option.value entry_log_level ~default:1;
                        log_value;
                      })
@@ -1641,8 +1644,7 @@ let rules =
                      {
                        !init_context with
                        toplevel_opt_arg;
-                       track_branches;
-                       restrict_to_explicit;
+                       track_or_explicit;
                        entry_log_level = Option.value entry_log_level ~default:1;
                        log_value;
                      }
