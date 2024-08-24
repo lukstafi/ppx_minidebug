@@ -15,7 +15,8 @@ let rec loop_exceeded (x : int) =
    else
      ((Debug_runtime.open_log ~fname:"test_debug_interrupts.ml" ~start_lnum:7
          ~start_colnum:33 ~end_lnum:9 ~end_colnum:55
-         ~message:"loop_exceeded : int" ~entry_id:__entry_id ~log_level:1;
+         ~message:"loop_exceeded : int" ~entry_id:__entry_id ~log_level:1
+         `Debug;
        Debug_runtime.log_value_show ?descr:(Some "x : int")
          ~entry_id:__entry_id ~log_level:1 ~is_result:false
          (([%show : int]) x));
@@ -40,7 +41,7 @@ let rec loop_exceeded (x : int) =
                  else
                    (Debug_runtime.open_log ~fname:"test_debug_interrupts.ml"
                       ~start_lnum:8 ~start_colnum:6 ~end_lnum:8 ~end_colnum:7
-                      ~message:"z" ~entry_id:__entry_id ~log_level:1;
+                      ~message:"z" ~entry_id:__entry_id ~log_level:1 `Debug;
                     if Debug_runtime.exceeds_max_nesting ()
                     then
                       (Debug_runtime.log_value_show ~descr:"z"
@@ -94,7 +95,7 @@ let bar () =
    else
      (Debug_runtime.open_log ~fname:"test_debug_interrupts.ml" ~start_lnum:15
         ~start_colnum:19 ~end_lnum:19 ~end_colnum:6 ~message:"bar : unit"
-        ~entry_id:__entry_id ~log_level:1;
+        ~entry_id:__entry_id ~log_level:1 `Track;
       if Debug_runtime.exceeds_max_nesting ()
       then
         (Debug_runtime.log_value_show ~descr:"bar" ~entry_id:__entry_id
@@ -107,7 +108,7 @@ let bar () =
                Debug_runtime.open_log ~fname:"test_debug_interrupts.ml"
                  ~start_lnum:16 ~start_colnum:2 ~end_lnum:19 ~end_colnum:6
                  ~message:"for:test_debug_interrupts:16" ~entry_id:__entry_id
-                 ~log_level:1;
+                 ~log_level:1 `Track;
                (match for i = 0 to 100 do
                         let __entry_id = Debug_runtime.get_entry_id () in
                         Debug_runtime.log_value_show ?descr:(Some "i : int")
@@ -125,7 +126,7 @@ let bar () =
                              ~fname:"test_debug_interrupts.ml" ~start_lnum:16
                              ~start_colnum:6 ~end_lnum:16 ~end_colnum:7
                              ~message:"<for i>" ~entry_id:__entry_id
-                             ~log_level:1;
+                             ~log_level:1 `Track;
                            if Debug_runtime.exceeds_max_nesting ()
                            then
                              (Debug_runtime.log_value_show ~descr:"i"
@@ -157,7 +158,8 @@ let bar () =
                                            ~start_lnum:17 ~start_colnum:8
                                            ~end_lnum:17 ~end_colnum:12
                                            ~message:"_baz"
-                                           ~entry_id:__entry_id ~log_level:1;
+                                           ~entry_id:__entry_id ~log_level:1
+                                           `Track;
                                          if
                                            Debug_runtime.exceeds_max_nesting
                                              ()

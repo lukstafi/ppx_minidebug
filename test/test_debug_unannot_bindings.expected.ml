@@ -5,7 +5,7 @@ let _result =
   ();
   Debug_runtime.open_log ~fname:"test_debug_unannot_bindings.ml"
     ~start_lnum:4 ~start_colnum:15 ~end_lnum:4 ~end_colnum:22
-    ~message:"_result" ~entry_id:__entry_id ~log_level:1;
+    ~message:"_result" ~entry_id:__entry_id ~log_level:1 `Debug;
   (match let a = 1 in let b = 2 in let point = (a, b) in ignore point with
    | _ as __res ->
        (();

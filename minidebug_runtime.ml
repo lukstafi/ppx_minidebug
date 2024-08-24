@@ -171,9 +171,15 @@ module type Debug_runtime = sig
     message:string ->
     entry_id:int ->
     log_level:int ->
+    [ `Diagn | `Debug | `Track ] ->
     unit
 
-  val open_log_no_source : message:string -> entry_id:int -> log_level:int -> unit
+  val open_log_no_source :
+    message:string ->
+    entry_id:int ->
+    log_level:int ->
+    [ `Diagn | `Debug | `Track ] ->
+    unit
 
   val log_value_sexp :
     ?descr:string ->
@@ -321,7 +327,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
             depth_stack := (max depth (cur_depth + 1), cur_size + size) :: tl)
 
   let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id
-      ~log_level =
+      ~log_level _track_or_explicit =
     if check_log_level log_level then (
       let message = opt_verbose_entry_id ~verbose_entry_ids ~entry_id ^ message in
       let time_tag =
@@ -349,7 +355,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
       Printf.fprintf !debug_ch "%s\n%!" time_tag)
     else hidden_entries := entry_id :: !hidden_entries
 
-  let open_log_no_source ~message ~entry_id ~log_level =
+  let open_log_no_source ~message ~entry_id ~log_level _track_or_explicit =
     if check_log_level log_level then (
       let message = opt_verbose_entry_id ~verbose_entry_ids ~entry_id ^ message in
       let time_tag =
@@ -526,6 +532,7 @@ module PrintBox (Log_to : Shared_config) = struct
 
   type entry = {
     no_debug_if : bool;
+    track_or_explicit : [ `Diagn | `Debug | `Track ];
     highlight : bool;
     exclude : bool;
     elapsed : Mtime.span;
@@ -594,6 +601,7 @@ module PrintBox (Log_to : Shared_config) = struct
   let stack_to_tree ~elapsed_on_close
       {
         no_debug_if;
+        track_or_explicit = _;
         highlight;
         exclude = _;
         elapsed;
@@ -900,11 +908,9 @@ module PrintBox (Log_to : Shared_config) = struct
       match !stack with
       | { no_debug_if = true; _ } :: bs -> bs
       | { highlight = false; _ } :: bs when config.prune_upto >= List.length !stack -> bs
-      (* FIXME: rethink and explain this in the README: log level 3 for empty bodies, log
-         level 2 for non-explicit-content-only bodies. *)
-      | { body = []; _ } :: bs when !log_level < 3 -> bs
-      | { body; _ } :: bs when !log_level < 2 && List.for_all (fun e -> e.is_result) body
-        ->
+      | { body = []; track_or_explicit = `Diagn; _ } :: bs -> bs
+      | { body; track_or_explicit = `Diagn; _ } :: bs
+        when List.for_all (fun e -> e.is_result) body ->
           bs
       | ({
            highlight = hl;
@@ -917,6 +923,7 @@ module PrintBox (Log_to : Shared_config) = struct
          } as entry)
         :: {
              no_debug_if;
+             track_or_explicit;
              highlight;
              exclude;
              uri;
@@ -942,6 +949,7 @@ module PrintBox (Log_to : Shared_config) = struct
           in
           {
             no_debug_if;
+            track_or_explicit;
             highlight = highlight || ((not exclude) && hl);
             exclude;
             uri;
@@ -1065,6 +1073,7 @@ module PrintBox (Log_to : Shared_config) = struct
           [
             {
               no_debug_if = false;
+              track_or_explicit = `Debug;
               highlight = hl;
               exclude = false;
               elapsed;
@@ -1082,7 +1091,7 @@ module PrintBox (Log_to : Shared_config) = struct
         close_log ~fname:"orphaned" ~start_lnum:entry_id ~entry_id:(-1)
 
   let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id
-      ~log_level =
+      ~log_level track_or_explicit =
     if check_log_level log_level then
       let elapsed = time_elapsed () in
       let uri =
@@ -1124,6 +1133,7 @@ module PrintBox (Log_to : Shared_config) = struct
       stack :=
         {
           no_debug_if = false;
+          track_or_explicit;
           highlight;
           exclude;
           uri;
@@ -1140,7 +1150,7 @@ module PrintBox (Log_to : Shared_config) = struct
         :: !stack
     else hidden_entries := entry_id :: !hidden_entries
 
-  let open_log_no_source ~message ~entry_id ~log_level =
+  let open_log_no_source ~message ~entry_id ~log_level track_or_explicit =
     if check_log_level log_level then
       let time_tag =
         match time_tagged with
@@ -1158,6 +1168,7 @@ module PrintBox (Log_to : Shared_config) = struct
       stack :=
         {
           no_debug_if = false;
+          track_or_explicit;
           highlight;
           exclude;
           uri = "";

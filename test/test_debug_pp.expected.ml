@@ -9,7 +9,7 @@ let bar (x : t) =
    ();
    (Debug_runtime.open_log ~fname:"test_debug_pp.ml" ~start_lnum:7
       ~start_colnum:17 ~end_lnum:9 ~end_colnum:14 ~message:"bar"
-      ~entry_id:__entry_id ~log_level:1;
+      ~entry_id:__entry_id ~log_level:1 `Debug;
     Debug_runtime.log_value_pp ?descr:(Some "x") ~entry_id:__entry_id
       ~log_level:1 ~pp ~is_result:false x);
    (match let y : num =
@@ -17,7 +17,7 @@ let bar (x : t) =
             ();
             Debug_runtime.open_log ~fname:"test_debug_pp.ml" ~start_lnum:8
               ~start_colnum:6 ~end_lnum:8 ~end_colnum:7 ~message:"y"
-              ~entry_id:__entry_id ~log_level:1;
+              ~entry_id:__entry_id ~log_level:1 `Debug;
             (match x.first + 1 with
              | y as __res ->
                  ((();
@@ -49,7 +49,7 @@ let baz (x : t) =
    ();
    (Debug_runtime.open_log ~fname:"test_debug_pp.ml" ~start_lnum:13
       ~start_colnum:17 ~end_lnum:15 ~end_colnum:20 ~message:"baz"
-      ~entry_id:__entry_id ~log_level:1;
+      ~entry_id:__entry_id ~log_level:1 `Debug;
     Debug_runtime.log_value_pp ?descr:(Some "x") ~entry_id:__entry_id
       ~log_level:1 ~pp ~is_result:false x);
    (match let (({ first = y; second = z } as _yz) : t) =
@@ -57,7 +57,7 @@ let baz (x : t) =
             ();
             Debug_runtime.open_log ~fname:"test_debug_pp.ml" ~start_lnum:14
               ~start_colnum:36 ~end_lnum:14 ~end_colnum:39 ~message:"_yz"
-              ~entry_id:__entry_id ~log_level:1;
+              ~entry_id:__entry_id ~log_level:1 `Debug;
             (match { first = (x.first + 1); second = 3 } with
              | _yz as __res ->
                  ((();
@@ -89,7 +89,7 @@ let rec loop (depth : num) (x : t) =
    ();
    ((Debug_runtime.open_log ~fname:"test_debug_pp.ml" ~start_lnum:19
        ~start_colnum:22 ~end_lnum:25 ~end_colnum:9 ~message:"loop"
-       ~entry_id:__entry_id ~log_level:1;
+       ~entry_id:__entry_id ~log_level:1 `Debug;
      Debug_runtime.log_value_pp ?descr:(Some "depth") ~entry_id:__entry_id
        ~log_level:1 ~pp:pp_num ~is_result:false depth);
     Debug_runtime.log_value_pp ?descr:(Some "x") ~entry_id:__entry_id
@@ -107,7 +107,7 @@ let rec loop (depth : num) (x : t) =
                  ();
                  Debug_runtime.open_log ~fname:"test_debug_pp.ml"
                    ~start_lnum:23 ~start_colnum:8 ~end_lnum:23 ~end_colnum:9
-                   ~message:"y" ~entry_id:__entry_id ~log_level:1;
+                   ~message:"y" ~entry_id:__entry_id ~log_level:1 `Debug;
                  (match loop (depth + 1)
                           { first = (x.second - 1); second = (x.first + 2) }
                   with
@@ -128,7 +128,7 @@ let rec loop (depth : num) (x : t) =
                  ();
                  Debug_runtime.open_log ~fname:"test_debug_pp.ml"
                    ~start_lnum:24 ~start_colnum:8 ~end_lnum:24 ~end_colnum:9
-                   ~message:"z" ~entry_id:__entry_id ~log_level:1;
+                   ~message:"z" ~entry_id:__entry_id ~log_level:1 `Debug;
                  (match loop (depth + 1)
                           { first = (x.second + 1); second = y }
                   with

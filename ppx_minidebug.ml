@@ -133,7 +133,12 @@ let rec pat2expr pat =
       @@ Location.error_extensionf ~loc
            "ppx_minidebug requires a pattern identifier here: try using an `as` alias."
 
-let open_log ?(message = "") ~loc ~log_level () =
+let lift_track_or_explicit ~loc = function
+  | `Diagn -> [%expr `Diagn]
+  | `Debug -> [%expr `Debug]
+  | `Track -> [%expr `Track]
+
+let open_log ?(message = "") ~loc ~log_level track_or_explicit =
   if String.contains message '\n' then
     A.pexp_extension ~loc
     @@ Location.error_extensionf ~loc
@@ -148,12 +153,14 @@ let open_log ?(message = "") ~loc ~log_level () =
         ~end_lnum:[%e A.eint ~loc loc.loc_end.pos_lnum]
         ~end_colnum:[%e A.eint ~loc (loc.loc_end.pos_cnum - loc.loc_end.pos_bol)]
         ~message:[%e A.estring ~loc message] ~entry_id:__entry_id
-        ~log_level:[%e A.eint ~loc log_level]]
+        ~log_level:[%e A.eint ~loc log_level]
+        [%e lift_track_or_explicit ~loc track_or_explicit]]
 
-let open_log_no_source ~message ~loc ~log_level () =
+let open_log_no_source ~message ~loc ~log_level track_or_explicit =
   [%expr
     Debug_runtime.open_log_no_source ~message:[%e message] ~entry_id:__entry_id
-      ~log_level:[%e A.eint ~loc log_level]]
+      ~log_level:[%e A.eint ~loc log_level]
+      [%e lift_track_or_explicit ~loc track_or_explicit]]
 
 let close_log ~loc =
   [%expr
@@ -541,7 +548,9 @@ let debug_body context callback ~loc ~message ~descr_loc ~log_count_before ~arg_
     | Some t when context.output_type_info -> message ^ " : " ^ typ2str t
     | _ -> message
   in
-  let preamble = open_log ~message ~loc ~log_level:context.entry_log_level () in
+  let preamble =
+    open_log ~message ~loc ~log_level:context.entry_log_level context.track_or_explicit
+  in
   let preamble =
     List.fold_left
       (fun e1 e2 ->
@@ -833,7 +842,7 @@ let debug_binding context callback vb =
             in
             let preamble =
               open_log ~message:descr_loc.txt ~loc:descr_loc.loc
-                ~log_level:context.entry_log_level ()
+                ~log_level:context.entry_log_level context.track_or_explicit
             in
             entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
               ~entry:(callback nested exp) ~result ~log_result ()
@@ -1180,7 +1189,8 @@ let traverse_expression =
               in
               let log_count_before = !global_log_count in
               let preamble =
-                open_log_no_source ~message ~loc ~log_level:context.entry_log_level ()
+                open_log_no_source ~message ~loc ~log_level:context.entry_log_level
+                  context.track_or_explicit
               in
               let result = A.ppat_var ~loc { loc; txt = "__res" } in
               let context = { context with entry_log_level } in
@@ -1239,7 +1249,9 @@ let traverse_expression =
               let then_' =
                 [%expr
                   let __entry_id = Debug_runtime.get_entry_id () in
-                  [%e open_log ~message ~loc ~log_level:context.entry_log_level ()];
+                  [%e
+                    open_log ~message ~loc ~log_level:context.entry_log_level
+                      context.track_or_explicit];
                   match [%e then_] with
                   | if_then__result ->
                       [%e close_log ~loc];
@@ -1263,7 +1275,9 @@ let traverse_expression =
                     let message = "else:" ^ loc_to_name loc in
                     [%expr
                       let __entry_id = Debug_runtime.get_entry_id () in
-                      [%e open_log ~message ~loc ~log_level:context.entry_log_level ()];
+                      [%e
+                        open_log ~message ~loc ~log_level:context.entry_log_level
+                          context.track_or_explicit];
                       match [%e else_] with
                       | if_else__result ->
                           [%e close_log ~loc];
@@ -1293,7 +1307,8 @@ let traverse_expression =
               let preamble =
                 open_log
                   ~message:("<for " ^ descr_loc.txt ^ ">")
-                  ~loc:descr_loc.loc ~log_level:context.entry_log_level ()
+                  ~loc:descr_loc.loc ~log_level:context.entry_log_level
+                  context.track_or_explicit
               in
               let header =
                 log_value context ~loc ~typ ~descr_loc ~is_explicit:false ~is_result:false
@@ -1310,7 +1325,9 @@ let traverse_expression =
             let transformed =
               [%expr
                 let __entry_id = Debug_runtime.get_entry_id () in
-                [%e open_log ~message ~loc ~log_level:context.entry_log_level ()];
+                [%e
+                  open_log ~message ~loc ~log_level:context.entry_log_level
+                    context.track_or_explicit];
                 match [%e { exp with pexp_desc }] with
                 | () -> [%e close_log ~loc]
                 | exception e ->
@@ -1329,7 +1346,7 @@ let traverse_expression =
               let descr_loc = { txt = "<while body>"; loc } in
               let preamble =
                 open_log ~message:"<while loop>" ~loc:descr_loc.loc
-                  ~log_level:context.entry_log_level ()
+                  ~log_level:context.entry_log_level context.track_or_explicit
               in
               entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
                 ~entry:(callback context body)
@@ -1341,7 +1358,9 @@ let traverse_expression =
             let transformed =
               [%expr
                 let __entry_id = Debug_runtime.get_entry_id () in
-                [%e open_log ~message ~loc ~log_level:context.entry_log_level ()];
+                [%e
+                  open_log ~message ~loc ~log_level:context.entry_log_level
+                    context.track_or_explicit];
                 match [%e { exp with pexp_desc }] with
                 | () -> [%e close_log ~loc]
                 | exception e ->

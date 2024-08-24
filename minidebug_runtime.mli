@@ -96,9 +96,15 @@ module type Debug_runtime = sig
     message:string ->
     entry_id:int ->
     log_level:int ->
+    [ `Diagn | `Debug | `Track ] ->
     unit
 
-  val open_log_no_source : message:string -> entry_id:int -> log_level:int -> unit
+  val open_log_no_source :
+    message:string ->
+    entry_id:int ->
+    log_level:int ->
+    [ `Diagn | `Debug | `Track ] ->
+    unit
 
   val log_value_sexp :
     ?descr:string ->
