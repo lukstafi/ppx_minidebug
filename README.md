@@ -481,7 +481,7 @@ The `%diagn_` extension points further restrict logging to explicit logs only. E
 
 ```
 
-At runtime, the level can be set via `Minidebug_runtime.debug ~log_level` or `Minidebug_runtime.debug_file ~log_level` at runtime creation, or via `Debug_runtime.config.log_level <- ...` later on. Check out the test suite [test_expect_test.ml:"%log runtime log levels while-loop"](test/test_expect_test.ml#L2439) for examples:
+At runtime, the level can be set via `Minidebug_runtime.debug ~log_level` or `Minidebug_runtime.debug_file ~log_level` at runtime creation, or via `Debug_runtime.log_level := ...` later on, also for the flushing backend. Check out the test suite [test_expect_test.ml:"%log runtime log levels while-loop"](test/test_expect_test.ml#L2536) for examples:
 
 ```ocaml
   let%track_rtb_sexp result () : int =
@@ -489,11 +489,11 @@ At runtime, the level can be set via `Minidebug_runtime.debug ~log_level` or `Mi
     let j = ref 0 in
     while !i < 6 do
       (* Intentional empty but not omitted else-branch. *)
-      if !i < 2 then [%log "ERROR:", 1, "i=", (!i : int)] else ();
+      if !i < 2 then [%log1 "ERROR:", 1, "i=", (!i : int)] else ();
       incr i;
-      [%log "WARNING:", 2, "i=", (!i : int)];
+      [%log2 "WARNING:", 2, "i=", (!i : int)];
       j := (fun { contents } -> !j + contents) i;
-      [%log "INFO:", 3, "j=", (!j : int)]
+      [%log3 "INFO:", 3, "j=", (!j : int)]
     done;
     !j
   in
@@ -501,8 +501,8 @@ At runtime, the level can be set via `Minidebug_runtime.debug ~log_level` or `Mi
   print_endline
   @@ Int.to_string
        (result
-          (Minidebug_runtime.debug ~values_first_mode:true ~log_level:Nonempty_entries
-             ~global_prefix:"Nonempty" ())
+          (Minidebug_runtime.debug ~values_first_mode:true ~log_level:2
+             ~global_prefix:"Warning" ())
           ());
   ...
 ```
@@ -511,74 +511,77 @@ At compile time, the level can be set for a scope with `%log_level`, or globally
 (`%log_level` is not registered to minimize incompatibility with other logging frameworks.) For example:
 
 ```ocaml
-[%%global_log_level Nonempty_entries]
+[%%global_log_level 2]
 
-let%track_sexp nonempty () : int =
+let%track_sexp warning () : int =
   let i = ref 0 in
   let j = ref 0 in
   while !i < 6 do
     (* Intentional empty but not omitted else-branch. *)
-    if !i < 2 then [%log "ERROR:", 1, "i=", (!i : int)] else ();
+    if !i < 2 then [%log1 "ERROR:", 1, "i=", (!i : int)] else ();
     incr i;
-    [%log "WARNING:", 2, "i=", (!i : int)];
+    [%log2 "WARNING:", 2, "i=", (!i : int)];
     j := (fun { contents } -> !j + contents) i;
-    [%log "INFO:", 3, "j=", (!j : int)]
+    [%log3 "INFO:", 3, "j=", (!j : int)]
   done;
   !j
 
-let () = print_endline @@ Int.to_string @@ nonempty ()
+let () = print_endline @@ Int.to_string @@ warning ()
 ```
 
 This will not emit logging code that is above the stated log level. Note that the compile-time pruning of logging happens independently of the runtime log level! This gives more flexibility but can lead to confusing situations.
 
-There's also a way to compile the code adaptively, using a shell environment variable: `[%%global_debug_log_level_from_env_var "environment_variable_name"]`. The variable name is case-sensitive, but the values are case-insensitive. The recognized values of the environment variables are:
-
-- `nothing`: translates to `Nothing`
-- `prefixed_error`: translates to `Prefixed [| "ERROR" |]`
-- `prefixed_warn_error`: translates to `Prefixed [| "WARN"; "ERROR" |]`
-- `prefixed_info_warn_error`: translates to `Prefixed [| "INFO"; "WARN"; "ERROR" |]`
-- `explicit_logs`: translates to `Prefixed [||]`
-- `nonempty_entries`: translates to `Nonempty_entries`
-- `everything`: translates to `Everything`
-- `` (empty): no change
+There's also a way to compile the code adaptively, using a shell environment variable: `[%%global_debug_log_level_from_env_var "environment_variable_name"]`. The variable name is case-sensitive, but the values should be integers.
 
 The generated code will check that the compile-time adaptive pruning matches the runtime value of the environment variable. If that's an obstacle, use `%%global_debug_log_level_from_env_var_unsafe` which will not perform the check. Using `%%global_debug_log_level_from_env_var_unsafe` is very prone to workflow bugs where different parts of a codebase are compiled with different log levels, leading to confusing behavior.
 
-With some "abuse of notation", we use `Prefixed [||]` resp. `Prefixed_or_result [||]` to mean all-and-only explicit logs (resp. also result logs). `Prefixed [||]` only works at compile time. `Prefixed_or_result [||]` works as intended when set both at compile time and at runtime: then, it will output all explicit logs, but also results in otherwise-nonempty entries. Example from the test suite:
+Another example from the test suite:
 
 ```ocaml
   let module Debug_runtime =
-    (val Minidebug_runtime.debug ~values_first_mode:true
-           ~log_level:(Prefixed_or_result [||]) ())
+    (val Minidebug_runtime.debug ~values_first_mode:true ~log_level:2 ())
   in
-  let%debug_show () =
-    [%log_level
-      Prefixed_or_result [||];
-      let bar { first : int; second : int } : int =
-        let { first : int = a; second : int = b } = { first; second = second + 3 } in
-        let y : int = a + 1 in
-        [%log "for bar, b-3", (b - 3 : int)];
-        (b - 3) * y
-      in
-      let baz { first : int; second : int } : int =
-        let { first : int; second : int } = { first = first + 1; second = second + 3 } in
-        [%log "for baz, f squared", (first * first : int)];
-        (first * first) + second
-      in
-      print_endline @@ Int.to_string @@ bar { first = 7; second = 42 };
-      print_endline @@ Int.to_string @@ baz { first = 7; second = 42 }]
+  let%debug3_show () =
+    let foo { first : int; second : int } : int =
+      let { first : int = a; second : int = b } = { first; second = second + 3 } in
+      let y : int = a + 1 in
+      [%log "for foo, b-3", (b - 3 : int)];
+      (b - 3) * y
+    in
+    let bar { first : int; second : int } : int =
+      let { first : int = a; second : int = b } = { first; second = second + 3 } in
+      let y : int = a + 1 in
+      [%log1 "for bar, b-3", (b - 3 : int)];
+      (b - 3) * y
+    in
+    let%debug2_this_show baz { first : int; second : int } : int =
+      let { first : int; second : int } = { first = first + 1; second = second + 3 } in
+      [%log "for baz, f squared", (first * first : int)];
+      (first * first) + second
+    in
+    print_endline @@ Int.to_string @@ foo { first = 7; second = 42 };
+    print_endline @@ Int.to_string @@ bar { first = 7; second = 42 };
+    print_endline @@ Int.to_string @@ baz { first = 7; second = 42 }
   in
   [%expect
     {|
-        BEGIN DEBUG SESSION
-        bar = 336
-        ├─"test/test_expect_test.ml":3073:14-3077:19
-        └─("for bar, b-3", 42)
-        336
-        baz = 109
-        ├─"test/test_expect_test.ml":3079:14-3082:32
-        └─("for baz, f squared", 64)
-        109 |}]
+    BEGIN DEBUG SESSION
+    336
+    ("for bar, b-3", 42)
+    └─{orphaned from #5}
+    336
+    baz = 109
+    ├─"test/test_expect_test.ml":3343:29
+    ├─first = 7
+    ├─second = 42
+    ├─{first; second}
+    │ ├─"test/test_expect_test.ml":3344:10
+    │ └─<values>
+    │   ├─first = 8
+    │   └─second = 45
+    └─("for baz, f squared", 64)
+    109
+    |}]
 ```
 
 The extension point `%log_result` lets you benefit from the `values_first_mode` setting even when using only explicit logs. Conveying more information in headers lets you explore logs more quickly.
@@ -702,6 +705,8 @@ The extension point `%log_entry` lets you shape arbitrary log tree structures. E
       └─"postscript"
     |}]
 ```
+
+`%log_result`, `%log_printbox`, `%log_entry` also allow log-level specifications (e.g. `%log2_result`).
 
 ### Lexical scopes vs. dynamic scopes
 
