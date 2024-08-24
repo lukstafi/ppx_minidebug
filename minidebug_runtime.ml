@@ -34,21 +34,6 @@ type location_format =
   | Range_line
   | Range_pos
 
-type log_level =
-  | Nothing
-  | Prefixed of string array
-  | Prefixed_or_result of string array
-  | Nonempty_entries
-  | Everything
-
-let equal_log_level l1 l2 =
-  match (l1, l2) with
-  | (Prefixed p1, Prefixed p2 | Prefixed_or_result p1, Prefixed_or_result p2)
-    when Array.for_all2 String.equal p1 p2 ->
-      true
-  | Nothing, Nothing | Nonempty_entries, Nonempty_entries | Everything, Everything -> true
-  | _ -> false
-
 type toc_entry_criteria =
   | Minimal_depth of int
   | Minimal_size of int
@@ -65,8 +50,6 @@ let toc_entry_passes ~depth ~size ~span criteria =
     | Or disjs -> List.exists loop disjs
   in
   loop criteria
-
-let is_prefixed_or_result = function Prefixed_or_result _ -> true | _ -> false
 
 module type Shared_config = sig
   val refresh_ch : unit -> bool
@@ -187,23 +170,32 @@ module type Debug_runtime = sig
     end_colnum:int ->
     message:string ->
     entry_id:int ->
+    log_level:int ->
     unit
 
-  val open_log_no_source : message:string -> entry_id:int -> unit
+  val open_log_no_source : message:string -> entry_id:int -> log_level:int -> unit
 
   val log_value_sexp :
-    ?descr:string -> entry_id:int -> is_result:bool -> Sexplib0.Sexp.t -> unit
+    ?descr:string ->
+    entry_id:int ->
+    log_level:int ->
+    is_result:bool ->
+    Sexplib0.Sexp.t ->
+    unit
 
   val log_value_pp :
     ?descr:string ->
     entry_id:int ->
+    log_level:int ->
     pp:(Format.formatter -> 'a -> unit) ->
     is_result:bool ->
     'a ->
     unit
 
-  val log_value_show : ?descr:string -> entry_id:int -> is_result:bool -> string -> unit
-  val log_value_printbox : entry_id:int -> PrintBox.t -> unit
+  val log_value_show :
+    ?descr:string -> entry_id:int -> log_level:int -> is_result:bool -> string -> unit
+
+  val log_value_printbox : entry_id:int -> log_level:int -> PrintBox.t -> unit
   val exceeds_max_nesting : unit -> bool
   val exceeds_max_children : unit -> bool
   val get_entry_id : unit -> int
@@ -213,6 +205,7 @@ module type Debug_runtime = sig
   val snapshot : unit -> unit
   val description : string
   val no_debug_if : bool -> unit
+  val log_level : int ref
 end
 
 let exceeds ~value ~limit = match limit with None -> false | Some limit -> limit < value
@@ -243,6 +236,7 @@ let opt_verbose_entry_id ~verbose_entry_ids ~entry_id =
 module Flushing (Log_to : Shared_config) : Debug_runtime = struct
   open Log_to
 
+  let log_level = ref 9
   let max_nesting_depth = ref None
   let max_num_children = ref None
   let debug_ch = ref @@ debug_ch ()
@@ -256,7 +250,9 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
     entry_id : int;
   }
 
+  let check_log_level level = level <= !log_level
   let stack = ref []
+  let hidden_entries = ref []
   let depth_stack = ref []
   let indent () = String.make (List.length !stack) ' '
 
@@ -274,14 +270,15 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
           (timestamp_to_string ())
 
   let close_log ~fname ~start_lnum ~entry_id =
-    match !stack with
-    | [] ->
+    match (!hidden_entries, !stack) with
+    | hidden_id :: tl, _ when hidden_id = entry_id -> hidden_entries := tl
+    | _, [] ->
         let log_loc =
           Printf.sprintf "%s\"%s\":%d: entry_id=%d" global_prefix fname start_lnum
             entry_id
         in
         failwith @@ "ppx_minidebug: close_log must follow an earlier open_log; " ^ log_loc
-    | { message; elapsed; time_tag; entry_id = open_entry_id; _ } :: tl -> (
+    | _, { message; elapsed; time_tag; entry_id = open_entry_id; _ } :: tl -> (
         let elapsed_on_close = time_elapsed () in
         stack := tl;
         (if open_entry_id <> entry_id then
@@ -323,46 +320,52 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         | (cur_depth, cur_size) :: (depth, size) :: tl ->
             depth_stack := (max depth (cur_depth + 1), cur_size + size) :: tl)
 
-  let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id =
-    Printf.fprintf !debug_ch "%s%s%s%s begin %!" (indent ()) global_prefix
-      (opt_entry_id ~print_entry_ids ~entry_id)
-      message;
-    let message = opt_verbose_entry_id ~verbose_entry_ids ~entry_id ^ message in
-    (match Log_to.location_format with
-    | No_location -> ()
-    | File_only -> Printf.fprintf !debug_ch "\"%s\":%!" fname
-    | Beg_line -> Printf.fprintf !debug_ch "\"%s\":%d:%!" fname start_lnum
-    | Beg_pos -> Printf.fprintf !debug_ch "\"%s\":%d:%d:%!" fname start_lnum start_colnum
-    | Range_line -> Printf.fprintf !debug_ch "\"%s\":%d-%d:%!" fname start_lnum end_lnum
-    | Range_pos ->
-        Printf.fprintf !debug_ch "\"%s\":%d:%d-%d:%d:%!" fname start_lnum start_colnum
-          end_lnum end_colnum);
-    let time_tag =
-      match Log_to.time_tagged with
-      | Not_tagged -> ""
-      | Clock -> " " ^ timestamp_to_string ()
-      | Elapsed -> Format.asprintf " %a" pp_elapsed ()
-    in
-    Printf.fprintf !debug_ch "%s\n%!" time_tag;
-    stack :=
-      { message; elapsed = time_elapsed (); time_tag; num_children = 0; entry_id }
-      :: !stack
+  let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id
+      ~log_level =
+    if check_log_level log_level then (
+      let message = opt_verbose_entry_id ~verbose_entry_ids ~entry_id ^ message in
+      let time_tag =
+        match Log_to.time_tagged with
+        | Not_tagged -> ""
+        | Clock -> " " ^ timestamp_to_string ()
+        | Elapsed -> Format.asprintf " %a" pp_elapsed ()
+      in
+      Printf.fprintf !debug_ch "%s%s%s%s begin %!" (indent ()) global_prefix
+        (opt_entry_id ~print_entry_ids ~entry_id)
+        message;
+      stack :=
+        { message; elapsed = time_elapsed (); time_tag; num_children = 0; entry_id }
+        :: !stack;
+      (match Log_to.location_format with
+      | No_location -> ()
+      | File_only -> Printf.fprintf !debug_ch "\"%s\":%!" fname
+      | Beg_line -> Printf.fprintf !debug_ch "\"%s\":%d:%!" fname start_lnum
+      | Beg_pos ->
+          Printf.fprintf !debug_ch "\"%s\":%d:%d:%!" fname start_lnum start_colnum
+      | Range_line -> Printf.fprintf !debug_ch "\"%s\":%d-%d:%!" fname start_lnum end_lnum
+      | Range_pos ->
+          Printf.fprintf !debug_ch "\"%s\":%d:%d-%d:%d:%!" fname start_lnum start_colnum
+            end_lnum end_colnum);
+      Printf.fprintf !debug_ch "%s\n%!" time_tag)
+    else hidden_entries := entry_id :: !hidden_entries
 
-  let open_log_no_source ~message ~entry_id =
-    Printf.fprintf !debug_ch "%s%s%s%s begin %!" (indent ()) global_prefix
-      (opt_entry_id ~print_entry_ids ~entry_id)
-      message;
-    let message = opt_verbose_entry_id ~verbose_entry_ids ~entry_id ^ message in
-    let time_tag =
-      match Log_to.time_tagged with
-      | Not_tagged -> ""
-      | Clock -> " " ^ timestamp_to_string ()
-      | Elapsed -> Format.asprintf " %a" pp_elapsed ()
-    in
-    Printf.fprintf !debug_ch "%s\n%!" time_tag;
-    stack :=
-      { message; elapsed = time_elapsed (); time_tag; num_children = 0; entry_id }
-      :: !stack
+  let open_log_no_source ~message ~entry_id ~log_level =
+    if check_log_level log_level then (
+      let message = opt_verbose_entry_id ~verbose_entry_ids ~entry_id ^ message in
+      let time_tag =
+        match Log_to.time_tagged with
+        | Not_tagged -> ""
+        | Clock -> " " ^ timestamp_to_string ()
+        | Elapsed -> Format.asprintf " %a" pp_elapsed ()
+      in
+      Printf.fprintf !debug_ch "%s%s%s%s begin %!" (indent ()) global_prefix
+        (opt_entry_id ~print_entry_ids ~entry_id)
+        message;
+      stack :=
+        { message; elapsed = time_elapsed (); time_tag; num_children = 0; entry_id }
+        :: !stack;
+      Printf.fprintf !debug_ch "%s\n%!" time_tag)
+    else hidden_entries := entry_id :: !hidden_entries
 
   let bump_stack_entry entry_id =
     match !stack with
@@ -371,32 +374,36 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         ""
     | [] -> "{orphaned from #" ^ Int.to_string entry_id ^ "} "
 
-  let log_value_sexp ?descr ~entry_id ~is_result:_ sexp =
-    let orphaned = bump_stack_entry entry_id in
-    let descr = match descr with None -> "" | Some d -> d ^ " = " in
-    Printf.fprintf !debug_ch "%s%s%s%s\n%!" (indent ()) orphaned descr
-      (Sexplib0.Sexp.to_string_hum sexp)
+  let log_value_sexp ?descr ~entry_id ~log_level ~is_result:_ sexp =
+    if check_log_level log_level then
+      let orphaned = bump_stack_entry entry_id in
+      let descr = match descr with None -> "" | Some d -> d ^ " = " in
+      Printf.fprintf !debug_ch "%s%s%s%s\n%!" (indent ()) orphaned descr
+        (Sexplib0.Sexp.to_string_hum sexp)
 
-  let log_value_pp ?descr ~entry_id ~pp ~is_result:_ v =
-    let orphaned = bump_stack_entry entry_id in
-    let descr = match descr with None -> "" | Some d -> d ^ " = " in
-    let _ = CFormat.flush_str_formatter () in
-    pp CFormat.str_formatter v;
-    let v_str = CFormat.flush_str_formatter () in
-    Printf.fprintf !debug_ch "%s%s%s%s\n%!" (indent ()) orphaned descr v_str
+  let log_value_pp ?descr ~entry_id ~log_level ~pp ~is_result:_ v =
+    if check_log_level log_level then (
+      let orphaned = bump_stack_entry entry_id in
+      let descr = match descr with None -> "" | Some d -> d ^ " = " in
+      let _ = CFormat.flush_str_formatter () in
+      pp CFormat.str_formatter v;
+      let v_str = CFormat.flush_str_formatter () in
+      Printf.fprintf !debug_ch "%s%s%s%s\n%!" (indent ()) orphaned descr v_str)
 
-  let log_value_show ?descr ~entry_id ~is_result:_ v =
-    let orphaned = bump_stack_entry entry_id in
-    let descr = match descr with None -> "" | Some d -> d ^ " = " in
-    Printf.fprintf !debug_ch "%s%s%s%s\n%!" (indent ()) orphaned descr v
+  let log_value_show ?descr ~entry_id ~log_level ~is_result:_ v =
+    if check_log_level log_level then
+      let orphaned = bump_stack_entry entry_id in
+      let descr = match descr with None -> "" | Some d -> d ^ " = " in
+      Printf.fprintf !debug_ch "%s%s%s%s\n%!" (indent ()) orphaned descr v
 
-  let log_value_printbox ~entry_id v =
-    let orphaned = bump_stack_entry entry_id in
-    let orphaned = if orphaned = "" then "" else " " ^ orphaned in
-    let indent = indent () in
-    Printf.fprintf !debug_ch "%a%s\n%!"
-      (PrintBox_text.output ?style:None ~indent:(String.length indent))
-      v orphaned
+  let log_value_printbox ~entry_id ~log_level v =
+    if check_log_level log_level then
+      let orphaned = bump_stack_entry entry_id in
+      let orphaned = if orphaned = "" then "" else " " ^ orphaned in
+      let indent = indent () in
+      Printf.fprintf !debug_ch "%a%s\n%!"
+        (PrintBox_text.output ?style:None ~indent:(String.length indent))
+        v orphaned
 
   let exceeds_max_nesting () =
     exceeds ~value:(List.length !stack) ~limit:!max_nesting_depth
@@ -437,7 +444,6 @@ module type PrintBox_runtime = sig
     mutable values_first_mode : bool;
     mutable max_inline_sexp_size : int;
     mutable max_inline_sexp_length : int;
-    mutable log_level : log_level;
     mutable snapshot_every_sec : float option;
     mutable sexp_unescape_strings : bool;
     mutable with_toc_listing : bool;
@@ -462,8 +468,10 @@ let anchor_entry_id ~is_pure_text ~entry_id =
 module PrintBox (Log_to : Shared_config) = struct
   open Log_to
 
+  let log_level = ref 9
   let max_nesting_depth = ref None
   let max_num_children = ref None
+  let check_log_level level = level <= !log_level
 
   type config = {
     mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
@@ -478,7 +486,6 @@ module PrintBox (Log_to : Shared_config) = struct
     mutable values_first_mode : bool;
     mutable max_inline_sexp_size : int;
     mutable max_inline_sexp_length : int;
-    mutable log_level : log_level;
     mutable snapshot_every_sec : float option;
     mutable sexp_unescape_strings : bool;
     mutable with_toc_listing : bool;
@@ -499,7 +506,6 @@ module PrintBox (Log_to : Shared_config) = struct
       values_first_mode = false;
       max_inline_sexp_size = 20;
       max_inline_sexp_length = 80;
-      log_level = Everything;
       snapshot_every_sec = None;
       sexp_unescape_strings = true;
       toc_flame_graph = false;
@@ -519,7 +525,7 @@ module PrintBox (Log_to : Shared_config) = struct
   }
 
   type entry = {
-    cond : bool;
+    no_debug_if : bool;
     highlight : bool;
     exclude : bool;
     elapsed : Mtime.span;
@@ -535,6 +541,7 @@ module PrintBox (Log_to : Shared_config) = struct
   }
 
   let stack : entry list ref = ref []
+  let hidden_entries = ref []
 
   let hyperlink_path ~uri ~inner =
     match config.hyperlink with
@@ -586,7 +593,7 @@ module PrintBox (Log_to : Shared_config) = struct
 
   let stack_to_tree ~elapsed_on_close
       {
-        cond = _;
+        no_debug_if;
         highlight;
         exclude = _;
         elapsed;
@@ -600,6 +607,7 @@ module PrintBox (Log_to : Shared_config) = struct
         toc_depth = _;
         size = _;
       } =
+    assert (not no_debug_if);
     let non_id_message =
       (* Being defensive: checking for '=' not required so far. *)
       String.contains entry_message '<'
@@ -890,14 +898,15 @@ module PrintBox (Log_to : Shared_config) = struct
       (* Design choice: exclude does not apply to its own entry -- it's about propagating
          children. *)
       match !stack with
+      | { no_debug_if = true; _ } :: bs -> bs
       | { highlight = false; _ } :: bs when config.prune_upto >= List.length !stack -> bs
-      | { body = []; _ } :: bs when config.log_level <> Everything -> bs
-      | { body; _ } :: bs
-        when is_prefixed_or_result config.log_level
-             && List.for_all (fun e -> e.is_result) body ->
+      (* FIXME: rethink and explain this in the README: log level 3 for empty bodies, log
+         level 2 for non-explicit-content-only bodies. *)
+      | { body = []; _ } :: bs when !log_level < 3 -> bs
+      | { body; _ } :: bs when !log_level < 2 && List.for_all (fun e -> e.is_result) body
+        ->
           bs
       | ({
-           cond = true;
            highlight = hl;
            exclude = _;
            entry_id = result_id;
@@ -907,7 +916,7 @@ module PrintBox (Log_to : Shared_config) = struct
            _;
          } as entry)
         :: {
-             cond;
+             no_debug_if;
              highlight;
              exclude;
              uri;
@@ -932,7 +941,7 @@ module PrintBox (Log_to : Shared_config) = struct
             else ""
           in
           {
-            cond;
+            no_debug_if;
             highlight = highlight || ((not exclude) && hl);
             exclude;
             uri;
@@ -958,15 +967,17 @@ module PrintBox (Log_to : Shared_config) = struct
             size = result_size + size;
           }
           :: bs3
-      | { cond = false; _ } :: bs -> bs
-      | [ ({ cond = true; toc_depth; _ } as entry) ] ->
+      | [ ({ toc_depth; _ } as entry) ] ->
           close_tree ~entry ~toc_depth;
           []
       | [] -> assert false
 
   let close_log ~fname ~start_lnum ~entry_id =
-    let elapsed_on_close = time_elapsed () in
-    close_log_impl ~from_snapshot:false ~elapsed_on_close ~fname ~start_lnum ~entry_id
+    match !hidden_entries with
+    | hidden_id :: tl when hidden_id = entry_id -> hidden_entries := tl
+    | _ ->
+        let elapsed_on_close = time_elapsed () in
+        close_log_impl ~from_snapshot:false ~elapsed_on_close ~fname ~start_lnum ~entry_id
 
   let snapshot () =
     let current_stack = !stack in
@@ -997,7 +1008,7 @@ module PrintBox (Log_to : Shared_config) = struct
             last_snapshot := now;
             snapshot ())
 
-  let stack_next ~entry_id ~is_result ~prefixed ~result_depth ~result_size (hl, b) =
+  let stack_next ~entry_id ~is_result ~result_depth ~result_size (hl, b) =
     let opt_eid = opt_verbose_entry_id ~verbose_entry_ids ~entry_id in
     let rec eid b =
       match B.view b with
@@ -1013,36 +1024,13 @@ module PrintBox (Log_to : Shared_config) = struct
       | B.Anchor { id; inner } -> B.anchor ~id @@ eid inner
     in
     let b = if opt_eid = "" then b else eid b in
-    match config.log_level with
-    | Nothing -> ()
-    | Prefixed _ when not prefixed -> ()
-    | Prefixed_or_result _ when not (is_result || prefixed) -> ()
-    | _ -> (
-        match !stack with
-        | ({ highlight; exclude; body; depth; size; elapsed; _ } as entry) :: bs2 ->
-            stack :=
-              {
-                entry with
-                highlight = highlight || ((not exclude) && hl);
-                body =
-                  {
-                    result_id = entry_id;
-                    is_result;
-                    highlighted = hl;
-                    elapsed_start = elapsed;
-                    elapsed_end = elapsed;
-                    subtree = b;
-                    toc_subtree = B.empty;
-                    flame_subtree = "";
-                  }
-                  :: body;
-                depth = max (result_depth + 1) depth;
-                size = size + result_size;
-              }
-              :: bs2
-        | [] ->
-            let elapsed = time_elapsed () in
-            let subentry =
+    match !stack with
+    | ({ highlight; exclude; body; depth; size; elapsed; _ } as entry) :: bs2 ->
+        stack :=
+          {
+            entry with
+            highlight = highlight || ((not exclude) && hl);
+            body =
               {
                 result_id = entry_id;
                 is_result;
@@ -1053,115 +1041,138 @@ module PrintBox (Log_to : Shared_config) = struct
                 toc_subtree = B.empty;
                 flame_subtree = "";
               }
-            in
-            let entry_message = "{orphaned from #" ^ Int.to_string entry_id ^ "}" in
-            stack :=
-              [
-                {
-                  cond = true;
-                  highlight = hl;
-                  exclude = false;
-                  elapsed;
-                  time_tag = "";
-                  uri = "";
-                  path = "";
-                  entry_message;
-                  entry_id = -1;
-                  body = [ subentry ];
-                  depth = 1;
-                  toc_depth = 0;
-                  size = 1;
-                };
-              ];
-            close_log ~fname:"orphaned" ~start_lnum:entry_id ~entry_id:(-1))
+              :: body;
+            depth = max (result_depth + 1) depth;
+            size = size + result_size;
+          }
+          :: bs2
+    | [] ->
+        let elapsed = time_elapsed () in
+        let subentry =
+          {
+            result_id = entry_id;
+            is_result;
+            highlighted = hl;
+            elapsed_start = elapsed;
+            elapsed_end = elapsed;
+            subtree = b;
+            toc_subtree = B.empty;
+            flame_subtree = "";
+          }
+        in
+        let entry_message = "{orphaned from #" ^ Int.to_string entry_id ^ "}" in
+        stack :=
+          [
+            {
+              no_debug_if = false;
+              highlight = hl;
+              exclude = false;
+              elapsed;
+              time_tag = "";
+              uri = "";
+              path = "";
+              entry_message;
+              entry_id = -1;
+              body = [ subentry ];
+              depth = 1;
+              toc_depth = 0;
+              size = 1;
+            };
+          ];
+        close_log ~fname:"orphaned" ~start_lnum:entry_id ~entry_id:(-1)
 
-  let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id =
-    let elapsed = time_elapsed () in
-    let uri =
-      match config.hyperlink with
-      | `Prefix prefix
-        when String.length prefix = 0
-             || Char.equal prefix.[0] '.'
-             || String.length prefix > 6
-                && (String.equal (String.sub prefix 0 5) "http:"
-                   || String.equal (String.sub prefix 0 6) "https:") ->
-          Printf.sprintf "%s#L%d" fname start_lnum
-      | _ -> Printf.sprintf "%s:%d:%d" fname start_lnum (start_colnum + 1)
-    in
-    let location =
-      match Log_to.location_format with
-      | No_location -> ""
-      | File_only -> Printf.sprintf "\"%s\":" fname
-      | Beg_line -> Printf.sprintf "\"%s\":%d" fname start_lnum
-      | Beg_pos -> Printf.sprintf "\"%s\":%d:%d" fname start_lnum start_colnum
-      | Range_line -> Format.asprintf "\"%s\":%d-%d" fname start_lnum end_lnum
-      | Range_pos ->
-          Format.asprintf "\"%s\":%d:%d-%d:%d" fname start_lnum start_colnum end_lnum
-            end_colnum
-    in
-    let time_tag =
-      match time_tagged with
-      | Not_tagged -> ""
-      | Clock -> Format.asprintf " at time %a" pp_timestamp ()
-      | Elapsed -> Format.asprintf " at elapsed %a" pp_elapsed ()
-    in
-    let path = location ^ time_tag in
-    let exclude =
-      match config.exclude_on_path with Some r -> Re.execp r message | None -> false
-    in
-    let highlight =
-      match config.highlight_terms with Some r -> Re.execp r message | None -> false
-    in
-    let entry_message = global_prefix ^ message in
-    stack :=
-      {
-        cond = true;
-        highlight;
-        exclude;
-        uri;
-        path;
-        elapsed;
-        time_tag;
-        entry_message;
-        entry_id;
-        body = [];
-        depth = 0;
-        toc_depth = 0;
-        size = 1;
-      }
-      :: !stack
+  let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id
+      ~log_level =
+    if check_log_level log_level then
+      let elapsed = time_elapsed () in
+      let uri =
+        match config.hyperlink with
+        | `Prefix prefix
+          when String.length prefix = 0
+               || Char.equal prefix.[0] '.'
+               || String.length prefix > 6
+                  && (String.equal (String.sub prefix 0 5) "http:"
+                     || String.equal (String.sub prefix 0 6) "https:") ->
+            Printf.sprintf "%s#L%d" fname start_lnum
+        | _ -> Printf.sprintf "%s:%d:%d" fname start_lnum (start_colnum + 1)
+      in
+      let location =
+        match Log_to.location_format with
+        | No_location -> ""
+        | File_only -> Printf.sprintf "\"%s\":" fname
+        | Beg_line -> Printf.sprintf "\"%s\":%d" fname start_lnum
+        | Beg_pos -> Printf.sprintf "\"%s\":%d:%d" fname start_lnum start_colnum
+        | Range_line -> Format.asprintf "\"%s\":%d-%d" fname start_lnum end_lnum
+        | Range_pos ->
+            Format.asprintf "\"%s\":%d:%d-%d:%d" fname start_lnum start_colnum end_lnum
+              end_colnum
+      in
+      let time_tag =
+        match time_tagged with
+        | Not_tagged -> ""
+        | Clock -> Format.asprintf " at time %a" pp_timestamp ()
+        | Elapsed -> Format.asprintf " at elapsed %a" pp_elapsed ()
+      in
+      let path = location ^ time_tag in
+      let exclude =
+        match config.exclude_on_path with Some r -> Re.execp r message | None -> false
+      in
+      let highlight =
+        match config.highlight_terms with Some r -> Re.execp r message | None -> false
+      in
+      let entry_message = global_prefix ^ message in
+      stack :=
+        {
+          no_debug_if = false;
+          highlight;
+          exclude;
+          uri;
+          path;
+          elapsed;
+          time_tag;
+          entry_message;
+          entry_id;
+          body = [];
+          depth = 0;
+          toc_depth = 0;
+          size = 1;
+        }
+        :: !stack
+    else hidden_entries := entry_id :: !hidden_entries
 
-  let open_log_no_source ~message ~entry_id =
-    let time_tag =
-      match time_tagged with
-      | Not_tagged -> ""
-      | Clock -> Format.asprintf " at time %a" pp_timestamp ()
-      | Elapsed -> Format.asprintf " at elapsed %a" pp_elapsed ()
-    in
-    let exclude =
-      match config.exclude_on_path with Some r -> Re.execp r message | None -> false
-    in
-    let highlight =
-      match config.highlight_terms with Some r -> Re.execp r message | None -> false
-    in
-    let entry_message = global_prefix ^ message in
-    stack :=
-      {
-        cond = true;
-        highlight;
-        exclude;
-        uri = "";
-        path = "";
-        elapsed = time_elapsed ();
-        time_tag;
-        entry_message;
-        entry_id;
-        body = [];
-        depth = 0;
-        toc_depth = 0;
-        size = 1;
-      }
-      :: !stack
+  let open_log_no_source ~message ~entry_id ~log_level =
+    if check_log_level log_level then
+      let time_tag =
+        match time_tagged with
+        | Not_tagged -> ""
+        | Clock -> Format.asprintf " at time %a" pp_timestamp ()
+        | Elapsed -> Format.asprintf " at elapsed %a" pp_elapsed ()
+      in
+      let exclude =
+        match config.exclude_on_path with Some r -> Re.execp r message | None -> false
+      in
+      let highlight =
+        match config.highlight_terms with Some r -> Re.execp r message | None -> false
+      in
+      let entry_message = global_prefix ^ message in
+      stack :=
+        {
+          no_debug_if = false;
+          highlight;
+          exclude;
+          uri = "";
+          path = "";
+          elapsed = time_elapsed ();
+          time_tag;
+          entry_message;
+          entry_id;
+          body = [];
+          depth = 0;
+          toc_depth = 0;
+          size = 1;
+        }
+        :: !stack
+    else hidden_entries := entry_id :: !hidden_entries
 
   let sexp_size sexp =
     let open Sexplib0.Sexp in
@@ -1241,98 +1252,50 @@ module PrintBox (Log_to : Shared_config) = struct
 
   let num_children () = match !stack with [] -> 0 | { body; _ } :: _ -> List.length body
 
-  let log_value_sexp ?descr ~entry_id ~is_result sexp =
-    let prefixed =
-      match config.log_level with
-      | Prefixed_or_result [||] -> true
-      | Prefixed [||] ->
-          failwith "ppx_minidebug: runtime log levels do not support explicit-logs-only"
-      | Prefixed prefixes | Prefixed_or_result prefixes ->
-          let rec loop = function
-            | Sexplib0.Sexp.Atom s ->
-                Array.exists (fun prefix -> String.starts_with ~prefix s) prefixes
-            | List [] -> false
-            | List (e :: _) -> loop e
-          in
-          loop sexp
-      | _ -> true
-    in
-    (if config.boxify_sexp_from_size >= 0 then
-       stack_next ~entry_id ~is_result ~prefixed ~result_depth:0 ~result_size:1
-       @@ boxify ?descr sexp
-     else
-       stack_next ~entry_id ~is_result ~prefixed ~result_depth:0 ~result_size:1
-       @@ highlight_box
-       @@
-       match descr with
-       | None -> B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
-       | Some d -> B.asprintf_with_style B.Style.preformatted "%s = %a" d pp_sexp sexp);
-    opt_auto_snapshot ()
+  let log_value_sexp ?descr ~entry_id ~log_level ~is_result sexp =
+    if check_log_level log_level then (
+      (if config.boxify_sexp_from_size >= 0 then
+         stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
+         @@ boxify ?descr sexp
+       else
+         stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
+         @@ highlight_box
+         @@
+         match descr with
+         | None -> B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
+         | Some d -> B.asprintf_with_style B.Style.preformatted "%s = %a" d pp_sexp sexp);
+      opt_auto_snapshot ())
 
-  let skip_parens s =
-    let len = String.length s in
-    let pos = ref 0 in
-    while !pos < len && (s.[!pos] = '(' || s.[!pos] = '{' || s.[!pos] = '[') do
-      incr pos
-    done;
-    let s = String.(sub s !pos @@ (length s - !pos)) in
-    s
+  let log_value_pp ?descr ~entry_id ~log_level ~pp ~is_result v =
+    if check_log_level log_level then (
+      (stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
+      @@ highlight_box
+      @@
+      match descr with
+      | None -> B.asprintf_with_style B.Style.preformatted "%a" pp v
+      | Some d -> B.asprintf_with_style B.Style.preformatted "%s = %a" d pp v);
+      opt_auto_snapshot ())
 
-  let log_value_pp ?descr ~entry_id ~pp ~is_result v =
-    let prefixed =
-      match config.log_level with
-      | Prefixed_or_result [||] -> true
-      | Prefixed [||] ->
-          failwith "ppx_minidebug: runtime log levels do not support explicit-logs-only"
-      | Prefixed prefixes | Prefixed_or_result prefixes ->
-          (* TODO: perf-hint: cache this conversion and maybe don't re-convert. *)
-          let s = skip_parens @@ Format.asprintf "%a" pp v in
-          Array.exists (fun prefix -> String.starts_with ~prefix s) prefixes
-      | _ -> true
-    in
-    (stack_next ~entry_id ~is_result ~prefixed ~result_depth:0 ~result_size:1
-    @@ highlight_box
-    @@
-    match descr with
-    | None -> B.asprintf_with_style B.Style.preformatted "%a" pp v
-    | Some d -> B.asprintf_with_style B.Style.preformatted "%s = %a" d pp v);
-    opt_auto_snapshot ()
+  let log_value_show ?descr ~entry_id ~log_level ~is_result v =
+    if check_log_level log_level then (
+      (stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
+      @@ highlight_box
+      @@
+      match descr with
+      | None -> B.sprintf_with_style B.Style.preformatted "%s" v
+      | Some d -> B.sprintf_with_style B.Style.preformatted "%s = %s" d v);
+      opt_auto_snapshot ())
 
-  let log_value_show ?descr ~entry_id ~is_result v =
-    let prefixed =
-      match config.log_level with
-      | Prefixed_or_result [||] -> true
-      | Prefixed [||] ->
-          failwith "ppx_minidebug: runtime log levels do not support explicit-logs-only"
-      | Prefixed prefixes | Prefixed_or_result prefixes ->
-          let s = skip_parens v in
-          Array.exists (fun prefix -> String.starts_with ~prefix s) prefixes
-      | _ -> true
-    in
-    (stack_next ~entry_id ~is_result ~prefixed ~result_depth:0 ~result_size:1
-    @@ highlight_box
-    @@
-    match descr with
-    | None -> B.sprintf_with_style B.Style.preformatted "%s" v
-    | Some d -> B.sprintf_with_style B.Style.preformatted "%s = %s" d v);
-    opt_auto_snapshot ()
-
-  let log_value_printbox ~entry_id v =
-    let prefixed =
-      match config.log_level with
-      | Prefixed_or_result [||] -> true
-      | Prefixed [||] -> true
-      | Prefixed _ | Prefixed_or_result _ -> false
-      | _ -> true
-    in
-    stack_next ~entry_id ~is_result:false ~prefixed ~result_depth:0 ~result_size:1
-    @@ highlight_box v;
-    opt_auto_snapshot ()
+  let log_value_printbox ~entry_id ~log_level v =
+    if check_log_level log_level then (
+      stack_next ~entry_id ~is_result:false ~result_depth:0 ~result_size:1
+      @@ highlight_box v;
+      opt_auto_snapshot ())
 
   let no_debug_if cond =
     match !stack with
-    | ({ cond = true; _ } as entry) :: bs when cond ->
-        stack := { entry with cond = false } :: bs
+    | ({ no_debug_if = false; _ } as entry) :: bs when cond ->
+        stack := { entry with no_debug_if = true } :: bs
     | _ -> ()
 
   let exceeds_max_nesting () =
@@ -1357,7 +1320,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
     ?(for_append = false) ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80)
     ?backend ?hyperlink ?toc_specific_hyperlink ?(values_first_mode = false)
-    ?(log_level = Everything) ?snapshot_every_sec filename : (module PrintBox_runtime) =
+    ?(log_level = 9) ?snapshot_every_sec filename : (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename ^ ".md"
@@ -1381,7 +1344,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   Debug.config.hyperlink <-
     (match hyperlink with None -> `No_hyperlinks | Some prefix -> `Prefix prefix);
   Debug.config.toc_specific_hyperlink <- toc_specific_hyperlink;
-  Debug.config.log_level <- log_level;
+  Debug.log_level := log_level;
   Debug.config.snapshot_every_sec <- snapshot_every_sec;
   Debug.config.with_toc_listing <- with_toc_listing;
   if toc_flame_graph && backend = Some `Text then
@@ -1395,7 +1358,7 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
     ?description ?(global_prefix = "") ?table_of_contents_ch ?(toc_entry = And [])
     ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
-    ?toc_specific_hyperlink ?(values_first_mode = false) ?(log_level = Everything)
+    ?toc_specific_hyperlink ?(values_first_mode = false) ?(log_level = 9)
     ?snapshot_every_sec () : (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
@@ -1439,7 +1402,7 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
   Debug.config.truncate_children <- truncate_children;
   Debug.config.exclude_on_path <- Option.map Re.compile exclude_on_path;
   Debug.config.values_first_mode <- values_first_mode;
-  Debug.config.log_level <- log_level;
+  Debug.log_level := log_level;
   Debug.config.snapshot_every_sec <- snapshot_every_sec;
   Debug.config.toc_specific_hyperlink <- toc_specific_hyperlink;
   (module Debug)
@@ -1448,8 +1411,8 @@ let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename
     ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
     ?description ?(global_prefix = "") ?split_files_after
-    ?(with_table_of_contents = false) ?(toc_entry = And []) ?(for_append = false) () :
-    (module Debug_runtime) =
+    ?(with_table_of_contents = false) ?(toc_entry = And []) ?(for_append = false)
+    ?(log_level = 9) () : (module Debug_runtime) =
   let log_to =
     match (filename, d_ch) with
     | None, _ ->
@@ -1506,7 +1469,9 @@ let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename
           "Minidebug_runtime.debug_flushing: only one of debug_ch, filename should be \
            provided"
   in
-  (module Flushing ((val log_to)))
+  let module Debug = Flushing ((val log_to)) in
+  Debug.log_level := log_level;
+  (module Debug)
 
 let forget_printbox (module Runtime : PrintBox_runtime) = (module Runtime : Debug_runtime)
 

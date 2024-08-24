@@ -448,18 +448,9 @@ The `%diagn_` extension points (short for "diagnostic") are tailored for the "lo
 
 In the `PrintBox` backend, logs accumulate until the current toplevel log scope is closed. This is unfortunate in the logging framework context, where promptly informing the user using the logs might be important. To remedy this, `PrintBox_runtime` offers the setting `snapshot_every_sec`. When set, if sufficient time has passed since the last output, the backend will output the whole current toplevel log scope. If possible, the previous snapshot of the same log scope is erased, to not duplicate information. The underlying mechanism is available as [snapshot] in the generic interface; it does nothing in the flushing backend. [snapshot] is useful when there's a risk of a "premature" exit of the debugged program or thread.
 
-The log levels are:
+The log levels are integers intended to be within the range 0-9, where 0 means no logging at all. They can be provided explicitly by all extension entry points and all explicit logging extensions. When omitted, the log level of the enclosing log entry is used; the default for a top-level log entry is log level 1.
 
-- `Nothing` -- the runtime should not generate anything, and when used at compile time, the extension should not generate any `ppx_minidebug`-related code. However, just changing the log level should not break the code, therefore the runtime-passing transformation (i.e. the first-class-module argument added by the `_rt_` and `_rtb_` infixes) happens even for the `Nothing` log level.
-- `Prefixed [| prefix1; ... |]` -- only values starting with one of: prefix1, ... should be logged; at compile time, only logs with literals having one of prefix1, ... as a prefix, should be generated. Moreover, also don't log "empty entries" (see below). To preserve the hierarchical context, also log headers of logging scopes.
-- `Prefixed_or_result [| prefix1; ... |]` as above, but also log results of computations. At runtime doesn't output results of an entry if there are no non-result logs.
-- `Prefixed [||]` is compile-time only -- outputs all and only explicit logs (i.e. `%log`, `%log_result`, `%log_printbox`, `%log_entry` statements).
-- `Prefixed_or_result [||]` at compile-time -- as above, but also log results of computations.
-- `Prefixed_or_result [||]` at runtime -- only log results of computations if an entry has non-result logs.
-- `Nonempty_entries` -- do not log subtrees, such as functions or control flow blocks, that do not have sub-logs. Exception: explicit `%log_entry` subtrees.
-- `Everything` -- no restrictions.
-
-The `%diagn_` extension points are a shorthand for setting the compile-time log level to `Prefixed [||]`, or `Prefixed prefixes` when the log level has already been either `Prefixed prefixes` or `Prefixed_or_result prefixes`. Example from the test suite:
+The `%diagn_` extension points further restrict logging to explicit logs only. Example from the test suite:
 
 ```ocaml
   let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
@@ -1245,7 +1236,7 @@ Here is a probably incomplete list of the restrictions:
   - Hard-coded special cases: we do decompose the option type and the list type. For example: `let%track_show f : int option -> unit = function None -> () | Some _x -> () in f (Some 3)` will log the value of `_x`.
 - Another example of only propagating types top-down:
   - `let%track_show f (l : int option) : int = match l with Some y -> ...` will not log `y` when `f` is applied (but it will log `l`).
-  - Both `let%track_show f : int option -> int = function Some y -> ...` and `let%track_show f l : int = match (l : int option) with Some y -> ...` *will* log `y`.
+  - Both `let%track_show f : int option -> int = function Some y -> ...` and `let%track_show f l : int = match (l : int option) with Some y -> ...` _will_ log `y`.
 - We try reconstructing or guessing the types of expressions logged with `%log` and `%log_result`, see details below.
 
 As a help in debugging whether the right type information got propagated, we offer the extension `%debug_type_info` (and `%global_debug_type_info`). (The display strips module qualifiers from types.) `%debug_type_info` is not an entry extension point (`%global_debug_type_info` is). Example [from the test suite](test/test_expect_test.ml):

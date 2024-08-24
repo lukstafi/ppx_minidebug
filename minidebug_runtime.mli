@@ -13,26 +13,6 @@ type location_format =
   | Range_line
   | Range_pos
 
-(** The log levels, for both (in scope) compile time, and for the PrintBox runtime. When
-    considered at compile time, inspecting strings requires string literals, at runtime it
-    applies to all string values. Not logging at compile time means the corresponding
-    loggingcode is not generated; not logging at runtime means the logging state is not
-    updated. *)
-type log_level =
-  | Nothing  (** Does not log anything. *)
-  | Prefixed of string array
-      (** Behaves as [Nonempty_entries] and additionally: only logs "leaf" values when the
-          inspected string starts with one of the prefixes. *)
-  | Prefixed_or_result of string array
-      (** Behaves as [Nonempty_entries] and additionally: only logs "leaf" values when the
-          inspected string starts with one of the prefixes, or the value is marked as a
-          result. Doesn't output results of an entry if there are no non-result logs. *)
-  | Nonempty_entries
-      (** Does not log entries without children (treating results as children). *)
-  | Everything  (** Does not restrict logging. *)
-
-val equal_log_level : log_level -> log_level -> bool
-
 type toc_entry_criteria =
   | Minimal_depth of int
   | Minimal_size of int
@@ -115,23 +95,32 @@ module type Debug_runtime = sig
     end_colnum:int ->
     message:string ->
     entry_id:int ->
+    log_level:int ->
     unit
 
-  val open_log_no_source : message:string -> entry_id:int -> unit
+  val open_log_no_source : message:string -> entry_id:int -> log_level:int -> unit
 
   val log_value_sexp :
-    ?descr:string -> entry_id:int -> is_result:bool -> Sexplib0.Sexp.t -> unit
+    ?descr:string ->
+    entry_id:int ->
+    log_level:int ->
+    is_result:bool ->
+    Sexplib0.Sexp.t ->
+    unit
 
   val log_value_pp :
     ?descr:string ->
     entry_id:int ->
+    log_level:int ->
     pp:(Format.formatter -> 'a -> unit) ->
     is_result:bool ->
     'a ->
     unit
 
-  val log_value_show : ?descr:string -> entry_id:int -> is_result:bool -> string -> unit
-  val log_value_printbox : entry_id:int -> PrintBox.t -> unit
+  val log_value_show :
+    ?descr:string -> entry_id:int -> log_level:int -> is_result:bool -> string -> unit
+
+  val log_value_printbox : entry_id:int -> log_level:int -> PrintBox.t -> unit
   val exceeds_max_nesting : unit -> bool
   val exceeds_max_children : unit -> bool
   val get_entry_id : unit -> int
@@ -155,6 +144,13 @@ module type Debug_runtime = sig
       disables the logging of this subtree and its subtrees. Does not do anything when
       passed false ([no_debug_if false] does {e not} re-enable the log). Does nothing for
       the [Flushing] runtimes. *)
+
+  val log_level : int ref
+  (** The runtime log level.
+
+      The log levels are used both at compile time, and for the PrintBox runtime. Not
+      logging at compile time means the corresponding logging code is not generated; not
+      logging at runtime means the logging state is not updated. *)
 end
 
 (** The output is flushed line-at-a-time, so no output should be lost if the traced
@@ -215,7 +211,6 @@ module type PrintBox_runtime = sig
     mutable max_inline_sexp_length : int;
         (** Maximal length (in characters/bytes) up to which a sexp value can be inlined
             during "boxification". *)
-    mutable log_level : log_level;  (** How much to log, see {!type:log_level}. *)
     mutable snapshot_every_sec : float option;
         (** If given, output a snapshot of the pending logs when at least the given time
             (in seconds) has passed since the previous output. This is only checked at
@@ -269,7 +264,7 @@ val debug_file :
   ?hyperlink:string ->
   ?toc_specific_hyperlink:string ->
   ?values_first_mode:bool ->
-  ?log_level:log_level ->
+  ?log_level:int ->
   ?snapshot_every_sec:float ->
   string ->
   (module PrintBox_runtime)
@@ -304,7 +299,7 @@ val debug :
   ?truncate_children:int ->
   ?toc_specific_hyperlink:string ->
   ?values_first_mode:bool ->
-  ?log_level:log_level ->
+  ?log_level:int ->
   ?snapshot_every_sec:float ->
   unit ->
   (module PrintBox_runtime)
@@ -329,6 +324,7 @@ val debug_flushing :
   ?with_table_of_contents:bool ->
   ?toc_entry:toc_entry_criteria ->
   ?for_append:bool ->
+  ?log_level:int ->
   unit ->
   (module Debug_runtime)
 (** Creates a flushing-based debug runtime. By default it will log to [stdout] and will

@@ -9,18 +9,20 @@ let rec loop_exceeded (x : int) =
    if Debug_runtime.exceeds_max_children ()
    then
      (Debug_runtime.log_value_show ~descr:"loop_exceeded"
-        ~entry_id:__entry_id ~is_result:false "<max_num_children exceeded>";
+        ~entry_id:__entry_id ~log_level:1 ~is_result:false
+        "<max_num_children exceeded>";
       failwith "ppx_minidebug: max_num_children exceeded")
    else
      ((Debug_runtime.open_log ~fname:"test_debug_interrupts.ml" ~start_lnum:7
          ~start_colnum:33 ~end_lnum:9 ~end_colnum:55
-         ~message:"loop_exceeded : int" ~entry_id:__entry_id;
+         ~message:"loop_exceeded : int" ~entry_id:__entry_id ~log_level:1;
        Debug_runtime.log_value_show ?descr:(Some "x : int")
-         ~entry_id:__entry_id ~is_result:false (([%show : int]) x));
+         ~entry_id:__entry_id ~log_level:1 ~is_result:false
+         (([%show : int]) x));
       if Debug_runtime.exceeds_max_nesting ()
       then
         (Debug_runtime.log_value_show ~descr:"loop_exceeded"
-           ~entry_id:__entry_id ~is_result:false
+           ~entry_id:__entry_id ~log_level:1 ~is_result:false
            "<max_nesting_depth exceeded>";
          Debug_runtime.close_log ~fname:"test_debug_interrupts.ml"
            ~start_lnum:7 ~entry_id:__entry_id;
@@ -32,17 +34,17 @@ let rec loop_exceeded (x : int) =
                  if Debug_runtime.exceeds_max_children ()
                  then
                    (Debug_runtime.log_value_show ~descr:"z"
-                      ~entry_id:__entry_id ~is_result:false
+                      ~entry_id:__entry_id ~log_level:1 ~is_result:false
                       "<max_num_children exceeded>";
                     failwith "ppx_minidebug: max_num_children exceeded")
                  else
                    (Debug_runtime.open_log ~fname:"test_debug_interrupts.ml"
                       ~start_lnum:8 ~start_colnum:6 ~end_lnum:8 ~end_colnum:7
-                      ~message:"z" ~entry_id:__entry_id;
+                      ~message:"z" ~entry_id:__entry_id ~log_level:1;
                     if Debug_runtime.exceeds_max_nesting ()
                     then
                       (Debug_runtime.log_value_show ~descr:"z"
-                         ~entry_id:__entry_id ~is_result:false
+                         ~entry_id:__entry_id ~log_level:1 ~is_result:false
                          "<max_nesting_depth exceeded>";
                        Debug_runtime.close_log
                          ~fname:"test_debug_interrupts.ml" ~start_lnum:8
@@ -54,7 +56,8 @@ let rec loop_exceeded (x : int) =
                            ((();
                              Debug_runtime.log_value_show
                                ?descr:(Some "z : int") ~entry_id:__entry_id
-                               ~is_result:true (([%show : int]) z));
+                               ~log_level:1 ~is_result:true
+                               (([%show : int]) z));
                             Debug_runtime.close_log
                               ~fname:"test_debug_interrupts.ml" ~start_lnum:8
                               ~entry_id:__entry_id;
@@ -69,7 +72,7 @@ let rec loop_exceeded (x : int) =
          | __res ->
              (Debug_runtime.log_value_show
                 ?descr:(Some "loop_exceeded : int") ~entry_id:__entry_id
-                ~is_result:true (([%show : int]) __res);
+                ~log_level:1 ~is_result:true (([%show : int]) __res);
               Debug_runtime.close_log ~fname:"test_debug_interrupts.ml"
                 ~start_lnum:7 ~entry_id:__entry_id;
               __res)
@@ -86,16 +89,16 @@ let bar () =
    if Debug_runtime.exceeds_max_children ()
    then
      (Debug_runtime.log_value_show ~descr:"bar" ~entry_id:__entry_id
-        ~is_result:false "<max_num_children exceeded>";
+        ~log_level:1 ~is_result:false "<max_num_children exceeded>";
       failwith "ppx_minidebug: max_num_children exceeded")
    else
      (Debug_runtime.open_log ~fname:"test_debug_interrupts.ml" ~start_lnum:15
         ~start_colnum:19 ~end_lnum:19 ~end_colnum:6 ~message:"bar : unit"
-        ~entry_id:__entry_id;
+        ~entry_id:__entry_id ~log_level:1;
       if Debug_runtime.exceeds_max_nesting ()
       then
         (Debug_runtime.log_value_show ~descr:"bar" ~entry_id:__entry_id
-           ~is_result:false "<max_nesting_depth exceeded>";
+           ~log_level:1 ~is_result:false "<max_nesting_depth exceeded>";
          Debug_runtime.close_log ~fname:"test_debug_interrupts.ml"
            ~start_lnum:15 ~entry_id:__entry_id;
          failwith "ppx_minidebug: max_nesting_depth exceeded")
@@ -103,28 +106,31 @@ let bar () =
         (match let __entry_id = Debug_runtime.get_entry_id () in
                Debug_runtime.open_log ~fname:"test_debug_interrupts.ml"
                  ~start_lnum:16 ~start_colnum:2 ~end_lnum:19 ~end_colnum:6
-                 ~message:"for:test_debug_interrupts:16" ~entry_id:__entry_id;
+                 ~message:"for:test_debug_interrupts:16" ~entry_id:__entry_id
+                 ~log_level:1;
                (match for i = 0 to 100 do
                         let __entry_id = Debug_runtime.get_entry_id () in
                         Debug_runtime.log_value_show ?descr:(Some "i : int")
-                          ~entry_id:__entry_id ~is_result:false
+                          ~entry_id:__entry_id ~log_level:1 ~is_result:false
                           (([%show : int]) i);
                         if Debug_runtime.exceeds_max_children ()
                         then
                           (Debug_runtime.log_value_show ~descr:"i"
-                             ~entry_id:__entry_id ~is_result:false
-                             "<max_num_children exceeded>";
+                             ~entry_id:__entry_id ~log_level:1
+                             ~is_result:false "<max_num_children exceeded>";
                            failwith
                              "ppx_minidebug: max_num_children exceeded")
                         else
                           (Debug_runtime.open_log
                              ~fname:"test_debug_interrupts.ml" ~start_lnum:16
                              ~start_colnum:6 ~end_lnum:16 ~end_colnum:7
-                             ~message:"<for i>" ~entry_id:__entry_id;
+                             ~message:"<for i>" ~entry_id:__entry_id
+                             ~log_level:1;
                            if Debug_runtime.exceeds_max_nesting ()
                            then
                              (Debug_runtime.log_value_show ~descr:"i"
-                                ~entry_id:__entry_id ~is_result:false
+                                ~entry_id:__entry_id ~log_level:1
+                                ~is_result:false
                                 "<max_nesting_depth exceeded>";
                               Debug_runtime.close_log
                                 ~fname:"test_debug_interrupts.ml"
@@ -141,7 +147,7 @@ let bar () =
                                       then
                                         (Debug_runtime.log_value_show
                                            ~descr:"_baz" ~entry_id:__entry_id
-                                           ~is_result:false
+                                           ~log_level:1 ~is_result:false
                                            "<max_num_children exceeded>";
                                          failwith
                                            "ppx_minidebug: max_num_children exceeded")
@@ -151,7 +157,7 @@ let bar () =
                                            ~start_lnum:17 ~start_colnum:8
                                            ~end_lnum:17 ~end_colnum:12
                                            ~message:"_baz"
-                                           ~entry_id:__entry_id;
+                                           ~entry_id:__entry_id ~log_level:1;
                                          if
                                            Debug_runtime.exceeds_max_nesting
                                              ()
@@ -159,7 +165,7 @@ let bar () =
                                            (Debug_runtime.log_value_show
                                               ~descr:"_baz"
                                               ~entry_id:__entry_id
-                                              ~is_result:false
+                                              ~log_level:1 ~is_result:false
                                               "<max_nesting_depth exceeded>";
                                             Debug_runtime.close_log
                                               ~fname:"test_debug_interrupts.ml"
@@ -174,6 +180,7 @@ let bar () =
                                                   Debug_runtime.log_value_show
                                                     ?descr:(Some "_baz : int")
                                                     ~entry_id:__entry_id
+                                                    ~log_level:1
                                                     ~is_result:true
                                                     (([%show : int]) _baz));
                                                  Debug_runtime.close_log
@@ -213,7 +220,8 @@ let bar () =
          with
          | __res ->
              (Debug_runtime.log_value_show ?descr:(Some "bar : unit")
-                ~entry_id:__entry_id ~is_result:true (([%show : unit]) __res);
+                ~entry_id:__entry_id ~log_level:1 ~is_result:true
+                (([%show : unit]) __res);
               Debug_runtime.close_log ~fname:"test_debug_interrupts.ml"
                 ~start_lnum:15 ~entry_id:__entry_id;
               __res)

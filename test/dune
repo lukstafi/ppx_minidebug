@@ -76,7 +76,7 @@
  (action
   (setenv
    PPX_MINIDEBUG_TEST_LOG_LEVEL_CONSISTENCY
-   everything
+   9
    (run ./%{pp} --impl %{input} -o %{targets}))))
 
 (rule

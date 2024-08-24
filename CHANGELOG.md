@@ -1,8 +1,11 @@
 ## [2.0.0] -- current
 
+Great simplification: release 2.0 has in some regards less flexibility than earlier releases, but it's easier to use.
+
 ### Changed
 
-- 
+- Move `no_debug_if` to the generic interface (the last remaining non-config functionality missing from it). It's ignored (no-op) for the flushing backend.
+- Move to linear log levels per-entry and per-log, where an unspecified log level inherits from the entry it's in, determined statically.
 
 ## [1.6.1] -- 2024-08-21
 
