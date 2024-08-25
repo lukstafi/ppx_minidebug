@@ -16,7 +16,7 @@ type context = {
   output_type_info : bool;
   interrupts : bool;
   log_level : log_level;
-  entry_log_level : int;
+  entry_log_level : log_level;
   hidden : bool;
   toplevel_opt_arg : toplevel_opt_arg;
 }
@@ -29,7 +29,7 @@ let init_context =
       output_type_info = false;
       interrupts = false;
       log_level = Comptime 9;
-      entry_log_level = 1;
+      entry_log_level = Comptime 1;
       hidden = false;
       toplevel_opt_arg = Toplevel_no_arg;
     }
@@ -124,6 +124,8 @@ let lift_track_or_explicit ~loc = function
   | `Debug -> [%expr `Debug]
   | `Track -> [%expr `Track]
 
+let ll_to_expr ~loc = function Comptime ll -> A.eint ~loc ll | Runtime e -> e
+
 let open_log ?(message = "") ~loc ~log_level track_or_explicit =
   if String.contains message '\n' then
     A.pexp_extension ~loc
@@ -139,13 +141,13 @@ let open_log ?(message = "") ~loc ~log_level track_or_explicit =
         ~end_lnum:[%e A.eint ~loc loc.loc_end.pos_lnum]
         ~end_colnum:[%e A.eint ~loc (loc.loc_end.pos_cnum - loc.loc_end.pos_bol)]
         ~message:[%e A.estring ~loc message] ~entry_id:__entry_id
-        ~log_level:[%e A.eint ~loc log_level]
+        ~log_level:[%e ll_to_expr ~loc log_level]
         [%e lift_track_or_explicit ~loc track_or_explicit]]
 
 let open_log_no_source ~message ~loc ~log_level track_or_explicit =
   [%expr
     Debug_runtime.open_log_no_source ~message:[%e message] ~entry_id:__entry_id
-      ~log_level:[%e A.eint ~loc log_level]
+      ~log_level:[%e ll_to_expr ~loc log_level]
       [%e lift_track_or_explicit ~loc track_or_explicit]]
 
 let close_log ~loc =
@@ -172,10 +174,9 @@ let to_descr context ~loc ~descr_loc typ =
 
 let check_comptime_log_level context ~is_explicit ~is_result:_ ~log_level exp thunk =
   let loc = exp.pexp_loc in
-  (* TODO: consider also allowing non-explicit result logs. *)
-  match (context.track_or_explicit, context.log_level) with
-  | `Diagn, _ when not is_explicit -> [%expr ()]
-  | _, Comptime ll when ll < log_level -> [%expr ()]
+  match (context.track_or_explicit, context.log_level, log_level) with
+  | `Diagn, _, _ when not is_explicit -> [%expr ()]
+  | _, Comptime c_ll, Comptime e_ll when c_ll < e_ll -> [%expr ()]
   | _ -> thunk ()
 
 (* *** The sexplib-based variant. *** *)
@@ -197,7 +198,7 @@ let log_value_sexp context ~loc ~typ ?descr_loc ~is_explicit ~is_result ~log_lev
       [%expr
         Debug_runtime.log_value_sexp
           ?descr:[%e to_descr context ~loc ~descr_loc typ]
-          ~entry_id:__entry_id ~log_level:[%e A.eint ~loc log_level]
+          ~entry_id:__entry_id ~log_level:[%e ll_to_expr ~loc log_level]
           ~is_result:[%e A.ebool ~loc is_result]
           ([%sexp_of: [%t typ]] [%e exp])]
 
@@ -228,8 +229,8 @@ let log_value_pp context ~loc ~typ ?descr_loc ~is_explicit ~is_result ~log_level
       [%expr
         Debug_runtime.log_value_pp
           ?descr:[%e to_descr context ~loc ~descr_loc typ]
-          ~entry_id:__entry_id ~log_level:[%e A.eint ~loc log_level] ~pp:[%e converter]
-          ~is_result:[%e A.ebool ~loc is_result] [%e exp]]
+          ~entry_id:__entry_id ~log_level:[%e ll_to_expr ~loc log_level]
+          ~pp:[%e converter] ~is_result:[%e A.ebool ~loc is_result] [%e exp]]
   | _ ->
       A.pexp_extension ~loc
       @@ Location.error_extensionf ~loc
@@ -254,7 +255,7 @@ let log_value_show context ~loc ~typ ?descr_loc ~is_explicit ~is_result ~log_lev
       [%expr
         Debug_runtime.log_value_show
           ?descr:[%e to_descr context ~loc ~descr_loc typ]
-          ~entry_id:__entry_id ~log_level:[%e A.eint ~loc log_level]
+          ~entry_id:__entry_id ~log_level:[%e ll_to_expr ~loc log_level]
           ~is_result:[%e A.ebool ~loc is_result]
           ([%show: [%t typ]] [%e exp])]
 
@@ -271,7 +272,7 @@ let log_value_printbox context ~loc ~log_level exp =
   incr global_log_count;
   [%expr
     Debug_runtime.log_value_printbox ~entry_id:__entry_id
-      ~log_level:[%e A.eint ~loc log_level] [%e exp]]
+      ~log_level:[%e ll_to_expr ~loc log_level] [%e exp]]
 
 let log_string ~loc ~descr_loc ~log_level s =
   if String.contains descr_loc.txt '\n' then
@@ -282,13 +283,13 @@ let log_string ~loc ~descr_loc ~log_level s =
     [%expr
       Debug_runtime.log_value_show
         ~descr:[%e A.estring ~loc:descr_loc.loc descr_loc.txt]
-        ~entry_id:__entry_id ~log_level:[%e A.eint ~loc log_level] ~is_result:false
+        ~entry_id:__entry_id ~log_level:[%e ll_to_expr ~loc log_level] ~is_result:false
         [%e A.estring ~loc s]]
 
 let log_string_with_descr ~loc ~message ~log_level s =
   [%expr
     Debug_runtime.log_value_show ~descr:[%e message] ~entry_id:__entry_id
-      ~log_level:[%e A.eint ~loc log_level] ~is_result:false [%e A.estring ~loc s]]
+      ~log_level:[%e ll_to_expr ~loc log_level] ~is_result:false [%e A.estring ~loc s]]
 
 type fun_arg =
   | Pexp_fun_arg of
@@ -948,7 +949,7 @@ type rule = {
   toplevel_opt_arg : toplevel_opt_arg;
   expander : [ `Debug | `Str ];
   log_value : log_value;
-  entry_log_level : int option;
+  entry_log_level : log_level option;
 }
 
 let rules =
@@ -975,7 +976,7 @@ let rules =
                                   let ext_point =
                                     ext_point
                                     ^
-                                    if log_level = 0 then "" else string_of_int log_level
+                                    if log_level <= 0 then "" else string_of_int log_level
                                   in
                                   (* The expander currently does not affect the extension
                                      point name. *)
@@ -1001,7 +1002,8 @@ let rules =
                                     expander;
                                     log_value;
                                     entry_log_level =
-                                      (if log_level = 0 then None else Some log_level);
+                                      (if log_level <= 0 then None
+                                       else Some (Comptime log_level));
                                   })
                                 [ Pp; Sexp; Show ])
                             [ `Debug; `Str ])
@@ -1028,7 +1030,7 @@ let get_opt_digit ~prefix ~suffix txt =
   let slen = String.length suffix in
   match String.sub txt plen (String.length txt - plen - slen) with
   | "" -> None
-  | s -> Some (int_of_string s)
+  | s -> Some (Comptime (int_of_string s))
 
 let traverse_expression =
   object (self)
@@ -1093,6 +1095,13 @@ let traverse_expression =
                   [%e? body]] ) ->
             callback { context with log_level = parse_log_level level } body
         | Pexp_extension
+            ( { loc = _; txt = "at_log_level" },
+              PStr
+                [%str
+                  [%e? level];
+                  [%e? body]] ) ->
+            callback { context with entry_log_level = parse_log_level level } body
+        | Pexp_extension
             ( { loc = _; txt = "debug_interrupts" },
               PStr
                 [%str
@@ -1112,6 +1121,15 @@ let traverse_expression =
                   {max_nesting_depth=N;max_num_children=M}; <BODY>]"
         | Pexp_extension ({ loc = _; txt = "debug_type_info" }, PStr [%str [%e? body]]) ->
             callback { context with output_type_info = true } body
+        | Pexp_extension
+            ( { loc = _; txt = "logN" },
+              PStr
+                [%str
+                  [%e? at_log_level];
+                  [%e? body]] ) ->
+            let typ = extract_type ~alt_typ:ret_typ body in
+            let log_level = parse_log_level at_log_level in
+            log_value context ~loc ~typ ~is_explicit:true ~is_result:false ~log_level body
         | Pexp_extension ({ loc = _; txt }, PStr [%str [%e? body]])
           when with_opt_digit ~prefix:"log" ~suffix:"" txt ->
             let typ = extract_type ~alt_typ:ret_typ body in
@@ -1120,6 +1138,15 @@ let traverse_expression =
               @@ get_opt_digit ~prefix:"log" ~suffix:"" txt
             in
             log_value context ~loc ~typ ~is_explicit:true ~is_result:false ~log_level body
+        | Pexp_extension
+            ( { loc = _; txt = "logN_result" },
+              PStr
+                [%str
+                  [%e? at_log_level];
+                  [%e? body]] ) ->
+            let typ = extract_type ~alt_typ:ret_typ body in
+            let log_level = parse_log_level at_log_level in
+            log_value context ~loc ~typ ~is_explicit:true ~is_result:true ~log_level body
         | Pexp_extension ({ loc = _; txt }, PStr [%str [%e? body]])
           when with_opt_digit ~prefix:"log" ~suffix:"_result" txt ->
             let typ = extract_type ~alt_typ:ret_typ body in
@@ -1128,6 +1155,14 @@ let traverse_expression =
               @@ get_opt_digit ~prefix:"log" ~suffix:"_result" txt
             in
             log_value context ~loc ~typ ~is_explicit:true ~is_result:true ~log_level body
+        | Pexp_extension
+            ( { loc = _; txt = "logN_printbox" },
+              PStr
+                [%str
+                  [%e? at_log_level];
+                  [%e? body]] ) ->
+            let log_level = parse_log_level at_log_level in
+            log_value_printbox context ~loc ~log_level body
         | Pexp_extension ({ loc = _; txt }, PStr [%str [%e? body]])
           when with_opt_digit ~prefix:"log" ~suffix:"_printbox" txt ->
             let log_level =
@@ -1600,7 +1635,8 @@ let rules =
                        !init_context with
                        toplevel_opt_arg;
                        track_or_explicit;
-                       entry_log_level = Option.value entry_log_level ~default:1;
+                       entry_log_level =
+                         Option.value entry_log_level ~default:(Comptime 1);
                        log_value;
                      })
            | `Str ->
@@ -1612,7 +1648,8 @@ let rules =
                        !init_context with
                        toplevel_opt_arg;
                        track_or_explicit;
-                       entry_log_level = Option.value entry_log_level ~default:1;
+                       entry_log_level =
+                         Option.value entry_log_level ~default:(Comptime 1);
                        log_value;
                      }
                      ~loc:(Expansion_context.Extension.extension_point_loc ctxt))

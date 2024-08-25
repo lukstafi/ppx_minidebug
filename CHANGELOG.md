@@ -3,7 +3,7 @@
 ### Added
 
 - Compile-time explicit log levels `%debug1_sexp`, `%debug2_sexp`, `%log1`, `%log2`, `%log2_result`, `%log2_entry` etc. that participate in compile-time log level filtering.
-- TODO: Runtime log levels `%debugN_sexp`, `%logN`, `%logN_result`, `%logN_entry` etc. that take the level at which to log as argument.
+- Runtime log levels `%at_log_level`, `%logN`, `%logN_result`, `%logN_entry` etc. that take the level at which to log as argument. Note: not supported for extension entry points `%debug_sexp` etc.
 
 ### Changed
 
