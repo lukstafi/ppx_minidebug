@@ -6,6 +6,7 @@ Great simplification: release 2.0 has in some regards less flexibility than earl
 
 - Move `no_debug_if` to the generic interface (the last remaining non-config functionality missing from it). It's ignored (no-op) for the flushing backend.
 - Move to linear log levels per-entry and per-log, where an unspecified log level inherits from the entry it's in, determined statically.
+- Remove `_this_` infix and make all extension points behave as `_this_` (not extend to bodies of toplevel bindings).
 
 ## [1.6.1] -- 2024-08-21
 

@@ -973,7 +973,7 @@ type rule = {
   ext_point : string;
   track_or_explicit : [ `Diagn | `Debug | `Track ];
   toplevel_opt_arg : toplevel_opt_arg;
-  expander : [ `Debug | `Debug_this | `Str ];
+  expander : [ `Debug | `Str ];
   log_value : log_value;
   entry_log_level : int option;
 }
@@ -1004,13 +1004,8 @@ let rules =
                                     ^
                                     if log_level = 0 then "" else string_of_int log_level
                                   in
-                                  let ext_point =
-                                    ext_point
-                                    ^
-                                    match expander with
-                                    | `Debug_this -> "_this"
-                                    | `Debug | `Str -> ""
-                                  in
+                                  (* The expander currently does not affect the extension
+                                     point name. *)
                                   let ext_point =
                                     match toplevel_opt_arg with
                                     | Nested -> assert false
@@ -1038,7 +1033,7 @@ let rules =
                                       (if log_level = 0 then None else Some log_level);
                                   })
                                 [ Pp; Sexp; Show ])
-                            [ `Debug; `Debug_this; `Str ])
+                            [ `Debug; `Str ])
                      [ Toplevel_no_arg; Generic; PrintBox; Generic_local; PrintBox_local ])
               [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9 ])
        [ `Track; `Debug; `Diagn ]
@@ -1097,7 +1092,6 @@ let traverse_expression =
         | Pexp_extension ({ loc = _; txt }, PStr [%str [%e? body]])
           when Hashtbl.mem entry_rules txt ->
             let r = Hashtbl.find entry_rules txt in
-            (* NOTE: it's a current bug to ignore _this_ here, but _this_ will go away. *)
             let entry_log_level =
               match r.entry_log_level with
               | None -> context.entry_log_level
@@ -1412,20 +1406,15 @@ let traverse_expression =
       | _ -> super#structure_item nested si
   end
 
-let debug_this_expander context payload =
+let debug_expander context payload =
   let callback context e = traverse_expression#expression context e in
   match payload with
   | { pexp_desc = Pexp_let (recflag, bindings, body); _ } ->
-      (* This is the [let%debug_this ... in] use-case: do not debug the whole body. *)
+      (* This is the [let%debug_ ... in] toplevel expression: do not debug the whole
+         body. *)
       let bindings = List.map (debug_binding context callback) bindings in
       { payload with pexp_desc = Pexp_let (recflag, bindings, body) }
-  | expr ->
-      A.pexp_extension ~loc:expr.pexp_loc
-      @@ Location.error_extensionf ~loc:expr.pexp_loc
-           "ppx_minidebug: to avoid confusion, _this_ indicator is only allowed on \
-            let-bindings"
-
-let debug_expander context payload = traverse_expression#expression context payload
+  | expr -> traverse_expression#expression context expr
 
 let str_expander context ~loc payload =
   let callback context e = traverse_expression#expression context e in
@@ -1636,18 +1625,6 @@ let rules =
                  Ast_pattern.(single_expr_payload __)
                  (fun ~ctxt:_ ->
                    debug_expander
-                     {
-                       !init_context with
-                       toplevel_opt_arg;
-                       track_or_explicit;
-                       entry_log_level = Option.value entry_log_level ~default:1;
-                       log_value;
-                     })
-           | `Debug_this ->
-               Extension.V3.declare ext_point Extension.Context.expression
-                 Ast_pattern.(single_expr_payload __)
-                 (fun ~ctxt:_ ->
-                   debug_this_expander
                      {
                        !init_context with
                        toplevel_opt_arg;
