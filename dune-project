@@ -15,7 +15,7 @@
 
 (documentation https://lukstafi.github.io/ppx_minidebug/ppx_minidebug)
 
-(version 1.6.1)
+(version 2.0.0)
 
 (package
  (name ppx_minidebug)
