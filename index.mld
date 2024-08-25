@@ -201,9 +201,9 @@ The entry extension points vary along three axes:
 }{- [%track_] also logs: which [if], [match], [function] branch is taken, [for] and [while] loops, and all functions, including anonymous ones.
 }{- The prefix [%diagn_] means only generating logs for explicitly logged values, i.e. introduced by [[%log_entry]], [[%log ...]], [[%log_result ...]] and [[%log_printbox ...]] statements.
 }}
-}{- Optional infixes [_rt_] and [_rtb_] add a first-class module argument to a function, and unpack it as [module Debug_runtime] for the scope of the function.
-{ul {- [_rt_] uses the module type [Minidebug_runtime.Debug_runtime].
-}{- [_rtb_] uses the module type [Minidebug_runtime.PrintBox_runtime].
+}{- Optional infixes [_rt_] and [_l_]:
+{ul {- [_rt_] adds a first-class module argument to a function, and unpacks it as [module Debug_runtime] for the scope of the function.
+}{- [_l_] calls [_get_local_debug_runtime], and unpacks it for the scope of the function: [let module Debug_runtime = (val _get_local_debug_runtime ()) in ...].
 }{- This functionality is "one use only": it applies only to the function the extension point is attached to.
 }}
 }{- Representation and printing mechanism: [_pp], [_show], recommended: [_sexp]
@@ -489,7 +489,7 @@ The [%diagn_] extension points further restrict logging to explicit logs only. E
 At runtime, the level can be set via [Minidebug_runtime.debug ~log_level] or [Minidebug_runtime.debug_file ~log_level] at runtime creation, or via [Debug_runtime.log_level := ...] later on, also for the flushing backend. Check out the test suite {{: test/test_expect_test.ml#L2536} test_expect_test.ml:"%log runtime log levels while-loop"} for examples:
 
 {@ocaml[
-  let%track_rtb_sexp result () : int =
+  let%track_rt_sexp result () : int =
     let i = ref 0 in
     let j = ref 0 in
     while !i < 6 do
@@ -506,8 +506,8 @@ At runtime, the level can be set via [Minidebug_runtime.debug ~log_level] or [Mi
   print_endline
   @@ Int.to_string
        (result
-          (Minidebug_runtime.debug ~values_first_mode:true ~log_level:2
-             ~global_prefix:"Warning" ())
+          Minidebug_runtime.(
+            forget_printbox @@ debug ~values_first_mode:true ~log_level:2 ~global_prefix:"Warning" ())
           ());
   ...
 ]}
@@ -1346,7 +1346,9 @@ For programs with threads or domains running concurrently, you need to ensure th
 
 We offer three helpers for dealing with multiple debug runtimes. There is an optional runtime instance-level setting [global_prefix], which adds the given information to all log headers coming from the instance.
 
-There are extension points [%debug_lb_sexp], [%track_lb_sexp], [%debug_l_sexp], etc. They call a function [_get_local_printbox_debug_runtime ()], or [_get_local_debug_runtime ()] for the [_l_] variants, and unpack the argument as [module Debug_runtime] (in a function body). The feature helps using a runtime instance dedicated to a thread or domain, since for example [_get_local_debug_runtime] can retrieve the runtime using [Domain.DLS]. To avoid surprises, this feature only takes effect for directly annotated functions, and unpacks a [Debug_runtime] inside the function body, so that we get the appropriate runtime for the dynamic local scope.
+There are extension points [%debug_l_sexp], [%track_l_sexp], etc. They call a function [_get_local_debug_runtime ()] and unpack the argument as [module Debug_runtime] (in a function body). The feature helps using a runtime instance dedicated to a thread or domain, since for example [_get_local_debug_runtime] can retrieve the runtime using [Domain.DLS]. To avoid surprises, this feature only takes effect for directly annotated functions, and unpacks a [Debug_runtime] inside the function body, so that we get the appropriate runtime for the dynamic local scope.
+
+NOTE: it's important to annotate functions that might be called from threads (spawned domains) using the [_l_] variants of extension points, e.g. [%debug_l_sexp] (not [%debug_sexp]!). For clearest output, should configure [_get_local_debug_runtime ()] to return the same runtime as the [Debug_runtime] module that is in a file-wide scope, when called from the main thread / main domain.
 
 Example from the test suite:
 
@@ -1387,12 +1389,12 @@ Example from the test suite:
     |}]
 ]}
 
-Another similar feature is the extension points [%debug_rtb_sexp], [%track_rtb_sexp] [%debug_rt_sexp], etc. They add a first-class module argument to a function, and unpack the argument as [module Debug_runtime]. At present, passing of the runtime instance to functions needs to be done manually. Note that only the function attached to the [_rt_] or [_rtb_] extension point is modified.
+Another similar feature is the extension points [%debug_rt_sexp], [%track_rt_sexp], etc. They add a first-class module argument to a function, and unpack the argument as [module Debug_runtime]. At present, passing of the runtime instance to functions needs to be done manually. Note that only the function attached to the [_rt_] extension point is modified.
 
 Example from the test suite:
 
 {@ocaml[
-  let%track_rtb_show foo l : int =
+  let%track_rt_show foo l : int =
     match (l : int list) with [] -> 7 | y :: _ -> y * 2
   in
   let () =
@@ -1401,7 +1403,7 @@ Example from the test suite:
          (Minidebug_runtime.debug ~global_prefix:"foo-1" ~values_first_mode:true ())
          [ 7 ]
   in
-  let%track_rtb_show baz : int list -> int = function
+  let%track_rt_show baz : int list -> int = function
     | [] -> 7
     | [ y ] -> y * 2
     | [ y; z ] -> y + z
@@ -1410,13 +1412,13 @@ Example from the test suite:
   let () =
     print_endline @@ Int.to_string
     @@ baz
-         (Minidebug_runtime.debug ~global_prefix:"baz-1" ~values_first_mode:true ())
+         Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"baz-1" ~values_first_mode:true ())
          [ 4 ]
   in
   let () =
     print_endline @@ Int.to_string
     @@ baz
-         (Minidebug_runtime.debug ~global_prefix:"baz-2" ~values_first_mode:true ())
+         Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"baz-2" ~values_first_mode:true ())
          [ 4; 5; 6 ]
   in
   [%expect

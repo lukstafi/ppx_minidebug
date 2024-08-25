@@ -1,12 +1,11 @@
-## [2.0.0] -- current
-
-Great simplification: release 2.0 has in some regards less flexibility than earlier releases, but it's easier to use.
+## [2.0.0] -- 2024-08-25
 
 ### Changed
 
-- Move `no_debug_if` to the generic interface (the last remaining non-config functionality missing from it). It's ignored (no-op) for the flushing backend.
-- Move to linear log levels per-entry and per-log, where an unspecified log level inherits from the entry it's in, determined statically.
-- Remove `_this_` infix and make all extension points behave as `_this_` (not extend to bodies of toplevel bindings).
+- Moved `no_debug_if` to the generic interface (the last remaining non-config functionality missing from it). It's ignored (no-op) for the flushing backend.
+- Moved to linear log levels per-entry and per-log, where an unspecified log level inherits from the entry it's in, determined statically.
+- Removed `_this_` infix and make all extension points behave as `_this_` (not extend to bodies of toplevel bindings).
+- Removed `_rtb_` and `_lb_` -- all debugging should use the generic interface as it now offers all the functionality except configuration.
 
 ## [1.6.1] -- 2024-08-21
 

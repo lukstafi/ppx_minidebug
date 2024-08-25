@@ -3,19 +3,9 @@ module A = Ast_builder.Default
 (* module H = Ast_helper *)
 
 type log_value = Sexp | Show | Pp
+type toplevel_opt_arg = Nested | Toplevel_no_arg | Runtime_passing | Runtime_local
 
-type toplevel_opt_arg =
-  | Nested
-  | Toplevel_no_arg
-  | Generic
-  | PrintBox
-  | Generic_local
-  | PrintBox_local
-
-let is_local_debug_runtime = function
-  | Generic_local | PrintBox_local -> true
-  | _ -> false
-
+let is_local_debug_runtime = function Runtime_local -> true | _ -> false
 let global_log_count = ref 0
 
 type context = {
@@ -588,34 +578,27 @@ let pass_runtime ?(always = false) toplevel_opt_arg exp =
   let loc = exp.pexp_loc in
   (* Only pass runtime to functions. *)
   match (always, toplevel_opt_arg, exp) with
-  | true, Generic, _
-  | _, Generic, { pexp_desc = Pexp_newtype _ | Pexp_fun _ | Pexp_function _; _ } ->
+  | true, Runtime_passing, _
+  | _, Runtime_passing, { pexp_desc = Pexp_newtype _ | Pexp_fun _ | Pexp_function _; _ }
+    ->
       [%expr fun (_debug_runtime : (module Minidebug_runtime.Debug_runtime)) -> [%e exp]]
-  | true, PrintBox, _
-  | _, PrintBox, { pexp_desc = Pexp_newtype _ | Pexp_fun _ | Pexp_function _; _ } ->
-      [%expr
-        fun (_debug_runtime : (module Minidebug_runtime.PrintBox_runtime)) -> [%e exp]]
   | _ -> exp
 
 let unpack_runtime toplevel_opt_arg exp =
   let loc = exp.pexp_loc in
   match toplevel_opt_arg with
   | Nested | Toplevel_no_arg -> exp
-  | Generic_local ->
+  | Runtime_local ->
       [%expr
         let module Debug_runtime = (val _get_local_debug_runtime ()) in
         [%e exp]]
-  | PrintBox_local ->
-      [%expr
-        let module Debug_runtime = (val _get_local_printbox_debug_runtime ()) in
-        [%e exp]]
-  | Generic | PrintBox ->
+  | Runtime_passing ->
       [%expr
         let module Debug_runtime = (val _debug_runtime) in
         [%e exp]]
 
 let has_runtime_arg = function
-  | { toplevel_opt_arg = PrintBox | Generic; _ } -> true
+  | { toplevel_opt_arg = Runtime_passing; _ } -> true
   | _ -> false
 
 let loc_to_name loc =
@@ -752,15 +735,10 @@ let debug_function ?unpack_context context callback ~loc ?ret_descr ?ret_typ ?ar
          cases)
   in
   match context.toplevel_opt_arg with
-  | Nested | Toplevel_no_arg | Generic_local | PrintBox_local -> exp
-  | Generic ->
+  | Nested | Toplevel_no_arg | Runtime_local -> exp
+  | Runtime_passing ->
       [%expr
         fun (_debug_runtime : (module Minidebug_runtime.Debug_runtime)) ->
-          let module Debug_runtime = (val _debug_runtime) in
-          [%e exp]]
-  | PrintBox ->
-      [%expr
-        fun (_debug_runtime : (module Minidebug_runtime.PrintBox_runtime)) ->
           let module Debug_runtime = (val _debug_runtime) in
           [%e exp]]
 
@@ -769,12 +747,9 @@ let debug_binding context callback vb =
   let pvb_pat =
     (* FIXME(#18): restoring a modified type constraint breaks typing. *)
     match (vb.pvb_pat, context.toplevel_opt_arg) with
-    | [%pat? ([%p? pat] : [%t? _typ])], Generic ->
+    | [%pat? ([%p? pat] : [%t? _typ])], Runtime_passing ->
         pat
         (* [%pat? ([%p pat] : (module Minidebug_runtime.Debug_runtime) -> [%t typ])] *)
-    | [%pat? ([%p? pat] : [%t? _typ])], PrintBox ->
-        pat
-        (* [%pat? ([%p pat] : (module Minidebug_runtime.PrintBox_runtime) -> [%t typ])] *)
     | _ -> vb.pvb_pat
   in
   if context.comptime_log_level <= 0 then
@@ -849,17 +824,13 @@ let debug_binding context callback vb =
     in
     let pvb_expr =
       match (typ2, context.toplevel_opt_arg) with
-      | None, (Nested | Toplevel_no_arg | Generic_local | PrintBox_local) -> exp
-      | Some typ, (Nested | Toplevel_no_arg | Generic_local | PrintBox_local) ->
+      | None, (Nested | Toplevel_no_arg | Runtime_local) -> exp
+      | Some typ, (Nested | Toplevel_no_arg | Runtime_local) ->
           [%expr ([%e exp] : [%t typ])]
-      | Some typ, Generic ->
+      | Some typ, Runtime_passing ->
           [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> [%t typ])]
-      | Some typ, PrintBox ->
-          [%expr ([%e exp] : (module Minidebug_runtime.PrintBox_runtime) -> [%t typ])]
-      | None, Generic ->
+      | None, Runtime_passing ->
           [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> _)]
-      | None, PrintBox ->
-          [%expr ([%e exp] : (module Minidebug_runtime.PrintBox_runtime) -> _)]
     in
     { vb with pvb_expr; pvb_pat }
 
@@ -1010,10 +981,8 @@ let rules =
                                     match toplevel_opt_arg with
                                     | Nested -> assert false
                                     | Toplevel_no_arg -> ext_point
-                                    | Generic -> ext_point ^ "_rt"
-                                    | PrintBox -> ext_point ^ "_rtb"
-                                    | Generic_local -> ext_point ^ "_l"
-                                    | PrintBox_local -> ext_point ^ "_lb"
+                                    | Runtime_passing -> ext_point ^ "_rt"
+                                    | Runtime_local -> ext_point ^ "_l"
                                   in
                                   let ext_point =
                                     ext_point ^ "_"
@@ -1034,7 +1003,7 @@ let rules =
                                   })
                                 [ Pp; Sexp; Show ])
                             [ `Debug; `Str ])
-                     [ Toplevel_no_arg; Generic; PrintBox; Generic_local; PrintBox_local ])
+                     [ Toplevel_no_arg; Runtime_passing; Runtime_local ])
               [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9 ])
        [ `Track; `Debug; `Diagn ]
 
@@ -1391,8 +1360,7 @@ let traverse_expression =
         match ret_typ with None -> exp | Some typ -> [%expr ([%e exp] : [%t typ])]
       in
       match (unpacked_runtime, context.toplevel_opt_arg) with
-      | true, (PrintBox | Generic) ->
-          pass_runtime ~always:true context.toplevel_opt_arg exp
+      | true, Runtime_passing -> pass_runtime ~always:true context.toplevel_opt_arg exp
       | _ -> exp
 
     method! structure_item context si =
