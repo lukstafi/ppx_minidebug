@@ -1048,6 +1048,33 @@ let traverse_expression =
       in
       let loc = orig_exp.pexp_loc in
       let exp = orig_exp in
+      let log_block_impl ~entry_log_level ~message ~entry =
+        check_comptime_log_level context ~is_explicit:true ~is_result:false
+          ~log_level:entry_log_level exp
+        @@ fun () ->
+        let preamble =
+          open_log_no_source ~message ~loc ~log_level:entry_log_level
+            context.track_or_explicit
+        in
+        let context = { context with entry_log_level } in
+        let entry = callback { context with toplevel_opt_arg = Nested } entry in
+        let result =
+          [%expr
+            let __entry_id = Debug_runtime.get_entry_id () in
+            [%e preamble];
+            try
+              let __val = [%e entry] in
+              [%e close_log ~loc];
+              __val
+            with e ->
+              [%e close_log ~loc];
+              raise e]
+        in
+        match entry_log_level with
+        | Comptime _ -> result
+        | Runtime rt_ll ->
+            [%expr if !Debug_runtime.log_level >= [%e rt_ll] then [%e result]]
+      in
       let exp =
         match exp.pexp_desc with
         | Pexp_let (rec_flag, bindings, body)
@@ -1171,34 +1198,29 @@ let traverse_expression =
             in
             log_value_printbox context ~loc ~log_level body
         | Pexp_extension
+            ( { loc = _; txt = "logN_block" },
+              PStr
+                [%str
+                  [%e? runtime_log_level] [%e? message];
+                  [%e? entry]] ) ->
+            let entry_log_level = Runtime runtime_log_level in
+            log_block_impl ~entry_log_level ~message ~entry
+        | Pexp_extension
             ( { loc = _; txt },
               PStr
                 [%str
                   [%e? message];
                   [%e? entry]] )
-          when with_opt_digit ~prefix:"log" ~suffix:"_entry" txt ->
-            if is_comptime_nothing context then
-              callback { context with toplevel_opt_arg = Nested } entry
-            else
-              let entry_log_level =
-                Option.value ~default:context.entry_log_level
-                @@ get_opt_digit ~prefix:"log" ~suffix:"_entry" txt
-              in
-              let log_count_before = !global_log_count in
-              let preamble =
-                open_log_no_source ~message ~loc ~log_level:context.entry_log_level
-                  context.track_or_explicit
-              in
-              let result = A.ppat_var ~loc { loc; txt = "__res" } in
-              let context = { context with entry_log_level } in
-              let entry = callback { context with toplevel_opt_arg = Nested } entry in
-              let log_result = [%expr ()] in
-              entry_with_interrupts context ~loc ~message ~log_count_before ~preamble
-                ~entry ~result ~log_result ()
-        | Pexp_extension ({ loc = _; txt = "log_entry" }, PStr [%str [%e? _entry]]) ->
+          when with_opt_digit ~prefix:"log" ~suffix:"_block" txt ->
+            let entry_log_level =
+              Option.value ~default:context.entry_log_level
+              @@ get_opt_digit ~prefix:"log" ~suffix:"_entry" txt
+            in
+            log_block_impl ~entry_log_level ~message ~entry
+        | Pexp_extension ({ loc = _; txt = "log_block" }, PStr [%str [%e? _entry]]) ->
             A.pexp_extension ~loc
             @@ Location.error_extensionf ~loc
-                 "ppx_minidebug: bad syntax, expacted [%%log_entry <HEADER MESSAGE>; \
+                 "ppx_minidebug: bad syntax, expacted [%%log_block <HEADER MESSAGE>; \
                   <BODY>]"
         | (Pexp_newtype _ | Pexp_fun _)
           when context.toplevel_opt_arg <> Nested
