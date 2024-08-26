@@ -17,9 +17,11 @@ jobs:
           # Either the waiting queue for FreeBSD is very long, or it is not available.
           # - freebsd-latest
         ocaml-compiler:
-          - 4.13.x
+          # CI fails for unrelated reason on macos-latest on 4.13
+          # - 4.13.x
           - 4.14.x
           - 5.1.x
+          - 5.2.x
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
