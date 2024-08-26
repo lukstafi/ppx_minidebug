@@ -13,6 +13,7 @@
     - [Breaking infinite recursion with max_nesting_depth and looping with max_num_children; Flushing-based traces](#breaking-infinite-recursion-with-max_nesting_depth-and-looping-with-max_num_children-flushing-based-traces)
     - [Tracking: control flow branches, anonymous and insufficiently annotated functions](#tracking-control-flow-branches-anonymous-and-insufficiently-annotated-functions)
     - [Using as a logging framework](#using-as-a-logging-framework)
+      - [Specifying the level to log at via a runtime expression](#specifying-the-level-to-log-at-via-a-runtime-expression)
     - [Lexical scopes vs. dynamic scopes](#lexical-scopes-vs-dynamic-scopes)
     - [Reducing the size of generated logs](#reducing-the-size-of-generated-logs)
     - [Navigating large logs](#navigating-large-logs)
@@ -198,7 +199,7 @@ The entry extension points vary along three axes:
 - `%debug_` vs. `%track_` vs. `%diagn_`
   - The prefix `%debug_` means logging fewer things: only let-bound values and functions are logged, and functions only when either: directly in a `%debug_`-annotated let binding, or their return type is annotated.
   - `%track_` also logs: which `if`, `match`, `function` branch is taken, `for` and `while` loops, and all functions, including anonymous ones.
-  - The prefix `%diagn_` means only generating logs for explicitly logged values, i.e. introduced by `[%log_block]`, `[%log ...]`, `[%log_result ...]` and `[%log_printbox ...]` statements.
+  - The prefix `%diagn_` means only generating logs for explicitly logged values, i.e. introduced by `[%log ...]`, `[%log_result ...]`, `[%log_printbox ...]` statements.
 - Optional infixes `_rt_` and `_l_`:
   - `_rt_` adds a first-class module argument to a function, and unpacks it as `module Debug_runtime` for the scope of the function.
   - `_l_` calls `_get_local_debug_runtime`, and unpacks it for the scope of the function: `let module Debug_runtime = (val _get_local_debug_runtime ()) in ...`.
@@ -208,13 +209,13 @@ The entry extension points vary along three axes:
   - `_show` converts values to strings via the `%show` extension provided by `deriving.show`: e.g. `[%show: int list]`.
   - `_sexp` converts values to sexp expressions first using `%sexp_of`, e.g. `[%sexp_of: int list]`. The runtime can decide how to print the sexp expressions. The `PrintBox` backend allows to convert the sexps to box structures first, with the `boxify_sexp_from_size` setting. This means large values can be unfolded gradually for inspection.
 
-Plus, there are non-entry extension points `%log`, `%log_printbox` and `%log_result` for logging values. They are not registered, which as a side effect should somewhat mitigate conflicts with other ppx extensions for logging. There's also an un-registered extension point `%log_block` for opening a log subtree, whose body is for logging purposes only.
+Plus, there are non-entry extension points `%log`, `%log_printbox` and `%log_result` for logging values. They are not registered, which as a side effect should somewhat mitigate conflicts with other ppx extensions for logging. There's also an un-registered extension points `%log_entry` and `%log_block` for opening a log subtree; `%log_entry` is for arbitrary computations whereas `%log_block`'s body is for logging purposes only.
 
 See examples in [the test directory](test/), and especially [the inline tests](test/test_expect_test.ml).
 
-Only type-annotated let-bindings, function arguments, function results can be implicitly logged. However, the bindings and function arguments can be nested patterns with only parts of them type-annotated! The explicit loggers `%log` and `%log_result` take a value and reconstruct its type from partial type annotations (deconstructing the expression), sometimes assuming unknown types are strings. The `%log_printbox` logger takes a `PrintBox.t` value. The `%log_block` logger takes a string value for the header of the log subtree.
+Only type-annotated let-bindings, function arguments, function results can be implicitly logged. However, the bindings and function arguments can be nested patterns with only parts of them type-annotated! The explicit loggers `%log` and `%log_result` take a value and reconstruct its type from partial type annotations (deconstructing the expression), sometimes assuming unknown types are strings. The `%log_printbox` logger takes a `PrintBox.t` value. The `%log_entry` and `%log_block` loggers takes a string value for the header of the log subtree.
 
-To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.debug_file thread_name in ...`
+To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.debug_file thread_name in ...` Extension points with the `_l_` or `_rt_` infixes are a great help for that, e.g. `%debug_l_sexp`; see: [Dealing with concurrent execution](#dealing-with-concurrent-execution).
 
 `ppx_minidebug` can be installed using `opam`. `ppx_minidebug.runtime` depends on `printbox`, `ptime`, `mtime`, `sexplib0`.
 
@@ -650,12 +651,10 @@ The extension point `%log_printbox` lets you embed a `PrintBox.t` in the logs di
         └───┴───┴───┴───┴───┘ |}
 ```
 
-The extension point `%log_block` lets you shape arbitrary log tree structures. It needs special care if its body is not of type `unit`, as it will filter out its content based on log levels. Example from the test suite:
+The extension point `%log_entry` lets you shape arbitrary log tree structures. The similar extension point `%log_block` ensures that its body doesn't get executed (resp. generated) when the current runtime (resp. compile-time) log level is inadequate. Example:
 
 ```ocaml
   let module Debug_runtime = (val Minidebug_runtime.debug ()) in
-  (* Because %log_block filters out its body based on log levels, it's crucial to always
-     encapsulate it when the body is not of type unit. *)
   let%diagn_show _logging_logic : unit =
     let logify _logs =
       [%log_block
@@ -664,7 +663,7 @@ The extension point `%log_block` lets you shape arbitrary log tree structures. I
           match logs with
           | "start" :: header :: tl ->
               let more =
-                [%log_block
+                [%log_entry
                   header;
                   loop tl]
               in
@@ -713,21 +712,19 @@ The extension point `%log_block` lets you shape arbitrary log tree structures. I
     |}]
 ```
 
-`%log_result`, `%log_printbox`, `%log_block` also allow log-level specifications (e.g. `%log2_block`).
+`%log_result`, `%log_printbox`, `%log_entry`, `%log_block` also allow log-level specifications (e.g. `%log2_block`).
 
 #### Specifying the level to log at via a runtime expression
 
 The unregistered extension point `[%at_log_level for_log_level; <body>]` sets the default log level for logging expressions within `<body>` to `for_log_level`, which can be any expression with integer type.
 
-To express the runtime-known levels to log at more concisely, we have extension points `%logN`, `%logN_result`, `%logN_printbox`, `%logN_block`, by analogy to compile time levels where instead of the letter `N` there is a digit 1-9. With the letter `N`, the extension expressions take an extra argument that is the level to log at. For example, `[%logN for_log_level; "message"]` will log `"message"` when at runtime, `for_log_level`'s value is at or below the current log level.
+To express the runtime-known levels to log at more concisely, we have extension points `%logN`, `%logN_result`, `%logN_printbox`, `%logN_block` (but not other extension points), by analogy to compile time levels where instead of the letter `N` there is a digit 1-9. With the letter `N`, the extension expressions take an extra argument that is the level to log at. For example, `[%logN for_log_level; "message"]` will log `"message"` when at runtime, `for_log_level`'s value is at or below the current log level.
 
-In particular, `[%logN_block for_log_level "header"; <body>]` is equivalent to:
+In particular, `[%logN_block for_log_level "header"; <body>]` is roughly equivalent to:
 
 ```ocaml
  if !Debug_runtime.log_level >= for_log_level then [%at_log_level for_log_level; [%log_entry "header"; <body>]]
 ```
-
-where `%log_entry` is hypothetical extension point that would simply introduce a logging subtree. `%log_block` replaced `%log_entry` in ppx_minidebug 2.0.
 
 ### Lexical scopes vs. dynamic scopes
 

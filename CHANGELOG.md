@@ -4,7 +4,7 @@
 
 - Compile-time explicit log levels `%debug1_sexp`, `%debug2_sexp`, `%log1`, `%log2`, `%log2_result`, `%log2_entry` etc. that participate in compile-time log level filtering.
 - Runtime log levels `%at_log_level`, `%logN`, `%logN_result`, `%logN_printbox` that take the level at which to log as argument. Note: not supported for extension entry points `%debug_sexp` etc.
-- New unregistered extension point `%log_block` (replacing `%log_entry`) that assumes its body is logging code only, and does both compile-time and runtime pruning of the body according to the log level.
+- New unregistered extension point `%log_block` (similar to `%log_entry`) that assumes its body is logging code only, and does both compile-time and runtime pruning of the body according to the log level. Limited to unit-type bodies.
 
 ### Changed
 
@@ -13,7 +13,6 @@
 - Removed `_this_` infix and make all extension points behave as `_this_` (not extend to bodies of toplevel bindings).
 - Removed `_rtb_` and `_lb_` -- all debugging should use the generic interface as it now offers all the functionality except configuration.
 - Removed a heuristic to not print extra debug information at log level 1 -- replaced by checking for `%diagn`.
-- Removed the extension point `%log_entry` which did not assume the body is logging only -- replaced by `%log_block`.
 
 ## [1.6.1] -- 2024-08-21
 

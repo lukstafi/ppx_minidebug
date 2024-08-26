@@ -124,7 +124,9 @@ let lift_track_or_explicit ~loc = function
   | `Debug -> [%expr `Debug]
   | `Track -> [%expr `Track]
 
-let ll_to_expr ~loc = function Comptime ll -> A.eint ~loc ll | Runtime e -> e
+let ll_to_expr ~digit_loc = function
+  | Comptime ll -> A.eint ~loc:digit_loc ll
+  | Runtime e -> e
 
 let open_log ?(message = "") ~loc ~log_level track_or_explicit =
   if String.contains message '\n' then
@@ -141,13 +143,13 @@ let open_log ?(message = "") ~loc ~log_level track_or_explicit =
         ~end_lnum:[%e A.eint ~loc loc.loc_end.pos_lnum]
         ~end_colnum:[%e A.eint ~loc (loc.loc_end.pos_cnum - loc.loc_end.pos_bol)]
         ~message:[%e A.estring ~loc message] ~entry_id:__entry_id
-        ~log_level:[%e ll_to_expr ~loc log_level]
+        ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
         [%e lift_track_or_explicit ~loc track_or_explicit]]
 
 let open_log_no_source ~message ~loc ~log_level track_or_explicit =
   [%expr
     Debug_runtime.open_log_no_source ~message:[%e message] ~entry_id:__entry_id
-      ~log_level:[%e ll_to_expr ~loc log_level]
+      ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
       [%e lift_track_or_explicit ~loc track_or_explicit]]
 
 let close_log ~loc =
@@ -198,7 +200,8 @@ let log_value_sexp context ~loc ~typ ?descr_loc ~is_explicit ~is_result ~log_lev
       [%expr
         Debug_runtime.log_value_sexp
           ?descr:[%e to_descr context ~loc ~descr_loc typ]
-          ~entry_id:__entry_id ~log_level:[%e ll_to_expr ~loc log_level]
+          ~entry_id:__entry_id
+          ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
           ~is_result:[%e A.ebool ~loc is_result]
           ([%sexp_of: [%t typ]] [%e exp])]
 
@@ -229,7 +232,8 @@ let log_value_pp context ~loc ~typ ?descr_loc ~is_explicit ~is_result ~log_level
       [%expr
         Debug_runtime.log_value_pp
           ?descr:[%e to_descr context ~loc ~descr_loc typ]
-          ~entry_id:__entry_id ~log_level:[%e ll_to_expr ~loc log_level]
+          ~entry_id:__entry_id
+          ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
           ~pp:[%e converter] ~is_result:[%e A.ebool ~loc is_result] [%e exp]]
   | _ ->
       A.pexp_extension ~loc
@@ -255,7 +259,8 @@ let log_value_show context ~loc ~typ ?descr_loc ~is_explicit ~is_result ~log_lev
       [%expr
         Debug_runtime.log_value_show
           ?descr:[%e to_descr context ~loc ~descr_loc typ]
-          ~entry_id:__entry_id ~log_level:[%e ll_to_expr ~loc log_level]
+          ~entry_id:__entry_id
+          ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
           ~is_result:[%e A.ebool ~loc is_result]
           ([%show: [%t typ]] [%e exp])]
 
@@ -272,7 +277,8 @@ let log_value_printbox context ~loc ~log_level exp =
   incr global_log_count;
   [%expr
     Debug_runtime.log_value_printbox ~entry_id:__entry_id
-      ~log_level:[%e ll_to_expr ~loc log_level] [%e exp]]
+      ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
+      [%e exp]]
 
 let log_string ~loc ~descr_loc ~log_level s =
   if String.contains descr_loc.txt '\n' then
@@ -283,13 +289,15 @@ let log_string ~loc ~descr_loc ~log_level s =
     [%expr
       Debug_runtime.log_value_show
         ~descr:[%e A.estring ~loc:descr_loc.loc descr_loc.txt]
-        ~entry_id:__entry_id ~log_level:[%e ll_to_expr ~loc log_level] ~is_result:false
-        [%e A.estring ~loc s]]
+        ~entry_id:__entry_id
+        ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
+        ~is_result:false [%e A.estring ~loc s]]
 
 let log_string_with_descr ~loc ~message ~log_level s =
   [%expr
     Debug_runtime.log_value_show ~descr:[%e message] ~entry_id:__entry_id
-      ~log_level:[%e ll_to_expr ~loc log_level] ~is_result:false [%e A.estring ~loc s]]
+      ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
+      ~is_result:false [%e A.estring ~loc s]]
 
 type fun_arg =
   | Pexp_fun_arg of
@@ -1070,10 +1078,9 @@ let traverse_expression =
               [%e close_log ~loc];
               raise e]
         in
-        match entry_log_level with
-        | Comptime _ -> result
-        | Runtime rt_ll ->
-            [%expr if !Debug_runtime.log_level >= [%e rt_ll] then [%e result]]
+        [%expr
+          if !Debug_runtime.log_level >= [%e ll_to_expr ~digit_loc:loc entry_log_level]
+          then [%e result]]
       in
       let exp =
         match exp.pexp_desc with
@@ -1221,6 +1228,36 @@ let traverse_expression =
             A.pexp_extension ~loc
             @@ Location.error_extensionf ~loc
                  "ppx_minidebug: bad syntax, expacted [%%log_block <HEADER MESSAGE>; \
+                  <BODY>]"
+        | Pexp_extension
+            ( { loc = _; txt },
+              PStr
+                [%str
+                  [%e? message];
+                  [%e? entry]] )
+          when with_opt_digit ~prefix:"log" ~suffix:"_entry" txt ->
+            if is_comptime_nothing context then
+              callback { context with toplevel_opt_arg = Nested } entry
+            else
+              let entry_log_level =
+                Option.value ~default:context.entry_log_level
+                @@ get_opt_digit ~prefix:"log" ~suffix:"_entry" txt
+              in
+              let log_count_before = !global_log_count in
+              let preamble =
+                open_log_no_source ~message ~loc ~log_level:context.entry_log_level
+                  context.track_or_explicit
+              in
+              let result = A.ppat_var ~loc { loc; txt = "__res" } in
+              let context = { context with entry_log_level } in
+              let entry = callback { context with toplevel_opt_arg = Nested } entry in
+              let log_result = [%expr ()] in
+              entry_with_interrupts context ~loc ~message ~log_count_before ~preamble
+                ~entry ~result ~log_result ()
+        | Pexp_extension ({ loc = _; txt = "log_entry" }, PStr [%str [%e? _entry]]) ->
+            A.pexp_extension ~loc
+            @@ Location.error_extensionf ~loc
+                 "ppx_minidebug: bad syntax, expacted [%%log_entry <HEADER MESSAGE>; \
                   <BODY>]"
         | (Pexp_newtype _ | Pexp_fun _)
           when context.toplevel_opt_arg <> Nested
