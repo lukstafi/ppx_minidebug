@@ -855,7 +855,24 @@ module PrintBox (Log_to : Shared_config) = struct
     | B.Grid (_, [| [||] |]) -> true
     | _ -> false
 
-  let close_log_impl ~from_snapshot ~elapsed_on_close ~fname ~start_lnum ~entry_id =
+  let rec snapshot () =
+    let current_stack = !stack in
+    let elapsed_on_close = time_elapsed () in
+    try
+      while !stack <> [] do
+        match !stack with
+        | { entry_id; _ } :: _ ->
+            close_log_impl ~from_snapshot:true ~elapsed_on_close ~fname:"snapshotting"
+              ~start_lnum:(List.length !stack) ~entry_id
+        | _ -> assert false
+      done;
+      needs_snapshot_reset := true;
+      stack := current_stack
+    with e ->
+      stack := current_stack;
+      raise e
+
+  and close_log_impl ~from_snapshot ~elapsed_on_close ~fname ~start_lnum ~entry_id =
     let close_tree ~entry ~toc_depth =
       let header, box = stack_to_tree ~elapsed_on_close entry in
       let ch = debug_ch () in
@@ -881,8 +898,7 @@ module PrintBox (Log_to : Shared_config) = struct
             flush toc_ch)
     in
     (match !stack with
-    | ({ entry_id = open_entry_id; toc_depth; _ } as entry) :: tl
-      when open_entry_id <> entry_id ->
+    | { entry_id = open_entry_id; _ } :: tl when open_entry_id <> entry_id ->
         let log_loc =
           Printf.sprintf
             "%s\"%s\":%d: open entry_id=%d, close entry_id=%d, stack entries %s"
@@ -890,7 +906,7 @@ module PrintBox (Log_to : Shared_config) = struct
             (String.concat ", "
             @@ List.map (fun { entry_id; _ } -> Int.to_string entry_id) tl)
         in
-        close_tree ~entry ~toc_depth;
+        snapshot ();
         failwith
         @@ "ppx_minidebug: lexical scope of close_log not matching its dynamic scope; "
         ^ log_loc
@@ -986,23 +1002,6 @@ module PrintBox (Log_to : Shared_config) = struct
     | _ ->
         let elapsed_on_close = time_elapsed () in
         close_log_impl ~from_snapshot:false ~elapsed_on_close ~fname ~start_lnum ~entry_id
-
-  let snapshot () =
-    let current_stack = !stack in
-    let elapsed_on_close = time_elapsed () in
-    try
-      while !stack <> [] do
-        match !stack with
-        | { entry_id; _ } :: _ ->
-            close_log_impl ~from_snapshot:true ~elapsed_on_close ~fname:"snapshotting"
-              ~start_lnum:(List.length !stack) ~entry_id
-        | _ -> assert false
-      done;
-      needs_snapshot_reset := true;
-      stack := current_stack
-    with e ->
-      stack := current_stack;
-      raise e
 
   let opt_auto_snapshot =
     let last_snapshot = ref @@ time_elapsed () in

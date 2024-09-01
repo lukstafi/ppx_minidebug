@@ -1,3 +1,9 @@
+## [2.0.1] -- current
+
+### Fixed
+
+- Write the whole incomplete log tree on the error "lexical scope of close_log not matching its dynamic scope" by snapshotting, so the entries from the error message can be looked up.
+
 ## [2.0.0] -- 2024-08-26
 
 ### Added
