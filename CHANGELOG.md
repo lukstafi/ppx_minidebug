@@ -1,5 +1,9 @@
 ## [2.0.1] -- 2024-09-08
 
+### Changed
+
+- `values_first_mode` is now the default: `?(values_first_mode = true)`.
+
 ### Fixed
 
 - Write the whole incomplete log tree on the error "lexical scope of close_log not matching its dynamic scope" by snapshotting, so the entries from the error message can be looked up.

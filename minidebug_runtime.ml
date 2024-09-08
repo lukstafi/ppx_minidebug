@@ -512,7 +512,7 @@ module PrintBox (Log_to : Shared_config) = struct
       prune_upto = 0;
       truncate_children = 0;
       exclude_on_path = None;
-      values_first_mode = false;
+      values_first_mode = true;
       max_inline_sexp_size = 20;
       max_inline_sexp_length = 80;
       snapshot_every_sec = None;
@@ -1332,7 +1332,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(toc_entry = And []) ?(toc_flame_graph = false) ?(flame_graph_separation = 40)
     ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
     ?(for_append = false) ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80)
-    ?backend ?hyperlink ?toc_specific_hyperlink ?(values_first_mode = false)
+    ?backend ?hyperlink ?toc_specific_hyperlink ?(values_first_mode = true)
     ?(log_level = 9) ?snapshot_every_sec filename : (module PrintBox_runtime) =
   let filename =
     match backend with
@@ -1371,7 +1371,7 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
     ?description ?(global_prefix = "") ?table_of_contents_ch ?(toc_entry = And [])
     ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
-    ?toc_specific_hyperlink ?(values_first_mode = false) ?(log_level = 9)
+    ?toc_specific_hyperlink ?(values_first_mode = true) ?(log_level = 9)
     ?snapshot_every_sec () : (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false

@@ -4,6 +4,8 @@ module Debug_runtime =
   Minidebug_runtime.PrintBox
     ((val Minidebug_runtime.shared_config "debugger_sexp_printbox.log"))
 
+let () = Debug_runtime.config.values_first_mode <- false
+
 let%debug_sexp foo (x : int) : int list =
   let y : int = x + 1 in
   [ x; y; 2 * y ]
