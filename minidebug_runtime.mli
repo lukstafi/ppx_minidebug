@@ -181,7 +181,8 @@ module type PrintBox_runtime = sig
             editor-specific prefixes such as ["vscode://file/"].
 
             Note that rendering a link on a node will make the node non-foldable,
-            therefore it is best to combine [`Prefix prefix] with [values_first_mode=true]. *)
+            therefore it is best to combine [`Prefix prefix] with
+            [values_first_mode=true]. *)
     mutable toc_specific_hyperlink : string option;
         (** If provided, overrides [hyperlink] as the prefix used for generating URIs
             pointing to anchors in logs. *)

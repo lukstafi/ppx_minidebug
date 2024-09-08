@@ -1,7 +1,7 @@
 module Debug_runtime =
   (val Minidebug_runtime.debug_file ~elapsed_times:Microseconds ~hyperlink:"./"
-         ~backend:(`Markdown Minidebug_runtime.default_md_config)
-         ~truncate_children:4 "debugger_sexp_time_spans")
+         ~backend:(`Markdown Minidebug_runtime.default_md_config) ~truncate_children:4
+         "debugger_sexp_time_spans")
 
 let sexp_of_int i = Sexplib0.Sexp.Atom (string_of_int i)
 
