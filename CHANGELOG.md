@@ -1,8 +1,9 @@
-## [2.0.1] -- current
+## [2.0.1] -- 2024-09-08
 
 ### Fixed
 
 - Write the whole incomplete log tree on the error "lexical scope of close_log not matching its dynamic scope" by snapshotting, so the entries from the error message can be looked up.
+- Don't use `str_formatter`, it's only meant to be used from the main domain. (It affected timestamps, and `_pp` entry points for the flushing backend.)
 
 ## [2.0.0] -- 2024-08-26
 

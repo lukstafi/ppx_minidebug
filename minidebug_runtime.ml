@@ -8,13 +8,14 @@ let pp_timestamp ppf () =
   Ptime.(pp_human ~frac_s:6 ?tz_offset_s ()) ppf (Ptime_clock.now ())
 
 let timestamp_to_string () =
-  let _ = CFormat.flush_str_formatter () in
+  let buf = Buffer.create 512 in
+  let formatter = CFormat.formatter_of_buffer buf in
   let tz_offset_s = Ptime_clock.current_tz_offset_s () in
-  Ptime.(pp_human ~frac_s:6 ?tz_offset_s ()) CFormat.str_formatter (Ptime_clock.now ());
-  CFormat.flush_str_formatter ()
+  Ptime.(pp_human ~frac_s:6 ?tz_offset_s ()) formatter (Ptime_clock.now ());
+  CFormat.pp_print_flush formatter ();
+  Buffer.contents buf
 
 let pp_elapsed ppf () =
-  let _ = CFormat.flush_str_formatter () in
   let e = time_elapsed () in
   let ns =
     match Int64.unsigned_to_int @@ Mtime.Span.to_uint64_ns e with
@@ -391,9 +392,11 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
     if check_log_level log_level then (
       let orphaned = bump_stack_entry entry_id in
       let descr = match descr with None -> "" | Some d -> d ^ " = " in
-      let _ = CFormat.flush_str_formatter () in
-      pp CFormat.str_formatter v;
-      let v_str = CFormat.flush_str_formatter () in
+      let buf = Buffer.create 512 in
+      let formatter = CFormat.formatter_of_buffer buf in
+      pp formatter v;
+      CFormat.pp_print_flush formatter ();
+      let v_str = Buffer.contents buf in
       Printf.fprintf !debug_ch "%s%s%s%s\n%!" (indent ()) orphaned descr v_str)
 
   let log_value_show ?descr ~entry_id ~log_level ~is_result:_ v =
