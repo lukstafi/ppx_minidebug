@@ -455,7 +455,7 @@ The [%diagn_] extension points (short for "diagnostic") are tailored for the "lo
 
 In the [PrintBox] backend, logs accumulate until the current toplevel log scope is closed. This is unfortunate in the logging framework context, where promptly informing the user using the logs might be important. To remedy this, [PrintBox_runtime] offers the setting [snapshot_every_sec]. When set, if sufficient time has passed since the last output, the backend will output the whole current toplevel log scope. If possible, the previous snapshot of the same log scope is erased, to not duplicate information. The underlying mechanism is available as \[snapshot\] in the generic interface; it does nothing in the flushing backend. \[snapshot\] is useful when there's a risk of a "premature" exit of the debugged program or thread.
 
-The log levels are integers intended to be within the range 0-9, where 0 means no logging at all. They can be provided explicitly by all extension entry points and all explicit logging extensions. When omitted, the log level of the enclosing log entry is used; the default for a top-level log entry is log level 1 (unless the compile-time log level is set globally). The syntax for logging at a compile-time given level is by example: [%debug2_sexp] (log at level 2), [%log3] (log at level 3), [%log1_resut] (log result at level 1), [%diagn3_sexp] (log at level 3) etc.
+The log levels are integers intended to be within the range 0-9, where 0 means no logging at all. They can be provided explicitly by all extension entry points and all explicit logging extensions. When omitted, the log level of the enclosing log entry is used; the default for a top-level log entry is log level 1. The syntax for logging at a compile-time given level is by example: [%debug2_sexp] (log at level 2), [%log3] (log at level 3), [%log1_resut] (log result at level 1), [%diagn3_sexp] (log at level 3) etc.
 
 The [%diagn_] extension points further restrict logging to explicit logs only. Example from the test suite:
 
@@ -541,8 +541,6 @@ This will not emit logging code that is above the stated log level. Note that th
 There's also a way to compile the code adaptively, using a shell environment variable: [[%%global_debug_log_level_from_env_var "environment_variable_name"]]. The variable name is case-sensitive, but the values should be integers.
 
 The generated code will check that the compile-time adaptive pruning matches the runtime value of the environment variable. If that's an obstacle, use [%%global_debug_log_level_from_env_var_unsafe] which will not perform the check. Using [%%global_debug_log_level_from_env_var_unsafe] is very prone to workflow bugs where different parts of a codebase are compiled with different log levels, leading to confusing behavior.
-
-Important: when the compile-time log level is set by [%%global_log_level] or [%%global_debug_log_level_from_env_var], this becomes the default for top-level log entries without an explicit log level!
 
 Another example from the test suite, notice how the log level of [%log1] overrides the parent log level of [%debug3_show]:
 
