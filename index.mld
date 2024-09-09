@@ -6,7 +6,7 @@
 }{- {{: #highlighting-search-terms} Highlighting search terms}
 }{- {{: #printbox-creating-helpers-with-defaults-debug-and-debug_file} PrintBox creating helpers with defaults: debug and debug_file}
 }{- {{: #hyperlinks-to-source-locations} Hyperlinks to source locations}
-}{- {{: #recommended-values_first_mode} Recommended: values_first_mode}
+}{- {{: #values_first_mode} values_first_mode}
 }}
 }{- {{: #usage} Usage}
 {ul {- {{: #breaking-infinite-recursion-with-max_nesting_depth-and-looping-with-max_num_children-flushing-based-traces} Breaking infinite recursion with max_nesting_depth and looping with max_num_children; Flushing-based traces}
@@ -40,6 +40,7 @@ or using the [PrintBox] functor, e.g.:
 {@ocaml[
 module Debug_runtime =
   Minidebug_runtime.PrintBox((val Minidebug_runtime.shared_config "path/to/debugger_printbox.log" end))
+let () = Debug_runtime.config.values_first_mode <- false
 ]}
 
 The logged traces will be pretty-printed as trees using the [printbox] package. Truncated example (using [%debug_sexp]):
@@ -98,8 +99,11 @@ The [PrintBox] runtime can be configured to output logs using HTML or Markdown. 
 {@ocaml[
 module Debug_runtime =
   Minidebug_runtime.PrintBox ((val Minidebug_runtime.shared_config "debug.html"))
-let () = Debug_runtime.(html_config := `Html default_html_config)
-let () = Debug_runtime.boxify_sexp_from_size := 50
+let () =
+  let c = Debug_runtime.config in
+  c.backend <- `Html Minidebug_runtime.default_html_config;
+  c.boxify_sexp_from_size <- 50;
+  c.values_first_mode <- false
 ]}
 
 Here we also convert the logged [sexp] values (with at least 50 atoms) to trees. Example result:
@@ -146,15 +150,15 @@ the prefixes for Markdown / HTML outputs I might use at the time of writing:
 }{- [~hyperlink:"https://github.com/lukstafi/ppx_minidebug/tree/main/"]
 }}
 
-{2 Recommended: [values_first_mode]}
+{2 [values_first_mode]}
 
-This setting puts the result of the computation as the header of a computation subtree, rather than the source code location of the computation. I recommend using this setting as it reduces noise and makes the important information easier to find and visible with less unfolding. Another important benefit is that it makes hyperlinks usable, by pushing them from the summary line to under the fold. I decided to not make it the default setting, because it is not available in the [Flushing] runtime, and can be confusing.
+This setting, by default [true], puts the result of the computation as the header of a computation subtree, rather than the source code location of the computation. I recommend using this setting as it reduces noise and makes the important information easier to find and visible with less unfolding. Another important benefit is that it makes hyperlinks usable, by pushing them from the summary line to under the fold. It is the default setting, but can be disabled by passing [~values_first_mode:false] to runtime builders, because it can be confusing: the logs are no longer ordered by computation time. It is not available in the [Flushing] runtime.
 
 For example:
 
 {@ocaml[
 module Debug_runtime =
-  (val Minidebug_runtime.debug ~highlight_terms:(Re.str "3") ~values_first_mode:true ())
+  (val Minidebug_runtime.debug ~highlight_terms:(Re.str "3") ())
 let%debug_show rec loop_highlight (x : int) : int =
   let z : int = (x - 1) / 2 in
   if x <= 0 then 0 else z + loop_highlight (z + (x / 2))
@@ -260,7 +264,7 @@ let%debug_show _bar : unit =
 The [%debug_interrupts] extension point emits the interrupt checks in a lexically delimited scope. For convenience, we offer the extension point [%global_debug_interrupts] which triggers emitting the interrupt checks in the remainder of the source preprocessed in the same process (its scope is therefore less well defined). For example:
 
 {@ocaml[
-module Debug_runtime = (val Minidebug_runtime.debug ())
+module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:false ())
 
 [%%global_debug_interrupts { max_nesting_depth = 5; max_num_children = 10 }]
 
@@ -348,7 +352,7 @@ For example:
     print_endline @@ Int.to_string @@ track_branches 3
 ]}
 
-gives:
+gives (assuming [~values_first_mode:false]):
 
 {@shell[
 BEGIN DEBUG SESSION
@@ -401,7 +405,7 @@ To disable, rather than enhance, debugging for a piece of code, you can use the 
 Explicit logging statements also help with tracking the execution, since they can be placed anywhere within a debug scope. Example from the test suite:
 
 {@ocaml[
-  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:false ()) in
   let%track_sexp result =
     let i = ref 0 in
     let j = ref 0 in
@@ -460,7 +464,7 @@ The log levels are integers intended to be within the range 0-9, where 0 means n
 The [%diagn_] extension points further restrict logging to explicit logs only. Example from the test suite:
 
 {@ocaml[
-  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let%diagn_show bar { first : int; second : int } : int =
     let { first : int = a; second : int = b } = { first; second = second + 3 } in
     let y : int = a + 1 in
@@ -509,7 +513,7 @@ At runtime, the level can be set via [Minidebug_runtime.debug ~log_level] or [Mi
   @@ Int.to_string
        (result
           Minidebug_runtime.(
-            forget_printbox @@ debug ~values_first_mode:true ~log_level:2 ~global_prefix:"Warning" ())
+            forget_printbox @@ debug ~log_level:2 ~global_prefix:"Warning" ())
           ());
   ...
 ]}
@@ -546,7 +550,7 @@ Another example from the test suite, notice how the log level of [%log1] overrid
 
 {@ocaml[
   let module Debug_runtime =
-    (val Minidebug_runtime.debug ~values_first_mode:true ~log_level:2 ())
+    (val Minidebug_runtime.debug ~log_level:2 ())
   in
   let%debug3_show () =
     let foo { first : int; second : int } : int =
@@ -596,7 +600,7 @@ The extension point [%log_result] lets you benefit from the [values_first_mode] 
 The extension point [%log_printbox] lets you embed a [PrintBox.t] in the logs directly. Example from the test suite:
 
 {@ocaml[
-  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   let%debug_show foo () : unit =
     [%log_printbox
       PrintBox.init_grid ~line:5 ~col:5 (fun ~line ~col ->
@@ -660,7 +664,7 @@ The extension point [%log_printbox] lets you embed a [PrintBox.t] in the logs di
 The extension point [%log_entry] lets you shape arbitrary log tree structures. The similar extension point [%log_block] ensures that its body doesn't get executed (resp. generated) when the current runtime (resp. compile-time) log level is inadequate. Example:
 
 {@ocaml[
-  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
+  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:false ()) in
   let%diagn_show _logging_logic : unit =
     let logify _logs =
       [%log_block
@@ -744,7 +748,7 @@ the runtime, and look for the path line with the log's entry id. When the backen
 
 {@ocaml[
   let module Debug_runtime =
-    (val Minidebug_runtime.debug ~print_entry_ids:true ~values_first_mode:true ())
+    (val Minidebug_runtime.debug ~print_entry_ids:true ())
   in
   let i = 3 in
   let pi = 3.14 in
@@ -819,7 +823,7 @@ The test suite example:
   print_endline @@ Int.to_string @@ fixpoint_changes 7
 ]}
 
-leads to:
+leads to (assuming [~values_first_mode:false]):
 
 {@shell[
   "test/test_expect_test.ml":96:43-100:58: fixpoint_changes
@@ -845,7 +849,8 @@ The [no_debug_if] mechanism requires modifying the logged sources, and since it'
 Setting the option [truncate_children] will only log the given number of children at each node, prioritizing the most recent ones. An example from the test suite:
 
 {@ocaml[
-  let module Debug_runtime = (val Minidebug_runtime.debug ~truncate_children:10 ()) in
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug ~truncate_children:10 ~values_first_mode:false ()) in
   let () =
     let%track_show _bar : unit =
       for i = 0 to 30 do
@@ -909,7 +914,7 @@ Example demonstrating foldable trees in Markdown:
 {@ocaml[
 module Debug_runtime =
   (val Minidebug_runtime.debug_file ~elapsed_times:Microseconds ~hyperlink:"./"
-         ~backend:(`Markdown Minidebug_runtime.default_md_config) ~values_first_mode:true
+         ~backend:(`Markdown Minidebug_runtime.default_md_config)
          ~truncate_children:4 "debugger_sexp_time_spans")
 
 let sexp_of_int i = Sexplib0.Sexp.Atom (string_of_int i)
@@ -1335,7 +1340,7 @@ Here is a probably incomplete list of the restrictions:
 As a help in debugging whether the right type information got propagated, we offer the extension [%debug_type_info] (and [%global_debug_type_info]). (The display strips module qualifiers from types.) [%debug_type_info] is not an entry extension point ([%global_debug_type_info] is). Example {{: test/test_expect_test.ml} from the test suite}:
 
 {@ocaml[
-  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:true ()) in
+  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
   [%debug_show
     [%debug_type_info
       let f : 'a. 'a -> int -> int = fun _a b -> b + 1 in
@@ -1419,7 +1424,7 @@ Example from the test suite:
   let () =
     print_endline @@ Int.to_string
     @@ foo
-         (Minidebug_runtime.debug ~global_prefix:"foo-1" ~values_first_mode:true ())
+         (Minidebug_runtime.debug ~global_prefix:"foo-1" ())
          [ 7 ]
   in
   let%track_rt_show baz : int list -> int = function
@@ -1431,13 +1436,13 @@ Example from the test suite:
   let () =
     print_endline @@ Int.to_string
     @@ baz
-         Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"baz-1" ~values_first_mode:true ())
+         Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"baz-1" ())
          [ 4 ]
   in
   let () =
     print_endline @@ Int.to_string
     @@ baz
-         Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"baz-2" ~values_first_mode:true ())
+         Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"baz-2" ())
          [ 4; 5; 6 ]
   in
   [%expect
