@@ -68,6 +68,7 @@ module type Shared_config = sig
   val split_files_after : int option
   val toc_entry : toc_entry_criteria
   val description : string
+  val init_log_level : int
 end
 
 let elapsed_default = Not_reported
@@ -75,7 +76,8 @@ let elapsed_default = Not_reported
 let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
     ?(global_prefix = "") ?split_files_after ?(with_table_of_contents = false)
-    ?(toc_entry = And []) ?(for_append = true) filename : (module Shared_config) =
+    ?(toc_entry = And []) ?(for_append = true) ?(log_level = 9) filename :
+    (module Shared_config) =
   let module Result = struct
     let current_ch_name = ref filename
 
@@ -157,6 +159,7 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     let split_files_after = split_files_after
     let toc_entry = toc_entry
     let description = filename ^ (if global_prefix = "" then "" else ":") ^ global_prefix
+    let init_log_level = log_level
   end in
   (module Result)
 
@@ -243,7 +246,7 @@ let opt_verbose_entry_id ~verbose_entry_ids ~entry_id =
 module Flushing (Log_to : Shared_config) : Debug_runtime = struct
   open Log_to
 
-  let log_level = ref 9
+  let log_level = ref init_log_level
   let max_nesting_depth = ref None
   let max_num_children = ref None
   let debug_ch = ref @@ debug_ch ()
@@ -264,17 +267,19 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
   let indent () = String.make (List.length !stack) ' '
 
   let () =
-    match Log_to.time_tagged with
-    | Not_tagged -> Printf.fprintf !debug_ch "\nBEGIN DEBUG SESSION %s\n%!" global_prefix
-    | Clock ->
-        Printf.fprintf !debug_ch "\nBEGIN DEBUG SESSION %sat time %s\n%!" global_prefix
-          (timestamp_to_string ())
-    | Elapsed ->
-        Printf.fprintf !debug_ch
-          "\nBEGIN DEBUG SESSION %sat elapsed %s, corresponding to time %s\n%!"
-          global_prefix
-          (Format.asprintf "%a" pp_elapsed ())
-          (timestamp_to_string ())
+    if !log_level > 0 then
+      match Log_to.time_tagged with
+      | Not_tagged ->
+          Printf.fprintf !debug_ch "\nBEGIN DEBUG SESSION %s\n%!" global_prefix
+      | Clock ->
+          Printf.fprintf !debug_ch "\nBEGIN DEBUG SESSION %sat time %s\n%!" global_prefix
+            (timestamp_to_string ())
+      | Elapsed ->
+          Printf.fprintf !debug_ch
+            "\nBEGIN DEBUG SESSION %sat elapsed %s, corresponding to time %s\n%!"
+            global_prefix
+            (Format.asprintf "%a" pp_elapsed ())
+            (timestamp_to_string ())
 
   let close_log ~fname ~start_lnum ~entry_id =
     match (!hidden_entries, !stack) with
@@ -477,7 +482,7 @@ let anchor_entry_id ~is_pure_text ~entry_id =
 module PrintBox (Log_to : Shared_config) = struct
   open Log_to
 
-  let log_level = ref 9
+  let log_level = ref init_log_level
   let max_nesting_depth = ref None
   let max_num_children = ref None
   let check_log_level level = level <= !log_level
@@ -559,18 +564,19 @@ module PrintBox (Log_to : Shared_config) = struct
     | `No_hyperlinks -> inner
 
   let () =
-    let log_header =
-      match time_tagged with
-      | Not_tagged -> CFormat.asprintf "@.BEGIN DEBUG SESSION %s@." global_prefix
-      | Clock ->
-          CFormat.asprintf "@.BEGIN DEBUG SESSION %sat time %a@." global_prefix
-            pp_timestamp ()
-      | Elapsed ->
-          CFormat.asprintf
-            "@.BEGIN DEBUG SESSION %sat elapsed %a, corresponding to time %a@."
-            global_prefix pp_elapsed () pp_timestamp ()
-    in
-    output_string (debug_ch ()) log_header
+    if !log_level > 0 then
+      let log_header =
+        match time_tagged with
+        | Not_tagged -> CFormat.asprintf "@.BEGIN DEBUG SESSION %s@." global_prefix
+        | Clock ->
+            CFormat.asprintf "@.BEGIN DEBUG SESSION %sat time %a@." global_prefix
+              pp_timestamp ()
+        | Elapsed ->
+            CFormat.asprintf
+              "@.BEGIN DEBUG SESSION %sat elapsed %a, corresponding to time %a@."
+              global_prefix pp_elapsed () pp_timestamp ()
+      in
+      output_string (debug_ch ()) log_header
 
   let apply_highlight hl b =
     let rec loop b =
@@ -1345,7 +1351,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     PrintBox
       ((val shared_config ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
               ~verbose_entry_ids ~global_prefix ~for_append ?split_files_after
-              ~with_table_of_contents ~toc_entry filename)) in
+              ~with_table_of_contents ~toc_entry ~log_level filename)) in
   Debug.config.backend <- Option.value backend ~default:(`Markdown default_md_config);
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
   Debug.config.max_inline_sexp_length <- max_inline_sexp_length;
@@ -1409,13 +1415,13 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let split_files_after = None
     let toc_entry = toc_entry
+    let init_log_level = log_level
   end) in
   Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
   Debug.config.prune_upto <- prune_upto;
   Debug.config.truncate_children <- truncate_children;
   Debug.config.exclude_on_path <- Option.map Re.compile exclude_on_path;
   Debug.config.values_first_mode <- values_first_mode;
-  Debug.log_level := log_level;
   Debug.config.snapshot_every_sec <- snapshot_every_sec;
   Debug.config.toc_specific_hyperlink <- toc_specific_hyperlink;
   (module Debug)
@@ -1471,19 +1477,19 @@ let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename
           let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
           let split_files_after = split_files_after
           let toc_entry = toc_entry
+          let init_log_level = log_level
         end : Shared_config)
     | Some filename, None ->
         let filename = filename ^ ".log" in
         shared_config ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
           ~global_prefix ?split_files_after ~with_table_of_contents ~toc_entry ~for_append
-          filename
+          ~log_level filename
     | Some _, Some _ ->
         invalid_arg
           "Minidebug_runtime.debug_flushing: only one of debug_ch, filename should be \
            provided"
   in
   let module Debug = Flushing ((val log_to)) in
-  Debug.log_level := log_level;
   (module Debug)
 
 let forget_printbox (module Runtime : PrintBox_runtime) = (module Runtime : Debug_runtime)

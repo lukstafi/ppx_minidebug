@@ -2623,8 +2623,6 @@ let%expect_test "%log runtime log levels while-loop" =
     │   └─(INFO: 3 j= 21)
     └─result = 21
     21
-
-    BEGIN DEBUG SESSION Nothing
     21
 
     BEGIN DEBUG SESSION Error
@@ -3964,8 +3962,7 @@ let%expect_test "%track_rt_show expression runtime passing" =
     t2 test B begin
      "line B"
     t2 test B end
-
-    BEGIN DEBUG SESSION t3 |}]
+    |}]
 
 let%expect_test "%debug_show tuples values_first_mode highlighted" =
   let module Debug_runtime =
@@ -4140,8 +4137,6 @@ let%expect_test "%logN_block runtime log levels" =
     │     └─(INFO: 3 j= 21)
     └─result = 21
     21
-
-    BEGIN DEBUG SESSION for=1,with=0
     0
 
     BEGIN DEBUG SESSION for=2,with=1

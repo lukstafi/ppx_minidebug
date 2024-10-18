@@ -36,6 +36,7 @@ module type Shared_config = sig
   val split_files_after : int option
   val toc_entry : toc_entry_criteria
   val description : string
+  val init_log_level : int
 end
 
 val shared_config :
@@ -49,6 +50,7 @@ val shared_config :
   ?with_table_of_contents:bool ->
   ?toc_entry:toc_entry_criteria ->
   ?for_append:bool ->
+  ?log_level:int ->
   string ->
   (module Shared_config)
 (** Sets up a file with the given path, or if [split_files_after] is given, creates a
@@ -78,7 +80,9 @@ val shared_config :
     anchors of the log headers. Note that debug runtime builders that take a channel
     instead of a file name, will use [global_prefix] instead for the anchor links. The
     setting [toc_entry] controls the selection of headers to include in a ToC (it defaults
-    to [And []], which means including all entries). *)
+    to [And []], which means including all entries).
+    
+    [log_level], is provided, specifies {!Shared_config.init_log_level}.  *)
 
 (** When using the
     {{:http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html}

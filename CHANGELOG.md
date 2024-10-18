@@ -1,3 +1,10 @@
+## [2.0.2] -- 2024-10-18
+
+### Changed
+
+- `Shared_config` now has an `init_log_level` field, populated from the runtime creation functions' `~log_level` argument.
+- The header `BEGIN DEBUG SESSION` is only output when the (initial) log level is greater than 0.
+
 ## [2.0.1] -- 2024-09-08
 
 ### Changed
