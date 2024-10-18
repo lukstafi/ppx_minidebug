@@ -808,7 +808,7 @@ Summary of possibilities:
 }{- HTML browsers can handle really large files (less luck with Markdown).
 }}
 
-The log levels discussed in the previous section certainly reduce the amount generated, but they either help too little ([Nonempty_entries]) or they remove logs too indiscriminately ([Prefixed]) for use in a debugging context. Dynamically controlling the runtime log level is one option, but there are some other options.
+The log levels discussed in the previous section certainly reduce the amount generated, but they either help too little or they remove logs too indiscriminately for use in a debugging context. Dynamically controlling the runtime log level is one option, but there are some other options.
 
 In the PrintBox backend, you can disable the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space.
 The test suite example:
