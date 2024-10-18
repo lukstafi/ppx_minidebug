@@ -114,30 +114,31 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
           if for_append then open_out_gen [ Open_creat; Open_append ] 0o640 filename
           else open_out filename
 
-    let current_ch = ref @@ find_ch ()
+    let current_ch = lazy (ref @@ find_ch ())
+    let ( !! ) ch = !(Lazy.force_val ch)
 
     let refresh_ch () =
       match split_files_after with
       | None -> false
       | Some split_after ->
-          Stdlib.flush !current_ch;
-          Int64.to_int (Stdlib.LargeFile.out_channel_length !current_ch) > split_after
+          Stdlib.flush !!current_ch;
+          Int64.to_int (Stdlib.LargeFile.out_channel_length !!current_ch) > split_after
 
     let current_snapshot = ref 0
 
     let debug_ch () =
       if refresh_ch () then (
-        current_ch := find_ch ();
+        Lazy.force_val current_ch := find_ch ();
         current_snapshot := 0);
-      !current_ch
+      !!current_ch
 
     let debug_ch_name () = !current_ch_name
 
     let snapshot_ch () =
-      flush !current_ch;
-      current_snapshot := pos_out !current_ch
+      flush !!current_ch;
+      current_snapshot := pos_out !!current_ch
 
-    let reset_to_snapshot () = seek_out !current_ch !current_snapshot
+    let reset_to_snapshot () = seek_out !!current_ch !current_snapshot
 
     let table_of_contents_ch =
       if with_table_of_contents then
@@ -249,8 +250,6 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
   let log_level = ref init_log_level
   let max_nesting_depth = ref None
   let max_num_children = ref None
-  let debug_ch = ref @@ debug_ch ()
-  let debug_ch_name = ref @@ debug_ch_name ()
 
   type entry = {
     message : string;
@@ -268,14 +267,14 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
 
   let () =
     if !log_level > 0 then
+      let ch = debug_ch () in
       match Log_to.time_tagged with
-      | Not_tagged ->
-          Printf.fprintf !debug_ch "\nBEGIN DEBUG SESSION %s\n%!" global_prefix
+      | Not_tagged -> Printf.fprintf ch "\nBEGIN DEBUG SESSION %s\n%!" global_prefix
       | Clock ->
-          Printf.fprintf !debug_ch "\nBEGIN DEBUG SESSION %sat time %s\n%!" global_prefix
+          Printf.fprintf ch "\nBEGIN DEBUG SESSION %sat time %s\n%!" global_prefix
             (timestamp_to_string ())
       | Elapsed ->
-          Printf.fprintf !debug_ch
+          Printf.fprintf ch
             "\nBEGIN DEBUG SESSION %sat elapsed %s, corresponding to time %s\n%!"
             global_prefix
             (Format.asprintf "%a" pp_elapsed ())
@@ -291,6 +290,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         in
         failwith @@ "ppx_minidebug: close_log must follow an earlier open_log; " ^ log_loc
     | _, { message; elapsed; time_tag; entry_id = open_entry_id; _ } :: tl -> (
+        let ch = debug_ch () in
         let elapsed_on_close = time_elapsed () in
         stack := tl;
         (if open_entry_id <> entry_id then
@@ -304,21 +304,16 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
            failwith
            @@ "ppx_minidebug: lexical scope of close_log not matching its dynamic scope; "
            ^ log_loc);
-        Printf.fprintf !debug_ch "%s%!" (indent ());
+        Printf.fprintf ch "%s%!" (indent ());
         (match Log_to.time_tagged with
         | Not_tagged -> ()
-        | Clock -> Printf.fprintf !debug_ch "%s - %!" (timestamp_to_string ())
-        | Elapsed ->
-            Printf.fprintf !debug_ch "%s - %!" (Format.asprintf "%a" pp_elapsed ()));
+        | Clock -> Printf.fprintf ch "%s - %!" (timestamp_to_string ())
+        | Elapsed -> Printf.fprintf ch "%s - %!" (Format.asprintf "%a" pp_elapsed ()));
         time_span
           ~none:(fun () -> ())
-          ~some:(Printf.fprintf !debug_ch "%s %!")
-          ~elapsed ~elapsed_on_close elapsed_times;
-        Printf.fprintf !debug_ch "%s%s end\n%!" global_prefix message;
-        flush !debug_ch;
-        if !stack = [] then (
-          debug_ch := Log_to.debug_ch ();
-          debug_ch_name := Log_to.debug_ch_name ());
+          ~some:(Printf.fprintf ch "%s %!") ~elapsed ~elapsed_on_close elapsed_times;
+        Printf.fprintf ch "%s%s end\n%!" global_prefix message;
+        flush ch;
         (match (table_of_contents_ch, !depth_stack) with
         | None, _ | _, [] -> ()
         | Some toc_ch, (depth, size) :: _ ->
@@ -335,6 +330,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
   let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id
       ~log_level _track_or_explicit =
     if check_log_level log_level then (
+      let ch = debug_ch () in
       let message = opt_verbose_entry_id ~verbose_entry_ids ~entry_id ^ message in
       let time_tag =
         match Log_to.time_tagged with
@@ -342,7 +338,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         | Clock -> " " ^ timestamp_to_string ()
         | Elapsed -> Format.asprintf " %a" pp_elapsed ()
       in
-      Printf.fprintf !debug_ch "%s%s%s%s begin %!" (indent ()) global_prefix
+      Printf.fprintf ch "%s%s%s%s begin %!" (indent ()) global_prefix
         (opt_entry_id ~print_entry_ids ~entry_id)
         message;
       stack :=
@@ -350,19 +346,19 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         :: !stack;
       (match Log_to.location_format with
       | No_location -> ()
-      | File_only -> Printf.fprintf !debug_ch "\"%s\":%!" fname
-      | Beg_line -> Printf.fprintf !debug_ch "\"%s\":%d:%!" fname start_lnum
-      | Beg_pos ->
-          Printf.fprintf !debug_ch "\"%s\":%d:%d:%!" fname start_lnum start_colnum
-      | Range_line -> Printf.fprintf !debug_ch "\"%s\":%d-%d:%!" fname start_lnum end_lnum
+      | File_only -> Printf.fprintf ch "\"%s\":%!" fname
+      | Beg_line -> Printf.fprintf ch "\"%s\":%d:%!" fname start_lnum
+      | Beg_pos -> Printf.fprintf ch "\"%s\":%d:%d:%!" fname start_lnum start_colnum
+      | Range_line -> Printf.fprintf ch "\"%s\":%d-%d:%!" fname start_lnum end_lnum
       | Range_pos ->
-          Printf.fprintf !debug_ch "\"%s\":%d:%d-%d:%d:%!" fname start_lnum start_colnum
-            end_lnum end_colnum);
-      Printf.fprintf !debug_ch "%s\n%!" time_tag)
+          Printf.fprintf ch "\"%s\":%d:%d-%d:%d:%!" fname start_lnum start_colnum end_lnum
+            end_colnum);
+      Printf.fprintf ch "%s\n%!" time_tag)
     else hidden_entries := entry_id :: !hidden_entries
 
   let open_log_no_source ~message ~entry_id ~log_level _track_or_explicit =
     if check_log_level log_level then (
+      let ch = debug_ch () in
       let message = opt_verbose_entry_id ~verbose_entry_ids ~entry_id ^ message in
       let time_tag =
         match Log_to.time_tagged with
@@ -370,13 +366,13 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         | Clock -> " " ^ timestamp_to_string ()
         | Elapsed -> Format.asprintf " %a" pp_elapsed ()
       in
-      Printf.fprintf !debug_ch "%s%s%s%s begin %!" (indent ()) global_prefix
+      Printf.fprintf ch "%s%s%s%s begin %!" (indent ()) global_prefix
         (opt_entry_id ~print_entry_ids ~entry_id)
         message;
       stack :=
         { message; elapsed = time_elapsed (); time_tag; num_children = 0; entry_id }
         :: !stack;
-      Printf.fprintf !debug_ch "%s\n%!" time_tag)
+      Printf.fprintf ch "%s\n%!" time_tag)
     else hidden_entries := entry_id :: !hidden_entries
 
   let bump_stack_entry entry_id =
@@ -390,7 +386,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
     if check_log_level log_level then
       let orphaned = bump_stack_entry entry_id in
       let descr = match descr with None -> "" | Some d -> d ^ " = " in
-      Printf.fprintf !debug_ch "%s%s%s%s\n%!" (indent ()) orphaned descr
+      Printf.fprintf (debug_ch ()) "%s%s%s%s\n%!" (indent ()) orphaned descr
         (Sexplib0.Sexp.to_string_hum sexp)
 
   let log_value_pp ?descr ~entry_id ~log_level ~pp ~is_result:_ v =
@@ -402,20 +398,20 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
       pp formatter v;
       CFormat.pp_print_flush formatter ();
       let v_str = Buffer.contents buf in
-      Printf.fprintf !debug_ch "%s%s%s%s\n%!" (indent ()) orphaned descr v_str)
+      Printf.fprintf (debug_ch ()) "%s%s%s%s\n%!" (indent ()) orphaned descr v_str)
 
   let log_value_show ?descr ~entry_id ~log_level ~is_result:_ v =
     if check_log_level log_level then
       let orphaned = bump_stack_entry entry_id in
       let descr = match descr with None -> "" | Some d -> d ^ " = " in
-      Printf.fprintf !debug_ch "%s%s%s%s\n%!" (indent ()) orphaned descr v
+      Printf.fprintf (debug_ch ()) "%s%s%s%s\n%!" (indent ()) orphaned descr v
 
   let log_value_printbox ~entry_id ~log_level v =
     if check_log_level log_level then
       let orphaned = bump_stack_entry entry_id in
       let orphaned = if orphaned = "" then "" else " " ^ orphaned in
       let indent = indent () in
-      Printf.fprintf !debug_ch "%a%s\n%!"
+      Printf.fprintf (debug_ch ()) "%a%s\n%!"
         (PrintBox_text.output ?style:None ~indent:(String.length indent))
         v orphaned
 

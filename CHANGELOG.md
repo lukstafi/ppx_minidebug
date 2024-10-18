@@ -3,7 +3,9 @@
 ### Changed
 
 - `Shared_config` now has an `init_log_level` field, populated from the runtime creation functions' `~log_level` argument.
-- The header `BEGIN DEBUG SESSION` is only output when the (initial) log level is greater than 0.
+- A header `BEGIN DEBUG SESSION` is only output when the (initial) log level is greater than 0.
+- A debug file is opened (created) lazily, in particular not at initialization if the initial log level is 0.
+- We give up on only splitting the flushing backend files at toplevel log boundaries: now a log open and log close can be in different files.
 
 ## [2.0.1] -- 2024-09-08
 
