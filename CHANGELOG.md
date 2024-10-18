@@ -7,6 +7,10 @@
 - A debug file is opened (created) lazily, in particular not at initialization if the initial log level is 0.
 - We give up on only splitting the flushing backend files at toplevel log boundaries: now a log open and log close can be in different files.
 
+### Fixed
+
+- Outdated README comment: local debug runtimes are not restricted to functions.
+
 ## [2.0.1] -- 2024-09-08
 
 ### Changed

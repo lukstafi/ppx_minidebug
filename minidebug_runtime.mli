@@ -81,8 +81,10 @@ val shared_config :
     instead of a file name, will use [global_prefix] instead for the anchor links. The
     setting [toc_entry] controls the selection of headers to include in a ToC (it defaults
     to [And []], which means including all entries).
-    
-    [log_level], is provided, specifies {!Shared_config.init_log_level}.  *)
+
+    [log_level], by default 9, specifies {!Shared_config.init_log_level}. This is the
+    initial log level. In particular, the header "BEGIN DEBUG SESSION" is only printed if
+    (initial) [log_level > 0]. *)
 
 (** When using the
     {{:http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html}
