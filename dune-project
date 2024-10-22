@@ -9,7 +9,7 @@
 
 (authors "Lukasz Stafiniak")
 
-(maintainers "Lukasz Stafiniak")
+(maintainers "Lukasz Stafiniak <lukstafi@gmail.com>")
 
 (license "LGPL-2.1-or-later")
 
