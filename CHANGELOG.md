@@ -1,3 +1,9 @@
+## [2.1.0] -- current
+
+### Changed
+
+- `%log_level` unregistered extension is now setting the dynamic log level in addition to the lexical log level.
+
 ## [2.0.2] -- 2024-10-18
 
 ### Changed

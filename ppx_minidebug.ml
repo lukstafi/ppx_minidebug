@@ -1126,8 +1126,22 @@ let traverse_expression =
               PStr
                 [%str
                   [%e? level];
-                  [%e? body]] ) ->
-            callback { context with log_level = parse_log_level level } body
+                  [%e? body]] ) -> (
+            let log_level = parse_log_level level in
+            let new_context = { context with log_level } in
+            match (context.log_level, log_level) with
+            | Comptime c_ll, Comptime e_ll when c_ll = e_ll -> callback new_context body
+            | _ ->
+                [%expr
+                  let __old_log_level = !Debug_runtime.log_level in
+                  try
+                    Debug_runtime.log_level := [%e level];
+                    let __res = [%e callback new_context body] in
+                    Debug_runtime.log_level := __old_log_level;
+                    __res
+                  with e ->
+                    Debug_runtime.log_level := __old_log_level;
+                    raise e])
         | Pexp_extension
             ( { loc = _; txt = "at_log_level" },
               PStr
