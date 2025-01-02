@@ -542,6 +542,8 @@ let () = print_endline @@ Int.to_string @@ warning ()
 
 This will not emit logging code that is above the stated log level. Note that the compile-time pruning of logging happens independently of the runtime log level! This gives more flexibility but can lead to confusing situations.
 
+Currently [%log_level] adjusts the log level both in the lexical scope and the dynamic scope. These functionalities could in principle be separated.
+
 There's also a way to compile the code adaptively, using a shell environment variable: [[%%global_debug_log_level_from_env_var "environment_variable_name"]]. The variable name is case-sensitive, but the values should be integers.
 
 The generated code will check that the compile-time adaptive pruning matches the runtime value of the environment variable. If that's an obstacle, use [%%global_debug_log_level_from_env_var_unsafe] which will not perform the check. Using [%%global_debug_log_level_from_env_var_unsafe] is very prone to workflow bugs where different parts of a codebase are compiled with different log levels, leading to confusing behavior.

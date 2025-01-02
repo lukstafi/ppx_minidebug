@@ -1,8 +1,12 @@
-## [2.1.0] -- current
+## [2.0.3] -- 2025-01-02
 
 ### Changed
 
 - `%log_level` unregistered extension is now setting the dynamic log level in addition to the lexical log level.
+
+### Fixed
+
+- Bump printbox compatibility and dependency to 0.12.
 
 ## [2.0.2] -- 2024-10-18
 

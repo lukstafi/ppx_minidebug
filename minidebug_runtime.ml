@@ -585,7 +585,7 @@ module PrintBox (Log_to : Shared_config) = struct
       | B.Grid (bars, [| hl |]) -> B.grid ~bars:(bars = `Bars) [| Array.map loop hl |]
       | B.Tree (indent, h, ch) ->
           B.tree ~indent (loop h) @@ List.map loop @@ Array.to_list ch
-      | B.Grid _ | B.Link _ | B.Text _ -> B.frame b
+      | B.Grid _ | B.Link _ | B.Text _ | B.Ext _ -> B.frame b
     in
     if hl then loop b else b
 
@@ -734,7 +734,7 @@ module PrintBox (Log_to : Shared_config) = struct
         let uri = prefix ^ "#" ^ Int.to_string entry_id in
         let rec replace_link b =
           match B.view b with
-          | B.Frame b -> B.frame @@ replace_link b
+          | B.Frame { sub; stretch } -> B.frame ~stretch @@ replace_link sub
           | B.Pad ({ x; y }, b) -> B.pad' ~col:x ~lines:y @@ replace_link b
           | B.Align { h; v; inner } -> B.align ~h ~v @@ replace_link inner
           | B.Grid (bars, m) -> B.grid ~bars:(bars = `Bars) @@ B.map_matrix replace_link m
@@ -856,7 +856,8 @@ module PrintBox (Log_to : Shared_config) = struct
   let rec is_empty b =
     match B.view b with
     | B.Empty -> true
-    | B.Frame b | B.Pad (_, b) | B.Align { inner = b; _ } -> is_empty b
+    | B.Frame { sub = b; stretch = _ } | B.Pad (_, b) | B.Align { inner = b; _ } ->
+        is_empty b
     | B.Grid (_, [| [||] |]) -> true
     | _ -> false
 
@@ -1027,13 +1028,14 @@ module PrintBox (Log_to : Shared_config) = struct
       | B.Empty -> B.line opt_eid
       | B.Text { l = []; style } -> B.line_with_style style opt_eid
       | B.Text { l = s :: more; style } -> B.lines_with_style style ((opt_eid ^ s) :: more)
-      | B.Frame b -> B.frame @@ eid b
+      | B.Frame {sub;stretch} -> B.frame ~stretch @@ eid sub
       | B.Pad ({ x; y }, b) -> B.pad' ~col:x ~lines:y @@ eid b
       | B.Align { h; v; inner } -> B.align ~h ~v @@ eid inner
       | B.Grid _ -> B.hlist ~bars:false [ B.line opt_eid; b ]
       | B.Tree (indent, h, b) -> B.tree ~indent (eid h) @@ Array.to_list b
       | B.Link { uri; inner } -> B.link ~uri @@ eid inner
       | B.Anchor { id; inner } -> B.anchor ~id @@ eid inner
+      | B.Ext {key; ext} -> B.extension ~key ext
     in
     let b = if opt_eid = "" then b else eid b in
     match !stack with
