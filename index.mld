@@ -546,7 +546,7 @@ Currently [%log_level] adjusts the log level both in the lexical scope and the d
 
 There's also a way to compile the code adaptively, using a shell environment variable: [[%%global_debug_log_level_from_env_var "environment_variable_name"]]. The variable name is case-sensitive, but the values should be integers.
 
-The generated code will check that the compile-time adaptive pruning matches the runtime value of the environment variable. If that's an obstacle, use [%%global_debug_log_level_from_env_var_unsafe] which will not perform the check. Using [%%global_debug_log_level_from_env_var_unsafe] is very prone to workflow bugs where different parts of a codebase are compiled with different log levels, leading to confusing behavior.
+The generated code will check that the compile-time adaptive pruning matches the runtime value of the environment variable. If that's an obstacle, use [%%global_debug_log_level_from_env_var_unsafe] which will not perform the check. Using [%%global_debug_log_level_from_env_var_unsafe] can be prone to workflow bugs where different parts of a codebase are compiled with different log levels, leading to confusing behavior. In any case, I recommend adding a dependency on the environment variable to the [dune] file: for libraries, that would be [(preprocessor_deps (env_var environment_variable_name))].
 
 Another example from the test suite, notice how the log level of [%log1] overrides the parent log level of [%debug3_show]:
 
