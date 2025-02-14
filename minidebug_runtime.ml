@@ -448,6 +448,7 @@ module type PrintBox_runtime = sig
       [ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ];
     mutable boxify_sexp_from_size : int;
     mutable highlight_terms : Re.re option;
+    mutable highlight_diffs : bool;
     mutable exclude_on_path : Re.re option;
     mutable prune_upto : int;
     mutable truncate_children : int;
@@ -475,6 +476,187 @@ let anchor_entry_id ~is_pure_text ~entry_id =
     let anchor = B.anchor ~id B.empty in
     if is_pure_text then B.hlist ~bars:false [ anchor; B.line " " ] else anchor
 
+type PrintBox.ext += Lazy_box of PrintBox.t Lazy.t
+
+let lbox lb = PrintBox.extension ~key:"lazy" (Lazy_box lb)
+
+let text_handler ~style = function
+  | Lazy_box (lazy lb) -> PrintBox_text.to_string_with ~style lb
+  | _ -> assert false
+
+let md_handler config = function
+  | Lazy_box (lazy lb) -> PrintBox_md.to_string config lb
+  | _ -> assert false
+
+let html_handler config = function
+  | Lazy_box (lazy lb) ->
+      (PrintBox_html.to_html ~config lb :> PrintBox_html.toplevel_html)
+  | _ -> assert false
+
+let () =
+  PrintBox_text.register_extension ~key:"Lazy" text_handler;
+  PrintBox_md.register_extension ~key:"Lazy" md_handler;
+  PrintBox_html.register_extension ~key:"Lazy" html_handler
+
+module PrevRun = struct
+  type edit_type = Match | Insert | Delete | Change
+
+  type edit_info = {
+    edit_type : edit_type;
+    (* prev_index : int option;  *)
+    (* Index in prev_run where match/change occurred *)
+    curr_index : int; (* Index in current run where edit occurred *)
+  }
+
+  (* The dynamic programming state *)
+  type dp_state = {
+    prev_run : string array; (* Previous run messages *)
+    new_run : string Dynarray.t; (* Current run messages *)
+    mutable dp_table : (int * int * int) array array; (* (edit_dist, prev_i, new_i) *)
+    mutable last_computed_row : int; (* Last computed row in dp table *)
+    mutable last_computed_col : int; (* Last computed column in dp table *)
+    mutable optimal_edits : edit_info list; (* Optimal edit sequence so far *)
+  }
+
+  let state = ref None
+
+  let init_run ?prev_file curr_file =
+    let prev_run =
+      match prev_file with
+      | None -> [||]
+      | Some f -> (
+          try
+            let ic = open_in f in
+            let entries = Marshal.from_channel ic in
+            close_in ic;
+            Array.of_list entries
+          with _ -> [||])
+    in
+    let dp_rows = Array.length prev_run in
+    let dp_cols =
+      1000
+      (* Initial size, will grow as needed *)
+    in
+    let dp_table = Array.make_matrix dp_rows dp_cols (max_int, -1, -1) in
+    state :=
+      Some
+        {
+          prev_run;
+          new_run = Dynarray.create ();
+          dp_table;
+          last_computed_row = -1;
+          last_computed_col = -1;
+          optimal_edits = [];
+        };
+    at_exit (fun () ->
+        match !state with
+        | None -> ()
+        | Some s ->
+            let oc = open_out (curr_file ^ ".raw") in
+            Marshal.to_channel oc (Dynarray.to_list s.new_run) [];
+            close_out oc)
+
+  let extend_dp_table state =
+    let old_cols = Array.length state.dp_table.(0) in
+    let new_cols = old_cols * 2 in
+    let new_table =
+      Array.make_matrix (Array.length state.prev_run) new_cols (max_int, -1, -1)
+    in
+    Array.iteri (fun i row -> Array.blit row 0 new_table.(i) 0 old_cols) state.dp_table;
+    state.dp_table <- new_table;
+    ()
+
+  let compute_dp_cell state i j msg =
+    if j >= Array.length state.dp_table.(0) then extend_dp_table state;
+    let prev_msg = state.prev_run.(i) in
+    let match_cost = if prev_msg = msg then 0 else 1 in
+    let del_cost = 1 and ins_cost = 1 in
+
+    (* Get costs from previous cells *)
+    let above =
+      if i > 0 then
+        let c, _, _ = state.dp_table.(i - 1).(j) in
+        c
+      else max_int
+    in
+    let left =
+      if j > 0 then
+        let c, _, _ = state.dp_table.(i).(j - 1) in
+        c
+      else max_int
+    in
+    let diag =
+      if i > 0 && j > 0 then
+        let c, _, _ = state.dp_table.(i - 1).(j - 1) in
+        c
+      else max_int
+    in
+
+    (* Compute minimum cost operation *)
+    let min_cost, prev_i, prev_j =
+      let costs =
+        [
+          (above + del_cost, i - 1, j);
+          (left + ins_cost, i, j - 1);
+          (diag + match_cost, i - 1, j - 1);
+        ]
+      in
+      List.fold_left
+        (fun (mc, pi, pj) (c, i', j') -> if c < mc then (c, i', j') else (mc, pi, pj))
+        (max_int, -1, -1) costs
+    in
+    state.dp_table.(i).(j) <- (min_cost, prev_i, prev_j)
+
+  let update_optimal_edits state row col =
+    (* Backtrack through dp table to find optimal edit sequence *)
+    let rec backtrack i j acc =
+      if i < 0 || j < 0 then acc
+      else
+        let _, prev_i, prev_j = state.dp_table.(i).(j) in
+        let edit =
+          if prev_i = i - 1 && prev_j = j - 1 then
+            if state.prev_run.(i) = Dynarray.get state.new_run j then
+              { edit_type = Match; (* prev_index = Some i; *) curr_index = j }
+            else { edit_type = Change; (* prev_index = Some i; *) curr_index = j }
+          else if prev_i = i - 1 then
+            { edit_type = Delete; (* prev_index = Some i; *) curr_index = j }
+          else { edit_type = Insert; (* prev_index = None; *) curr_index = j }
+        in
+        backtrack prev_i prev_j (edit :: acc)
+    in
+    state.optimal_edits <- backtrack row col []
+
+  let compute_dp_upto state row col =
+    for i = state.last_computed_row + 1 to row do
+      for j = 0 to col do
+        compute_dp_cell state i j (Dynarray.get state.new_run j)
+      done
+    done;
+    for i = 0 to state.last_computed_row do
+      for j = state.last_computed_col + 1 to col do
+        compute_dp_cell state i j (Dynarray.get state.new_run j)
+      done
+    done;
+    state.last_computed_row <- max state.last_computed_row row;
+    state.last_computed_col <- max state.last_computed_col col;
+    update_optimal_edits state row col
+
+  let check_diff msg =
+    match !state with
+    | None -> fun () -> false
+    | Some state ->
+        let msg_idx = Dynarray.length state.new_run in
+        Dynarray.add_last state.new_run msg;
+        fun () ->
+          let row = Array.length state.prev_run - 1 in
+          compute_dp_upto state row msg_idx;
+          (* Find the edit for current message in optimal edit sequence *)
+          not
+            (List.exists
+               (fun edit -> edit.curr_index = msg_idx && edit.edit_type = Match)
+               state.optimal_edits)
+end
+
 module PrintBox (Log_to : Shared_config) = struct
   open Log_to
 
@@ -490,6 +672,7 @@ module PrintBox (Log_to : Shared_config) = struct
       [ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ];
     mutable boxify_sexp_from_size : int;
     mutable highlight_terms : Re.re option;
+    mutable highlight_diffs : bool;
     mutable exclude_on_path : Re.re option;
     mutable prune_upto : int;
     mutable truncate_children : int;
@@ -510,6 +693,7 @@ module PrintBox (Log_to : Shared_config) = struct
       backend = `Text;
       boxify_sexp_from_size = -1;
       highlight_terms = None;
+      highlight_diffs = false;
       prune_upto = 0;
       truncate_children = 0;
       exclude_on_path = None;
@@ -523,10 +707,12 @@ module PrintBox (Log_to : Shared_config) = struct
       flame_graph_separation = 40;
     }
 
+  type highlight = { pattern_match : bool; diff_check : unit -> bool }
+
   type subentry = {
     result_id : int;
     is_result : bool;
-    highlighted : bool;
+    highlighted : highlight;
     elapsed_start : Mtime.span;
     elapsed_end : Mtime.span;
     subtree : B.t;
@@ -537,7 +723,7 @@ module PrintBox (Log_to : Shared_config) = struct
   type entry = {
     no_debug_if : bool;
     track_or_explicit : [ `Diagn | `Debug | `Track ];
-    highlight : bool;
+    highlight : highlight;
     exclude : bool;
     elapsed : Mtime.span;
     time_tag : string;
@@ -565,8 +751,8 @@ module PrintBox (Log_to : Shared_config) = struct
         match time_tagged with
         | Not_tagged -> CFormat.asprintf "@.BEGIN DEBUG SESSION %s@." global_prefix
         | Clock ->
-            CFormat.asprintf "@.BEGIN DEBUG SESSION %sat time %a@." global_prefix
-              pp_timestamp ()
+            CFormat.asprintf "@.BEGIN DEBUG SESSION %sat time %s\n%!" global_prefix
+              (timestamp_to_string ())
         | Elapsed ->
             CFormat.asprintf
               "@.BEGIN DEBUG SESSION %sat elapsed %a, corresponding to time %a@."
@@ -587,7 +773,15 @@ module PrintBox (Log_to : Shared_config) = struct
           B.tree ~indent (loop h) @@ List.map loop @@ Array.to_list ch
       | B.Grid _ | B.Link _ | B.Text _ | B.Ext _ -> B.frame b
     in
-    if hl then loop b else b
+    if hl.pattern_match then loop b
+    else if not config.highlight_diffs then b
+    else lbox (lazy (if hl.diff_check () then loop b else b))
+
+  let hl_or hl1 hl2 =
+    {
+      pattern_match = hl1.pattern_match || hl2.pattern_match;
+      diff_check = (fun () -> hl1.diff_check () || hl2.diff_check ());
+    }
 
   let unpack ~f l =
     let f sub acc =
@@ -602,6 +796,12 @@ module PrintBox (Log_to : Shared_config) = struct
           else unpack (truncate - 1) (f sub acc) tl
     in
     unpack (config.truncate_children - 1) [] l
+
+  let hl_oneof highlighted =
+    {
+      pattern_match = List.exists (fun hl -> hl.pattern_match) highlighted;
+      diff_check = (fun () -> List.exists (fun hl -> hl.diff_check ()) highlighted);
+    }
 
   let stack_to_tree ~elapsed_on_close
       {
@@ -672,7 +872,9 @@ module PrintBox (Log_to : Shared_config) = struct
             (fun { result_id; is_result; _ } -> is_result && result_id = entry_id)
             body
       in
-      let results_hl = List.exists (fun { highlighted; _ } -> highlighted) results in
+      let results_hl =
+        hl_oneof @@ List.map (fun { highlighted; _ } -> highlighted) results
+      in
       let results = unpack ~f:(fun { subtree; _ } -> subtree) results
       and body = unpack ~f:(fun { subtree; _ } -> subtree) body in
       match results with
@@ -924,12 +1126,15 @@ module PrintBox (Log_to : Shared_config) = struct
         failwith @@ "ppx_minidebug: close_log must follow an earlier open_log; " ^ log_loc
     | _ -> ());
     (* Note: we treat a tree under a box as part of that box. *)
+    (* TODO: factor out logic shared with stack_next. *)
     stack :=
       (* Design choice: exclude does not apply to its own entry -- it's about propagating
          children. *)
       match !stack with
       | { no_debug_if = true; _ } :: bs -> bs
-      | { highlight = false; _ } :: bs when config.prune_upto >= List.length !stack -> bs
+      | { highlight; _ } :: bs
+        when (not highlight.pattern_match) && config.prune_upto >= List.length !stack ->
+          bs
       | { body = []; track_or_explicit = `Diagn; _ } :: bs -> bs
       | { body; track_or_explicit = `Diagn; _ } :: bs
         when List.for_all (fun e -> e.is_result) body ->
@@ -972,7 +1177,7 @@ module PrintBox (Log_to : Shared_config) = struct
           {
             no_debug_if;
             track_or_explicit;
-            highlight = highlight || ((not exclude) && hl);
+            highlight = (if exclude then highlight else hl_or highlight hl);
             exclude;
             uri;
             path;
@@ -1028,14 +1233,14 @@ module PrintBox (Log_to : Shared_config) = struct
       | B.Empty -> B.line opt_eid
       | B.Text { l = []; style } -> B.line_with_style style opt_eid
       | B.Text { l = s :: more; style } -> B.lines_with_style style ((opt_eid ^ s) :: more)
-      | B.Frame {sub;stretch} -> B.frame ~stretch @@ eid sub
+      | B.Frame { sub; stretch } -> B.frame ~stretch @@ eid sub
       | B.Pad ({ x; y }, b) -> B.pad' ~col:x ~lines:y @@ eid b
       | B.Align { h; v; inner } -> B.align ~h ~v @@ eid inner
       | B.Grid _ -> B.hlist ~bars:false [ B.line opt_eid; b ]
       | B.Tree (indent, h, b) -> B.tree ~indent (eid h) @@ Array.to_list b
       | B.Link { uri; inner } -> B.link ~uri @@ eid inner
       | B.Anchor { id; inner } -> B.anchor ~id @@ eid inner
-      | B.Ext {key; ext} -> B.extension ~key ext
+      | B.Ext { key; ext } -> B.extension ~key ext
     in
     let b = if opt_eid = "" then b else eid b in
     match !stack with
@@ -1043,7 +1248,7 @@ module PrintBox (Log_to : Shared_config) = struct
         stack :=
           {
             entry with
-            highlight = highlight || ((not exclude) && hl);
+            highlight = (if exclude then highlight else hl_or highlight hl);
             body =
               {
                 result_id = entry_id;
@@ -1096,6 +1301,12 @@ module PrintBox (Log_to : Shared_config) = struct
           ];
         close_log ~fname:"orphaned" ~start_lnum:entry_id ~entry_id:(-1)
 
+  let get_highlight message =
+    let diff_check = PrevRun.check_diff message in
+    match config.highlight_terms with
+    | None -> { pattern_match = false; diff_check }
+    | Some r -> { pattern_match = Re.execp r message; diff_check }
+
   let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id
       ~log_level track_or_explicit =
     if check_log_level log_level then
@@ -1123,7 +1334,7 @@ module PrintBox (Log_to : Shared_config) = struct
               end_colnum
       in
       let time_tag =
-        match time_tagged with
+        match Log_to.time_tagged with
         | Not_tagged -> ""
         | Clock -> Format.asprintf " at time %a" pp_timestamp ()
         | Elapsed -> Format.asprintf " at elapsed %a" pp_elapsed ()
@@ -1132,9 +1343,7 @@ module PrintBox (Log_to : Shared_config) = struct
       let exclude =
         match config.exclude_on_path with Some r -> Re.execp r message | None -> false
       in
-      let highlight =
-        match config.highlight_terms with Some r -> Re.execp r message | None -> false
-      in
+      let highlight = get_highlight message in
       let entry_message = global_prefix ^ message in
       stack :=
         {
@@ -1159,7 +1368,7 @@ module PrintBox (Log_to : Shared_config) = struct
   let open_log_no_source ~message ~entry_id ~log_level track_or_explicit =
     if check_log_level log_level then
       let time_tag =
-        match time_tagged with
+        match Log_to.time_tagged with
         | Not_tagged -> ""
         | Clock -> Format.asprintf " at time %a" pp_timestamp ()
         | Elapsed -> Format.asprintf " at elapsed %a" pp_elapsed ()
@@ -1167,9 +1376,7 @@ module PrintBox (Log_to : Shared_config) = struct
       let exclude =
         match config.exclude_on_path with Some r -> Re.execp r message | None -> false
       in
-      let highlight =
-        match config.highlight_terms with Some r -> Re.execp r message | None -> false
-      in
+      let highlight = get_highlight message in
       let entry_message = global_prefix ^ message in
       stack :=
         {
@@ -1199,21 +1406,28 @@ module PrintBox (Log_to : Shared_config) = struct
     in
     loop sexp
 
-  let highlight_box ?(hl_body = false) b =
+  let highlight_box ?hl_body b =
     (* Recall the design choice: [exclude] does not apply to its own entry. Therefore, an
        entry "propagates its highlight". *)
-    let hl =
-      match (config.exclude_on_path, config.highlight_terms, hl_body) with
-      | None, None, _ | Some _, None, false -> false
-      | Some e, hl_terms, true -> (
-          let message = PrintBox_text.to_string_with ~style:false b in
-          let excl = Re.execp e message in
-          (not excl) || match hl_terms with None -> false | Some r -> Re.execp r message)
-      | None, Some _, true -> true
-      | _, Some r, false ->
-          let message = PrintBox_text.to_string_with ~style:false b in
-          Re.execp r message
+    let message = PrintBox_text.to_string_with ~style:false b in
+    let hl_body =
+      match config.exclude_on_path with
+      | None -> hl_body
+      | Some r -> if Re.execp r message then None else hl_body
     in
+    let diff_check =
+      if config.highlight_diffs then PrevRun.check_diff message else fun () -> false
+    in
+    let hl_header =
+      {
+        pattern_match =
+          (match config.highlight_terms with
+          | None -> false
+          | Some r -> Re.execp r message);
+        diff_check;
+      }
+    in
+    let hl = Option.value ~default:hl_header (Option.map (hl_or hl_header) hl_body) in
     (hl, apply_highlight hl b)
 
   let pp_sexp ppf = function
@@ -1229,11 +1443,11 @@ module PrintBox (Log_to : Shared_config) = struct
       else
         match sexp with
         | Atom s -> highlight_box @@ B.text_with_style B.Style.preformatted s
-        | List [] -> (false, B.empty)
+        | List [] -> ({ pattern_match = false; diff_check = (fun () -> false) }, B.empty)
         | List [ s ] -> loop s
         | List (Atom s :: l) ->
             let hl_body, bs = List.split @@ List.map loop l in
-            let hl_body = List.exists (fun x -> x) hl_body in
+            let hl_body = hl_oneof hl_body in
             let hl, b =
               (* Design choice: Don't render headers of multiline values as monospace, to
                  emphasize them. *)
@@ -1243,7 +1457,7 @@ module PrintBox (Log_to : Shared_config) = struct
             (hl, B.tree b bs)
         | List l ->
             let hls, bs = List.split @@ List.map loop l in
-            (List.exists (fun x -> x) hls, B.vlist ~bars:false bs)
+            (hl_oneof hls, B.vlist ~bars:false bs)
     in
     match (sexp, descr) with
     | (Atom s | List [ Atom s ]), Some d ->
@@ -1251,7 +1465,7 @@ module PrintBox (Log_to : Shared_config) = struct
     | (Atom s | List [ Atom s ]), None ->
         highlight_box @@ B.text_with_style B.Style.preformatted s
     | List [], Some d -> highlight_box @@ B.line d
-    | List [], None -> (false, B.empty)
+    | List [], None -> ({ pattern_match = false; diff_check = (fun () -> false) }, B.empty)
     | List l, _ ->
         let str =
           if sexp_size sexp < min config.boxify_sexp_from_size config.max_inline_sexp_size
@@ -1337,12 +1551,13 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
     ?(for_append = false) ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80)
     ?backend ?hyperlink ?toc_specific_hyperlink ?(values_first_mode = true)
-    ?(log_level = 9) ?snapshot_every_sec filename : (module PrintBox_runtime) =
+    ?(log_level = 9) ?snapshot_every_sec ?prev_run_file filename_stem :
+    (module PrintBox_runtime) =
   let filename =
     match backend with
-    | None | Some (`Markdown _) -> filename ^ ".md"
-    | Some (`Html _) -> filename ^ ".html"
-    | Some `Text -> filename ^ ".log"
+    | None | Some (`Markdown _) -> filename_stem ^ ".md"
+    | Some (`Html _) -> filename_stem ^ ".html"
+    | Some `Text -> filename_stem ^ ".log"
   in
   let with_table_of_contents = toc_flame_graph || with_toc_listing in
   let module Debug =
@@ -1354,6 +1569,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
   Debug.config.max_inline_sexp_length <- max_inline_sexp_length;
   Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
+  Debug.config.highlight_diffs <- Option.is_some prev_run_file;
   Debug.config.prune_upto <- prune_upto;
   Debug.config.truncate_children <- truncate_children;
   Debug.config.exclude_on_path <- Option.map Re.compile exclude_on_path;
@@ -1369,6 +1585,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
       "Minidebug_runtime.debug_file: flame graphs are not supported in the Text backend";
   Debug.config.toc_flame_graph <- toc_flame_graph;
   Debug.config.flame_graph_separation <- flame_graph_separation;
+  PrevRun.init_run ?prev_file:prev_run_file filename_stem;
   (module Debug)
 
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)

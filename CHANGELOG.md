@@ -1,3 +1,9 @@
+## [2.1.0] -- 2025-02-06
+
+### Added
+
+- New feature: highlight differences between runs.
+
 ## [2.0.3] -- 2025-01-02
 
 ### Changed

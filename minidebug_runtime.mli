@@ -202,11 +202,14 @@ module type PrintBox_runtime = sig
     mutable highlight_terms : Re.re option;
         (** Uses a highlight style for logs on paths ending with a log matching the
             regular expression. *)
+    mutable highlight_diffs : bool;
+        (** If true, highlights differences between the current run and the previous run
+            loaded from [prev_run_file]. *)
     mutable exclude_on_path : Re.re option;
         (** Does not propagate the highlight status from child logs through log headers
             matching the given regular expression. *)
     mutable prune_upto : int;
-        (** At depths lower than [prune_upto] (or equal if counting from 1) only ouptputs
+        (** At depths lower than [prune_upto] (or equal if counting from 1) only outputs
             highlighted boxes. This makes it simpler to trim excessive logging while still
             providing some context. Defaults to [0] -- no pruning. *)
     mutable truncate_children : int;
@@ -279,6 +282,7 @@ val debug_file :
   ?values_first_mode:bool ->
   ?log_level:int ->
   ?snapshot_every_sec:float ->
+  ?prev_run_file:string ->
   string ->
   (module PrintBox_runtime)
 (** Creates a PrintBox-based debug runtime configured to output html or markdown to a file
@@ -290,6 +294,9 @@ val debug_file :
     additional log file, the given name suffixed with ["-toc"] and the corresponding file
     name extension. This file will collect selected entries, hyperlinking to anchors in
     the main logging file(s).
+
+    If [prev_run_file] is provided, differences between the current run and the previous run
+    will be highlighted in the output.
 
     By default [backend] is [`Markdown PrintBox.default_md_config]. See
     {!type:PrintBox.config} for details about PrintBox-specific parameters. See
