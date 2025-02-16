@@ -508,19 +508,16 @@ module PrevRun = struct
 
   type chunk = {
     messages : string array;
-    chunk_id : int;
   }
 
   (* The dynamic programming state *)
   type dp_state = {
     mutable prev_chunk : chunk option;  (* Previous run's current chunk *)
     curr_chunk : string Dynarray.t;  (* Current chunk being built *)
-    mutable curr_chunk_id : int;  (* ID of the current chunk *)
     mutable dp_table : (int * int * int) array array;  (* (edit_dist, prev_i, new_i) *)
     mutable last_computed_row : int;  (* Last computed row in dp table *)
     mutable last_computed_col : int;  (* Last computed column in dp table *)
     mutable optimal_edits : edit_info list;  (* Optimal edit sequence so far *)
-    prev_file : string option;  (* File containing previous run's chunks *)
     prev_ic : in_channel option;  (* Channel for reading previous chunks *)
     curr_oc : out_channel;  (* Channel for writing current chunks *)
   }
@@ -531,8 +528,8 @@ module PrevRun = struct
     try Some (Marshal.from_channel ic : chunk)
     with End_of_file -> None
 
-  let save_chunk oc chunk_id messages =
-    let chunk = { messages = Array.of_seq (Dynarray.to_seq messages); chunk_id } in
+  let save_chunk oc messages =
+    let chunk = { messages = Array.of_seq (Dynarray.to_seq messages) } in
     Marshal.to_channel oc chunk [];
     flush oc
 
@@ -546,12 +543,10 @@ module PrevRun = struct
     state := Some {
       prev_chunk;
       curr_chunk = Dynarray.create ();
-      curr_chunk_id = 0;
       dp_table;
       last_computed_row = -1;
       last_computed_col = -1;
       optimal_edits = [];
-      prev_file;
       prev_ic;
       curr_oc;
     };
@@ -560,7 +555,7 @@ module PrevRun = struct
       | None -> ()
       | Some s ->
           if Dynarray.length s.curr_chunk > 0 then
-            save_chunk s.curr_oc s.curr_chunk_id s.curr_chunk;
+            save_chunk s.curr_oc s.curr_chunk;
           Option.iter close_in s.prev_ic;
           close_out s.curr_oc)
 
@@ -647,8 +642,7 @@ module PrevRun = struct
 
   let end_chunk state =
     if Dynarray.length state.curr_chunk > 0 then (
-      save_chunk state.curr_oc state.curr_chunk_id state.curr_chunk;
-      state.curr_chunk_id <- state.curr_chunk_id + 1;
+      save_chunk state.curr_oc state.curr_chunk;
       Dynarray.clear state.curr_chunk;
       state.prev_chunk <- Option.bind state.prev_ic load_next_chunk;
       let dp_rows = match state.prev_chunk with None -> 0 | Some c -> Array.length c.messages in
@@ -1112,6 +1106,7 @@ module PrintBox (Log_to : Shared_config) = struct
       pop_snapshot ();
       output_box ~for_toc:false ch box;
       if not from_snapshot then snapshot_ch ();
+      PrevRun.signal_chunk_end ();
       match table_of_contents_ch with
       | None -> ()
       | Some toc_ch ->
