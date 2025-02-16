@@ -503,72 +503,78 @@ module PrevRun = struct
 
   type edit_info = {
     edit_type : edit_type;
-    (* prev_index : int option;  *)
-    (* Index in prev_run where match/change occurred *)
     curr_index : int; (* Index in current run where edit occurred *)
+  }
+
+  type chunk = {
+    messages : string array;
+    chunk_id : int;
   }
 
   (* The dynamic programming state *)
   type dp_state = {
-    prev_run : string array; (* Previous run messages *)
-    new_run : string Dynarray.t; (* Current run messages *)
-    mutable dp_table : (int * int * int) array array; (* (edit_dist, prev_i, new_i) *)
-    mutable last_computed_row : int; (* Last computed row in dp table *)
-    mutable last_computed_col : int; (* Last computed column in dp table *)
-    mutable optimal_edits : edit_info list; (* Optimal edit sequence so far *)
+    mutable prev_chunk : chunk option;  (* Previous run's current chunk *)
+    curr_chunk : string Dynarray.t;  (* Current chunk being built *)
+    mutable curr_chunk_id : int;  (* ID of the current chunk *)
+    mutable dp_table : (int * int * int) array array;  (* (edit_dist, prev_i, new_i) *)
+    mutable last_computed_row : int;  (* Last computed row in dp table *)
+    mutable last_computed_col : int;  (* Last computed column in dp table *)
+    mutable optimal_edits : edit_info list;  (* Optimal edit sequence so far *)
+    prev_file : string option;  (* File containing previous run's chunks *)
+    prev_ic : in_channel option;  (* Channel for reading previous chunks *)
+    curr_oc : out_channel;  (* Channel for writing current chunks *)
   }
 
   let state = ref None
 
+  let load_next_chunk ic =
+    try Some (Marshal.from_channel ic : chunk)
+    with End_of_file -> None
+
+  let save_chunk oc chunk_id messages =
+    let chunk = { messages = Array.of_seq (Dynarray.to_seq messages); chunk_id } in
+    Marshal.to_channel oc chunk [];
+    flush oc
+
   let init_run ?prev_file curr_file =
-    let prev_run =
-      match prev_file with
-      | None -> [||]
-      | Some f -> (
-          try
-            let ic = open_in f in
-            let entries = Marshal.from_channel ic in
-            close_in ic;
-            Array.of_list entries
-          with _ -> [||])
-    in
-    let dp_rows = Array.length prev_run in
-    let dp_cols =
-      1000
-      (* Initial size, will grow as needed *)
-    in
+    let prev_ic = Option.map open_in prev_file in
+    let prev_chunk = Option.bind prev_ic load_next_chunk in
+    let dp_rows = match prev_chunk with None -> 0 | Some c -> Array.length c.messages in
+    let dp_cols = 1000 (* Initial size, will grow as needed *) in
     let dp_table = Array.make_matrix dp_rows dp_cols (max_int, -1, -1) in
-    state :=
-      Some
-        {
-          prev_run;
-          new_run = Dynarray.create ();
-          dp_table;
-          last_computed_row = -1;
-          last_computed_col = -1;
-          optimal_edits = [];
-        };
+    let curr_oc = open_out (curr_file ^ ".raw") in
+    state := Some {
+      prev_chunk;
+      curr_chunk = Dynarray.create ();
+      curr_chunk_id = 0;
+      dp_table;
+      last_computed_row = -1;
+      last_computed_col = -1;
+      optimal_edits = [];
+      prev_file;
+      prev_ic;
+      curr_oc;
+    };
     at_exit (fun () ->
-        match !state with
-        | None -> ()
-        | Some s ->
-            let oc = open_out (curr_file ^ ".raw") in
-            Marshal.to_channel oc (Dynarray.to_list s.new_run) [];
-            close_out oc)
+      match !state with
+      | None -> ()
+      | Some s ->
+          if Dynarray.length s.curr_chunk > 0 then
+            save_chunk s.curr_oc s.curr_chunk_id s.curr_chunk;
+          Option.iter close_in s.prev_ic;
+          close_out s.curr_oc)
 
   let extend_dp_table state =
     let old_cols = Array.length state.dp_table.(0) in
     let new_cols = old_cols * 2 in
-    let new_table =
-      Array.make_matrix (Array.length state.prev_run) new_cols (max_int, -1, -1)
-    in
+    let new_table = Array.make_matrix (Array.length state.dp_table) new_cols (max_int, -1, -1) in
     Array.iteri (fun i row -> Array.blit row 0 new_table.(i) 0 old_cols) state.dp_table;
     state.dp_table <- new_table;
     ()
 
   let compute_dp_cell state i j msg =
     if j >= Array.length state.dp_table.(0) then extend_dp_table state;
-    let prev_msg = state.prev_run.(i) in
+    let prev_msg = (Option.get state.prev_chunk).messages.(i) in
     let match_cost = if prev_msg = msg then 0 else 1 in
     let del_cost = 1 and ins_cost = 1 in
 
@@ -594,13 +600,11 @@ module PrevRun = struct
 
     (* Compute minimum cost operation *)
     let min_cost, prev_i, prev_j =
-      let costs =
-        [
-          (above + del_cost, i - 1, j);
-          (left + ins_cost, i, j - 1);
-          (diag + match_cost, i - 1, j - 1);
-        ]
-      in
+      let costs = [
+        (above + del_cost, i - 1, j);
+        (left + ins_cost, i, j - 1);
+        (diag + match_cost, i - 1, j - 1);
+      ] in
       List.fold_left
         (fun (mc, pi, pj) (c, i', j') -> if c < mc then (c, i', j') else (mc, pi, pj))
         (max_int, -1, -1) costs
@@ -615,12 +619,12 @@ module PrevRun = struct
         let _, prev_i, prev_j = state.dp_table.(i).(j) in
         let edit =
           if prev_i = i - 1 && prev_j = j - 1 then
-            if state.prev_run.(i) = Dynarray.get state.new_run j then
-              { edit_type = Match; (* prev_index = Some i; *) curr_index = j }
-            else { edit_type = Change; (* prev_index = Some i; *) curr_index = j }
+            if (Option.get state.prev_chunk).messages.(i) = Dynarray.get state.curr_chunk j then
+              { edit_type = Match; curr_index = j }
+            else { edit_type = Change; curr_index = j }
           else if prev_i = i - 1 then
-            { edit_type = Delete; (* prev_index = Some i; *) curr_index = j }
-          else { edit_type = Insert; (* prev_index = None; *) curr_index = j }
+            { edit_type = Delete; curr_index = j }
+          else { edit_type = Insert; curr_index = j }
         in
         backtrack prev_i prev_j (edit :: acc)
     in
@@ -629,32 +633,53 @@ module PrevRun = struct
   let compute_dp_upto state row col =
     for i = state.last_computed_row + 1 to row do
       for j = 0 to col do
-        compute_dp_cell state i j (Dynarray.get state.new_run j)
+        compute_dp_cell state i j (Dynarray.get state.curr_chunk j)
       done
     done;
     for i = 0 to state.last_computed_row do
       for j = state.last_computed_col + 1 to col do
-        compute_dp_cell state i j (Dynarray.get state.new_run j)
+        compute_dp_cell state i j (Dynarray.get state.curr_chunk j)
       done
     done;
     state.last_computed_row <- max state.last_computed_row row;
     state.last_computed_col <- max state.last_computed_col col;
     update_optimal_edits state row col
 
+  let end_chunk state =
+    if Dynarray.length state.curr_chunk > 0 then (
+      save_chunk state.curr_oc state.curr_chunk_id state.curr_chunk;
+      state.curr_chunk_id <- state.curr_chunk_id + 1;
+      Dynarray.clear state.curr_chunk;
+      state.prev_chunk <- Option.bind state.prev_ic load_next_chunk;
+      let dp_rows = match state.prev_chunk with None -> 0 | Some c -> Array.length c.messages in
+      let dp_cols = 1000 in
+      state.dp_table <- Array.make_matrix dp_rows dp_cols (max_int, -1, -1);
+      state.last_computed_row <- -1;
+      state.last_computed_col <- -1;
+      state.optimal_edits <- []
+    )
+
   let check_diff msg =
     match !state with
     | None -> fun () -> false
     | Some state ->
-        let msg_idx = Dynarray.length state.new_run in
-        Dynarray.add_last state.new_run msg;
+        let msg_idx = Dynarray.length state.curr_chunk in
+        Dynarray.add_last state.curr_chunk msg;
         fun () ->
-          let row = Array.length state.prev_run - 1 in
-          compute_dp_upto state row msg_idx;
-          (* Find the edit for current message in optimal edit sequence *)
-          not
-            (List.exists
-               (fun edit -> edit.curr_index = msg_idx && edit.edit_type = Match)
-               state.optimal_edits)
+          match state.prev_chunk with
+          | None -> true
+          | Some chunk ->
+              let row = Array.length chunk.messages - 1 in
+              compute_dp_upto state row msg_idx;
+              (* Find the edit for current message in optimal edit sequence *)
+              not (List.exists
+                (fun edit -> edit.curr_index = msg_idx && edit.edit_type = Match)
+                state.optimal_edits)
+
+  let signal_chunk_end () =
+    match !state with
+    | None -> ()
+    | Some state -> end_chunk state
 end
 
 module PrintBox (Log_to : Shared_config) = struct
