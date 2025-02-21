@@ -6,6 +6,7 @@
   - [ppx_minidebug: Debug logs for selected functions and let-bindings](#ppx_minidebug-debug-logs-for-selected-functions-and-let-bindings)
     - [Traces in HTML or Markdown as collapsible trees](#traces-in-html-or-markdown-as-collapsible-trees)
     - [Highlighting search terms](#highlighting-search-terms)
+    - [Highlighting differences between runs](#highlighting-differences-between-runs)
     - [PrintBox creating helpers with defaults: debug and debug_file](#printbox-creating-helpers-with-defaults-debug-and-debug_file)
     - [Hyperlinks to source locations](#hyperlinks-to-source-locations)
     - [values_first_mode](#values_first_mode)
@@ -116,6 +117,18 @@ regular expression. For example:
 To limit the highlight noise, some log entries can be excluded from propagating the highlight status
 using the `exclude_on_path` setting. To trim excessive logging while still providing some context,
 you can set `prune_upto` to a level greater than 0, which only outputs highlighted boxes below that level.
+
+### Highlighting differences between runs
+
+The `PrintBox` runtime can highlight differences between the current run and a previous run's logs. This is useful for understanding how program behavior changes between executions. To enable this feature, provide the `prev_run_file` argument when creating the runtime:
+
+```ocaml
+module Debug_runtime = (val Minidebug_runtime.debug_file ~prev_run_file:"previous_run.log" "debug")
+```
+
+The highlighting of differences works independently from (and can be combined with) search term highlighting. The runtime will highlight entries that do not have a corresponding entry in the previous run: currently, deletions (previous run entries missing in the current run) do not affect the highlighting.
+
+Note that the comparison is performed at the chunk level, where each chunk is a complete toplevel log tree. The log trees must match exactly: insertions and deletions of toplevel log trees are not supported. This limitation helps keep the comparison efficient but means you might have to coarsen the granularity of the log trees to get useful differences.
 
 ### `PrintBox` creating helpers with defaults: `debug` and `debug_file`
 
