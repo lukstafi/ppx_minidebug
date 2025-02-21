@@ -336,3 +336,32 @@
  (libraries minidebug_runtime str)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show ppx_sexp_conv ppx_expect)))
+
+(executable
+ (name test_debug_diffs)
+ (modules test_debug_diffs)
+ (libraries sexplib0 minidebug_runtime)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_sexp_conv)))
+
+(rule
+ (targets debugger_diffs_run1.raw debugger_diffs_run1.log)
+ (action
+  (run %{dep:test_debug_diffs.exe} run1)))
+
+(rule
+ (target debugger_diffs_run2.log)
+ (deps debugger_diffs_run1.raw)
+ (action
+  (run %{dep:test_debug_diffs.exe} run2)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_diffs_run1.expected.log debugger_diffs_run1.log)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_diffs_run2.expected.log debugger_diffs_run2.log)))

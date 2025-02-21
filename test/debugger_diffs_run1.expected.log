@@ -1,0 +1,14 @@
+
+BEGIN DEBUG SESSION 
+foo =
+├─"test/test_debug_diffs.ml":8:21
+├─<returns>
+│ ├─7
+│ ├─8
+│ ├─9
+│ └─18
+├─x = 7
+├─y = 8
+│ └─"test/test_debug_diffs.ml":9:8
+└─z = 9
+  └─"test/test_debug_diffs.ml":10:8

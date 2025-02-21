@@ -438,33 +438,6 @@ end
 let default_html_config = PrintBox_html.Config.(tree_summary true default)
 let default_md_config = PrintBox_md.Config.(foldable_trees default)
 
-module type PrintBox_runtime = sig
-  include Debug_runtime
-
-  type config = {
-    mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
-    mutable toc_specific_hyperlink : string option;
-    mutable backend :
-      [ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ];
-    mutable boxify_sexp_from_size : int;
-    mutable highlight_terms : Re.re option;
-    mutable highlight_diffs : bool;
-    mutable exclude_on_path : Re.re option;
-    mutable prune_upto : int;
-    mutable truncate_children : int;
-    mutable values_first_mode : bool;
-    mutable max_inline_sexp_size : int;
-    mutable max_inline_sexp_length : int;
-    mutable snapshot_every_sec : float option;
-    mutable sexp_unescape_strings : bool;
-    mutable with_toc_listing : bool;
-    mutable toc_flame_graph : bool;
-    mutable flame_graph_separation : int;
-  }
-
-  val config : config
-end
-
 let anchor_entry_id ~is_pure_text ~entry_id =
   if entry_id = -1 || is_pure_text then B.empty
   else
@@ -494,9 +467,9 @@ let html_handler config = function
   | _ -> assert false
 
 let () =
-  PrintBox_text.register_extension ~key:"Lazy" text_handler;
-  PrintBox_md.register_extension ~key:"Lazy" md_handler;
-  PrintBox_html.register_extension ~key:"Lazy" html_handler
+  PrintBox_text.register_extension ~key:"lazy" text_handler;
+  PrintBox_md.register_extension ~key:"lazy" md_handler;
+  PrintBox_html.register_extension ~key:"lazy" html_handler
 
 module PrevRun = struct
   type edit_type = Match | Insert | Delete | Change
@@ -506,63 +479,60 @@ module PrevRun = struct
     curr_index : int; (* Index in current run where edit occurred *)
   }
 
-  type chunk = {
-    messages : string array;
-  }
+  type chunk = { messages : string array }
 
   (* The dynamic programming state *)
   type dp_state = {
-    mutable prev_chunk : chunk option;  (* Previous run's current chunk *)
-    curr_chunk : string Dynarray.t;  (* Current chunk being built *)
-    mutable dp_table : (int * int * int) array array;  (* (edit_dist, prev_i, new_i) *)
-    mutable last_computed_row : int;  (* Last computed row in dp table *)
-    mutable last_computed_col : int;  (* Last computed column in dp table *)
-    mutable optimal_edits : edit_info list;  (* Optimal edit sequence so far *)
-    prev_ic : in_channel option;  (* Channel for reading previous chunks *)
-    curr_oc : out_channel;  (* Channel for writing current chunks *)
+    mutable prev_chunk : chunk option; (* Previous run's current chunk *)
+    curr_chunk : string Dynarray.t; (* Current chunk being built *)
+    mutable dp_table : (int * int * int) array array; (* (edit_dist, prev_i, new_i) *)
+    mutable last_computed_row : int; (* Last computed row in dp table *)
+    mutable last_computed_col : int; (* Last computed column in dp table *)
+    mutable optimal_edits : edit_info list; (* Optimal edit sequence so far *)
+    prev_ic : in_channel option; (* Channel for reading previous chunks *)
+    curr_oc : out_channel; (* Channel for writing current chunks *)
   }
-
-  let state = ref None
-
-  let load_next_chunk ic =
-    try Some (Marshal.from_channel ic : chunk)
-    with End_of_file -> None
 
   let save_chunk oc messages =
     let chunk = { messages = Array.of_seq (Dynarray.to_seq messages) } in
     Marshal.to_channel oc chunk [];
     flush oc
 
+  let load_next_chunk ic =
+    try 
+      let chunk = (Marshal.from_channel ic : chunk) in
+      Some chunk
+    with End_of_file -> 
+      None
+
   let init_run ?prev_file curr_file =
     let prev_ic = Option.map open_in prev_file in
     let prev_chunk = Option.bind prev_ic load_next_chunk in
     let dp_rows = match prev_chunk with None -> 0 | Some c -> Array.length c.messages in
-    let dp_cols = 1000 (* Initial size, will grow as needed *) in
+    let dp_cols =
+      1000
+      (* Initial size, will grow as needed *)
+    in
     let dp_table = Array.make_matrix dp_rows dp_cols (max_int, -1, -1) in
-    let curr_oc = open_out (curr_file ^ ".raw") in
-    state := Some {
-      prev_chunk;
-      curr_chunk = Dynarray.create ();
-      dp_table;
-      last_computed_row = -1;
-      last_computed_col = -1;
-      optimal_edits = [];
-      prev_ic;
-      curr_oc;
-    };
-    at_exit (fun () ->
-      match !state with
-      | None -> ()
-      | Some s ->
-          if Dynarray.length s.curr_chunk > 0 then
-            save_chunk s.curr_oc s.curr_chunk;
-          Option.iter close_in s.prev_ic;
-          close_out s.curr_oc)
+    let curr_oc = open_out_bin (curr_file ^ ".raw") in
+    Some
+      {
+        prev_chunk;
+        curr_chunk = Dynarray.create ();
+        dp_table;
+        last_computed_row = -1;
+        last_computed_col = -1;
+        optimal_edits = [];
+        prev_ic;
+        curr_oc;
+      }
 
   let extend_dp_table state =
     let old_cols = Array.length state.dp_table.(0) in
     let new_cols = old_cols * 2 in
-    let new_table = Array.make_matrix (Array.length state.dp_table) new_cols (max_int, -1, -1) in
+    let new_table =
+      Array.make_matrix (Array.length state.dp_table) new_cols (max_int, -1, -1)
+    in
     Array.iteri (fun i row -> Array.blit row 0 new_table.(i) 0 old_cols) state.dp_table;
     state.dp_table <- new_table;
     ()
@@ -595,11 +565,13 @@ module PrevRun = struct
 
     (* Compute minimum cost operation *)
     let min_cost, prev_i, prev_j =
-      let costs = [
-        (above + del_cost, i - 1, j);
-        (left + ins_cost, i, j - 1);
-        (diag + match_cost, i - 1, j - 1);
-      ] in
+      let costs =
+        [
+          (above + del_cost, i - 1, j);
+          (left + ins_cost, i, j - 1);
+          (diag + match_cost, i - 1, j - 1);
+        ]
+      in
       List.fold_left
         (fun (mc, pi, pj) (c, i', j') -> if c < mc then (c, i', j') else (mc, pi, pj))
         (max_int, -1, -1) costs
@@ -614,11 +586,11 @@ module PrevRun = struct
         let _, prev_i, prev_j = state.dp_table.(i).(j) in
         let edit =
           if prev_i = i - 1 && prev_j = j - 1 then
-            if (Option.get state.prev_chunk).messages.(i) = Dynarray.get state.curr_chunk j then
-              { edit_type = Match; curr_index = j }
+            if
+              (Option.get state.prev_chunk).messages.(i) = Dynarray.get state.curr_chunk j
+            then { edit_type = Match; curr_index = j }
             else { edit_type = Change; curr_index = j }
-          else if prev_i = i - 1 then
-            { edit_type = Delete; curr_index = j }
+          else if prev_i = i - 1 then { edit_type = Delete; curr_index = j }
           else { edit_type = Insert; curr_index = j }
         in
         backtrack prev_i prev_j (edit :: acc)
@@ -640,40 +612,65 @@ module PrevRun = struct
     state.last_computed_col <- max state.last_computed_col col;
     update_optimal_edits state row col
 
-  let end_chunk state =
+  let check_diff state msg =
+    let msg_idx = Dynarray.length state.curr_chunk in
+    Dynarray.add_last state.curr_chunk msg;
+    match state.prev_chunk with
+    | None -> 
+        fun () -> true
+    | Some chunk ->
+        let row = Array.length chunk.messages - 1 in
+        compute_dp_upto state row msg_idx;
+        fun () ->
+          (* Find the edit for current message in optimal edit sequence *)
+          let has_match = List.exists
+            (fun edit -> 
+              edit.curr_index = msg_idx && edit.edit_type = Match)
+            state.optimal_edits in
+          not has_match
+
+  let signal_chunk_end state =
     if Dynarray.length state.curr_chunk > 0 then (
       save_chunk state.curr_oc state.curr_chunk;
       Dynarray.clear state.curr_chunk;
       state.prev_chunk <- Option.bind state.prev_ic load_next_chunk;
-      let dp_rows = match state.prev_chunk with None -> 0 | Some c -> Array.length c.messages in
+      let dp_rows = match state.prev_chunk with 
+        | None -> 0 
+        | Some c -> Array.length c.messages in
       let dp_cols = 1000 in
       state.dp_table <- Array.make_matrix dp_rows dp_cols (max_int, -1, -1);
       state.last_computed_row <- -1;
       state.last_computed_col <- -1;
       state.optimal_edits <- []
     )
+end
 
-  let check_diff msg =
-    match !state with
-    | None -> fun () -> false
-    | Some state ->
-        let msg_idx = Dynarray.length state.curr_chunk in
-        Dynarray.add_last state.curr_chunk msg;
-        fun () ->
-          match state.prev_chunk with
-          | None -> true
-          | Some chunk ->
-              let row = Array.length chunk.messages - 1 in
-              compute_dp_upto state row msg_idx;
-              (* Find the edit for current message in optimal edit sequence *)
-              not (List.exists
-                (fun edit -> edit.curr_index = msg_idx && edit.edit_type = Match)
-                state.optimal_edits)
+module type PrintBox_runtime = sig
+  include Debug_runtime
 
-  let signal_chunk_end () =
-    match !state with
-    | None -> ()
-    | Some state -> end_chunk state
+  type config = {
+    mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
+    mutable toc_specific_hyperlink : string option;
+    mutable backend :
+      [ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ];
+    mutable boxify_sexp_from_size : int;
+    mutable highlight_terms : Re.re option;
+    mutable highlight_diffs : bool;
+    mutable exclude_on_path : Re.re option;
+    mutable prune_upto : int;
+    mutable truncate_children : int;
+    mutable values_first_mode : bool;
+    mutable max_inline_sexp_size : int;
+    mutable max_inline_sexp_length : int;
+    mutable snapshot_every_sec : float option;
+    mutable sexp_unescape_strings : bool;
+    mutable with_toc_listing : bool;
+    mutable toc_flame_graph : bool;
+    mutable flame_graph_separation : int;
+    mutable prev_run_state : PrevRun.dp_state option;
+  }
+
+  val config : config
 end
 
 module PrintBox (Log_to : Shared_config) = struct
@@ -703,6 +700,7 @@ module PrintBox (Log_to : Shared_config) = struct
     mutable with_toc_listing : bool;
     mutable toc_flame_graph : bool;
     mutable flame_graph_separation : int;
+    mutable prev_run_state : PrevRun.dp_state option;
   }
 
   let config =
@@ -724,6 +722,7 @@ module PrintBox (Log_to : Shared_config) = struct
       toc_flame_graph = false;
       with_toc_listing = false;
       flame_graph_separation = 40;
+      prev_run_state = None;
     }
 
   type highlight = { pattern_match : bool; diff_check : unit -> bool }
@@ -1106,7 +1105,7 @@ module PrintBox (Log_to : Shared_config) = struct
       pop_snapshot ();
       output_box ~for_toc:false ch box;
       if not from_snapshot then snapshot_ch ();
-      PrevRun.signal_chunk_end ();
+      Option.iter PrevRun.signal_chunk_end config.prev_run_state;
       match table_of_contents_ch with
       | None -> ()
       | Some toc_ch ->
@@ -1322,14 +1321,18 @@ module PrintBox (Log_to : Shared_config) = struct
         close_log ~fname:"orphaned" ~start_lnum:entry_id ~entry_id:(-1)
 
   let get_highlight message =
-    let diff_check = PrevRun.check_diff message in
+    let diff_check =
+      match config.prev_run_state with
+      | None -> fun () -> false
+      | Some state -> PrevRun.check_diff state message
+    in
     match config.highlight_terms with
     | None -> { pattern_match = false; diff_check }
     | Some r -> { pattern_match = Re.execp r message; diff_check }
 
   let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id
       ~log_level track_or_explicit =
-    if check_log_level log_level then
+    if check_log_level log_level then (
       let elapsed = time_elapsed () in
       let uri =
         match config.hyperlink with
@@ -1382,11 +1385,11 @@ module PrintBox (Log_to : Shared_config) = struct
           toc_depth = 0;
           size = 1;
         }
-        :: !stack
+        :: !stack)
     else hidden_entries := entry_id :: !hidden_entries
 
   let open_log_no_source ~message ~entry_id ~log_level track_or_explicit =
-    if check_log_level log_level then
+    if check_log_level log_level then (
       let time_tag =
         match Log_to.time_tagged with
         | Not_tagged -> ""
@@ -1415,7 +1418,7 @@ module PrintBox (Log_to : Shared_config) = struct
           toc_depth = 0;
           size = 1;
         }
-        :: !stack
+        :: !stack)
     else hidden_entries := entry_id :: !hidden_entries
 
   let sexp_size sexp =
@@ -1436,7 +1439,9 @@ module PrintBox (Log_to : Shared_config) = struct
       | Some r -> if Re.execp r message then None else hl_body
     in
     let diff_check =
-      if config.highlight_diffs then PrevRun.check_diff message else fun () -> false
+      match config.prev_run_state with
+      | None -> fun () -> false
+      | Some state -> PrevRun.check_diff state message
     in
     let hl_header =
       {
@@ -1605,7 +1610,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
       "Minidebug_runtime.debug_file: flame graphs are not supported in the Text backend";
   Debug.config.toc_flame_graph <- toc_flame_graph;
   Debug.config.flame_graph_separation <- flame_graph_separation;
-  PrevRun.init_run ?prev_file:prev_run_file filename_stem;
+  Debug.config.prev_run_state <- PrevRun.init_run ?prev_file:prev_run_file filename_stem;
   (module Debug)
 
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
