@@ -684,7 +684,7 @@ module type PrintBox_runtime = sig
     mutable with_toc_listing : bool;
     mutable toc_flame_graph : bool;
     mutable flame_graph_separation : int;
-    mutable prev_run_state : PrevRun.dp_state option;
+    mutable prev_run_file : string option;
   }
 
   val config : config
@@ -696,6 +696,7 @@ module PrintBox (Log_to : Shared_config) = struct
   let log_level = ref init_log_level
   let max_nesting_depth = ref None
   let max_num_children = ref None
+  let prev_run_state = ref None
   let check_log_level level = level <= !log_level
 
   type config = {
@@ -717,7 +718,7 @@ module PrintBox (Log_to : Shared_config) = struct
     mutable with_toc_listing : bool;
     mutable toc_flame_graph : bool;
     mutable flame_graph_separation : int;
-    mutable prev_run_state : PrevRun.dp_state option;
+    mutable prev_run_file : string option;
   }
 
   let config =
@@ -739,7 +740,7 @@ module PrintBox (Log_to : Shared_config) = struct
       toc_flame_graph = false;
       with_toc_listing = false;
       flame_graph_separation = 40;
-      prev_run_state = None;
+      prev_run_file = None;
     }
 
   type highlight = { pattern_match : bool; diff_check : unit -> bool }
@@ -1122,7 +1123,7 @@ module PrintBox (Log_to : Shared_config) = struct
       pop_snapshot ();
       output_box ~for_toc:false ch box;
       if not from_snapshot then snapshot_ch ();
-      Option.iter PrevRun.signal_chunk_end config.prev_run_state;
+      Option.iter PrevRun.signal_chunk_end !prev_run_state;
       match table_of_contents_ch with
       | None -> ()
       | Some toc_ch ->
@@ -1339,7 +1340,7 @@ module PrintBox (Log_to : Shared_config) = struct
 
   let get_highlight message =
     let diff_check =
-      match config.prev_run_state with
+      match !prev_run_state with
       | None -> fun () -> false
       | Some state -> PrevRun.check_diff state message
     in
@@ -1456,7 +1457,7 @@ module PrintBox (Log_to : Shared_config) = struct
       | Some r -> if Re.execp r message then None else hl_body
     in
     let diff_check =
-      match config.prev_run_state with
+      match !prev_run_state with
       | None -> fun () -> false
       | Some state -> PrevRun.check_diff state message
     in
@@ -1627,8 +1628,8 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
       "Minidebug_runtime.debug_file: flame graphs are not supported in the Text backend";
   Debug.config.toc_flame_graph <- toc_flame_graph;
   Debug.config.flame_graph_separation <- flame_graph_separation;
-  Debug.config.prev_run_state <-
-    PrevRun.init_run ?prev_file:prev_run_file ?normalize_pattern filename_stem;
+  Debug.config.prev_run_file <- prev_run_file;
+  Debug.prev_run_state := PrevRun.init_run ?prev_file:prev_run_file ?normalize_pattern filename_stem;
   (module Debug)
 
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)

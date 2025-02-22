@@ -20,35 +20,6 @@ type toc_entry_criteria =
   | And of toc_entry_criteria list
   | Or of toc_entry_criteria list
 
-module PrevRun : sig
-  type edit_type = Match | Insert | Delete | Change
-
-  type edit_info = {
-    edit_type : edit_type;
-    curr_index : int; (* Index in current run where edit occurred *)
-  }
-
-  type chunk = { messages : string array }
-
-  type dp_state = {
-    mutable prev_chunk : chunk option; (* Previous run's current chunk *)
-    curr_chunk : string Dynarray.t; (* Current chunk being built *)
-    mutable dp_table : (int * int * int) array array; (* (edit_dist, prev_i, new_i) *)
-    mutable last_computed_row : int; (* Last computed row in dp table *)
-    mutable last_computed_col : int; (* Last computed column in dp table *)
-    mutable optimal_edits : edit_info list; (* Optimal edit sequence so far *)
-    prev_ic : in_channel option; (* Channel for reading previous chunks *)
-    curr_oc : out_channel; (* Channel for writing current chunks *)
-    normalize_pattern : Re.re option; (* Pattern to normalize messages before comparison *)
-  }
-
-  val init_run :
-    ?prev_file:string -> ?normalize_pattern:Re.re -> string -> dp_state option
-
-  val check_diff : dp_state -> string -> unit -> bool
-  val signal_chunk_end : dp_state -> unit
-end
-
 module type Shared_config = sig
   val refresh_ch : unit -> bool
   val debug_ch : unit -> out_channel
@@ -208,24 +179,77 @@ module type PrintBox_runtime = sig
 
   type config = {
     mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
+        (** If [hyperlink] is [`Prefix prefix], code pointers are rendered as hyperlinks.
+            When [prefix] is either empty, starts with a dot, or starts with ["http:"] or
+            ["https:"], the link address has the form [sprintf "%s#L%d" fname start_lnum],
+            allowing browsing in HTML directly. Otherwise, it has the form
+            [sprintf "%s:%d:%d" fname start_lnum (start_colnum + 1)], intended for
+            editor-specific prefixes such as ["vscode://file/"].
+
+            Note that rendering a link on a node will make the node non-foldable,
+            therefore it is best to combine [`Prefix prefix] with
+            [values_first_mode=true]. *)
     mutable toc_specific_hyperlink : string option;
+        (** If provided, overrides [hyperlink] as the prefix used for generating URIs
+            pointing to anchors in logs. *)
     mutable backend :
       [ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ];
+        (** If the content is [`Text], logs are generated as monospaced text; for other
+            settings as html or markdown. *)
     mutable boxify_sexp_from_size : int;
+        (** If positive, [Sexp.t]-based logs with this many or more atoms are converted to
+            print-boxes before logging. Disabled by default (i.e. negative). *)
     mutable highlight_terms : Re.re option;
+        (** Uses a highlight style for logs on paths ending with a log matching the
+            regular expression. *)
     mutable highlight_diffs : bool;
+        (** If true, highlights differences between the current run and the previous run
+            loaded from [prev_run_file]. *)
     mutable exclude_on_path : Re.re option;
+        (** Does not propagate the highlight status from child logs through log headers
+            matching the given regular expression. *)
     mutable prune_upto : int;
+        (** At depths lower than [prune_upto] (or equal if counting from 1) only outputs
+            highlighted boxes. This makes it simpler to trim excessive logging while still
+            providing some context. Defaults to [0] -- no pruning. *)
     mutable truncate_children : int;
+        (** If > 0, only the given number of the most recent children is kept at each
+            node. Defaults to [0] -- keep all (no pruning). *)
     mutable values_first_mode : bool;
+        (** If set to true, does not put the source code location of a computation as a
+            header of its subtree. Rather, puts the result of the computation as the
+            header of a computation subtree, if rendered as a single line -- or just the
+            name, and puts the result near the top. If false, puts the result at the end
+            of the computation subtree, i.e. preserves the order of the computation. *)
     mutable max_inline_sexp_size : int;
+        (** Maximal size (in atoms) up to which a sexp value can be inlined during
+            "boxification". *)
     mutable max_inline_sexp_length : int;
+        (** Maximal length (in characters/bytes) up to which a sexp value can be inlined
+            during "boxification". *)
     mutable snapshot_every_sec : float option;
+        (** If given, output a snapshot of the pending logs when at least the given time
+            (in seconds) has passed since the previous output. This is only checked at
+            calls to log values. *)
     mutable sexp_unescape_strings : bool;
+        (** If true, when a value is a sexp atom or is decomposed into a sexp atom by
+            boxification, it is not printed as a sexp, but the string of the atom is
+            printed directly. Defaults to [true]. *)
     mutable with_toc_listing : bool;
+        (** If true, outputs non-collapsed trees of ToC entries in the Table of Contents
+            files. *)
     mutable toc_flame_graph : bool;
+        (** If true, outputs a minimalistic rendering of a flame graph in the Table of
+            Contents files, with boxes positioned to reflect both the ToC entries
+            hierarchy and elapsed times for the opening and closing of entries. Not
+            supported in the [`Text] backend. *)
     mutable flame_graph_separation : int;
-    mutable prev_run_state : PrevRun.dp_state option;
+        (** How many pixels a single box, for a log header, is expected to take in a flame
+            graph. Defaults to [40]. Note: ideally the height of a flame tree should be
+            calculated automatically, then this setting would disappear. *)
+    mutable prev_run_file : string option;
+        (** If provided, enables highlighting differences between the current run and the
+            previous run loaded from this file. *)
   }
 
   val config : config
