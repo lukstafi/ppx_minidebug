@@ -4,6 +4,7 @@
 {ul {- {{: #ppx_minidebug-debug-logs-for-selected-functions-and-let-bindings} ppx_minidebug: Debug logs for selected functions and let-bindings}
 {ul {- {{: #traces-in-html-or-markdown-as-collapsible-trees} Traces in HTML or Markdown as collapsible trees}
 }{- {{: #highlighting-search-terms} Highlighting search terms}
+}{- {{: #highlighting-differences-between-runs} Highlighting differences between runs}
 }{- {{: #printbox-creating-helpers-with-defaults-debug-and-debug_file} PrintBox creating helpers with defaults: debug and debug_file}
 }{- {{: #hyperlinks-to-source-locations} Hyperlinks to source locations}
 }{- {{: #values_first_mode} values_first_mode}
@@ -118,6 +119,18 @@ regular expression. For example:
 To limit the highlight noise, some log entries can be excluded from propagating the highlight status
 using the [exclude_on_path] setting. To trim excessive logging while still providing some context,
 you can set [prune_upto] to a level greater than 0, which only outputs highlighted boxes below that level.
+
+{2 Highlighting differences between runs}
+
+The [PrintBox] runtime can highlight differences between the current run and a previous run's logs. This is useful for understanding how program behavior changes between executions. To enable this feature, provide the [prev_run_file] argument when creating the runtime:
+
+{@ocaml[
+module Debug_runtime = (val Minidebug_runtime.debug_file ~prev_run_file:"previous_run.log" "debug")
+]}
+
+The highlighting of differences works independently from (and can be combined with) search term highlighting. The runtime will highlight entries that do not have a corresponding entry in the previous run: currently, deletions (previous run entries missing in the current run) do not affect the highlighting.
+
+Note that the comparison is performed at the chunk level, where each chunk is a complete toplevel log tree. The log trees must match exactly: insertions and deletions of toplevel log trees are not supported. This limitation helps keep the comparison efficient but means you might have to coarsen the granularity of the log trees to get useful differences.
 
 {2 [PrintBox] creating helpers with defaults: [debug] and [debug_file]}
 

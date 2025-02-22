@@ -491,6 +491,7 @@ module PrevRun = struct
     mutable optimal_edits : edit_info list; (* Optimal edit sequence so far *)
     prev_ic : in_channel option; (* Channel for reading previous chunks *)
     curr_oc : out_channel; (* Channel for writing current chunks *)
+    normalize_pattern : Re.re option; (* Pattern to normalize messages before comparison *)
   }
 
   let save_chunk oc messages =
@@ -499,13 +500,16 @@ module PrevRun = struct
     flush oc
 
   let load_next_chunk ic =
-    try 
+    try
       let chunk = (Marshal.from_channel ic : chunk) in
       Some chunk
-    with End_of_file -> 
-      None
+    with End_of_file -> None
 
-  let init_run ?prev_file curr_file =
+  let del_cost = 2
+  let ins_cost = 2
+  let change_cost = 3
+
+  let init_run ?prev_file ?normalize_pattern curr_file =
     let prev_ic = Option.map open_in prev_file in
     let prev_chunk = Option.bind prev_ic load_next_chunk in
     let dp_rows = match prev_chunk with None -> 0 | Some c -> Array.length c.messages in
@@ -525,7 +529,11 @@ module PrevRun = struct
         optimal_edits = [];
         prev_ic;
         curr_oc;
+        normalize_pattern;
       }
+
+  let normalize_message pattern msg =
+    match pattern with None -> msg | Some re -> Re.replace_string re ~by:"" msg
 
   let extend_dp_table state =
     let old_cols = Array.length state.dp_table.(0) in
@@ -540,40 +548,40 @@ module PrevRun = struct
   let compute_dp_cell state i j msg =
     if j >= Array.length state.dp_table.(0) then extend_dp_table state;
     let prev_msg = (Option.get state.prev_chunk).messages.(i) in
-    let match_cost = if prev_msg = msg then 0 else 1 in
-    let del_cost = 1 and ins_cost = 1 in
+    let normalized_prev = normalize_message state.normalize_pattern prev_msg in
+    let normalized_curr = normalize_message state.normalize_pattern msg in
+    let match_cost = if normalized_prev = normalized_curr then 0 else change_cost in
+    (* Get costs from previous cells, being careful about overflow *)
+    let safe_add a b =
+      if a = max_int || b = max_int then max_int
+      else if a > max_int - b then max_int
+      else a + b
+    in
 
-    (* Get costs from previous cells *)
     let above =
       if i > 0 then
         let c, _, _ = state.dp_table.(i - 1).(j) in
-        c
-      else max_int
+        safe_add c del_cost
+      else (j * ins_cost) + del_cost
     in
     let left =
       if j > 0 then
         let c, _, _ = state.dp_table.(i).(j - 1) in
-        c
-      else max_int
+        safe_add c ins_cost
+      else (i * del_cost) + ins_cost
     in
     let diag =
       if i > 0 && j > 0 then
         let c, _, _ = state.dp_table.(i - 1).(j - 1) in
-        c
-      else max_int
+        safe_add c match_cost
+      else match_cost + (i * del_cost) + (j * ins_cost)
     in
 
     (* Compute minimum cost operation *)
     let min_cost, prev_i, prev_j =
-      let costs =
-        [
-          (above + del_cost, i - 1, j);
-          (left + ins_cost, i, j - 1);
-          (diag + match_cost, i - 1, j - 1);
-        ]
-      in
+      let costs = [ (above, i - 1, j); (left, i, j - 1); (diag, i - 1, j - 1) ] in
       List.fold_left
-        (fun (mc, pi, pj) (c, i', j') -> if c < mc then (c, i', j') else (mc, pi, pj))
+        (fun (mc, pi, pj) (c, i', j') -> if c <= mc then (c, i', j') else (mc, pi, pj))
         (max_int, -1, -1) costs
     in
     state.dp_table.(i).(j) <- (min_cost, prev_i, prev_j)
@@ -581,13 +589,22 @@ module PrevRun = struct
   let update_optimal_edits state row col =
     (* Backtrack through dp table to find optimal edit sequence *)
     let rec backtrack i j acc =
-      if i < 0 || j < 0 then acc
+      if i < 0 && j < 0 then acc
+      else if i < 0 then
+        let edit = { edit_type = Insert; curr_index = j } in
+        backtrack i (j - 1) (edit :: acc)
+      else if j < 0 then
+        let edit = { edit_type = Delete; curr_index = i } in
+        backtrack (i - 1) j (edit :: acc)
       else
-        let _, prev_i, prev_j = state.dp_table.(i).(j) in
+        let _cost, prev_i, prev_j = state.dp_table.(i).(j) in
         let edit =
           if prev_i = i - 1 && prev_j = j - 1 then
             if
-              (Option.get state.prev_chunk).messages.(i) = Dynarray.get state.curr_chunk j
+              normalize_message state.normalize_pattern
+                (Option.get state.prev_chunk).messages.(i)
+              = normalize_message state.normalize_pattern
+                  (Dynarray.get state.curr_chunk j)
             then { edit_type = Match; curr_index = j }
             else { edit_type = Change; curr_index = j }
           else if prev_i = i - 1 then { edit_type = Delete; curr_index = j }
@@ -595,7 +612,8 @@ module PrevRun = struct
         in
         backtrack prev_i prev_j (edit :: acc)
     in
-    state.optimal_edits <- backtrack row col []
+    let edits = backtrack row col [] in
+    state.optimal_edits <- edits
 
   let compute_dp_upto state row col =
     for i = state.last_computed_row + 1 to row do
@@ -616,17 +634,17 @@ module PrevRun = struct
     let msg_idx = Dynarray.length state.curr_chunk in
     Dynarray.add_last state.curr_chunk msg;
     match state.prev_chunk with
-    | None -> 
-        fun () -> true
+    | None -> fun () -> true
     | Some chunk ->
         let row = Array.length chunk.messages - 1 in
         compute_dp_upto state row msg_idx;
         fun () ->
           (* Find the edit for current message in optimal edit sequence *)
-          let has_match = List.exists
-            (fun edit -> 
-              edit.curr_index = msg_idx && edit.edit_type = Match)
-            state.optimal_edits in
+          let has_match =
+            List.exists
+              (fun edit -> edit.curr_index = msg_idx && edit.edit_type = Match)
+              state.optimal_edits
+          in
           not has_match
 
   let signal_chunk_end state =
@@ -634,15 +652,14 @@ module PrevRun = struct
       save_chunk state.curr_oc state.curr_chunk;
       Dynarray.clear state.curr_chunk;
       state.prev_chunk <- Option.bind state.prev_ic load_next_chunk;
-      let dp_rows = match state.prev_chunk with 
-        | None -> 0 
-        | Some c -> Array.length c.messages in
+      let dp_rows =
+        match state.prev_chunk with None -> 0 | Some c -> Array.length c.messages
+      in
       let dp_cols = 1000 in
       state.dp_table <- Array.make_matrix dp_rows dp_cols (max_int, -1, -1);
       state.last_computed_row <- -1;
       state.last_computed_col <- -1;
-      state.optimal_edits <- []
-    )
+      state.optimal_edits <- [])
 end
 
 module type PrintBox_runtime = sig
@@ -1332,7 +1349,7 @@ module PrintBox (Log_to : Shared_config) = struct
 
   let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id
       ~log_level track_or_explicit =
-    if check_log_level log_level then (
+    if check_log_level log_level then
       let elapsed = time_elapsed () in
       let uri =
         match config.hyperlink with
@@ -1385,11 +1402,11 @@ module PrintBox (Log_to : Shared_config) = struct
           toc_depth = 0;
           size = 1;
         }
-        :: !stack)
+        :: !stack
     else hidden_entries := entry_id :: !hidden_entries
 
   let open_log_no_source ~message ~entry_id ~log_level track_or_explicit =
-    if check_log_level log_level then (
+    if check_log_level log_level then
       let time_tag =
         match Log_to.time_tagged with
         | Not_tagged -> ""
@@ -1418,7 +1435,7 @@ module PrintBox (Log_to : Shared_config) = struct
           toc_depth = 0;
           size = 1;
         }
-        :: !stack)
+        :: !stack
     else hidden_entries := entry_id :: !hidden_entries
 
   let sexp_size sexp =
@@ -1576,7 +1593,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
     ?(for_append = false) ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80)
     ?backend ?hyperlink ?toc_specific_hyperlink ?(values_first_mode = true)
-    ?(log_level = 9) ?snapshot_every_sec ?prev_run_file filename_stem :
+    ?(log_level = 9) ?snapshot_every_sec ?prev_run_file ?normalize_pattern filename_stem :
     (module PrintBox_runtime) =
   let filename =
     match backend with
@@ -1610,7 +1627,8 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
       "Minidebug_runtime.debug_file: flame graphs are not supported in the Text backend";
   Debug.config.toc_flame_graph <- toc_flame_graph;
   Debug.config.flame_graph_separation <- flame_graph_separation;
-  Debug.config.prev_run_state <- PrevRun.init_run ?prev_file:prev_run_file filename_stem;
+  Debug.config.prev_run_state <-
+    PrevRun.init_run ?prev_file:prev_run_file ?normalize_pattern filename_stem;
   (module Debug)
 
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)

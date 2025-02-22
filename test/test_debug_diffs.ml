@@ -2,11 +2,11 @@ open Sexplib0.Sexp_conv
 
 let debug_run1 () =
   let module Debug_runtime =
-    (val Minidebug_runtime.debug_file ~values_first_mode:true ~boxify_sexp_from_size:0 ~backend:`Text
-           "debugger_diffs_run1")
+    (val Minidebug_runtime.debug_file ~values_first_mode:true ~boxify_sexp_from_size:0
+           ~backend:`Text "debugger_diffs_run1")
   in
   let%debug_sexp foo (x : int) : int list =
-    let y : int = x + 1 in 
+    let y : int = x + 1 in
     let z : int = y + 1 in
     [ x; y; z; 2 * z ]
   in
@@ -14,8 +14,8 @@ let debug_run1 () =
 
 let debug_run2 () =
   let module Debug_runtime =
-    (val Minidebug_runtime.debug_file ~values_first_mode:true ~boxify_sexp_from_size:0 ~backend:`Text
-           ~prev_run_file:"debugger_diffs_run1.raw" "debugger_diffs_run2")
+    (val Minidebug_runtime.debug_file ~values_first_mode:true ~boxify_sexp_from_size:0
+           ~backend:`Text ~prev_run_file:"debugger_diffs_run1.raw" "debugger_diffs_run2")
   in
   let%debug_sexp foo (x : int) : int list =
     let y : int = x + 1 in

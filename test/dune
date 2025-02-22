@@ -365,3 +365,32 @@
  (alias runtest)
  (action
   (diff debugger_diffs_run2.expected.log debugger_diffs_run2.log)))
+
+(executable
+ (name test_debug_timestamps)
+ (modules test_debug_timestamps)
+ (libraries minidebug_runtime re)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_deriving.show)))
+
+(rule
+ (targets debugger_timestamps_run1.raw debugger_timestamps_run1.log)
+ (action
+  (run %{dep:test_debug_timestamps.exe} run1)))
+
+(rule
+ (target debugger_timestamps_run2.log)
+ (deps debugger_timestamps_run1.raw)
+ (action
+  (run %{dep:test_debug_timestamps.exe} run2)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_timestamps_run1.expected.log debugger_timestamps_run1.log)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_timestamps_run2.expected.log debugger_timestamps_run2.log)))

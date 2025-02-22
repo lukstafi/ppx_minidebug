@@ -1,6 +1,6 @@
 (** The functors creating a [Debug_runtime] module that
     {{:http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html}
-      [ppx_minidebug]} requires. *)
+     [ppx_minidebug]} requires. *)
 
 type time_tagged = Not_tagged | Clock | Elapsed
 type elapsed_times = Not_reported | Seconds | Milliseconds | Microseconds | Nanoseconds
@@ -28,22 +28,23 @@ module PrevRun : sig
     curr_index : int; (* Index in current run where edit occurred *)
   }
 
-  type chunk = {
-    messages : string array;
-  }
+  type chunk = { messages : string array }
 
   type dp_state = {
-    mutable prev_chunk : chunk option;  (* Previous run's current chunk *)
-    curr_chunk : string Dynarray.t;  (* Current chunk being built *)
-    mutable dp_table : (int * int * int) array array;  (* (edit_dist, prev_i, new_i) *)
-    mutable last_computed_row : int;  (* Last computed row in dp table *)
-    mutable last_computed_col : int;  (* Last computed column in dp table *)
-    mutable optimal_edits : edit_info list;  (* Optimal edit sequence so far *)
-    prev_ic : in_channel option;  (* Channel for reading previous chunks *)
-    curr_oc : out_channel;  (* Channel for writing current chunks *)
+    mutable prev_chunk : chunk option; (* Previous run's current chunk *)
+    curr_chunk : string Dynarray.t; (* Current chunk being built *)
+    mutable dp_table : (int * int * int) array array; (* (edit_dist, prev_i, new_i) *)
+    mutable last_computed_row : int; (* Last computed row in dp table *)
+    mutable last_computed_col : int; (* Last computed column in dp table *)
+    mutable optimal_edits : edit_info list; (* Optimal edit sequence so far *)
+    prev_ic : in_channel option; (* Channel for reading previous chunks *)
+    curr_oc : out_channel; (* Channel for writing current chunks *)
+    normalize_pattern : Re.re option; (* Pattern to normalize messages before comparison *)
   }
 
-  val init_run : ?prev_file:string -> string -> dp_state option
+  val init_run :
+    ?prev_file:string -> ?normalize_pattern:Re.re -> string -> dp_state option
+
   val check_diff : dp_state -> string -> unit -> bool
   val signal_chunk_end : dp_state -> unit
 end
@@ -116,7 +117,7 @@ val shared_config :
 
 (** When using the
     {{:http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html}
-      [ppx_minidebug]} syntax extension, provide a module called [Debug_runtime] with this
+     [ppx_minidebug]} syntax extension, provide a module called [Debug_runtime] with this
     signature in scope of the instrumented code. *)
 module type Debug_runtime = sig
   val close_log : fname:string -> start_lnum:int -> entry_id:int -> unit
@@ -261,6 +262,7 @@ val debug_file :
   ?log_level:int ->
   ?snapshot_every_sec:float ->
   ?prev_run_file:string ->
+  ?normalize_pattern:Re.re ->
   string ->
   (module PrintBox_runtime)
 (** Creates a PrintBox-based debug runtime configured to output html or markdown to a file
@@ -273,8 +275,10 @@ val debug_file :
     name extension. This file will collect selected entries, hyperlinking to anchors in
     the main logging file(s).
 
-    If [prev_run_file] is provided, differences between the current run and the previous run
-    will be highlighted in the output.
+    If [prev_run_file] is provided, differences between the current run and the previous
+    run will be highlighted in the output. The [normalize_pattern] parameter can be used
+    to specify a regular expression pattern that will be removed from messages before
+    comparison, allowing certain differences to be ignored.
 
     By default [backend] is [`Markdown PrintBox.default_md_config]. See
     {!type:PrintBox.config} for details about PrintBox-specific parameters. See
