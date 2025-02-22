@@ -1,8 +1,8 @@
-## [2.1.0] -- 2025-02-16
+## [2.1.0] -- 2025-02-22
 
 ### Added
 
-- New feature: highlight differences between runs.
+- New feature: highlight differences between runs. Allow ignoring expected change patterns in the logs.
 
 ## [2.0.3] -- 2025-01-02
 
