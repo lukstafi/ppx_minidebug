@@ -120,15 +120,25 @@ you can set `prune_upto` to a level greater than 0, which only outputs highlight
 
 ### Highlighting differences between runs
 
-The `PrintBox` runtime can highlight differences between the current run and a previous run's logs. This is useful for understanding how program behavior changes between executions. To enable this feature, provide the `prev_run_file` argument when creating the runtime:
+The `PrintBox` runtime can highlight differences between the current run and a previous run's logs. This is useful for understanding how program behavior changes between executions. To enable this feature, provide the `prev_run_file` argument when creating the runtime. It should be the "raw" messages file of the previous run, including the `.raw` suffix:
 
 ```ocaml
-module Debug_runtime = (val Minidebug_runtime.debug_file ~prev_run_file:"previous_run.log" "debug")
+module Debug_runtime =
+  (val Minidebug_runtime.debug_file ~prev_run_file:"previous_run.raw" "current_run")
 ```
 
 The highlighting of differences works independently from (and can be combined with) search term highlighting. The runtime will highlight entries that do not have a corresponding entry in the previous run: currently, deletions (previous run entries missing in the current run) do not affect the highlighting.
 
 Note that the comparison is performed at the chunk level, where each chunk is a complete toplevel log tree. The log trees must match exactly: insertions and deletions of toplevel log trees are not supported. This limitation helps keep the comparison efficient but means you might have to coarsen the granularity of the log trees to get useful differences.
+
+The `diff_ignore_pattern` setting can be used to ignore certain patterns in the logs. For example, to ignore message-level timestamps:
+
+```ocaml
+module Debug_runtime =
+  (val Minidebug_runtime.debug_file ~prev_run_file:"previous_run.raw" ~diff_ignore_pattern:(Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|}) "current_run")
+```
+
+Note that the timestamps of the log entries are not treated as messages, so are necessarily ignored.
 
 ### `PrintBox` creating helpers with defaults: `debug` and `debug_file`
 
