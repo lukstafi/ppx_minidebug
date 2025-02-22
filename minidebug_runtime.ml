@@ -491,7 +491,7 @@ module PrevRun = struct
     mutable optimal_edits : edit_info list; (* Optimal edit sequence so far *)
     prev_ic : in_channel option; (* Channel for reading previous chunks *)
     curr_oc : out_channel; (* Channel for writing current chunks *)
-    normalize_pattern : Re.re option; (* Pattern to normalize messages before comparison *)
+    diff_ignore_pattern : Re.re option; (* Pattern to normalize messages before comparison *)
   }
 
   let save_chunk oc messages =
@@ -509,7 +509,7 @@ module PrevRun = struct
   let ins_cost = 2
   let change_cost = 3
 
-  let init_run ?prev_file ?normalize_pattern curr_file =
+  let init_run ?prev_file ?diff_ignore_pattern curr_file =
     let prev_ic = Option.map open_in prev_file in
     let prev_chunk = Option.bind prev_ic load_next_chunk in
     let dp_rows = match prev_chunk with None -> 0 | Some c -> Array.length c.messages in
@@ -529,7 +529,7 @@ module PrevRun = struct
         optimal_edits = [];
         prev_ic;
         curr_oc;
-        normalize_pattern;
+        diff_ignore_pattern;
       }
 
   let normalize_message pattern msg =
@@ -548,8 +548,8 @@ module PrevRun = struct
   let compute_dp_cell state i j msg =
     if j >= Array.length state.dp_table.(0) then extend_dp_table state;
     let prev_msg = (Option.get state.prev_chunk).messages.(i) in
-    let normalized_prev = normalize_message state.normalize_pattern prev_msg in
-    let normalized_curr = normalize_message state.normalize_pattern msg in
+    let normalized_prev = normalize_message state.diff_ignore_pattern prev_msg in
+    let normalized_curr = normalize_message state.diff_ignore_pattern msg in
     let match_cost = if normalized_prev = normalized_curr then 0 else change_cost in
     (* Get costs from previous cells, being careful about overflow *)
     let safe_add a b =
@@ -601,9 +601,9 @@ module PrevRun = struct
         let edit =
           if prev_i = i - 1 && prev_j = j - 1 then
             if
-              normalize_message state.normalize_pattern
+              normalize_message state.diff_ignore_pattern
                 (Option.get state.prev_chunk).messages.(i)
-              = normalize_message state.normalize_pattern
+              = normalize_message state.diff_ignore_pattern
                   (Dynarray.get state.curr_chunk j)
             then { edit_type = Match; curr_index = j }
             else { edit_type = Change; curr_index = j }
@@ -1594,7 +1594,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
     ?(for_append = false) ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80)
     ?backend ?hyperlink ?toc_specific_hyperlink ?(values_first_mode = true)
-    ?(log_level = 9) ?snapshot_every_sec ?prev_run_file ?normalize_pattern filename_stem :
+    ?(log_level = 9) ?snapshot_every_sec ?prev_run_file ?diff_ignore_pattern filename_stem :
     (module PrintBox_runtime) =
   let filename =
     match backend with
@@ -1630,7 +1630,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   Debug.config.flame_graph_separation <- flame_graph_separation;
   Debug.config.prev_run_file <- prev_run_file;
   Debug.prev_run_state :=
-    PrevRun.init_run ?prev_file:prev_run_file ?normalize_pattern filename_stem;
+    PrevRun.init_run ?prev_file:prev_run_file ?diff_ignore_pattern:(Option.map Re.compile diff_ignore_pattern) filename_stem;
   (module Debug)
 
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)

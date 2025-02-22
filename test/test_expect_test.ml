@@ -4659,8 +4659,7 @@ let%expect_test "%debug_show comparing differences with normalized patterns" =
   let module Debug_runtime =
     (val Minidebug_runtime.debug_file ~values_first_mode:false ~backend:`Text
            ~prev_run_file:(prev_run ^ ".raw")
-           ~normalize_pattern:
-             (Re.compile (Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|}))
+           ~diff_ignore_pattern:(Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|})
            curr_run)
   in
   let%debug_show process_message (msg : string) : int =
@@ -4678,11 +4677,11 @@ let%expect_test "%debug_show comparing differences with normalized patterns" =
     39
 
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":4666:33: process_message
+    "test/test_expect_test.ml":4665:33: process_message
     ├─msg = "hello"
-    ├─"test/test_expect_test.ml":4667:8: timestamp
+    ├─"test/test_expect_test.ml":4666:8: timestamp
     │ └─timestamp = "[2024-03-22 15:30:45] "
-    ├─"test/test_expect_test.ml":4669:8: processed
+    ├─"test/test_expect_test.ml":4668:8: processed
     │ └─processed = "[2024-03-22 15:30:45] Processing: hello"
     └─process_message = 39
     |}];
@@ -4690,8 +4689,7 @@ let%expect_test "%debug_show comparing differences with normalized patterns" =
   let module Debug_runtime =
     (val Minidebug_runtime.debug_file ~values_first_mode:false ~backend:`Text
            ~prev_run_file:(prev_run ^ ".raw")
-           ~normalize_pattern:
-             (Re.compile (Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|}))
+           ~diff_ignore_pattern:(Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|})
            curr_run2)
   in
   let%debug_show process_message (msg : string) : int =
@@ -4710,18 +4708,18 @@ let%expect_test "%debug_show comparing differences with normalized patterns" =
 
     BEGIN DEBUG SESSION
     ┌───────────────────────────────────────────────────┐
-    │"test/test_expect_test.ml":4697:33: process_message│
+    │"test/test_expect_test.ml":4695:33: process_message│
     └───────────────────────────────────────────────────┘
     ├─msg = "hello"
-    ├─"test/test_expect_test.ml":4698:8: timestamp
+    ├─"test/test_expect_test.ml":4696:8: timestamp
     │ └─timestamp = "[2024-03-22 15:30:45] "
     ├─┌─────────────────────────────────────────────┐
-    │ │"test/test_expect_test.ml":4699:8: processing│
+    │ │"test/test_expect_test.ml":4697:8: processing│
     │ └─────────────────────────────────────────────┘
     │ └─┌────────────────────────────────┐
     │   │processing = "Processing: hello"│
     │   └────────────────────────────────┘
-    ├─"test/test_expect_test.ml":4700:8: processed
+    ├─"test/test_expect_test.ml":4698:8: processed
     │ └─processed = "[2024-03-22 15:30:45] Processing: hello"
     └─process_message = 39
     |}]

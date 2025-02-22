@@ -1,8 +1,8 @@
 let debug_run1 () =
   let module Debug_runtime =
     (val Minidebug_runtime.debug_file ~values_first_mode:false ~backend:`Text
-           ~normalize_pattern:
-             (Re.compile (Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|}))
+           ~diff_ignore_pattern:
+             ((Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|}))
            "debugger_timestamps_run1")
   in
   let%debug_show process_message (msg : string) : int =
@@ -16,8 +16,8 @@ let debug_run2 () =
   let module Debug_runtime =
     (val Minidebug_runtime.debug_file ~values_first_mode:false ~backend:`Text
            ~prev_run_file:"debugger_timestamps_run1.raw"
-           ~normalize_pattern:
-             (Re.compile (Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|}))
+           ~diff_ignore_pattern:
+             ((Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|}))
            "debugger_timestamps_run2")
   in
   let%debug_show process_message (msg : string) : int =

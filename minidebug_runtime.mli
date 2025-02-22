@@ -286,7 +286,7 @@ val debug_file :
   ?log_level:int ->
   ?snapshot_every_sec:float ->
   ?prev_run_file:string ->
-  ?normalize_pattern:Re.re ->
+  ?diff_ignore_pattern:Re.t ->
   string ->
   (module PrintBox_runtime)
 (** Creates a PrintBox-based debug runtime configured to output html or markdown to a file
@@ -300,7 +300,7 @@ val debug_file :
     the main logging file(s).
 
     If [prev_run_file] is provided, differences between the current run and the previous
-    run will be highlighted in the output. The [normalize_pattern] parameter can be used
+    run will be highlighted in the output. The [diff_ignore_pattern] parameter can be used
     to specify a regular expression pattern that will be removed from messages before
     comparison, allowing certain differences to be ignored.
 
