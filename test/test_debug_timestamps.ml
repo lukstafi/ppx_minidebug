@@ -30,4 +30,4 @@ let debug_run2 () =
 let () =
   if Array.length Sys.argv > 1 && Sys.argv.(1) = "run2" then debug_run2 ()
   else if Array.length Sys.argv > 1 && Sys.argv.(1) = "run1" then debug_run1 ()
-  else failwith "Usage: test_debug_timestamps run1|run2" 
+  else failwith "Usage: test_debug_timestamps run1|run2"

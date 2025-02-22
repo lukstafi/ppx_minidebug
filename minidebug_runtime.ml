@@ -1629,7 +1629,8 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   Debug.config.toc_flame_graph <- toc_flame_graph;
   Debug.config.flame_graph_separation <- flame_graph_separation;
   Debug.config.prev_run_file <- prev_run_file;
-  Debug.prev_run_state := PrevRun.init_run ?prev_file:prev_run_file ?normalize_pattern filename_stem;
+  Debug.prev_run_state :=
+    PrevRun.init_run ?prev_file:prev_run_file ?normalize_pattern filename_stem;
   (module Debug)
 
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)

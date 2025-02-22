@@ -4687,12 +4687,12 @@ let%expect_test "%debug_show comparing differences with normalized patterns" =
     └─process_message = 39
     |}];
   let curr_run2 = "test_expect_test_curr_run_norm2" in
-    let module Debug_runtime =
-      (val Minidebug_runtime.debug_file ~values_first_mode:false ~backend:`Text
-             ~prev_run_file:(prev_run ^ ".raw")
-             ~normalize_pattern:
-               (Re.compile (Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|}))
-             curr_run2)
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug_file ~values_first_mode:false ~backend:`Text
+           ~prev_run_file:(prev_run ^ ".raw")
+           ~normalize_pattern:
+             (Re.compile (Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|}))
+           curr_run2)
   in
   let%debug_show process_message (msg : string) : int =
     let timestamp : string = "[2024-03-22 15:30:45] " in
@@ -4704,7 +4704,8 @@ let%expect_test "%debug_show comparing differences with normalized patterns" =
   let log_file = open_in (curr_run2 ^ ".log") in
   print_log log_file;
   close_in log_file;
-  [%expect {|
+  [%expect
+    {|
     39
 
     BEGIN DEBUG SESSION
