@@ -466,10 +466,15 @@ let html_handler config = function
       (PrintBox_html.to_html ~config lb :> PrintBox_html.toplevel_html)
   | _ -> assert false
 
+let html_summary_handler config = function
+  | Lazy_box (lazy lb) -> PrintBox_html.to_summary_html ~config lb
+  | _ -> assert false
+
 let () =
   PrintBox_text.register_extension ~key:"lazy" text_handler;
   PrintBox_md.register_extension ~key:"lazy" md_handler;
-  PrintBox_html.register_extension ~key:"lazy" html_handler
+  PrintBox_html.register_extension ~key:"lazy" html_handler;
+  PrintBox_html.register_summary_extension ~key:"lazy" html_summary_handler
 
 module PrevRun = struct
   type edit_type = Match | Insert | Delete | Change
@@ -491,7 +496,8 @@ module PrevRun = struct
     mutable optimal_edits : edit_info list; (* Optimal edit sequence so far *)
     prev_ic : in_channel option; (* Channel for reading previous chunks *)
     curr_oc : out_channel; (* Channel for writing current chunks *)
-    diff_ignore_pattern : Re.re option; (* Pattern to normalize messages before comparison *)
+    diff_ignore_pattern : Re.re option;
+        (* Pattern to normalize messages before comparison *)
   }
 
   let save_chunk oc messages =
@@ -1594,8 +1600,8 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
     ?(for_append = false) ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80)
     ?backend ?hyperlink ?toc_specific_hyperlink ?(values_first_mode = true)
-    ?(log_level = 9) ?snapshot_every_sec ?prev_run_file ?diff_ignore_pattern filename_stem :
-    (module PrintBox_runtime) =
+    ?(log_level = 9) ?snapshot_every_sec ?prev_run_file ?diff_ignore_pattern filename_stem
+    : (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename_stem ^ ".md"
@@ -1630,7 +1636,9 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   Debug.config.flame_graph_separation <- flame_graph_separation;
   Debug.config.prev_run_file <- prev_run_file;
   Debug.prev_run_state :=
-    PrevRun.init_run ?prev_file:prev_run_file ?diff_ignore_pattern:(Option.map Re.compile diff_ignore_pattern) filename_stem;
+    PrevRun.init_run ?prev_file:prev_run_file
+      ?diff_ignore_pattern:(Option.map Re.compile diff_ignore_pattern)
+      filename_stem;
   (module Debug)
 
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
