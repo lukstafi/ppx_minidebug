@@ -510,7 +510,7 @@ module PrevRun = struct
   let change_cost = 3
 
   let init_run ?prev_file ?diff_ignore_pattern curr_file =
-    let prev_ic = Option.map open_in prev_file in
+    let prev_ic = Option.map open_in_bin prev_file in
     let prev_chunk = Option.bind prev_ic load_next_chunk in
     let dp_rows = match prev_chunk with None -> 0 | Some c -> Array.length c.messages in
     let dp_cols =
