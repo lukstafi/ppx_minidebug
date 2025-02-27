@@ -485,11 +485,16 @@ module PrevRun = struct
   }
 
   type chunk = { messages : string array }
+  
+  (* Normalized version of a chunk *)
+  type normalized_chunk = { normalized_messages : string array }
 
   (* The dynamic programming state *)
   type dp_state = {
     mutable prev_chunk : chunk option; (* Previous run's current chunk *)
+    mutable prev_normalized_chunk : normalized_chunk option; (* Normalized version of prev_chunk *)
     curr_chunk : string Dynarray.t; (* Current chunk being built *)
+    curr_normalized_chunk : string Dynarray.t; (* Normalized version of curr_chunk *)
     mutable dp_table : (int * int * int) array array; (* (edit_dist, prev_i, new_i) *)
     mutable last_computed_row : int; (* Last computed row in dp table *)
     mutable last_computed_col : int; (* Last computed column in dp table *)
@@ -498,6 +503,8 @@ module PrevRun = struct
     curr_oc : out_channel; (* Channel for writing current chunks *)
     diff_ignore_pattern : Re.re option;
         (* Pattern to normalize messages before comparison *)
+    normalized_msgs : (string, string) Hashtbl.t;
+        (* Memoization table for normalized messages *)
   }
 
   let save_chunk oc messages =
@@ -515,9 +522,22 @@ module PrevRun = struct
   let ins_cost = 2
   let change_cost = 3
 
+  (* Helper function to normalize a single message *)
+  let normalize_single_message pattern msg =
+    match pattern with None -> msg | Some re -> Re.replace_string re ~by:"" msg
+
+  (* Helper function to normalize an entire chunk *)
+  let normalize_chunk pattern chunk =
+    match chunk with
+    | None -> None
+    | Some c -> 
+        let normalized = Array.map (normalize_single_message pattern) c.messages in
+        Some { normalized_messages = normalized }
+
   let init_run ?prev_file ?diff_ignore_pattern curr_file =
     let prev_ic = Option.map open_in_bin prev_file in
     let prev_chunk = Option.bind prev_ic load_next_chunk in
+    let prev_normalized_chunk = normalize_chunk diff_ignore_pattern prev_chunk in
     let dp_rows = match prev_chunk with None -> 0 | Some c -> Array.length c.messages in
     let dp_cols =
       1000
@@ -528,7 +548,9 @@ module PrevRun = struct
     Some
       {
         prev_chunk;
+        prev_normalized_chunk;
         curr_chunk = Dynarray.create ();
+        curr_normalized_chunk = Dynarray.create ();
         dp_table;
         last_computed_row = -1;
         last_computed_col = -1;
@@ -536,10 +558,34 @@ module PrevRun = struct
         prev_ic;
         curr_oc;
         diff_ignore_pattern;
+        normalized_msgs = Hashtbl.create 1000; (* Still keep this for messages not in chunks *)
       }
 
-  let normalize_message pattern msg =
-    match pattern with None -> msg | Some re -> Re.replace_string re ~by:"" msg
+  (* Get normalized message either from normalized chunk or by normalizing on demand *)
+  let normalize_message state msg =
+    match state.diff_ignore_pattern with
+    | None -> msg
+    | Some re ->
+        try Hashtbl.find state.normalized_msgs msg
+        with Not_found ->
+          let normalized = Re.replace_string re ~by:"" msg in
+          Hashtbl.add state.normalized_msgs msg normalized;
+          normalized
+
+  (* Get normalized message from previous chunk by index *)
+  let get_normalized_prev state i =
+    match state.prev_normalized_chunk with
+    | Some nc -> nc.normalized_messages.(i)
+    | None -> normalize_message state (Option.get state.prev_chunk).messages.(i)
+
+  (* Get normalized message from current chunk by index *)
+  let get_normalized_curr state j =
+    if j < Dynarray.length state.curr_normalized_chunk then
+      Dynarray.get state.curr_normalized_chunk j
+    else
+      let msg = Dynarray.get state.curr_chunk j in
+      let normalized = normalize_message state msg in
+      normalized
 
   let extend_dp_table state =
     let old_cols = Array.length state.dp_table.(0) in
@@ -551,11 +597,10 @@ module PrevRun = struct
     state.dp_table <- new_table;
     ()
 
-  let compute_dp_cell state i j msg =
+  let compute_dp_cell state i j =
     if j >= Array.length state.dp_table.(0) then extend_dp_table state;
-    let prev_msg = (Option.get state.prev_chunk).messages.(i) in
-    let normalized_prev = normalize_message state.diff_ignore_pattern prev_msg in
-    let normalized_curr = normalize_message state.diff_ignore_pattern msg in
+    let normalized_prev = get_normalized_prev state i in
+    let normalized_curr = get_normalized_curr state j in
     let match_cost = if normalized_prev = normalized_curr then 0 else change_cost in
     (* Get costs from previous cells, being careful about overflow *)
     let safe_add a b =
@@ -606,12 +651,8 @@ module PrevRun = struct
         let _cost, prev_i, prev_j = state.dp_table.(i).(j) in
         let edit =
           if prev_i = i - 1 && prev_j = j - 1 then
-            if
-              normalize_message state.diff_ignore_pattern
-                (Option.get state.prev_chunk).messages.(i)
-              = normalize_message state.diff_ignore_pattern
-                  (Dynarray.get state.curr_chunk j)
-            then { edit_type = Match; curr_index = j }
+            if get_normalized_prev state i = get_normalized_curr state j then
+              { edit_type = Match; curr_index = j }
             else { edit_type = Change; curr_index = j }
           else if prev_i = i - 1 then { edit_type = Delete; curr_index = j }
           else { edit_type = Insert; curr_index = j }
@@ -624,12 +665,12 @@ module PrevRun = struct
   let compute_dp_upto state row col =
     for i = state.last_computed_row + 1 to row do
       for j = 0 to col do
-        compute_dp_cell state i j (Dynarray.get state.curr_chunk j)
+        compute_dp_cell state i j
       done
     done;
     for i = 0 to state.last_computed_row do
       for j = state.last_computed_col + 1 to col do
-        compute_dp_cell state i j (Dynarray.get state.curr_chunk j)
+        compute_dp_cell state i j
       done
     done;
     state.last_computed_row <- max state.last_computed_row row;
@@ -639,6 +680,11 @@ module PrevRun = struct
   let check_diff state msg =
     let msg_idx = Dynarray.length state.curr_chunk in
     Dynarray.add_last state.curr_chunk msg;
+    
+    (* Also add the normalized version to curr_normalized_chunk *)
+    let normalized_msg = normalize_message state msg in
+    Dynarray.add_last state.curr_normalized_chunk normalized_msg;
+    
     match state.prev_chunk with
     | None -> fun () -> true
     | Some chunk ->
@@ -657,7 +703,9 @@ module PrevRun = struct
     if Dynarray.length state.curr_chunk > 0 then (
       save_chunk state.curr_oc state.curr_chunk;
       Dynarray.clear state.curr_chunk;
+      Dynarray.clear state.curr_normalized_chunk;
       state.prev_chunk <- Option.bind state.prev_ic load_next_chunk;
+      state.prev_normalized_chunk <- normalize_chunk state.diff_ignore_pattern state.prev_chunk;
       let dp_rows =
         match state.prev_chunk with None -> 0 | Some c -> Array.length c.messages
       in
@@ -665,7 +713,8 @@ module PrevRun = struct
       state.dp_table <- Array.make_matrix dp_rows dp_cols (max_int, -1, -1);
       state.last_computed_row <- -1;
       state.last_computed_col <- -1;
-      state.optimal_edits <- [])
+      state.optimal_edits <- [];
+      Hashtbl.clear state.normalized_msgs)
 end
 
 module type PrintBox_runtime = sig
