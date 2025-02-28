@@ -484,18 +484,21 @@ module PrevRun = struct
     curr_index : int; (* Index in current run where edit occurred *)
   }
 
-  type chunk = { messages : string array }
-  
+  type message_with_depth = { message : string; depth : int }
+  type chunk = { messages_with_depth : message_with_depth array }
+
   (* Normalized version of a chunk *)
   type normalized_chunk = { normalized_messages : string array }
 
   (* The dynamic programming state *)
   type dp_state = {
     mutable prev_chunk : chunk option; (* Previous run's current chunk *)
-    mutable prev_normalized_chunk : normalized_chunk option; (* Normalized version of prev_chunk *)
-    curr_chunk : string Dynarray.t; (* Current chunk being built *)
+    mutable prev_normalized_chunk : normalized_chunk option;
+        (* Normalized version of prev_chunk *)
+    curr_chunk : message_with_depth Dynarray.t; (* Current chunk being built *)
     curr_normalized_chunk : string Dynarray.t; (* Normalized version of curr_chunk *)
-    mutable dp_table : (int * int * int) array array; (* (edit_dist, prev_i, new_i) *)
+    dp_table : (int, int * int * int) Hashtbl.t;
+        (* (i,j) -> (edit_dist, prev_i, prev_j) *)
     mutable last_computed_row : int; (* Last computed row in dp table *)
     mutable last_computed_col : int; (* Last computed column in dp table *)
     mutable optimal_edits : edit_info list; (* Optimal edit sequence so far *)
@@ -505,10 +508,11 @@ module PrevRun = struct
         (* Pattern to normalize messages before comparison *)
     normalized_msgs : (string, string) Hashtbl.t;
         (* Memoization table for normalized messages *)
+    mutable adaptive_threshold : int; (* Threshold for pruning *)
   }
 
   let save_chunk oc messages =
-    let chunk = { messages = Array.of_seq (Dynarray.to_seq messages) } in
+    let chunk = { messages_with_depth = Array.of_seq (Dynarray.to_seq messages) } in
     Marshal.to_channel oc chunk [];
     flush oc
 
@@ -518,9 +522,14 @@ module PrevRun = struct
       Some chunk
     with End_of_file -> None
 
-  let del_cost = 2
-  let ins_cost = 2
-  let change_cost = 3
+  let base_del_cost = 2
+  let base_ins_cost = 2
+  let base_change_cost = 3
+  let depth_factor = 1 (* Weight for depth difference in cost calculation *)
+  let initial_adaptive_threshold = 10 (* Initial threshold for pruning *)
+
+  let max_distance_factor =
+    5 (* Maximum distance to consider as a factor of current position *)
 
   (* Helper function to normalize a single message *)
   let normalize_single_message pattern msg =
@@ -530,20 +539,18 @@ module PrevRun = struct
   let normalize_chunk pattern chunk =
     match chunk with
     | None -> None
-    | Some c -> 
-        let normalized = Array.map (normalize_single_message pattern) c.messages in
+    | Some c ->
+        let normalized =
+          Array.map
+            (fun md -> normalize_single_message pattern md.message)
+            c.messages_with_depth
+        in
         Some { normalized_messages = normalized }
 
   let init_run ?prev_file ?diff_ignore_pattern curr_file =
     let prev_ic = Option.map open_in_bin prev_file in
     let prev_chunk = Option.bind prev_ic load_next_chunk in
     let prev_normalized_chunk = normalize_chunk diff_ignore_pattern prev_chunk in
-    let dp_rows = match prev_chunk with None -> 0 | Some c -> Array.length c.messages in
-    let dp_cols =
-      1000
-      (* Initial size, will grow as needed *)
-    in
-    let dp_table = Array.make_matrix dp_rows dp_cols (max_int, -1, -1) in
     let curr_oc = open_out_bin (curr_file ^ ".raw") in
     Some
       {
@@ -551,57 +558,88 @@ module PrevRun = struct
         prev_normalized_chunk;
         curr_chunk = Dynarray.create ();
         curr_normalized_chunk = Dynarray.create ();
-        dp_table;
+        dp_table = Hashtbl.create 10000;
         last_computed_row = -1;
         last_computed_col = -1;
         optimal_edits = [];
         prev_ic;
         curr_oc;
         diff_ignore_pattern;
-        normalized_msgs = Hashtbl.create 1000; (* Still keep this for messages not in chunks *)
+        normalized_msgs = Hashtbl.create 1000;
+        (* Still keep this for messages not in chunks *)
+        adaptive_threshold = initial_adaptive_threshold;
       }
 
   (* Get normalized message either from normalized chunk or by normalizing on demand *)
   let normalize_message state msg =
     match state.diff_ignore_pattern with
     | None -> msg
-    | Some re ->
+    | Some re -> (
         try Hashtbl.find state.normalized_msgs msg
         with Not_found ->
           let normalized = Re.replace_string re ~by:"" msg in
           Hashtbl.add state.normalized_msgs msg normalized;
-          normalized
+          normalized)
 
   (* Get normalized message from previous chunk by index *)
   let get_normalized_prev state i =
     match state.prev_normalized_chunk with
     | Some nc -> nc.normalized_messages.(i)
-    | None -> normalize_message state (Option.get state.prev_chunk).messages.(i)
+    | None ->
+        normalize_message state
+          (Option.get state.prev_chunk).messages_with_depth.(i).message
 
   (* Get normalized message from current chunk by index *)
   let get_normalized_curr state j =
     if j < Dynarray.length state.curr_normalized_chunk then
       Dynarray.get state.curr_normalized_chunk j
     else
-      let msg = Dynarray.get state.curr_chunk j in
-      let normalized = normalize_message state msg in
+      let msg_with_depth = Dynarray.get state.curr_chunk j in
+      let normalized = normalize_message state msg_with_depth.message in
       normalized
 
-  let extend_dp_table state =
-    let old_cols = Array.length state.dp_table.(0) in
-    let new_cols = old_cols * 2 in
-    let new_table =
-      Array.make_matrix (Array.length state.dp_table) new_cols (max_int, -1, -1)
-    in
-    Array.iteri (fun i row -> Array.blit row 0 new_table.(i) 0 old_cols) state.dp_table;
-    state.dp_table <- new_table;
-    ()
+  (* Get depth from previous chunk by index *)
+  let get_depth_prev state i = (Option.get state.prev_chunk).messages_with_depth.(i).depth
+
+  (* Get depth from current chunk by index *)
+  let get_depth_curr state j = (Dynarray.get state.curr_chunk j).depth
+
+  (* Helper function to create a unique key for the dp_table hashtable *)
+  let dp_key i j = (i * 100000) + j
+
+  (* Get a value from the dp_table *)
+  let get_dp_value state i j =
+    try Hashtbl.find state.dp_table (dp_key i j) with Not_found -> (max_int, -1, -1)
 
   let compute_dp_cell state i j =
-    if j >= Array.length state.dp_table.(0) then extend_dp_table state;
     let normalized_prev = get_normalized_prev state i in
     let normalized_curr = get_normalized_curr state j in
-    let match_cost = if normalized_prev = normalized_curr then 0 else change_cost in
+    let base_match_cost =
+      if normalized_prev = normalized_curr then 0 else base_change_cost
+    in
+
+    (* Get depths and calculate depth-adjusted costs *)
+    let prev_depth = get_depth_prev state i in
+    let curr_depth = get_depth_curr state j in
+    let depth_diff = curr_depth - prev_depth in
+
+    (* Adjust costs based on relative depths *)
+    let del_cost =
+      if depth_diff > 0 then
+        (* Current is deeper, prefer insertion over deletion *)
+        base_del_cost + (depth_factor * depth_diff)
+      else base_del_cost
+    in
+
+    let ins_cost =
+      if depth_diff < 0 then
+        (* Previous is deeper, prefer deletion over insertion *)
+        base_ins_cost + (depth_factor * abs depth_diff)
+      else base_ins_cost
+    in
+
+    let match_cost = base_match_cost + (depth_factor * abs depth_diff) in
+
     (* Get costs from previous cells, being careful about overflow *)
     let safe_add a b =
       if a = max_int || b = max_int then max_int
@@ -611,19 +649,19 @@ module PrevRun = struct
 
     let above =
       if i > 0 then
-        let c, _, _ = state.dp_table.(i - 1).(j) in
+        let c, _, _ = get_dp_value state (i - 1) j in
         safe_add c del_cost
       else (j * ins_cost) + del_cost
     in
     let left =
       if j > 0 then
-        let c, _, _ = state.dp_table.(i).(j - 1) in
+        let c, _, _ = get_dp_value state i (j - 1) in
         safe_add c ins_cost
       else (i * del_cost) + ins_cost
     in
     let diag =
       if i > 0 && j > 0 then
-        let c, _, _ = state.dp_table.(i - 1).(j - 1) in
+        let c, _, _ = get_dp_value state (i - 1) (j - 1) in
         safe_add c match_cost
       else match_cost + (i * del_cost) + (j * ins_cost)
     in
@@ -635,7 +673,8 @@ module PrevRun = struct
         (fun (mc, pi, pj) (c, i', j') -> if c <= mc then (c, i', j') else (mc, pi, pj))
         (max_int, -1, -1) costs
     in
-    state.dp_table.(i).(j) <- (min_cost, prev_i, prev_j)
+    Hashtbl.replace state.dp_table (dp_key i j) (min_cost, prev_i, prev_j);
+    min_cost
 
   let update_optimal_edits state row col =
     (* Backtrack through dp table to find optimal edit sequence *)
@@ -648,7 +687,7 @@ module PrevRun = struct
         let edit = { edit_type = Delete; curr_index = i } in
         backtrack (i - 1) j (edit :: acc)
       else
-        let _cost, prev_i, prev_j = state.dp_table.(i).(j) in
+        let _cost, prev_i, prev_j = get_dp_value state i j in
         let edit =
           if prev_i = i - 1 && prev_j = j - 1 then
             if get_normalized_prev state i = get_normalized_curr state j then
@@ -663,32 +702,101 @@ module PrevRun = struct
     state.optimal_edits <- edits
 
   let compute_dp_upto state row col =
+    (* Adaptively prune the search space based on the threshold *)
+    let prev_chunk_size =
+      match state.prev_chunk with
+      | None -> 0
+      | Some c -> Array.length c.messages_with_depth
+    in
+    let curr_chunk_size = Dynarray.length state.curr_chunk in
+
+    (* Update the adaptive threshold based on the current chunk sizes *)
+    state.adaptive_threshold <-
+      max initial_adaptive_threshold (min prev_chunk_size curr_chunk_size / 10);
+
+    (* Compute new cells with adaptive pruning *)
     for i = state.last_computed_row + 1 to row do
-      for j = 0 to col do
-        compute_dp_cell state i j
+      (* For each new row, only compute columns that are within a reasonable distance *)
+      let min_j = max 0 (i - max_distance_factor) in
+      let max_j = min col (i + max_distance_factor) in
+
+      let min_cost_for_row = ref max_int in
+      for j = min_j to max_j do
+        let cost = compute_dp_cell state i j in
+        min_cost_for_row := min !min_cost_for_row cost
+      done;
+
+      (* For remaining columns, only compute if we're within the threshold of the best
+         cost *)
+
+      (* {[
+      for j = 0 to min_j - 1 do
+        if j <= col then
+          let above_cost, _, _ =
+            if i > 0 then get_dp_value state (i - 1) j else (max_int, -1, -1)
+          in
+          if above_cost < !min_cost_for_row + state.adaptive_threshold then
+            ignore (compute_dp_cell state i j)
+      done;
+
+      for j = max_j + 1 to col do
+        let left_cost, _, _ =
+          if j > 0 then get_dp_value state i (j - 1) else (max_int, -1, -1)
+        in
+        if left_cost < !min_cost_for_row + state.adaptive_threshold then
+          ignore (compute_dp_cell state i j)
       done
+      ]}
+      *)
     done;
+
+    (* For existing rows, compute new columns with adaptive pruning *)
     for i = 0 to state.last_computed_row do
-      for j = state.last_computed_col + 1 to col do
-        compute_dp_cell state i j
+      let min_j = max (state.last_computed_col + 1) (i - max_distance_factor) in
+      let max_j = min col (i + max_distance_factor) in
+
+      let min_cost_for_row = ref max_int in
+      for j = min_j to max_j do
+        let cost = compute_dp_cell state i j in
+        min_cost_for_row := min !min_cost_for_row cost
+      done;
+(* {[
+      for j = state.last_computed_col + 1 to min_j - 1 do
+        if j <= col then
+          let left_cost, _, _ =
+            if j > 0 then get_dp_value state i (j - 1) else (max_int, -1, -1)
+          in
+          if left_cost < !min_cost_for_row + state.adaptive_threshold then
+            ignore (compute_dp_cell state i j)
+      done;
+
+      for j = max_j + 1 to col do
+        let left_cost, _, _ =
+          if j > 0 then get_dp_value state i (j - 1) else (max_int, -1, -1)
+        in
+        if left_cost < !min_cost_for_row + state.adaptive_threshold then
+          ignore (compute_dp_cell state i j)
       done
+      ]}
+      *)
     done;
+
     state.last_computed_row <- max state.last_computed_row row;
     state.last_computed_col <- max state.last_computed_col col;
     update_optimal_edits state row col
 
-  let check_diff state msg =
+  let check_diff state ~depth msg =
     let msg_idx = Dynarray.length state.curr_chunk in
-    Dynarray.add_last state.curr_chunk msg;
-    
+    Dynarray.add_last state.curr_chunk { message = msg; depth };
+
     (* Also add the normalized version to curr_normalized_chunk *)
     let normalized_msg = normalize_message state msg in
     Dynarray.add_last state.curr_normalized_chunk normalized_msg;
-    
+
     match state.prev_chunk with
     | None -> fun () -> true
     | Some chunk ->
-        let row = Array.length chunk.messages - 1 in
+        let row = Array.length chunk.messages_with_depth - 1 in
         compute_dp_upto state row msg_idx;
         fun () ->
           (* Find the edit for current message in optimal edit sequence *)
@@ -705,16 +813,14 @@ module PrevRun = struct
       Dynarray.clear state.curr_chunk;
       Dynarray.clear state.curr_normalized_chunk;
       state.prev_chunk <- Option.bind state.prev_ic load_next_chunk;
-      state.prev_normalized_chunk <- normalize_chunk state.diff_ignore_pattern state.prev_chunk;
-      let dp_rows =
-        match state.prev_chunk with None -> 0 | Some c -> Array.length c.messages
-      in
-      let dp_cols = 1000 in
-      state.dp_table <- Array.make_matrix dp_rows dp_cols (max_int, -1, -1);
+      state.prev_normalized_chunk <-
+        normalize_chunk state.diff_ignore_pattern state.prev_chunk;
+      Hashtbl.clear state.dp_table;
       state.last_computed_row <- -1;
       state.last_computed_col <- -1;
       state.optimal_edits <- [];
-      Hashtbl.clear state.normalized_msgs)
+      Hashtbl.clear state.normalized_msgs;
+      state.adaptive_threshold <- initial_adaptive_threshold)
 end
 
 module type PrintBox_runtime = sig
@@ -1393,11 +1499,11 @@ module PrintBox (Log_to : Shared_config) = struct
           ];
         close_log ~fname:"orphaned" ~start_lnum:entry_id ~entry_id:(-1)
 
-  let get_highlight message =
+  let get_highlight ~depth message =
     let diff_check =
       match !prev_run_state with
       | None -> fun () -> false
-      | Some state -> PrevRun.check_diff state message
+      | Some state -> PrevRun.check_diff state ~depth message
     in
     match config.highlight_terms with
     | None -> { pattern_match = false; diff_check }
@@ -1439,7 +1545,7 @@ module PrintBox (Log_to : Shared_config) = struct
       let exclude =
         match config.exclude_on_path with Some r -> Re.execp r message | None -> false
       in
-      let highlight = get_highlight message in
+      let highlight = get_highlight ~depth:(List.length !stack) message in
       let entry_message = global_prefix ^ message in
       stack :=
         {
@@ -1472,7 +1578,7 @@ module PrintBox (Log_to : Shared_config) = struct
       let exclude =
         match config.exclude_on_path with Some r -> Re.execp r message | None -> false
       in
-      let highlight = get_highlight message in
+      let highlight = get_highlight ~depth:(List.length !stack) message in
       let entry_message = global_prefix ^ message in
       stack :=
         {
@@ -1502,7 +1608,7 @@ module PrintBox (Log_to : Shared_config) = struct
     in
     loop sexp
 
-  let highlight_box ?hl_body b =
+  let highlight_box ~depth ?hl_body b =
     (* Recall the design choice: [exclude] does not apply to its own entry. Therefore, an
        entry "propagates its highlight". *)
     let message = PrintBox_text.to_string_with ~style:false b in
@@ -1514,7 +1620,7 @@ module PrintBox (Log_to : Shared_config) = struct
     let diff_check =
       match !prev_run_state with
       | None -> fun () -> false
-      | Some state -> PrevRun.check_diff state message
+      | Some state -> PrevRun.check_diff state ~depth message
     in
     let hl_header =
       {
@@ -1533,36 +1639,38 @@ module PrintBox (Log_to : Shared_config) = struct
         Format.pp_print_string ppf s
     | e -> Sexplib0.Sexp.pp_hum ppf e
 
-  let boxify ?descr sexp =
+  let boxify ~descr ~depth sexp =
     let open Sexplib0.Sexp in
-    let rec loop ?(as_tree = false) sexp =
+    let rec loop ?(as_tree = false) ~depth sexp =
       if (not as_tree) && sexp_size sexp < config.boxify_sexp_from_size then
-        highlight_box @@ B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
+        highlight_box ~depth
+        @@ B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
       else
         match sexp with
-        | Atom s -> highlight_box @@ B.text_with_style B.Style.preformatted s
+        (* FIXME: Should we render [List [Atom s]] at [depth] also? *)
+        | Atom s -> highlight_box ~depth @@ B.text_with_style B.Style.preformatted s
         | List [] -> ({ pattern_match = false; diff_check = (fun () -> false) }, B.empty)
-        | List [ s ] -> loop s
+        | List [ s ] -> loop ~depth:(depth + 1) s
         | List (Atom s :: l) ->
-            let hl_body, bs = List.split @@ List.map loop l in
+            let hl_body, bs = List.split @@ List.map (loop ~depth:(depth + 1)) l in
             let hl_body = hl_oneof hl_body in
             let hl, b =
               (* Design choice: Don't render headers of multiline values as monospace, to
                  emphasize them. *)
-              highlight_box ~hl_body
+              highlight_box ~depth ~hl_body
               @@ if as_tree then B.text s else B.text_with_style B.Style.preformatted s
             in
             (hl, B.tree b bs)
         | List l ->
-            let hls, bs = List.split @@ List.map loop l in
+            let hls, bs = List.split @@ List.map (loop ~depth:(depth + 1)) l in
             (hl_oneof hls, B.vlist ~bars:false bs)
     in
     match (sexp, descr) with
     | (Atom s | List [ Atom s ]), Some d ->
-        highlight_box @@ B.text_with_style B.Style.preformatted (d ^ " = " ^ s)
+        highlight_box ~depth @@ B.text_with_style B.Style.preformatted (d ^ " = " ^ s)
     | (Atom s | List [ Atom s ]), None ->
-        highlight_box @@ B.text_with_style B.Style.preformatted s
-    | List [], Some d -> highlight_box @@ B.line d
+        highlight_box ~depth @@ B.text_with_style B.Style.preformatted s
+    | List [], Some d -> highlight_box ~depth @@ B.line d
     | List [], None -> ({ pattern_match = false; diff_check = (fun () -> false) }, B.empty)
     | List l, _ ->
         let str =
@@ -1572,11 +1680,11 @@ module PrintBox (Log_to : Shared_config) = struct
         in
         if String.length str > 0 && String.length str < config.max_inline_sexp_length then
           (* TODO: Desing choice: consider not using monospace, at least for descr. *)
-          highlight_box
+          highlight_box ~depth
           @@ B.text_with_style B.Style.preformatted
           @@ match descr with None -> str | Some d -> d ^ " = " ^ str
         else
-          loop ~as_tree:true
+          loop ~depth:(depth + 1) ~as_tree:true
           @@ List ((match descr with None -> [] | Some d -> [ Atom (d ^ " =") ]) @ l)
 
   let num_children () = match !stack with [] -> 0 | { body; _ } :: _ -> List.length body
@@ -1585,10 +1693,10 @@ module PrintBox (Log_to : Shared_config) = struct
     if check_log_level log_level then (
       (if config.boxify_sexp_from_size >= 0 then
          stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
-         @@ boxify ?descr sexp
+         @@ boxify ~descr ~depth:(List.length !stack) sexp
        else
          stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
-         @@ highlight_box
+         @@ highlight_box ~depth:(List.length !stack)
          @@
          match descr with
          | None -> B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
@@ -1598,7 +1706,7 @@ module PrintBox (Log_to : Shared_config) = struct
   let log_value_pp ?descr ~entry_id ~log_level ~pp ~is_result v =
     if check_log_level log_level then (
       (stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
-      @@ highlight_box
+      @@ highlight_box ~depth:(List.length !stack)
       @@
       match descr with
       | None -> B.asprintf_with_style B.Style.preformatted "%a" pp v
@@ -1608,7 +1716,7 @@ module PrintBox (Log_to : Shared_config) = struct
   let log_value_show ?descr ~entry_id ~log_level ~is_result v =
     if check_log_level log_level then (
       (stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
-      @@ highlight_box
+      @@ highlight_box ~depth:(List.length !stack)
       @@
       match descr with
       | None -> B.sprintf_with_style B.Style.preformatted "%s" v
@@ -1618,7 +1726,7 @@ module PrintBox (Log_to : Shared_config) = struct
   let log_value_printbox ~entry_id ~log_level v =
     if check_log_level log_level then (
       stack_next ~entry_id ~is_result:false ~result_depth:0 ~result_size:1
-      @@ highlight_box v;
+      @@ highlight_box ~depth:(List.length !stack) v;
       opt_auto_snapshot ())
 
   let no_debug_if cond =
