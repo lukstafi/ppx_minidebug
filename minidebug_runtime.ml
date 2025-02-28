@@ -497,7 +497,7 @@ module PrevRun = struct
         (* Normalized version of prev_chunk *)
     curr_chunk : message_with_depth Dynarray.t; (* Current chunk being built *)
     curr_normalized_chunk : string Dynarray.t; (* Normalized version of curr_chunk *)
-    dp_table : (int, int * int * int) Hashtbl.t;
+    dp_table : (int * int, int * int * int) Hashtbl.t;
         (* (i,j) -> (edit_dist, prev_i, prev_j) *)
     mutable last_computed_row : int; (* Last computed row in dp table *)
     mutable last_computed_col : int; (* Last computed column in dp table *)
@@ -508,7 +508,8 @@ module PrevRun = struct
         (* Pattern to normalize messages before comparison *)
     normalized_msgs : (string, string) Hashtbl.t;
         (* Memoization table for normalized messages *)
-    mutable adaptive_threshold : int; (* Threshold for pruning *)
+    min_cost_rows : (int, int) Hashtbl.t;
+        (* Column index -> row with minimum cost *)
   }
 
   let save_chunk oc messages =
@@ -526,10 +527,9 @@ module PrevRun = struct
   let base_ins_cost = 2
   let base_change_cost = 3
   let depth_factor = 1 (* Weight for depth difference in cost calculation *)
-  let initial_adaptive_threshold = 10 (* Initial threshold for pruning *)
 
   let max_distance_factor =
-    5 (* Maximum distance to consider as a factor of current position *)
+    50 (* Maximum distance to consider as a factor of current position *)
 
   (* Helper function to normalize a single message *)
   let normalize_single_message pattern msg =
@@ -567,7 +567,8 @@ module PrevRun = struct
         diff_ignore_pattern;
         normalized_msgs = Hashtbl.create 1000;
         (* Still keep this for messages not in chunks *)
-        adaptive_threshold = initial_adaptive_threshold;
+        min_cost_rows = Hashtbl.create 1000;
+        (* Track min cost row for each column *)
       }
 
   (* Get normalized message either from normalized chunk or by normalizing on demand *)
@@ -604,12 +605,9 @@ module PrevRun = struct
   (* Get depth from current chunk by index *)
   let get_depth_curr state j = (Dynarray.get state.curr_chunk j).depth
 
-  (* Helper function to create a unique key for the dp_table hashtable *)
-  let dp_key i j = (i * 100000) + j
-
   (* Get a value from the dp_table *)
   let get_dp_value state i j =
-    try Hashtbl.find state.dp_table (dp_key i j) with Not_found -> (max_int, -1, -1)
+    try Hashtbl.find state.dp_table (i, j) with Not_found -> (max_int, -1, -1)
 
   let compute_dp_cell state i j =
     let normalized_prev = get_normalized_prev state i in
@@ -673,7 +671,7 @@ module PrevRun = struct
         (fun (mc, pi, pj) (c, i', j') -> if c <= mc then (c, i', j') else (mc, pi, pj))
         (max_int, -1, -1) costs
     in
-    Hashtbl.replace state.dp_table (dp_key i j) (min_cost, prev_i, prev_j);
+    Hashtbl.replace state.dp_table (i, j) (min_cost, prev_i, prev_j);
     min_cost
 
   let update_optimal_edits state row col =
@@ -702,83 +700,74 @@ module PrevRun = struct
     state.optimal_edits <- edits
 
   let compute_dp_upto state row col =
-    (* Adaptively prune the search space based on the threshold *)
-    let prev_chunk_size =
-      match state.prev_chunk with
-      | None -> 0
-      | Some c -> Array.length c.messages_with_depth
-    in
-    let curr_chunk_size = Dynarray.length state.curr_chunk in
+    (* Compute new cells with adaptive pruning - transposed for column-first iteration *)
 
-    (* Update the adaptive threshold based on the current chunk sizes *)
-    state.adaptive_threshold <-
-      max initial_adaptive_threshold (min prev_chunk_size curr_chunk_size / 10);
+    (* For new columns, compute with adaptive pruning *)
+    for j = state.last_computed_col + 1 to col do
+      (* For each new column, determine the center row for exploration *)
+      let center_row =
+        if j > 0 && Hashtbl.mem state.min_cost_rows (j - 1) then
+          (* Center around the min cost row from the previous column *)
+          Hashtbl.find state.min_cost_rows (j - 1)
+        else
+          (* Default to diagonal if no previous column info *)
+          j
+      in
 
-    (* Compute new cells with adaptive pruning *)
-    for i = state.last_computed_row + 1 to row do
-      (* For each new row, only compute columns that are within a reasonable distance *)
-      let min_j = max 0 (i - max_distance_factor) in
-      let max_j = min col (i + max_distance_factor) in
+      (* Define exploration range around the center row *)
+      let min_i = max 0 (center_row - max_distance_factor) in
+      let max_i = min row (center_row + max_distance_factor) in
 
-      let min_cost_for_row = ref max_int in
-      for j = min_j to max_j do
+      let min_cost_for_col = ref max_int in
+      let min_cost_row = ref center_row in
+
+      for i = min_i to max_i do
         let cost = compute_dp_cell state i j in
-        min_cost_for_row := min !min_cost_for_row cost
+        if cost < !min_cost_for_col then (
+          min_cost_for_col := cost;
+          min_cost_row := i)
       done;
 
-      (* For remaining columns, only compute if we're within the threshold of the best
-         cost *)
-
-      (* {[
-      for j = 0 to min_j - 1 do
-        if j <= col then
-          let above_cost, _, _ =
-            if i > 0 then get_dp_value state (i - 1) j else (max_int, -1, -1)
-          in
-          if above_cost < !min_cost_for_row + state.adaptive_threshold then
-            ignore (compute_dp_cell state i j)
-      done;
-
-      for j = max_j + 1 to col do
-        let left_cost, _, _ =
-          if j > 0 then get_dp_value state i (j - 1) else (max_int, -1, -1)
-        in
-        if left_cost < !min_cost_for_row + state.adaptive_threshold then
-          ignore (compute_dp_cell state i j)
-      done
-      ]}
-      *)
+      (* Store the row with minimum cost for this column *)
+      Hashtbl.replace state.min_cost_rows j !min_cost_row
     done;
 
-    (* For existing rows, compute new columns with adaptive pruning *)
-    for i = 0 to state.last_computed_row do
-      let min_j = max (state.last_computed_col + 1) (i - max_distance_factor) in
-      let max_j = min col (i + max_distance_factor) in
+    (* For existing columns, compute new rows with adaptive pruning *)
+    for j = 0 to state.last_computed_col do
+      let min_i =
+        max (state.last_computed_row + 1)
+          (if Hashtbl.mem state.min_cost_rows j then
+             Hashtbl.find state.min_cost_rows j - max_distance_factor
+           else j - max_distance_factor)
+      in
+      let max_i =
+        min row
+          (if Hashtbl.mem state.min_cost_rows j then
+             Hashtbl.find state.min_cost_rows j + max_distance_factor
+           else j + max_distance_factor)
+      in
 
-      let min_cost_for_row = ref max_int in
-      for j = min_j to max_j do
+      let min_cost_for_col =
+        if Hashtbl.mem state.min_cost_rows j then
+          let i = Hashtbl.find state.min_cost_rows j in
+          let cost, _, _ = get_dp_value state i j in
+          ref cost
+        else ref max_int
+      in
+      let min_cost_row =
+        if Hashtbl.mem state.min_cost_rows j then ref (Hashtbl.find state.min_cost_rows j)
+        else ref j
+      in
+
+      for i = min_i to max_i do
         let cost = compute_dp_cell state i j in
-        min_cost_for_row := min !min_cost_for_row cost
-      done;
-(* {[
-      for j = state.last_computed_col + 1 to min_j - 1 do
-        if j <= col then
-          let left_cost, _, _ =
-            if j > 0 then get_dp_value state i (j - 1) else (max_int, -1, -1)
-          in
-          if left_cost < !min_cost_for_row + state.adaptive_threshold then
-            ignore (compute_dp_cell state i j)
+        if cost < !min_cost_for_col then (
+          min_cost_for_col := cost;
+          min_cost_row := i)
       done;
 
-      for j = max_j + 1 to col do
-        let left_cost, _, _ =
-          if j > 0 then get_dp_value state i (j - 1) else (max_int, -1, -1)
-        in
-        if left_cost < !min_cost_for_row + state.adaptive_threshold then
-          ignore (compute_dp_cell state i j)
-      done
-      ]}
-      *)
+      (* Update the row with minimum cost for this column *)
+      Hashtbl.replace state.min_cost_rows j !min_cost_row
     done;
 
     state.last_computed_row <- max state.last_computed_row row;
@@ -820,7 +809,7 @@ module PrevRun = struct
       state.last_computed_col <- -1;
       state.optimal_edits <- [];
       Hashtbl.clear state.normalized_msgs;
-      state.adaptive_threshold <- initial_adaptive_threshold)
+      Hashtbl.clear state.min_cost_rows)
 end
 
 module type PrintBox_runtime = sig
