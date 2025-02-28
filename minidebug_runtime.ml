@@ -499,7 +499,7 @@ module PrevRun = struct
     curr_normalized_chunk : string Dynarray.t; (* Normalized version of curr_chunk *)
     dp_table : (int * int, int * int * int) Hashtbl.t;
         (* (i,j) -> (edit_dist, prev_i, prev_j) *)
-    mutable last_computed_row : int; (* Last computed row in dp table *)
+    mutable num_rows : int; (* Number of rows in the prev_chunk *)
     mutable last_computed_col : int; (* Last computed column in dp table *)
     mutable optimal_edits : edit_info list; (* Optimal edit sequence so far *)
     prev_ic : in_channel option; (* Channel for reading previous chunks *)
@@ -508,8 +508,7 @@ module PrevRun = struct
         (* Pattern to normalize messages before comparison *)
     normalized_msgs : (string, string) Hashtbl.t;
         (* Memoization table for normalized messages *)
-    min_cost_rows : (int, int) Hashtbl.t;
-        (* Column index -> row with minimum cost *)
+    min_cost_rows : (int, int) Hashtbl.t; (* Column index -> row with minimum cost *)
   }
 
   let save_chunk oc messages =
@@ -559,7 +558,10 @@ module PrevRun = struct
         curr_chunk = Dynarray.create ();
         curr_normalized_chunk = Dynarray.create ();
         dp_table = Hashtbl.create 10000;
-        last_computed_row = -1;
+        num_rows =
+          (match prev_chunk with
+          | None -> 0
+          | Some chunk -> Array.length chunk.messages_with_depth - 1);
         last_computed_col = -1;
         optimal_edits = [];
         prev_ic;
@@ -699,7 +701,7 @@ module PrevRun = struct
     let edits = backtrack row col [] in
     state.optimal_edits <- edits
 
-  let compute_dp_upto state row col =
+  let compute_dp_upto state col =
     (* Compute new cells with adaptive pruning - transposed for column-first iteration *)
 
     (* For new columns, compute with adaptive pruning *)
@@ -716,7 +718,7 @@ module PrevRun = struct
 
       (* Define exploration range around the center row *)
       let min_i = max 0 (center_row - max_distance_factor) in
-      let max_i = min row (center_row + max_distance_factor) in
+      let max_i = min state.num_rows (center_row + max_distance_factor) in
 
       let min_cost_for_col = ref max_int in
       let min_cost_row = ref center_row in
@@ -732,47 +734,8 @@ module PrevRun = struct
       Hashtbl.replace state.min_cost_rows j !min_cost_row
     done;
 
-    (* For existing columns, compute new rows with adaptive pruning *)
-    for j = 0 to state.last_computed_col do
-      let min_i =
-        max (state.last_computed_row + 1)
-          (if Hashtbl.mem state.min_cost_rows j then
-             Hashtbl.find state.min_cost_rows j - max_distance_factor
-           else j - max_distance_factor)
-      in
-      let max_i =
-        min row
-          (if Hashtbl.mem state.min_cost_rows j then
-             Hashtbl.find state.min_cost_rows j + max_distance_factor
-           else j + max_distance_factor)
-      in
-
-      let min_cost_for_col =
-        if Hashtbl.mem state.min_cost_rows j then
-          let i = Hashtbl.find state.min_cost_rows j in
-          let cost, _, _ = get_dp_value state i j in
-          ref cost
-        else ref max_int
-      in
-      let min_cost_row =
-        if Hashtbl.mem state.min_cost_rows j then ref (Hashtbl.find state.min_cost_rows j)
-        else ref j
-      in
-
-      for i = min_i to max_i do
-        let cost = compute_dp_cell state i j in
-        if cost < !min_cost_for_col then (
-          min_cost_for_col := cost;
-          min_cost_row := i)
-      done;
-
-      (* Update the row with minimum cost for this column *)
-      Hashtbl.replace state.min_cost_rows j !min_cost_row
-    done;
-
-    state.last_computed_row <- max state.last_computed_row row;
     state.last_computed_col <- max state.last_computed_col col;
-    update_optimal_edits state row col
+    update_optimal_edits state state.num_rows col
 
   let check_diff state ~depth msg =
     let msg_idx = Dynarray.length state.curr_chunk in
@@ -782,19 +745,18 @@ module PrevRun = struct
     let normalized_msg = normalize_message state msg in
     Dynarray.add_last state.curr_normalized_chunk normalized_msg;
 
-    match state.prev_chunk with
-    | None -> fun () -> true
-    | Some chunk ->
-        let row = Array.length chunk.messages_with_depth - 1 in
-        compute_dp_upto state row msg_idx;
+    match (state.prev_ic, state.prev_chunk) with
+    | None, None -> fun () -> false
+    | Some _, None -> fun () -> true
+    | None, Some _ -> assert false
+    | Some _, Some _ ->
+        compute_dp_upto state msg_idx;
         fun () ->
           (* Find the edit for current message in optimal edit sequence *)
-          let has_match =
-            List.exists
-              (fun edit -> edit.curr_index = msg_idx && edit.edit_type = Match)
-              state.optimal_edits
-          in
-          not has_match
+          not
+            (List.exists
+               (fun edit -> edit.curr_index = msg_idx && edit.edit_type = Match)
+               state.optimal_edits)
 
   let signal_chunk_end state =
     if Dynarray.length state.curr_chunk > 0 then (
@@ -804,8 +766,12 @@ module PrevRun = struct
       state.prev_chunk <- Option.bind state.prev_ic load_next_chunk;
       state.prev_normalized_chunk <-
         normalize_chunk state.diff_ignore_pattern state.prev_chunk;
+      (* Update num_rows based on the new prev_chunk *)
+      state.num_rows <-
+        (match state.prev_chunk with
+        | None -> 0
+        | Some chunk -> Array.length chunk.messages_with_depth - 1);
       Hashtbl.clear state.dp_table;
-      state.last_computed_row <- -1;
       state.last_computed_col <- -1;
       state.optimal_edits <- [];
       Hashtbl.clear state.normalized_msgs;
