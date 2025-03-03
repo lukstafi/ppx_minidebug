@@ -4,14 +4,14 @@ open Sexplib0.Sexp_conv
    functionality *)
 
 (* Helper function to create a random string with a timestamp *)
-let random_string_with_timestamp () =
-  let timestamp =
+let%debug_rt_sexp random_string_with_timestamp () =
+  let timestamp : string =
     Printf.sprintf "[%04d-%02d-%02d %02d:%02d:%02d]" 2024
       (Random.int 12 + 1)
       (Random.int 28 + 1)
       (Random.int 24) (Random.int 60) (Random.int 60)
   in
-  let random_chars =
+  let random_chars : string =
     String.init (Random.int 20 + 5) (fun _ -> Char.chr (Random.int 26 + 97))
   in
   timestamp ^ " " ^ random_chars
@@ -35,7 +35,7 @@ let debug_run1 () =
   in
   (* Chunk 1: Simple function with timestamps *)
   let%debug_sexp process_message (msg : string) : string =
-    let timestamp = random_string_with_timestamp () in
+    let timestamp = random_string_with_timestamp (module Debug_runtime) () in
     timestamp ^ " Processing: " ^ msg
   in
   ignore @@ process_message "hello";
@@ -44,7 +44,7 @@ let debug_run1 () =
   (* Chunk 2: Function with data structures *)
   let%debug_sexp process_data (size : int) : int list =
     let data = create_data_structure size in
-    let timestamp = random_string_with_timestamp () in
+    let timestamp = random_string_with_timestamp (module Debug_runtime) () in
     [%log timestamp, "Processing data of size", (size : int)];
     data
   in
@@ -53,13 +53,13 @@ let debug_run1 () =
 
   (* Chunk 3: Nested function calls with timestamps *)
   let%debug_sexp helper (x : int) : int =
-    let timestamp = random_string_with_timestamp () in
+    let timestamp = random_string_with_timestamp (module Debug_runtime) () in
     [%log timestamp, "Helper called with", (x : int)];
     x * 2
   in
 
   let%debug_sexp process_number (n : int) : int =
-    let timestamp = random_string_with_timestamp () in
+    let timestamp = random_string_with_timestamp (module Debug_runtime) () in
     [%log timestamp, "Processing number", (n : int)];
     let result = helper (n + 1) in
     result + 3
@@ -70,7 +70,7 @@ let debug_run1 () =
 
   (* Chunk 4: Complex data with some changes between runs *)
   let%debug_sexp complex_operation (input : string) : (string * int) list =
-    let timestamp = random_string_with_timestamp () in
+    let timestamp = random_string_with_timestamp (module Debug_runtime) () in
     let words = String.split_on_char ' ' input in
     let result = List.mapi (fun i word -> (word, String.length word + i)) words in
     [%log timestamp, "Complex operation on:", input];
@@ -93,7 +93,7 @@ let debug_run2 () =
   in
   (* Chunk 1: Same as run1 but with different timestamps *)
   let%debug_sexp process_message (msg : string) : string =
-    let timestamp = random_string_with_timestamp () in
+    let timestamp = random_string_with_timestamp (module Debug_runtime) () in
     timestamp ^ " Processing: " ^ msg
   in
   ignore @@ process_message "hello";
@@ -102,7 +102,7 @@ let debug_run2 () =
   (* Chunk 2: Same function but with slightly different data *)
   let%debug_sexp process_data (size : int) : int list =
     let data = create_data_structure size in
-    let timestamp = random_string_with_timestamp () in
+    let timestamp = random_string_with_timestamp (module Debug_runtime) () in
     [%log timestamp, "Processing data of size", (size : int)];
     data
   in
@@ -113,13 +113,13 @@ let debug_run2 () =
 
   (* Chunk 3: Same nested functions but with a small change *)
   let%debug_sexp helper (x : int) : int =
-    let timestamp = random_string_with_timestamp () in
+    let timestamp = random_string_with_timestamp (module Debug_runtime) () in
     [%log timestamp, "Helper called with", (x : int)];
     x * 2
   in
 
   let%debug_sexp process_number (n : int) : int =
-    let timestamp = random_string_with_timestamp () in
+    let timestamp = random_string_with_timestamp (module Debug_runtime) () in
     [%log timestamp, "Processing number", (n : int)];
     let result = helper (n + 2) in
     (* Changed from n+1 to n+2 *)
@@ -131,7 +131,7 @@ let debug_run2 () =
 
   (* Chunk 4: Same complex data with one different input *)
   let%debug_sexp complex_operation (input : string) : (string * int) list =
-    let timestamp = random_string_with_timestamp () in
+    let timestamp = random_string_with_timestamp (module Debug_runtime) () in
     let words = String.split_on_char ' ' input in
     let result = List.mapi (fun i word -> (word, String.length word + i)) words in
     [%log timestamp, "Complex operation on:", input];
@@ -155,7 +155,7 @@ let debug_run3 () =
   in
   (* Chunk 1: Same as before *)
   let%debug_sexp process_message (msg : string) : string =
-    let timestamp = random_string_with_timestamp () in
+    let timestamp = random_string_with_timestamp (module Debug_runtime) () in
     timestamp ^ " Processing: " ^ msg
   in
   ignore @@ process_message "hello";
@@ -164,7 +164,7 @@ let debug_run3 () =
   (* Chunk 2: Now with an additional call *)
   let%debug_sexp process_data (size : int) : int list =
     let data = create_data_structure size in
-    let timestamp = random_string_with_timestamp () in
+    let timestamp = random_string_with_timestamp (module Debug_runtime) () in
     [%log timestamp, "Processing data of size", (size : int)];
     data
   in
@@ -176,13 +176,13 @@ let debug_run3 () =
 
   (* Chunk 3: Modified implementation *)
   let%debug_sexp helper (x : int) : int =
-    let timestamp = random_string_with_timestamp () in
+    let timestamp = random_string_with_timestamp (module Debug_runtime) () in
     [%log timestamp, "Helper called with", (x : int)];
     x * 3 (* Changed multiplier from 2 to 3 *)
   in
 
   let%debug_sexp process_number (n : int) : int =
-    let timestamp = random_string_with_timestamp () in
+    let timestamp = random_string_with_timestamp (module Debug_runtime) () in
     [%log timestamp, "Processing number", (n : int)];
     let result = helper (n + 2) in
     result + 5 (* Changed from +3 to +5 *)
@@ -193,7 +193,7 @@ let debug_run3 () =
 
   (* Chunk 4: Same as run2 *)
   let%debug_sexp complex_operation (input : string) : (string * int) list =
-    let timestamp = random_string_with_timestamp () in
+    let timestamp = random_string_with_timestamp (module Debug_runtime) () in
     let words = String.split_on_char ' ' input in
     let result = List.mapi (fun i word -> (word, String.length word + i)) words in
     [%log timestamp, "Complex operation on:", input];
@@ -205,7 +205,7 @@ let debug_run3 () =
 
   (* Chunk 5: New chunk not present in previous runs *)
   let%debug_sexp new_operation (a : int) (b : int) : int * int * int =
-    let timestamp = random_string_with_timestamp () in
+    let timestamp = random_string_with_timestamp (module Debug_runtime) () in
     [%log timestamp, "New operation with", (a : int), "and", (b : int)];
     (a + b, a * b, a - b)
   in

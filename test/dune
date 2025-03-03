@@ -436,3 +436,18 @@
  (deps debugger_large_diffs_run2.raw)
  (action
   (run %{dep:test_debug_large_diffs.exe} run3)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_large_diffs_run1.expected.log debugger_large_diffs_run1.log)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_large_diffs_run2.expected.log debugger_large_diffs_run2.log)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_large_diffs_run3.expected.log debugger_large_diffs_run3.log)))
