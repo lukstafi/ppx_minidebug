@@ -449,32 +449,32 @@ let anchor_entry_id ~is_pure_text ~entry_id =
     let anchor = B.anchor ~id B.empty in
     if is_pure_text then B.hlist ~bars:false [ anchor; B.line " " ] else anchor
 
-type PrintBox.ext += Lazy_box of PrintBox.t Lazy.t
+type PrintBox.ext += Susp_box of (unit -> PrintBox.t)
 
-let lbox lb = PrintBox.extension ~key:"lazy" (Lazy_box lb)
+let lbox f = PrintBox.extension ~key:"susp" (Susp_box f)
 
 let text_handler ~style = function
-  | Lazy_box (lazy lb) -> PrintBox_text.to_string_with ~style lb
+  | Susp_box f -> PrintBox_text.to_string_with ~style (f ())
   | _ -> assert false
 
 let md_handler config = function
-  | Lazy_box (lazy lb) -> PrintBox_md.to_string config lb
+  | Susp_box f -> PrintBox_md.to_string config (f ())
   | _ -> assert false
 
 let html_handler config = function
-  | Lazy_box (lazy lb) ->
-      (PrintBox_html.to_html ~config lb :> PrintBox_html.toplevel_html)
+  | Susp_box f ->
+      (PrintBox_html.to_html ~config (f ()) :> PrintBox_html.toplevel_html)
   | _ -> assert false
 
 let html_summary_handler config = function
-  | Lazy_box (lazy lb) -> PrintBox_html.to_summary_html ~config lb
+  | Susp_box f -> PrintBox_html.to_summary_html ~config (f ())
   | _ -> assert false
 
 let () =
-  PrintBox_text.register_extension ~key:"lazy" text_handler;
-  PrintBox_md.register_extension ~key:"lazy" md_handler;
-  PrintBox_html.register_extension ~key:"lazy" html_handler;
-  PrintBox_html.register_summary_extension ~key:"lazy" html_summary_handler
+  PrintBox_text.register_extension ~key:"susp" text_handler;
+  PrintBox_md.register_extension ~key:"susp" md_handler;
+  PrintBox_html.register_extension ~key:"susp" html_handler;
+  PrintBox_html.register_summary_extension ~key:"susp" html_summary_handler
 
 module PrevRun = struct
   type edit_type = Match | Insert | Delete | Change
@@ -927,7 +927,7 @@ module PrintBox (Log_to : Shared_config) = struct
     in
     if hl.pattern_match then loop b
     else if not config.highlight_diffs then b
-    else lbox (lazy (if hl.diff_check () then loop b else b))
+    else lbox (fun () -> if hl.diff_check () then loop b else b)
 
   let hl_or hl1 hl2 =
     {
