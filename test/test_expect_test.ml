@@ -4601,19 +4601,19 @@ let%expect_test "%debug_show comparing differences across runs" =
     93
 
     BEGIN DEBUG SESSION
-    ┌───────────────────────────────────────┐
+    ┌───────────────────────────────────────┐Changed from: y = 8
     │"test/test_expect_test.ml":4577:21: foo│
     └───────────────────────────────────────┘
     ├─x = { Test_expect_test.first = 7; second = 42 }
-    ├─┌────────────────────────────────────┐
+    ├─┌────────────────────────────────────┐Changed from: y = 8
     │ │"test/test_expect_test.ml":4578:8: y│
     │ └────────────────────────────────────┘
-    │ └─┌─────┐
+    │ └─┌─────┐Changed from: y = 8
     │   │y = 9│
     │   └─────┘
     ├─"test/test_expect_test.ml":4580:8: z
     │ └─z = 84
-    └─┌────────┐
+    └─┌────────┐Changed from: foo = 92
       │foo = 93│
       └────────┘
     |}]
@@ -4707,16 +4707,16 @@ let%expect_test "%debug_show comparing differences with normalized patterns" =
     39
 
     BEGIN DEBUG SESSION
-    ┌───────────────────────────────────────────────────┐
+    ┌───────────────────────────────────────────────────┐Inserted in current run
     │"test/test_expect_test.ml":4695:33: process_message│
     └───────────────────────────────────────────────────┘
     ├─msg = "hello"
     ├─"test/test_expect_test.ml":4696:8: timestamp
     │ └─timestamp = "[2024-03-22 15:30:45] "
-    ├─┌─────────────────────────────────────────────┐
+    ├─┌─────────────────────────────────────────────┐Inserted in current run
     │ │"test/test_expect_test.ml":4697:8: processing│
     │ └─────────────────────────────────────────────┘
-    │ └─┌────────────────────────────────┐
+    │ └─┌────────────────────────────────┐Inserted in current run
     │   │processing = "Processing: hello"│
     │   └────────────────────────────────┘
     ├─"test/test_expect_test.ml":4698:8: processed

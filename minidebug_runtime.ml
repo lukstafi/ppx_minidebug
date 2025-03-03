@@ -462,8 +462,7 @@ let md_handler config = function
   | _ -> assert false
 
 let html_handler config = function
-  | Susp_box f ->
-      (PrintBox_html.to_html ~config (f ()) :> PrintBox_html.toplevel_html)
+  | Susp_box f -> (PrintBox_html.to_html ~config (f ()) :> PrintBox_html.toplevel_html)
   | _ -> assert false
 
 let html_summary_handler config = function
@@ -477,7 +476,7 @@ let () =
   PrintBox_html.register_summary_extension ~key:"susp" html_summary_handler
 
 module PrevRun = struct
-  type edit_type = Match | Insert | Delete | Change
+  type edit_type = Match | Insert | Delete | Change of string
 
   type edit_info = {
     edit_type : edit_type;
@@ -690,9 +689,10 @@ module PrevRun = struct
         let _cost, prev_i, prev_j = get_dp_value state i j in
         let edit =
           if prev_i = i - 1 && prev_j = j - 1 then
-            if get_normalized_prev state i = get_normalized_curr state j then
+            let normalized_prev = get_normalized_prev state i in
+            if normalized_prev = get_normalized_curr state j then
               { edit_type = Match; curr_index = j }
-            else { edit_type = Change; curr_index = j }
+            else { edit_type = Change normalized_prev; curr_index = j }
           else if prev_i = i - 1 then { edit_type = Delete; curr_index = j }
           else { edit_type = Insert; curr_index = j }
         in
@@ -746,17 +746,32 @@ module PrevRun = struct
     Dynarray.add_last state.curr_normalized_chunk normalized_msg;
 
     match (state.prev_ic, state.prev_chunk) with
-    | None, None -> fun () -> false
-    | Some _, None -> fun () -> true
+    | None, None -> fun () -> None
+    | Some _, None -> fun () -> Some "New entry (no previous run data)"
     | None, Some _ -> assert false
     | Some _, Some _ ->
         compute_dp_upto state msg_idx;
         fun () ->
           (* Find the edit for current message in optimal edit sequence *)
-          not
-            (List.exists
-               (fun edit -> edit.curr_index = msg_idx && edit.edit_type = Match)
-               state.optimal_edits)
+          let is_match =
+            List.exists
+              (fun edit -> edit.curr_index = msg_idx && edit.edit_type = Match)
+              state.optimal_edits
+          in
+          if is_match then None
+          else
+            let edit_type =
+              try
+                List.find (fun edit -> edit.curr_index = msg_idx) state.optimal_edits
+                |> fun edit ->
+                match edit.edit_type with
+                | Match -> "Match" (* Should never happen due to is_match check *)
+                | Insert -> "Inserted in current run"
+                | Delete -> "Deleted from previous run"
+                | Change prev_msg -> "Changed from: " ^ prev_msg
+              with Not_found -> "Unknown edit type"
+            in
+            Some edit_type
 
   let signal_chunk_end state =
     if Dynarray.length state.curr_chunk > 0 then (
@@ -859,7 +874,7 @@ module PrintBox (Log_to : Shared_config) = struct
       prev_run_file = None;
     }
 
-  type highlight = { pattern_match : bool; diff_check : unit -> bool }
+  type highlight = { pattern_match : bool; diff_check : unit -> string option }
 
   type subentry = {
     result_id : int;
@@ -927,12 +942,20 @@ module PrintBox (Log_to : Shared_config) = struct
     in
     if hl.pattern_match then loop b
     else if not config.highlight_diffs then b
-    else lbox (fun () -> if hl.diff_check () then loop b else b)
+    else
+      lbox (fun () ->
+          match hl.diff_check () with
+          | None -> b
+          | Some reason -> B.hlist ~bars:false [ loop b; B.text reason ])
 
   let hl_or hl1 hl2 =
     {
       pattern_match = hl1.pattern_match || hl2.pattern_match;
-      diff_check = (fun () -> hl1.diff_check () || hl2.diff_check ());
+      diff_check =
+        (fun () ->
+          match hl1.diff_check () with
+          | Some reason -> Some reason
+          | None -> hl2.diff_check ());
     }
 
   let unpack ~f l =
@@ -952,7 +975,7 @@ module PrintBox (Log_to : Shared_config) = struct
   let hl_oneof highlighted =
     {
       pattern_match = List.exists (fun hl -> hl.pattern_match) highlighted;
-      diff_check = (fun () -> List.exists (fun hl -> hl.diff_check ()) highlighted);
+      diff_check = (fun () -> List.find_map (fun hl -> hl.diff_check ()) highlighted);
     }
 
   let stack_to_tree ~elapsed_on_close
@@ -1457,7 +1480,7 @@ module PrintBox (Log_to : Shared_config) = struct
   let get_highlight ~depth message =
     let diff_check =
       match !prev_run_state with
-      | None -> fun () -> false
+      | None -> fun () -> None
       | Some state -> PrevRun.check_diff state ~depth message
     in
     match config.highlight_terms with
@@ -1574,7 +1597,7 @@ module PrintBox (Log_to : Shared_config) = struct
     in
     let diff_check =
       match !prev_run_state with
-      | None -> fun () -> false
+      | None -> fun () -> None
       | Some state -> PrevRun.check_diff state ~depth message
     in
     let hl_header =
@@ -1604,7 +1627,7 @@ module PrintBox (Log_to : Shared_config) = struct
         match sexp with
         (* FIXME: Should we render [List [Atom s]] at [depth] also? *)
         | Atom s -> highlight_box ~depth @@ B.text_with_style B.Style.preformatted s
-        | List [] -> ({ pattern_match = false; diff_check = (fun () -> false) }, B.empty)
+        | List [] -> ({ pattern_match = false; diff_check = (fun () -> None) }, B.empty)
         | List [ s ] -> loop ~depth:(depth + 1) s
         | List (Atom s :: l) ->
             let hl_body, bs = List.split @@ List.map (loop ~depth:(depth + 1)) l in
@@ -1626,7 +1649,7 @@ module PrintBox (Log_to : Shared_config) = struct
     | (Atom s | List [ Atom s ]), None ->
         highlight_box ~depth @@ B.text_with_style B.Style.preformatted s
     | List [], Some d -> highlight_box ~depth @@ B.line d
-    | List [], None -> ({ pattern_match = false; diff_check = (fun () -> false) }, B.empty)
+    | List [], None -> ({ pattern_match = false; diff_check = (fun () -> None) }, B.empty)
     | List l, _ ->
         let str =
           if sexp_size sexp < min config.boxify_sexp_from_size config.max_inline_sexp_size
