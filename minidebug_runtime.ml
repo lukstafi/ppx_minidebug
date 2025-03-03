@@ -761,15 +761,37 @@ module PrevRun = struct
           if is_match then None
           else
             let edit_type =
-              try
-                List.find (fun edit -> edit.curr_index = msg_idx) state.optimal_edits
-                |> fun edit ->
-                match edit.edit_type with
-                | Match -> "Match" (* Should never happen due to is_match check *)
-                | Insert -> "Inserted in current run"
-                | Delete -> "Deleted from previous run"
-                | Change prev_msg -> "Changed from: " ^ prev_msg
-              with Not_found -> "Unknown edit type"
+              (* First try to find a Change edit for this message index *)
+              match
+                List.find_map
+                  (fun edit ->
+                    if edit.curr_index = msg_idx then
+                      match edit.edit_type with
+                      | Change prev_msg -> Some ("Changed from: " ^ prev_msg)
+                      | _ -> None
+                    else None)
+                  state.optimal_edits
+              with
+              | Some change_msg -> change_msg
+              | None ->
+                  if
+                    (* If no Change edit found, look for any edit and count deletions *)
+                    List.for_all
+                      (fun edit -> edit.curr_index <> msg_idx)
+                      state.optimal_edits
+                  then "No matching chunk?"
+                  else
+                    (* Count deletions in the optimal edits *)
+                    let deletion_count =
+                      List.fold_left
+                        (fun count e ->
+                          if e.curr_index = msg_idx && e.edit_type = Delete then count + 1
+                          else count)
+                        0 state.optimal_edits
+                    in
+                    if deletion_count > 0 then
+                      Printf.sprintf "Covers %d deletions in previous run" deletion_count
+                    else "Inserted in current run"
             in
             Some edit_type
 
