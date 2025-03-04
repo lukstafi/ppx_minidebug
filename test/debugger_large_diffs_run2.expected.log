@@ -5,7 +5,7 @@ BEGIN DEBUG SESSION
 ││process_message = [2024-07-13 12:45:02] prznoznjmq Processing: hello│                                                              │
 │└────────────────────────────────────────────────────────────────────┘                                                              │
 └────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-├─"test/test_debug_large_diffs.ml":95:33
+├─"test/test_debug_large_diffs.ml":96:33
 ├─msg = hello
 └─┌────────────────────────────┐Changed from: random_chars = quqknrptibj
   │random_string_with_timestamp│
@@ -24,7 +24,7 @@ BEGIN DEBUG SESSION
 ││process_message = [2024-12-08 21:57:36] unvwhtrllputtg Processing: world│                                                                           │
 │└────────────────────────────────────────────────────────────────────────┘                                                                           │
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-├─"test/test_debug_large_diffs.ml":95:33
+├─"test/test_debug_large_diffs.ml":96:33
 ├─msg = world
 └─┌────────────────────────────┐Changed from: random_chars = cudarhjszodixrhpecbgfzri
   │random_string_with_timestamp│
@@ -43,7 +43,7 @@ BEGIN DEBUG SESSION
 ││process_data = (3 56 40 57 41)│                                             │
 │└──────────────────────────────┘                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
-├─"test/test_debug_large_diffs.ml":103:30
+├─"test/test_debug_large_diffs.ml":104:30
 ├─size = 5
 ├─┌────────────────────────────┐Changed from: random_chars = snwbxobrujbfydjz
 │ │random_string_with_timestamp│
@@ -65,7 +65,7 @@ BEGIN DEBUG SESSION
 ││process_data = (68 74 44 46 58 94 52 9 10 84 15)│                                                         │
 │└────────────────────────────────────────────────┘                                                         │
 └───────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-├─"test/test_debug_large_diffs.ml":103:30
+├─"test/test_debug_large_diffs.ml":104:30
 ├─┌─────────┐Changed from: size = 10
 │ │size = 11│
 │ └─────────┘
@@ -89,7 +89,7 @@ BEGIN DEBUG SESSION
 ││process_number = 17│                                 │
 │└───────────────────┘                                 │
 └──────────────────────────────────────────────────────┘
-├─"test/test_debug_large_diffs.ml":121:32
+├─"test/test_debug_large_diffs.ml":122:32
 ├─n = 5
 ├─┌────────────────────────────┐Changed from: random_chars = hlxvtd
 │ │random_string_with_timestamp│
@@ -111,7 +111,7 @@ BEGIN DEBUG SESSION
   ││helper = 14│                         │
   │└───────────┘                         │
   └──────────────────────────────────────┘
-  ├─"test/test_debug_large_diffs.ml":115:24
+  ├─"test/test_debug_large_diffs.ml":116:24
   ├─┌─────┐Changed from: x = 6
   │ │x = 7│
   │ └─────┘
@@ -135,7 +135,7 @@ BEGIN DEBUG SESSION
 ││process_number = 27│                                 │
 │└───────────────────┘                                 │
 └──────────────────────────────────────────────────────┘
-├─"test/test_debug_large_diffs.ml":121:32
+├─"test/test_debug_large_diffs.ml":122:32
 ├─n = 10
 ├─┌────────────────────────────┐Changed from: random_chars = jsrppdeymhyfzke
 │ │random_string_with_timestamp│
@@ -157,7 +157,7 @@ BEGIN DEBUG SESSION
   ││helper = 24│                         │
   │└───────────┘                         │
   └──────────────────────────────────────┘
-  ├─"test/test_debug_large_diffs.ml":115:24
+  ├─"test/test_debug_large_diffs.ml":116:24
   ├─┌──────┐Changed from: x = 11
   │ │x = 12│
   │ └──────┘
@@ -179,7 +179,7 @@ BEGIN DEBUG SESSION
 ┌────────────────────────────────────────────────────────────────┐Changed from: random_chars = idgfejq
 │complex_operation = ((this 4) (is 3) (a 3) (test 7) (string 10))│
 └────────────────────────────────────────────────────────────────┘
-├─"test/test_debug_large_diffs.ml":133:35
+├─"test/test_debug_large_diffs.ml":134:35
 ├─input = this is a test string
 ├─┌────────────────────────────┐Changed from: random_chars = idgfejq
 │ │random_string_with_timestamp│
@@ -203,7 +203,7 @@ BEGIN DEBUG SESSION
 ││complex_operation = ((a 1) (completely 11) (different 11) (string 9) (with 8) (new 8) (words 11))│                                                                                                           │
 │└─────────────────────────────────────────────────────────────────────────────────────────────────┘                                                                                                           │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-├─"test/test_debug_large_diffs.ml":133:35
+├─"test/test_debug_large_diffs.ml":134:35
 ├─┌────────────────────────────────────────────────────┐Changed from: input = another example with more words to process
 │ │input = a completely different string with new words│
 │ └────────────────────────────────────────────────────┘
@@ -226,3 +226,5 @@ BEGIN DEBUG SESSION
   └─┌────────────────────────────────────────────┐Changed from: another example with more words to process
     │a completely different string with new words│
     └────────────────────────────────────────────┘
+
+END DEBUG SESSION 

@@ -224,6 +224,7 @@ module type Debug_runtime = sig
   val max_num_children : int option ref
   val global_prefix : string
   val snapshot : unit -> unit
+  val finish_and_cleanup : unit -> unit
   val description : string
   val no_debug_if : bool -> unit
   val log_level : int ref
@@ -443,6 +444,24 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
   let snapshot () = ()
   let description = Log_to.description
   let no_debug_if _condition = ()
+
+  let finish_and_cleanup () =
+    if !log_level > 0 then
+      let ch = debug_ch () in
+      let () =
+        match Log_to.time_tagged with
+        | Not_tagged -> Printf.fprintf ch "\nEND DEBUG SESSION %s\n%!" global_prefix
+        | Clock ->
+            Printf.fprintf ch "\nEND DEBUG SESSION %sat time %s\n%!" global_prefix
+              (timestamp_to_string ())
+        | Elapsed ->
+            Printf.fprintf ch
+              "\nEND DEBUG SESSION %sat elapsed %s, corresponding to time %s\n%!"
+              global_prefix
+              (Format.asprintf "%a" pp_elapsed ())
+              (timestamp_to_string ())
+      in
+      close_out ch
 end
 
 let default_html_config = PrintBox_html.Config.(tree_summary true default)
@@ -1768,6 +1787,26 @@ module PrintBox (Log_to : Shared_config) = struct
 
   let global_prefix = global_prefix
   let description = Log_to.description
+
+  let finish_and_cleanup () =
+    if !log_level > 0 then (
+      let () = snapshot () in
+      let ch = debug_ch () in
+      let log_ps =
+        match Log_to.time_tagged with
+        | Not_tagged -> Printf.sprintf "\nEND DEBUG SESSION %s\n" global_prefix
+        | Clock ->
+            Printf.sprintf "\nEND DEBUG SESSION %sat time %s\n" global_prefix
+              (timestamp_to_string ())
+        | Elapsed ->
+            Printf.sprintf
+              "\nEND DEBUG SESSION %sat elapsed %s, corresponding to time %s\n"
+              global_prefix
+              (Format.asprintf "%a" pp_elapsed ())
+              (timestamp_to_string ())
+      in
+      output_string ch log_ps;
+      close_out ch)
 end
 
 let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)

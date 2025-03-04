@@ -146,6 +146,10 @@ module type Debug_runtime = sig
       channel to the state prior to the snapshot. Does nothing for the [Flushing]
       runtimes. *)
 
+  val finish_and_cleanup : unit -> unit
+  (** Snapshots any pending logs and closes any open files. This should be called at the
+      end of the program to ensure all logs are properly flushed and files are closed. *)
+
   val description : string
   (** A description that should be sufficient to locate where the logs end up. If not
       configured explicitly, it will be some combination of: the global prefix, the file

@@ -78,7 +78,8 @@ let debug_run1 () =
   in
 
   ignore @@ complex_operation "this is a test string";
-  ignore @@ complex_operation "another example with more words to process"
+  ignore @@ complex_operation "another example with more words to process";
+  Debug_runtime.finish_and_cleanup ()
 
 (* Run 2: Similar to run 1 but with some intentional changes *)
 let debug_run2 () =
@@ -140,7 +141,8 @@ let debug_run2 () =
 
   ignore @@ complex_operation "this is a test string";
   ignore
-  @@ complex_operation "a completely different string with new words" (* Changed input *)
+  @@ complex_operation "a completely different string with new words" (* Changed input *);
+  Debug_runtime.finish_and_cleanup ()
 
 (* Run 3: Test with additional chunks and more complex changes *)
 let debug_run3 () =
@@ -211,7 +213,8 @@ let debug_run3 () =
   in
 
   ignore @@ new_operation 10 20;
-  ignore @@ new_operation 5 7
+  ignore @@ new_operation 5 7;
+  Debug_runtime.finish_and_cleanup ()
 
 (* Main function to run the appropriate test *)
 let () =

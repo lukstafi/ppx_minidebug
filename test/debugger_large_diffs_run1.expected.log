@@ -103,3 +103,5 @@ complex_operation = ((another 7) (example 8) (with 6) (more 7) (words 9) (to 7) 
 └─[2024-07-01 04:48:02] xogeygjkphzjfpgykdfleqsd
   ├─Complex operation on:
   └─another example with more words to process
+
+END DEBUG SESSION 
