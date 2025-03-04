@@ -136,6 +136,7 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
 
     let debug_ch () =
       if refresh_ch () then (
+        close_out !!current_ch;
         Lazy.force_val current_ch := find_ch ();
         current_snapshot := 0);
       !!current_ch
