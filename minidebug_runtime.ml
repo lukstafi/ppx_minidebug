@@ -785,8 +785,8 @@ module PrevRun = struct
       Hashtbl.replace state.min_cost_rows j !min_cost_row
     done;
 
-    state.last_computed_col <- max state.last_computed_col col;
-    update_optimal_edits state state.num_rows col
+    if state.last_computed_col < col then update_optimal_edits state state.num_rows col;
+    state.last_computed_col <- max state.last_computed_col col
 
   let check_diff state ~depth msg =
     let msg_idx = Dynarray.length state.curr_chunk in
@@ -831,15 +831,22 @@ module PrevRun = struct
                       (fun edit -> edit.curr_index <> msg_idx)
                       state.optimal_edits
                   then
-                    let edits_str = 
-                      List.fold_left (fun acc edit ->
-                        if String.length acc > 0 then acc ^ "; " else acc ^
-                        match edit.edit_type with
-                        | Match -> Printf.sprintf "Match at %d" edit.curr_index
-                        | Insert -> Printf.sprintf "Insert at %d" edit.curr_index
-                        | Delete -> Printf.sprintf "Delete at %d" edit.curr_index 
-                        | Change msg -> Printf.sprintf "Change at %d: %s" edit.curr_index msg)
-                      "" (List.take 5 state.optimal_edits) in
+                    let edits_str =
+                      List.fold_left
+                        (fun acc edit ->
+                          if String.length acc > 0 then acc ^ "; "
+                          else
+                            acc
+                            ^
+                            match edit.edit_type with
+                            | Match -> Printf.sprintf "Match at %d" edit.curr_index
+                            | Insert -> Printf.sprintf "Insert at %d" edit.curr_index
+                            | Delete -> Printf.sprintf "Delete at %d" edit.curr_index
+                            | Change msg ->
+                                Printf.sprintf "Change at %d: %s" edit.curr_index msg)
+                        ""
+                        (List.take 5 state.optimal_edits)
+                    in
                     Printf.sprintf
                       "Bad chunk? current position %d, previous: size %d, messages: %s \
                        ... %s%s. 5 edits: %s"
