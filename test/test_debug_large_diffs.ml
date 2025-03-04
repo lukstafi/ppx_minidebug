@@ -25,6 +25,7 @@ let create_data_structure size =
 
 (* Run 1: Create baseline data *)
 let debug_run1 () =
+  Printf.printf "Running debug_run1...\n%!";
   Random.init 42;
 
   (* Fixed seed for reproducibility *)
@@ -83,6 +84,7 @@ let debug_run1 () =
 
 (* Run 2: Similar to run 1 but with some intentional changes *)
 let debug_run2 () =
+  Printf.printf "Running debug_run2...\n%!";
   Random.init 43;
 
   (* Different seed to generate different timestamps *)
@@ -146,6 +148,7 @@ let debug_run2 () =
 
 (* Run 3: Test with additional chunks and more complex changes *)
 let debug_run3 () =
+  Printf.printf "Running debug_run3...\n%!";
   Random.init 44;
 
   (* Different seed again *)
@@ -216,12 +219,21 @@ let debug_run3 () =
   ignore @@ new_operation 5 7;
   Debug_runtime.finish_and_cleanup ()
 
-(* Main function to run the appropriate test *)
+(* Main function to run all tests sequentially *)
 let () =
-  if Array.length Sys.argv > 1 then
-    match Sys.argv.(1) with
-    | "run1" -> debug_run1 ()
-    | "run2" -> debug_run2 ()
-    | "run3" -> debug_run3 ()
-    | _ -> failwith "Usage: test_debug_large_diffs run1|run2|run3"
-  else failwith "Usage: test_debug_large_diffs run1|run2|run3"
+  Printf.printf "Starting test_debug_large_diffs...\n%!";
+  
+  (* Run all three debug runs sequentially *)
+  Printf.printf "About to run debug_run1...\n%!";
+  debug_run1 ();
+  Printf.printf "debug_run1 completed.\n%!";
+  
+  Printf.printf "About to run debug_run2...\n%!";
+  debug_run2 ();
+  Printf.printf "debug_run2 completed.\n%!";
+  
+  Printf.printf "About to run debug_run3...\n%!";
+  debug_run3 ();
+  Printf.printf "debug_run3 completed.\n%!";
+  
+  Printf.printf "All debug runs completed successfully.\n%!"

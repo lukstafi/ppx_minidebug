@@ -404,38 +404,13 @@
   (pps ppx_minidebug ppx_sexp_conv)))
 
 (rule
- (targets debugger_large_diffs_run1.raw debugger_large_diffs_run1.log)
- (action
-  (run %{dep:test_debug_large_diffs.exe} run1)))
-
-(rule
- (targets debugger_large_diffs_run2.raw debugger_large_diffs_run2.log)
- (deps debugger_large_diffs_run1.raw)
- (action
-  (run %{dep:test_debug_large_diffs.exe} run2)))
-
-(rule
- (targets debugger_large_diffs_run3.raw debugger_large_diffs_run3.log)
- (deps debugger_large_diffs_run2.raw)
- (action
-  (run %{dep:test_debug_large_diffs.exe} run3)))
-
-(rule
  (alias runtest)
+ (targets
+  debugger_large_diffs_run1.log
+  debugger_large_diffs_run2.log
+  debugger_large_diffs_run3.log)
  (action
-  (run %{dep:test_debug_large_diffs.exe} run1)))
-
-(rule
- (alias runtest)
- (deps debugger_large_diffs_run1.raw)
- (action
-  (run %{dep:test_debug_large_diffs.exe} run2)))
-
-(rule
- (alias runtest)
- (deps debugger_large_diffs_run2.raw)
- (action
-  (run %{dep:test_debug_large_diffs.exe} run3)))
+  (run %{dep:test_debug_large_diffs.exe})))
 
 (rule
  (alias runtest)
