@@ -712,40 +712,30 @@ module PrevRun = struct
         (* If current (col) is >= previous (row), use standard bottom-right corner *)
         (row, col)
       else
-        (* For imbalanced cases where previous is larger than current,
-           scan along row from (col, col) to (row, col) to find optimal starting point *)
+        (* For imbalanced cases where previous is larger than current, scan along row from
+           (col, col) to (row, col) to find optimal starting point *)
         let min_cost = ref max_int in
         let best_i = ref row in
-        
-        (* Initialize min_cost with the cost at (row, col) *)
-        let cost_at_row_col, _, _ = get_dp_value state row col in
-        if cost_at_row_col < !min_cost then (
-          min_cost := cost_at_row_col;
-          best_i := row
-        );
-        
+
         (* Scan from col to row to find cell with minimum cost *)
-        for i = col to row - 1 do
+        for i = row downto col do
           let cost, _, _ = get_dp_value state i col in
           (* Only consider valid costs (ones that have been computed) *)
           if cost < !min_cost && cost < max_int then (
             min_cost := cost;
-            best_i := i
-          )
+            best_i := i)
         done;
         (!best_i, col)
     in
-    
+
     (* Backtrack through dp table to find optimal edit sequence *)
     let rec backtrack i j acc =
-      if i < 0 && j < 0 then acc
+      if j < 0 then
+        (* No need to backtrack, since we're at the start of the current run *)
+        acc
       else if i < 0 then
         let edit = { edit_type = Insert; curr_index = j } in
         backtrack i (j - 1) (edit :: acc)
-      else if j < 0 then
-        (* The previous run chunk message deletion, let's cover it under message 0. *)
-        let edit = { edit_type = Delete; curr_index = 0 } in
-        backtrack (i - 1) j (edit :: acc)
       else
         let _cost, prev_i, prev_j = get_dp_value state i j in
         let edit =
