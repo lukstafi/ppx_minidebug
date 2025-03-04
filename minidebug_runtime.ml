@@ -749,7 +749,7 @@ module PrevRun = struct
     | None, None -> fun () -> None
     | Some _, None -> fun () -> Some "New entry (no previous run data)"
     | None, Some _ -> assert false
-    | Some _, Some _ ->
+    | Some _, Some prev_chunk ->
         compute_dp_upto state msg_idx;
         fun () ->
           (* Find the edit for current message in optimal edit sequence *)
@@ -779,7 +779,15 @@ module PrevRun = struct
                     List.for_all
                       (fun edit -> edit.curr_index <> msg_idx)
                       state.optimal_edits
-                  then "No matching chunk?"
+                  then
+                    Printf.sprintf
+                      "Bad chunk? current position %d, previous: size %d, messages: %s \
+                       ... %s%s"
+                      msg_idx state.num_rows prev_chunk.messages_with_depth.(0).message
+                      (if msg_idx > 0 && msg_idx < state.num_rows - 1 then
+                         prev_chunk.messages_with_depth.(msg_idx).message ^ " ... "
+                       else "")
+                      prev_chunk.messages_with_depth.(state.num_rows - 1).message
                   else
                     (* Count deletions in the optimal edits *)
                     let deletion_count =
