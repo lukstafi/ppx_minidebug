@@ -683,7 +683,8 @@ module PrevRun = struct
         let edit = { edit_type = Insert; curr_index = j } in
         backtrack i (j - 1) (edit :: acc)
       else if j < 0 then
-        let edit = { edit_type = Delete; curr_index = i } in
+        (* The previous run chunk message deletion, let's cover it under message 0. *)
+        let edit = { edit_type = Delete; curr_index = 0 } in
         backtrack (i - 1) j (edit :: acc)
       else
         let _cost, prev_i, prev_j = get_dp_value state i j in
