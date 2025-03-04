@@ -93,8 +93,12 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     let find_ch () =
       match split_files_after with
       | None ->
-          if for_append then open_out_gen [ Open_creat; Open_append ] 0o640 filename
-          else open_out filename
+          let ch =
+            if for_append then open_out_gen [ Open_creat; Open_append ] 0o640 filename
+            else open_out filename
+          in
+          Gc.finalise (fun _ -> close_out ch) ch;
+          ch
       | Some _ ->
           let dirname = Filename.remove_extension filename in
           let suffix = Filename.extension filename in
@@ -111,8 +115,12 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
           in
           let filename = find 1 in
           current_ch_name := filename;
-          if for_append then open_out_gen [ Open_creat; Open_append ] 0o640 filename
-          else open_out filename
+          let ch =
+            if for_append then open_out_gen [ Open_creat; Open_append ] 0o640 filename
+            else open_out filename
+          in
+          Gc.finalise (fun _ -> close_out ch) ch;
+          ch
 
     let current_ch = lazy (ref @@ find_ch ())
     let ( !! ) ch = !(Lazy.force_val ch)
@@ -141,14 +149,15 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     let reset_to_snapshot () = seek_out !!current_ch !current_snapshot
 
     let table_of_contents_ch =
-      if with_table_of_contents then
+      if with_table_of_contents then (
         let suffix = Filename.extension filename in
         let filename = Filename.remove_extension filename ^ "-toc" ^ suffix in
         let ch =
           if for_append then open_out_gen [ Open_creat; Open_append ] 0o640 filename
           else open_out filename
         in
-        Some ch
+        Gc.finalise (fun _ -> close_out ch) ch;
+        Some ch)
       else None
 
     let time_tagged = time_tagged
@@ -550,6 +559,7 @@ module PrevRun = struct
     let prev_chunk = Option.bind prev_ic load_next_chunk in
     let prev_normalized_chunk = normalize_chunk diff_ignore_pattern prev_chunk in
     let curr_oc = open_out_bin (curr_file ^ ".raw") in
+    Gc.finalise (fun _ -> close_out curr_oc) curr_oc;
     Some
       {
         prev_chunk;
