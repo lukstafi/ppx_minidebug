@@ -705,29 +705,7 @@ module PrevRun = struct
     Hashtbl.replace state.dp_table (i, j) (min_cost, prev_i, prev_j);
     min_cost
 
-  let update_optimal_edits state row col =
-    (* Find the optimal starting point for backtracking *)
-    let start_i, start_j =
-      if col >= row then
-        (* If current (col) is >= previous (row), use standard bottom-right corner *)
-        (row, col)
-      else
-        (* For imbalanced cases where previous is larger than current, scan along row from
-           (col, col) to (row, col) to find optimal starting point *)
-        let min_cost = ref max_int in
-        let best_i = ref row in
-
-        (* Scan from col to row to find cell with minimum cost *)
-        for i = row downto col do
-          let cost, _, _ = get_dp_value state i col in
-          (* Only consider valid costs (ones that have been computed) *)
-          if cost < !min_cost && cost < max_int then (
-            min_cost := cost;
-            best_i := i)
-        done;
-        (!best_i, col)
-    in
-
+  let update_optimal_edits state col =
     (* Backtrack through dp table to find optimal edit sequence *)
     let rec backtrack i j acc =
       if j < 0 then
@@ -737,19 +715,39 @@ module PrevRun = struct
         let edit = { edit_type = Insert; curr_index = j } in
         backtrack i (j - 1) (edit :: acc)
       else
-        let _cost, prev_i, prev_j = get_dp_value state i j in
-        let edit =
-          if prev_i = i - 1 && prev_j = j - 1 then
-            let normalized_prev = get_normalized_prev state i in
-            if normalized_prev = get_normalized_curr state j then
-              { edit_type = Match; curr_index = j }
-            else { edit_type = Change normalized_prev; curr_index = j }
-          else if prev_i = i - 1 then { edit_type = Delete; curr_index = j }
-          else { edit_type = Insert; curr_index = j }
-        in
-        backtrack prev_i prev_j (edit :: acc)
+        let cost, prev_i, prev_j = get_dp_value state i j in
+        if prev_i <> i - 1 && prev_j <> j - 1 then (
+          (* We are at an unpopulated cell, so we need to backtrack arbitrarily *)
+          let edit =
+            {
+              edit_type =
+                (if i > j then Delete
+                 else if j > i then Insert
+                 else
+                   let normalized_prev = get_normalized_prev state i in
+                   if normalized_prev = get_normalized_curr state j then Match
+                   else Change normalized_prev);
+              curr_index = j;
+            }
+          in
+          let prev_i, prev_j =
+            if i > j then (i - 1, j) else if j > i then (i, j - 1) else (i - 1, j - 1)
+          in
+          assert (cost = max_int);
+          backtrack prev_i prev_j (edit :: acc))
+        else
+          let edit =
+            if prev_i = i - 1 && prev_j = j - 1 then
+              let normalized_prev = get_normalized_prev state i in
+              if normalized_prev = get_normalized_curr state j then
+                { edit_type = Match; curr_index = j }
+              else { edit_type = Change normalized_prev; curr_index = j }
+            else if prev_i = i - 1 then { edit_type = Delete; curr_index = j }
+            else { edit_type = Insert; curr_index = j }
+          in
+          backtrack prev_i prev_j (edit :: acc)
     in
-    let edits = backtrack start_i start_j [] in
+    let edits = backtrack state.num_rows col [] in
     state.optimal_edits <- edits
 
   let compute_dp_upto state col =
@@ -785,7 +783,7 @@ module PrevRun = struct
       Hashtbl.replace state.min_cost_rows j !min_cost_row
     done;
 
-    if state.last_computed_col < col then update_optimal_edits state state.num_rows col;
+    if state.last_computed_col < col then update_optimal_edits state col;
     state.last_computed_col <- max state.last_computed_col col
 
   let check_diff state ~depth msg =
