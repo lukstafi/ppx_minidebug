@@ -815,7 +815,13 @@ module PrevRun = struct
                   (fun edit ->
                     if edit.curr_index = msg_idx then
                       match edit.edit_type with
-                      | Change prev_msg -> Some ("Changed from: " ^ prev_msg)
+                      | Change prev_msg ->
+                          let truncated_msg =
+                            if String.length prev_msg > 35 then
+                              String.sub prev_msg 0 32 ^ "..."
+                            else prev_msg
+                          in
+                          Some ("Changed from: " ^ truncated_msg)
                       | _ -> None
                     else None)
                   state.optimal_edits
@@ -826,7 +832,6 @@ module PrevRun = struct
                 when List.for_all
                        (fun edit -> edit.curr_index <> msg_idx)
                        state.optimal_edits ->
-                  (* If no Change edit found, look for any edit and count deletions *)
                   let edits_str =
                     List.fold_left
                       (fun acc edit ->
