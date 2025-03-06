@@ -140,6 +140,8 @@ module Debug_runtime =
 
 Note that the timestamps of the log entries are not treated as messages, so are necessarily ignored.
 
+For efficiency, the minimal edit distance search is limited, roughly speaking, to a band around the diagonal. The setting `max_distance_factor` controls the width of the band.
+
 ### `PrintBox` creating helpers with defaults: `debug` and `debug_file`
 
 The configuration for the above example is more concisely just:

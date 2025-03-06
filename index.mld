@@ -142,6 +142,8 @@ module Debug_runtime =
 
 Note that the timestamps of the log entries are not treated as messages, so are necessarily ignored.
 
+For efficiency, the minimal edit distance search is limited, roughly speaking, to a band around the diagonal. The setting [max_distance_factor] controls the width of the band.
+
 {2 [PrintBox] creating helpers with defaults: [debug] and [debug_file]}
 
 The configuration for the above example is more concisely just:
@@ -249,6 +251,8 @@ See examples in {{: test/} the test directory}, and especially {{: test/test_exp
 Only type-annotated let-bindings, function arguments, function results can be implicitly logged. However, the bindings and function arguments can be nested patterns with only parts of them type-annotated! The explicit loggers [%log] and [%log_result] take a value and reconstruct its type from partial type annotations (deconstructing the expression), sometimes assuming unknown types are strings. The [%log_printbox] logger takes a [PrintBox.t] value. The [%log_entry] and [%log_block] loggers takes a string value for the header of the log subtree.
 
 To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can bind [Debug_runtime] locally: [let module Debug_runtime = Minidebug_runtime.debug_file thread_name in ...] Extension points with the [_l_] or [_rt_] infixes are a great help for that, e.g. [%debug_l_sexp]; see: {{: #dealing-with-concurrent-execution} Dealing with concurrent execution}.
+
+To ensure that log files are properly closed, you can use [Minidebug_runtime.finish_and_cleanup] at the end. This is typically not needed (and is more helpful on Windows, where a log file might remain locked after a process exits without closing it).
 
 [ppx_minidebug] can be installed using [opam]. [ppx_minidebug.runtime] depends on [printbox], [ptime], [mtime], [sexplib0].
 

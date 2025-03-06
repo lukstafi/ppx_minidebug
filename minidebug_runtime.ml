@@ -537,6 +537,7 @@ module PrevRun = struct
     normalized_msgs : (string, string) Hashtbl.t;
         (* Memoization table for normalized messages *)
     min_cost_rows : (int, int) Hashtbl.t; (* Column index -> row with minimum cost *)
+    max_distance_factor : int; (* Maximum distance to consider as a factor of current position *)
   }
 
   let save_chunk oc messages =
@@ -555,9 +556,6 @@ module PrevRun = struct
   let base_change_cost = 3
   let depth_factor = 1 (* Weight for depth difference in cost calculation *)
 
-  let max_distance_factor =
-    50 (* Maximum distance to consider as a factor of current position *)
-
   (* Helper function to normalize a single message *)
   let normalize_single_message pattern msg =
     match pattern with None -> msg | Some re -> Re.replace_string re ~by:"" msg
@@ -574,7 +572,7 @@ module PrevRun = struct
         in
         Some { normalized_messages = normalized }
 
-  let init_run ?prev_file ?diff_ignore_pattern curr_file =
+  let init_run ?prev_file ?diff_ignore_pattern ?(max_distance_factor=50) curr_file =
     let prev_ic = Option.map open_in_bin prev_file in
     let prev_chunk = Option.bind prev_ic load_next_chunk in
     let prev_normalized_chunk = normalize_chunk diff_ignore_pattern prev_chunk in
@@ -600,6 +598,7 @@ module PrevRun = struct
         (* Still keep this for messages not in chunks *)
         min_cost_rows = Hashtbl.create 1000;
         (* Track min cost row for each column *)
+        max_distance_factor;
       }
 
   (* Get normalized message either from normalized chunk or by normalizing on demand *)
@@ -766,8 +765,8 @@ module PrevRun = struct
       in
 
       (* Define exploration range around the center row *)
-      let min_i = max 0 (center_row - max_distance_factor) in
-      let max_i = min state.num_rows (center_row + max_distance_factor) in
+      let min_i = max 0 (center_row - state.max_distance_factor) in
+      let max_i = min state.num_rows (center_row + state.max_distance_factor) in
 
       let min_cost_for_col = ref max_int in
       let min_cost_row = ref center_row in
@@ -1857,8 +1856,9 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
     ?(for_append = false) ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80)
     ?backend ?hyperlink ?toc_specific_hyperlink ?(values_first_mode = true)
-    ?(log_level = 9) ?snapshot_every_sec ?prev_run_file ?diff_ignore_pattern filename_stem
-    : (module PrintBox_runtime) =
+    ?(log_level = 9) ?snapshot_every_sec ?prev_run_file ?diff_ignore_pattern
+    ?max_distance_factor filename_stem :
+    (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename_stem ^ ".md"
@@ -1895,7 +1895,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   Debug.prev_run_state :=
     PrevRun.init_run ?prev_file:prev_run_file
       ?diff_ignore_pattern:(Option.map Re.compile diff_ignore_pattern)
-      filename_stem;
+      ?max_distance_factor filename_stem;
   (module Debug)
 
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
