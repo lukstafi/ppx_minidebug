@@ -822,50 +822,56 @@ module PrevRun = struct
                   state.optimal_edits
               with
               | Some change_msg -> change_msg
+              | None when state.num_rows < 0 -> "No previous-run chunk"
+              | None
+                when List.for_all
+                       (fun edit -> edit.curr_index <> msg_idx)
+                       state.optimal_edits ->
+                  (* If no Change edit found, look for any edit and count deletions *)
+                  let edits_str =
+                    List.fold_left
+                      (fun acc edit ->
+                        if String.length acc > 0 then acc ^ "; "
+                        else
+                          acc
+                          ^
+                          match edit.edit_type with
+                          | Match -> Printf.sprintf "Match at %d" edit.curr_index
+                          | Insert -> Printf.sprintf "Insert at %d" edit.curr_index
+                          | Delete -> Printf.sprintf "Delete at %d" edit.curr_index
+                          | Change msg ->
+                              Printf.sprintf "Change at %d: %s" edit.curr_index msg)
+                      ""
+                      (List.take 5 state.optimal_edits)
+                  in
+                  Printf.sprintf
+                    "Bad chunk? current position %d, previous: size %d, messages: \
+                     %s%s%s. 5 edits: %s"
+                    msg_idx state.num_rows prev_chunk.messages_with_depth.(0).message
+                    (if msg_idx > 0 && msg_idx < state.num_rows then
+                       " ... " ^ prev_chunk.messages_with_depth.(msg_idx).message
+                     else "")
+                    (if
+                       state.num_rows > 0
+                       && Array.length prev_chunk.messages_with_depth > state.num_rows
+                     then
+                       (* FIXME: How is Array.length prev_chunk.messages_with_depth >
+                          state.num_rows possible? *)
+                       " ... " ^ prev_chunk.messages_with_depth.(state.num_rows).message
+                     else "")
+                    edits_str
               | None ->
-                  if
-                    (* If no Change edit found, look for any edit and count deletions *)
-                    List.for_all
-                      (fun edit -> edit.curr_index <> msg_idx)
-                      state.optimal_edits
-                  then
-                    let edits_str =
-                      List.fold_left
-                        (fun acc edit ->
-                          if String.length acc > 0 then acc ^ "; "
-                          else
-                            acc
-                            ^
-                            match edit.edit_type with
-                            | Match -> Printf.sprintf "Match at %d" edit.curr_index
-                            | Insert -> Printf.sprintf "Insert at %d" edit.curr_index
-                            | Delete -> Printf.sprintf "Delete at %d" edit.curr_index
-                            | Change msg ->
-                                Printf.sprintf "Change at %d: %s" edit.curr_index msg)
-                        ""
-                        (List.take 5 state.optimal_edits)
-                    in
-                    Printf.sprintf
-                      "Bad chunk? current position %d, previous: size %d, messages: %s \
-                       ... %s%s. 5 edits: %s"
-                      msg_idx state.num_rows prev_chunk.messages_with_depth.(0).message
-                      (if msg_idx > 0 && msg_idx < state.num_rows - 1 then
-                         prev_chunk.messages_with_depth.(msg_idx).message ^ " ... "
-                       else "")
-                      prev_chunk.messages_with_depth.(state.num_rows - 1).message
-                      edits_str
-                  else
-                    (* Count deletions in the optimal edits *)
-                    let deletion_count =
-                      List.fold_left
-                        (fun count e ->
-                          if e.curr_index = msg_idx && e.edit_type = Delete then count + 1
-                          else count)
-                        0 state.optimal_edits
-                    in
-                    if deletion_count > 0 then
-                      Printf.sprintf "Covers %d deletions in previous run" deletion_count
-                    else "Inserted in current run"
+                  (* Count deletions in the optimal edits *)
+                  let deletion_count =
+                    List.fold_left
+                      (fun count e ->
+                        if e.curr_index = msg_idx && e.edit_type = Delete then count + 1
+                        else count)
+                      0 state.optimal_edits
+                  in
+                  if deletion_count > 0 then
+                    Printf.sprintf "Covers %d deletions in previous run" deletion_count
+                  else "Inserted in current run"
             in
             Some edit_type
 
