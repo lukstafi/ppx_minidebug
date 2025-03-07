@@ -1288,6 +1288,7 @@ module PrintBox (Log_to : Shared_config) = struct
        $(flame_subtree)</div>
        |}
     in
+    let header = eval_susp_boxes header in
     let header =
       match config.backend with
       | `Text -> PrintBox_text.to_string header
