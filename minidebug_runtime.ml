@@ -482,27 +482,32 @@ type PrintBox.ext += Susp_box of (unit -> PrintBox.t)
 
 let lbox f = PrintBox.extension ~key:"susp" (Susp_box f)
 
-let text_handler ~style = function
-  | Susp_box f -> PrintBox_text.to_string_with ~style (f ())
-  | _ -> assert false
-
-let md_handler config = function
-  | Susp_box f -> PrintBox_md.to_string config (f ())
-  | _ -> assert false
-
-let html_handler config = function
-  | Susp_box f -> (PrintBox_html.to_html ~config (f ()) :> PrintBox_html.toplevel_html)
-  | _ -> assert false
-
-let html_summary_handler config = function
-  | Susp_box f -> PrintBox_html.to_summary_html ~config (f ())
-  | _ -> assert false
-
-let () =
-  PrintBox_text.register_extension ~key:"susp" text_handler;
-  PrintBox_md.register_extension ~key:"susp" md_handler;
-  PrintBox_html.register_extension ~key:"susp" html_handler;
-  PrintBox_html.register_summary_extension ~key:"susp" html_summary_handler
+(** [eval_susp_boxes box] traverses a PrintBox.t structure and replaces any Susp_box
+    extensions with their actual content by executing the suspension.
+    @return the box with all suspensions evaluated *)
+let rec eval_susp_boxes (box : PrintBox.t) : PrintBox.t =
+  match PrintBox.view box with
+  | PrintBox.Empty -> box
+  | PrintBox.Text _ -> box
+  | PrintBox.Frame { sub; stretch } -> PrintBox.frame ~stretch (eval_susp_boxes sub)
+  | PrintBox.Pad (pos, inner) ->
+      PrintBox.pad' ~col:pos.x ~lines:pos.y (eval_susp_boxes inner)
+  | PrintBox.Align { h; v; inner } -> PrintBox.align ~h ~v (eval_susp_boxes inner)
+  | PrintBox.Grid (style, arr) ->
+      let arr' = Array.map (Array.map eval_susp_boxes) arr in
+      PrintBox.grid ~bars:(style = `Bars) arr'
+  | PrintBox.Tree (indent, label, children) ->
+      let label' = eval_susp_boxes label in
+      let children' = Array.map eval_susp_boxes children in
+      PrintBox.tree ~indent label' (Array.to_list children')
+  | PrintBox.Link { uri; inner } -> PrintBox.link ~uri (eval_susp_boxes inner)
+  | PrintBox.Anchor { id; inner } -> PrintBox.anchor ~id (eval_susp_boxes inner)
+  | PrintBox.Ext { key = _; ext } -> (
+      match ext with
+      | Susp_box f ->
+          eval_susp_boxes (f ()) (* execute suspension and evaluate its result *)
+      | _ -> box)
+(* keep other extensions as is *)
 
 module PrevRun = struct
   type edit_type = Match | Insert | Delete | Change of string
@@ -1326,6 +1331,7 @@ module PrintBox (Log_to : Shared_config) = struct
     match B.view box with
     | Empty -> ()
     | _ ->
+        let box = eval_susp_boxes box in
         (match config.backend with
         | `Text -> PrintBox_text.output ~style:false ch box
         | `Html config ->

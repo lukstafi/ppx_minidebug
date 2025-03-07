@@ -1,339 +1,339 @@
 
 BEGIN DEBUG SESSION 
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐Changed from: random_char...
-│┌───────────────────────────────────────────────────────────────────────┐Changed from: process_mes...                     │└─random_chars = prznoznjmq
-││process_message = [2024-03-22 17:36:15] ljgldbxjxkxgp Processing: hello│└─process_message =  prznoznjmq Processing: hello│
-│└───────────────────────────────────────────────────────────────────────┘                                                 │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐Changed from: random_char...
+│┌───────────────────────────────────────────────────────────────────────┐Changed from: process_mes...                      │└─random_chars = prznoznjmq
+││process_message = [2024-03-22 17:36:15] ljgldbxjxkxgp Processing: hello│└─process_message =  prznoznjmq Processing: hello │
+│└───────────────────────────────────────────────────────────────────────┘                                                  │
+├───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":162:33
 ├─msg = hello
-└─┌────────────────────────────┐Changed from: random_char...
+└─┬────────────────────────────┐Changed from: random_char...
   │random_string_with_timestamp│└─random_chars = prznoznjmq
-  └────────────────────────────┘
+  ├────────────────────────────┘
   ├─"test/test_debug_large_diffs.ml":7:47
   ├─timestamp = [2024-03-22 17:36:15]
   │ └─"test/test_debug_large_diffs.ml":8:6
-  └─┌──────────────────────────────────────────────────────────┐Changed from: random_char...
+  └─┬──────────────────────────────────────────────────────────┐Changed from: random_char...
     │┌────────────────────────────┐Changed from: random_char...│└─random_chars = prznoznjmq
     ││random_chars = ljgldbxjxkxgp│└─random_chars = prznoznjmq │
     │└────────────────────────────┘                            │
-    └──────────────────────────────────────────────────────────┘
+    ├──────────────────────────────────────────────────────────┘
     └─"test/test_debug_large_diffs.ml":14:6
-┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐Changed from: random_char...
-│┌─────────────────────────────────────────────────────────────────────────┐Changed from: process_mes...                         │└─random_chars = unvwhtrllputtg
-││process_message = [2024-04-20 21:26:30] eecoohjftuuduyj Processing: world│└─process_message =  unvwhtrllputtg Processing: world│
-│└─────────────────────────────────────────────────────────────────────────┘                                                     │
-└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐Changed from: random_char...
+│┌─────────────────────────────────────────────────────────────────────────┐Changed from: process_mes...                          │└─random_chars = unvwhtrllputtg
+││process_message = [2024-04-20 21:26:30] eecoohjftuuduyj Processing: world│└─process_message =  unvwhtrllputtg Processing: world │
+│└─────────────────────────────────────────────────────────────────────────┘                                                      │
+├─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":162:33
 ├─msg = world
-└─┌────────────────────────────┐Changed from: random_char...
+└─┬────────────────────────────┐Changed from: random_char...
   │random_string_with_timestamp│└─random_chars = unvwhtrllputtg
-  └────────────────────────────┘
+  ├────────────────────────────┘
   ├─"test/test_debug_large_diffs.ml":7:47
   ├─timestamp = [2024-04-20 21:26:30]
   │ └─"test/test_debug_large_diffs.ml":8:6
-  └─┌───────────────────────────────────────────────────────────────┐Changed from: random_char...
-    │┌──────────────────────────────┐Changed from: random_char...   │└─random_chars = unvwhtrllputtg
-    ││random_chars = eecoohjftuuduyj│└─random_chars = unvwhtrllputtg│
-    │└──────────────────────────────┘                               │
-    └───────────────────────────────────────────────────────────────┘
+  └─┬────────────────────────────────────────────────────────────────┐Changed from: random_char...
+    │┌──────────────────────────────┐Changed from: random_char...    │└─random_chars = unvwhtrllputtg
+    ││random_chars = eecoohjftuuduyj│└─random_chars = unvwhtrllputtg │
+    │└──────────────────────────────┘                                │
+    ├────────────────────────────────────────────────────────────────┘
     └─"test/test_debug_large_diffs.ml":14:6
-┌─────────────────────────────────────────────────────────────────┐Changed from: random_char...
-│┌───────────────────────────────┐Changed from: process_dat...    │└─random_chars = aacfqjzkwhxfegjmiuyvay
-││process_data = (47 29 79 52 18)│└─process_data = (3 56 40 57 41)│
-│└───────────────────────────────┘                                │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐Changed from: random_char...
+│┌───────────────────────────────┐Changed from: process_dat...     │└─random_chars = aacfqjzkwhxfegjmiuyvay
+││process_data = (47 29 79 52 18)│└─process_data = (3 56 40 57 41) │
+│└───────────────────────────────┘                                 │
+├──────────────────────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":170:30
 ├─size = 5
-├─┌────────────────────────────┐Changed from: random_char...
+├─┬────────────────────────────┐Changed from: random_char...
 │ │random_string_with_timestamp│└─random_chars = aacfqjzkwhxfegjmiuyvay
-│ └────────────────────────────┘
+│ ├────────────────────────────┘
 │ ├─"test/test_debug_large_diffs.ml":7:47
 │ ├─timestamp = [2024-08-06 05:56:57]
 │ │ └─"test/test_debug_large_diffs.ml":8:6
-│ └─┌─────────────────────────────────────────────────────────────────────┐Changed from: random_char...
-│   │┌────────────────────────────┐Changed from: random_char...           │└─random_chars = aacfqjzkwhxfegjmiuyvay
-│   ││random_chars = upwwpxnpeiste│└─random_chars = aacfqjzkwhxfegjmiuyvay│
-│   │└────────────────────────────┘                                       │
-│   └─────────────────────────────────────────────────────────────────────┘
+│ └─┬──────────────────────────────────────────────────────────────────────┐Changed from: random_char...
+│   │┌────────────────────────────┐Changed from: random_char...            │└─random_chars = aacfqjzkwhxfegjmiuyvay
+│   ││random_chars = upwwpxnpeiste│└─random_chars = aacfqjzkwhxfegjmiuyvay │
+│   │└────────────────────────────┘                                        │
+│   ├──────────────────────────────────────────────────────────────────────┘
 │   └─"test/test_debug_large_diffs.ml":14:6
-└─┌───────────────────────────────────────────────────────────────────┐Changed from: (" aacfqjzk...
+└─┬───────────────────────────────────────────────────────────────────┐Changed from: (" aacfqjzk...
   │("[2024-08-06 05:56:57] upwwpxnpeiste" "Processing data of size" 5)│└─(" aacfqjzkwhxfegjmiuyvay" "Processing data of size" 5)
   └───────────────────────────────────────────────────────────────────┘
-┌────────────────────────────────────────────────────────────────────────────────────────────────────┐Inserted in current run
-│┌────────────────────────────────────────────────┐Changed from: process_dat...                      │
-││process_data = (64 25 54 92 37 68 71 95 38 73 5)│└─process_data = (68 74 44 46 58 94 52 9 10 84 15)│
-│└────────────────────────────────────────────────┘                                                  │
-└────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────┐Inserted in current run
+│┌────────────────────────────────────────────────┐Changed from: process_dat...                       │
+││process_data = (64 25 54 92 37 68 71 95 38 73 5)│└─process_data = (68 74 44 46 58 94 52 9 10 84 15) │
+│└────────────────────────────────────────────────┘                                                   │
+├─────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":170:30
 ├─size = 11
-├─┌────────────────────────────┐Inserted in current run
+├─┬────────────────────────────┐Inserted in current run
 │ │random_string_with_timestamp│
-│ └────────────────────────────┘
+│ ├────────────────────────────┘
 │ ├─"test/test_debug_large_diffs.ml":7:47
 │ ├─timestamp = [2024-06-21 14:22:22]
 │ │ └─"test/test_debug_large_diffs.ml":8:6
-│ └─┌────────────────────────────────────────────────────────────────┐Inserted in current run
+│ └─┬────────────────────────────────────────────────────────────────┐Inserted in current run
 │   │┌───────────────────────────────────────┐Inserted in current run│
 │   ││random_chars = xwgsruiqdrtfxvqgpxnwsmec│                       │
 │   │└───────────────────────────────────────┘                       │
-│   └────────────────────────────────────────────────────────────────┘
+│   ├────────────────────────────────────────────────────────────────┘
 │   └─"test/test_debug_large_diffs.ml":14:6
-└─┌──────────────────────────────────────────────┐Changed from: (" yezxtyr"...
+└─┬──────────────────────────────────────────────┐Changed from: (" yezxtyr"...
   │[2024-06-21 14:22:22] xwgsruiqdrtfxvqgpxnwsmec│└─(" yezxtyr" "Processing data of size" 11)
-  └──────────────────────────────────────────────┘
-  ├─┌───────────────────────┐Inserted in current run
+  ├──────────────────────────────────────────────┘
+  ├─┬───────────────────────┐Inserted in current run
   │ │Processing data of size│
   │ └───────────────────────┘
-  └─┌──┐Changed from: random_char...
+  └─┬──┐Changed from: random_char...
     │11│└─random_chars = yezxtyr
     └──┘
 ┌──────────────────────────────────────────────────────────────────────────────────────────┐Inserted in current run
 │┌────────────────────────────────────────────────────────────┐Changed from: process_num...│
 ││process_data = (17 3 27 25 48 18 60 89 91 78 77 46 92 88 42)│└─process_number = 17       │
 │└────────────────────────────────────────────────────────────┘                            │
-└──────────────────────────────────────────────────────────────────────────────────────────┘
+├──────────────────────────────────────────────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":170:30
-├─┌─────────┐Changed from: n = 5
+├─┬─────────┐Changed from: n = 5
 │ │size = 15│
 │ └─────────┘
-├─┌────────────────────────────┐Changed from: random_char...
+├─┬────────────────────────────┐Changed from: random_char...
 │ │random_string_with_timestamp│└─random_chars = ddzkgcpggoyrocn
-│ └────────────────────────────┘
+│ ├────────────────────────────┘
 │ ├─"test/test_debug_large_diffs.ml":7:47
 │ ├─timestamp = [2024-10-26 06:54:45]
 │ │ └─"test/test_debug_large_diffs.ml":8:6
-│ └─┌────────────────────────────────────────────────────────┐Changed from: random_char...
-│   │┌──────────────────────┐Changed from: random_char...    │└─random_chars = ddzkgcpggoyrocn
-│   ││random_chars = omwbayc│└─random_chars = ddzkgcpggoyrocn│
-│   │└──────────────────────┘                                │
-│   └────────────────────────────────────────────────────────┘
+│ └─┬─────────────────────────────────────────────────────────┐Changed from: random_char...
+│   │┌──────────────────────┐Changed from: random_char...     │└─random_chars = ddzkgcpggoyrocn
+│   ││random_chars = omwbayc│└─random_chars = ddzkgcpggoyrocn │
+│   │└──────────────────────┘                                 │
+│   ├─────────────────────────────────────────────────────────┘
 │   └─"test/test_debug_large_diffs.ml":14:6
-└─┌──────────────────────────────────────────────────────────────┐Changed from: (" ddzkgcpg...
+└─┬──────────────────────────────────────────────────────────────┐Changed from: (" ddzkgcpg...
   │("[2024-10-26 06:54:45] omwbayc" "Processing data of size" 15)│└─(" ddzkgcpggoyrocn" "Processing number" 5)
   └──────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────┐Changed from: n = 10
 │┌───────────────────┐Changed from: process_num...│
 ││process_number = 26│└─process_number = 27       │
 │└───────────────────┘                            │
-└─────────────────────────────────────────────────┘
+├─────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":189:32
-├─┌─────┐Changed from: n = 10
+├─┬─────┐Changed from: n = 10
 │ │n = 5│
 │ └─────┘
-├─┌────────────────────────────┐Changed from: random_char...
+├─┬────────────────────────────┐Changed from: random_char...
 │ │random_string_with_timestamp│└─random_chars = rahvlor
-│ └────────────────────────────┘
+│ ├────────────────────────────┘
 │ ├─"test/test_debug_large_diffs.ml":7:47
 │ ├─timestamp = [2024-11-12 15:18:35]
 │ │ └─"test/test_debug_large_diffs.ml":8:6
-│ └─┌──────────────────────────────────────────────────────────────────┐Changed from: random_char...
+│ └─┬──────────────────────────────────────────────────────────────────┐Changed from: random_char...
 │   │┌────────────────────────────────────┐Changed from: random_char...│└─random_chars = rahvlor
 │   ││random_chars = iqwnymeenidorotfsaiid│└─random_chars = rahvlor    │
 │   │└────────────────────────────────────┘                            │
-│   └──────────────────────────────────────────────────────────────────┘
+│   ├──────────────────────────────────────────────────────────────────┘
 │   └─"test/test_debug_large_diffs.ml":14:6
-├─┌─────────────────────────────────────────────────────────────────────┐Changed from: (" rahvlor"...
+├─┬─────────────────────────────────────────────────────────────────────┐Changed from: (" rahvlor"...
 │ │("[2024-11-12 15:18:35] iqwnymeenidorotfsaiid" "Processing number" 5)│└─(" rahvlor" "Processing number" 10)
 │ └─────────────────────────────────────────────────────────────────────┘
-└─┌──────────────────────────────────────┐Changed from: x = 12
+└─┬──────────────────────────────────────┐Changed from: x = 12
   │┌───────────┐Changed from: helper = 24│
   ││helper = 21│                         │
   │└───────────┘                         │
-  └──────────────────────────────────────┘
+  ├──────────────────────────────────────┘
   ├─"test/test_debug_large_diffs.ml":183:24
-  ├─┌─────┐Changed from: x = 12
+  ├─┬─────┐Changed from: x = 12
   │ │x = 7│
   │ └─────┘
-  ├─┌────────────────────────────┐Changed from: random_char...
+  ├─┬────────────────────────────┐Changed from: random_char...
   │ │random_string_with_timestamp│└─random_chars = tdqsgatvnjtpbohriun
-  │ └────────────────────────────┘
+  │ ├────────────────────────────┘
   │ ├─"test/test_debug_large_diffs.ml":7:47
   │ ├─timestamp = [2024-12-18 16:05:00]
   │ │ └─"test/test_debug_large_diffs.ml":8:6
-  │ └─┌──────────────────────────────────────────────────────────────────┐Changed from: random_char...
-  │   │┌────────────────────────────┐Changed from: random_char...        │└─random_chars = tdqsgatvnjtpbohriun
-  │   ││random_chars = oofdpychluyma│└─random_chars = tdqsgatvnjtpbohriun│
-  │   │└────────────────────────────┘                                    │
-  │   └──────────────────────────────────────────────────────────────────┘
+  │ └─┬───────────────────────────────────────────────────────────────────┐Changed from: random_char...
+  │   │┌────────────────────────────┐Changed from: random_char...         │└─random_chars = tdqsgatvnjtpbohriun
+  │   ││random_chars = oofdpychluyma│└─random_chars = tdqsgatvnjtpbohriun │
+  │   │└────────────────────────────┘                                     │
+  │   ├───────────────────────────────────────────────────────────────────┘
   │   └─"test/test_debug_large_diffs.ml":14:6
-  └─┌──────────────────────────────────────────────────────────────┐Changed from: (" tdqsgatv...
+  └─┬──────────────────────────────────────────────────────────────┐Changed from: (" tdqsgatv...
     │("[2024-12-18 16:05:00] oofdpychluyma" "Helper called with" 7)│└─(" tdqsgatvnjtpbohriun" "Helper called with" 12)
     └──────────────────────────────────────────────────────────────┘
-┌───────────────────────────────────────────────────────────────────────────────────────┐Inserted in current run
-│┌───────────────────┐Changed from: complex_ope...                                      │
-││process_number = 41│└─complex_operation = ((this 4) (is 3) (a 3) (test 7) (string 10))│
-│└───────────────────┘                                                                  │
-└───────────────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────┐Inserted in current run
+│┌───────────────────┐Changed from: complex_ope...                                       │
+││process_number = 41│└─complex_operation = ((this 4) (is 3) (a 3) (test 7) (string 10)) │
+│└───────────────────┘                                                                   │
+├────────────────────────────────────────────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":189:32
-├─┌──────┐Changed from: input = thi...
+├─┬──────┐Changed from: input = thi...
 │ │n = 10│└─input = this is a test string
 │ └──────┘
-├─┌────────────────────────────┐Inserted in current run
+├─┬────────────────────────────┐Inserted in current run
 │ │random_string_with_timestamp│
-│ └────────────────────────────┘
+│ ├────────────────────────────┘
 │ ├─"test/test_debug_large_diffs.ml":7:47
 │ ├─timestamp = [2024-06-23 10:35:30]
 │ │ └─"test/test_debug_large_diffs.ml":8:6
-│ └─┌────────────────────────────────────────────────────────┐Inserted in current run
+│ └─┬────────────────────────────────────────────────────────┐Inserted in current run
 │   │┌───────────────────────────────┐Inserted in current run│
 │   ││random_chars = wxrlcbbdgyxtrfrm│                       │
 │   │└───────────────────────────────┘                       │
-│   └────────────────────────────────────────────────────────┘
+│   ├────────────────────────────────────────────────────────┘
 │   └─"test/test_debug_large_diffs.ml":14:6
-├─┌─────────────────────────────────────────────────────────────────┐Inserted in current run
+├─┬─────────────────────────────────────────────────────────────────┐Inserted in current run
 │ │("[2024-06-23 10:35:30] wxrlcbbdgyxtrfrm" "Processing number" 10)│
 │ └─────────────────────────────────────────────────────────────────┘
-└─┌─────────────────────────────────┐Inserted in current run
+└─┬─────────────────────────────────┐Inserted in current run
   │┌───────────┐Changed from:  lammr│
   ││helper = 36│                    │
   │└───────────┘                    │
-  └─────────────────────────────────┘
+  ├─────────────────────────────────┘
   ├─"test/test_debug_large_diffs.ml":183:24
-  ├─┌──────┐Inserted in current run
+  ├─┬──────┐Inserted in current run
   │ │x = 12│
   │ └──────┘
-  ├─┌────────────────────────────┐Inserted in current run
+  ├─┬────────────────────────────┐Inserted in current run
   │ │random_string_with_timestamp│
-  │ └────────────────────────────┘
+  │ ├────────────────────────────┘
   │ ├─"test/test_debug_large_diffs.ml":7:47
-  │ ├─┌──────────────────────────────────────────────────────────┐Changed from: random_char...
+  │ ├─┬──────────────────────────────────────────────────────────┐Changed from: random_char...
   │ │ │┌─────────────────────────────────┐Inserted in current run│└─random_chars = lammr
   │ │ ││timestamp = [2024-05-08 02:08:29]│                       │
   │ │ │└─────────────────────────────────┘                       │
-  │ │ └──────────────────────────────────────────────────────────┘
+  │ │ ├──────────────────────────────────────────────────────────┘
   │ │ └─"test/test_debug_large_diffs.ml":8:6
-  │ └─┌───────────────────────────────────────────────────────┐Changed from: Complex ope...
+  │ └─┬───────────────────────────────────────────────────────┐Changed from: Complex ope...
   │   │┌──────────────────────────────┐Inserted in current run│└─Complex operation on:
   │   ││random_chars = whnlbqscohuqsim│                       │
   │   │└──────────────────────────────┘                       │
-  │   └───────────────────────────────────────────────────────┘
+  │   ├───────────────────────────────────────────────────────┘
   │   └─"test/test_debug_large_diffs.ml":14:6
-  └─┌─────────────────────────────────────────────────────────────────┐Changed from: this is a t...
+  └─┬─────────────────────────────────────────────────────────────────┐Changed from: this is a t...
     │("[2024-05-08 02:08:29] whnlbqscohuqsim" "Helper called with" 12)│└─this is a test string
     └─────────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐Changed from: input = a c...
-│┌────────────────────────────────────────────────────────────────┐Changed from: complex_ope...                                                                       │└─input = a completely different string with new words
-││complex_operation = ((this 4) (is 3) (a 3) (test 7) (string 10))│└─complex_operation = ((a 1) (completely 11) (different 11) (string 9) (with 8) (new 8) (words 11))│
-│└────────────────────────────────────────────────────────────────┘                                                                                                   │
-└─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐Changed from: input = a c...
+│┌────────────────────────────────────────────────────────────────┐Changed from: complex_ope...                                                                        │└─input = a completely different string with new words
+││complex_operation = ((this 4) (is 3) (a 3) (test 7) (string 10))│└─complex_operation = ((a 1) (completely 11) (different 11) (string 9) (with 8) (new 8) (words 11)) │
+│└────────────────────────────────────────────────────────────────┘                                                                                                    │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":200:35
-├─┌─────────────────────────────┐Changed from: input = a c...
+├─┬─────────────────────────────┐Changed from: input = a c...
 │ │input = this is a test string│└─input = a completely different string with new words
 │ └─────────────────────────────┘
-├─┌────────────────────────────┐Changed from: random_char...
+├─┬────────────────────────────┐Changed from: random_char...
 │ │random_string_with_timestamp│└─random_chars = pnueimw
-│ └────────────────────────────┘
+│ ├────────────────────────────┘
 │ ├─"test/test_debug_large_diffs.ml":7:47
 │ ├─timestamp = [2024-01-23 16:12:59]
 │ │ └─"test/test_debug_large_diffs.ml":8:6
-│ └─┌──────────────────────────────────────────────────────┐Changed from: random_char...
+│ └─┬──────────────────────────────────────────────────────┐Changed from: random_char...
 │   │┌────────────────────────┐Changed from: random_char...│└─random_chars = pnueimw
 │   ││random_chars = dsytrkave│└─random_chars = pnueimw    │
 │   │└────────────────────────┘                            │
-│   └──────────────────────────────────────────────────────┘
+│   ├──────────────────────────────────────────────────────┘
 │   └─"test/test_debug_large_diffs.ml":14:6
-└─┌───────────────────────────────┐Changed from:  pnueimw
+└─┬───────────────────────────────┐Changed from:  pnueimw
   │[2024-01-23 16:12:59] dsytrkave│
-  └───────────────────────────────┘
+  ├───────────────────────────────┘
   ├─Complex operation on:
-  └─┌─────────────────────┐Changed from: a completel...
+  └─┬─────────────────────┐Changed from: a completel...
     │this is a test string│└─a completely different string with new words
     └─────────────────────┘
 ┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐New entry (no previous ru...
 │┌─────────────────────────────────────────────────────────────────────────────────────────────────┐New entry (no previous ru...│└─previous run data)
 ││complex_operation = ((a 1) (completely 11) (different 11) (string 9) (with 8) (new 8) (words 11))│└─previous run data)        │
 │└─────────────────────────────────────────────────────────────────────────────────────────────────┘                            │
-└───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+├───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":200:35
-├─┌────────────────────────────────────────────────────┐New entry (no previous ru...
+├─┬────────────────────────────────────────────────────┐New entry (no previous ru...
 │ │input = a completely different string with new words│└─previous run data)
 │ └────────────────────────────────────────────────────┘
-├─┌────────────────────────────┐New entry (no previous ru...
+├─┬────────────────────────────┐New entry (no previous ru...
 │ │random_string_with_timestamp│└─previous run data)
-│ └────────────────────────────┘
+│ ├────────────────────────────┘
 │ ├─"test/test_debug_large_diffs.ml":7:47
-│ ├─┌───────────────────────────────────────────────────────────────┐New entry (no previous ru...
+│ ├─┬───────────────────────────────────────────────────────────────┐New entry (no previous ru...
 │ │ │┌─────────────────────────────────┐New entry (no previous ru...│└─previous run data)
 │ │ ││timestamp = [2024-05-18 10:01:26]│└─previous run data)        │
 │ │ │└─────────────────────────────────┘                            │
-│ │ └───────────────────────────────────────────────────────────────┘
+│ │ ├───────────────────────────────────────────────────────────────┘
 │ │ └─"test/test_debug_large_diffs.ml":8:6
-│ └─┌─────────────────────────────────────────────────────┐New entry (no previous ru...
+│ └─┬─────────────────────────────────────────────────────┐New entry (no previous ru...
 │   │┌───────────────────────┐New entry (no previous ru...│└─previous run data)
 │   ││random_chars = hrsydhfu│└─previous run data)        │
 │   │└───────────────────────┘                            │
-│   └─────────────────────────────────────────────────────┘
+│   ├─────────────────────────────────────────────────────┘
 │   └─"test/test_debug_large_diffs.ml":14:6
-└─┌──────────────────────────────┐New entry (no previous ru...
+└─┬──────────────────────────────┐New entry (no previous ru...
   │[2024-05-18 10:01:26] hrsydhfu│└─previous run data)
-  └──────────────────────────────┘
-  ├─┌─────────────────────┐New entry (no previous ru...
+  ├──────────────────────────────┘
+  ├─┬─────────────────────┐New entry (no previous ru...
   │ │Complex operation on:│└─previous run data)
   │ └─────────────────────┘
-  └─┌────────────────────────────────────────────┐New entry (no previous ru...
+  └─┬────────────────────────────────────────────┐New entry (no previous ru...
     │a completely different string with new words│└─previous run data)
     └────────────────────────────────────────────┘
 ┌──────────────────────────────────────────────────────────┐New entry (no previous ru...
 │┌────────────────────────────┐New entry (no previous ru...│└─previous run data)
 ││new_operation = (30 200 -10)│└─previous run data)        │
 │└────────────────────────────┘                            │
-└──────────────────────────────────────────────────────────┘
+├──────────────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":212:31
-├─┌──────┐New entry (no previous ru...
+├─┬──────┐New entry (no previous ru...
 │ │a = 10│└─previous run data)
 │ └──────┘
-├─┌──────┐New entry (no previous ru...
+├─┬──────┐New entry (no previous ru...
 │ │b = 20│└─previous run data)
 │ └──────┘
-├─┌────────────────────────────┐New entry (no previous ru...
+├─┬────────────────────────────┐New entry (no previous ru...
 │ │random_string_with_timestamp│└─previous run data)
-│ └────────────────────────────┘
+│ ├────────────────────────────┘
 │ ├─"test/test_debug_large_diffs.ml":7:47
-│ ├─┌───────────────────────────────────────────────────────────────┐New entry (no previous ru...
+│ ├─┬───────────────────────────────────────────────────────────────┐New entry (no previous ru...
 │ │ │┌─────────────────────────────────┐New entry (no previous ru...│└─previous run data)
 │ │ ││timestamp = [2024-02-05 09:52:55]│└─previous run data)        │
 │ │ │└─────────────────────────────────┘                            │
-│ │ └───────────────────────────────────────────────────────────────┘
+│ │ ├───────────────────────────────────────────────────────────────┘
 │ │ └─"test/test_debug_large_diffs.ml":8:6
-│ └─┌────────────────────────────────────────────────────────┐New entry (no previous ru...
+│ └─┬────────────────────────────────────────────────────────┐New entry (no previous ru...
 │   │┌──────────────────────────┐New entry (no previous ru...│└─previous run data)
 │   ││random_chars = xovdkjnytkp│└─previous run data)        │
 │   │└──────────────────────────┘                            │
-│   └────────────────────────────────────────────────────────┘
+│   ├────────────────────────────────────────────────────────┘
 │   └─"test/test_debug_large_diffs.ml":14:6
-└─┌────────────────────────────────────────────────────────────────────┐New entry (no previous ru...
+└─┬────────────────────────────────────────────────────────────────────┐New entry (no previous ru...
   │("[2024-02-05 09:52:55] xovdkjnytkp" "New operation with" 10 and 20)│└─previous run data)
   └────────────────────────────────────────────────────────────────────┘
 ┌────────────────────────────────────────────────────────┐New entry (no previous ru...
 │┌──────────────────────────┐New entry (no previous ru...│└─previous run data)
 ││new_operation = (12 35 -2)│└─previous run data)        │
 │└──────────────────────────┘                            │
-└────────────────────────────────────────────────────────┘
+├────────────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":212:31
-├─┌─────┐New entry (no previous ru...
+├─┬─────┐New entry (no previous ru...
 │ │a = 5│└─previous run data)
 │ └─────┘
-├─┌─────┐New entry (no previous ru...
+├─┬─────┐New entry (no previous ru...
 │ │b = 7│└─previous run data)
 │ └─────┘
-├─┌────────────────────────────┐New entry (no previous ru...
+├─┬────────────────────────────┐New entry (no previous ru...
 │ │random_string_with_timestamp│└─previous run data)
-│ └────────────────────────────┘
+│ ├────────────────────────────┘
 │ ├─"test/test_debug_large_diffs.ml":7:47
-│ ├─┌───────────────────────────────────────────────────────────────┐New entry (no previous ru...
+│ ├─┬───────────────────────────────────────────────────────────────┐New entry (no previous ru...
 │ │ │┌─────────────────────────────────┐New entry (no previous ru...│└─previous run data)
 │ │ ││timestamp = [2024-03-20 02:02:02]│└─previous run data)        │
 │ │ │└─────────────────────────────────┘                            │
-│ │ └───────────────────────────────────────────────────────────────┘
+│ │ ├───────────────────────────────────────────────────────────────┘
 │ │ └─"test/test_debug_large_diffs.ml":8:6
-│ └─┌─────────────────────────────────────────────────────────────────┐New entry (no previous ru...
+│ └─┬─────────────────────────────────────────────────────────────────┐New entry (no previous ru...
 │   │┌───────────────────────────────────┐New entry (no previous ru...│└─previous run data)
 │   ││random_chars = zldowruotpaqdrtvltzy│└─previous run data)        │
 │   │└───────────────────────────────────┘                            │
-│   └─────────────────────────────────────────────────────────────────┘
+│   ├─────────────────────────────────────────────────────────────────┘
 │   └─"test/test_debug_large_diffs.ml":14:6
-└─┌───────────────────────────────────────────────────────────────────────────┐New entry (no previous ru...
+└─┬───────────────────────────────────────────────────────────────────────────┐New entry (no previous ru...
   │("[2024-03-20 02:02:02] zldowruotpaqdrtvltzy" "New operation with" 5 and 7)│└─previous run data)
   └───────────────────────────────────────────────────────────────────────────┘
 
