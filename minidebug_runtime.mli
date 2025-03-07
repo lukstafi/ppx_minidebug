@@ -297,8 +297,8 @@ val debug_file :
 (** Creates a PrintBox-based debug runtime configured to output html or markdown to a file
     with the given name suffixed with [".log"], [".html"] or [".md"] depending on the
     backend. By default the logging will not be time tagged and the file will be created
-    or erased by this function (unless [for_append=true]). The default [boxify_sexp_from_size] 
-    value is 50.
+    or erased by this function (unless [for_append=true]). The default
+    [boxify_sexp_from_size] value is 50.
 
     Setting [~with_toc_listing:true] or [~toc_flame_graph:true] or both will create an
     additional log file, the given name suffixed with ["-toc"] and the corresponding file
@@ -308,9 +308,9 @@ val debug_file :
     If [prev_run_file] is provided, differences between the current run and the previous
     run will be highlighted in the output. The [diff_ignore_pattern] parameter can be used
     to specify a regular expression pattern that will be removed from messages before
-    comparison, allowing certain differences to be ignored. The [max_distance_factor] parameter
-    (default 50) controls how far to search around a center row when computing edit distances
-    between runs - higher values may find more matches but will be slower.
+    comparison, allowing certain differences to be ignored. The [max_distance_factor]
+    parameter (default 50) controls how far to search around a center row when computing
+    edit distances between runs - higher values may find more matches but will be slower.
 
     By default [backend] is [`Markdown PrintBox.default_md_config]. See
     {!type:PrintBox.config} for details about PrintBox-specific parameters. See
