@@ -537,7 +537,8 @@ module PrevRun = struct
     normalized_msgs : (string, string) Hashtbl.t;
         (* Memoization table for normalized messages *)
     min_cost_rows : (int, int) Hashtbl.t; (* Column index -> row with minimum cost *)
-    max_distance_factor : int; (* Maximum distance to consider as a factor of current position *)
+    max_distance_factor : int;
+        (* Maximum distance to consider as a factor of current position *)
   }
 
   let save_chunk oc messages =
@@ -572,7 +573,7 @@ module PrevRun = struct
         in
         Some { normalized_messages = normalized }
 
-  let init_run ?prev_file ?diff_ignore_pattern ?(max_distance_factor=50) curr_file =
+  let init_run ?prev_file ?diff_ignore_pattern ?(max_distance_factor = 50) curr_file =
     let prev_ic = Option.map open_in_bin prev_file in
     let prev_chunk = Option.bind prev_ic load_next_chunk in
     let prev_normalized_chunk = normalize_chunk diff_ignore_pattern prev_chunk in
@@ -815,13 +816,7 @@ module PrevRun = struct
                   (fun edit ->
                     if edit.curr_index = msg_idx then
                       match edit.edit_type with
-                      | Change prev_msg ->
-                          let truncated_msg =
-                            if String.length prev_msg > 35 then
-                              String.sub prev_msg 0 32 ^ "..."
-                            else prev_msg
-                          in
-                          Some ("Changed from: " ^ truncated_msg)
+                      | Change prev_msg -> Some ("Changed from: " ^ prev_msg)
                       | _ -> None
                     else None)
                   state.optimal_edits
@@ -1052,6 +1047,16 @@ module PrintBox (Log_to : Shared_config) = struct
       lbox (fun () ->
           match hl.diff_check () with
           | None -> b
+          | Some reason when String.length reason > 30 ->
+              B.hlist ~bars:false
+                [
+                  loop b;
+                  (let skip = String.length "Changed from: " in
+                   B.tree
+                     (B.text (String.sub reason 0 25 ^ "..."))
+                     [ B.text @@ String.sub reason skip (String.length reason - skip) ]);
+                ]
+          | Some reason when String.length reason = 0 -> loop b
           | Some reason -> B.hlist ~bars:false [ loop b; B.text reason ])
 
   let hl_or hl1 hl2 =
@@ -1059,8 +1064,9 @@ module PrintBox (Log_to : Shared_config) = struct
       pattern_match = hl1.pattern_match || hl2.pattern_match;
       diff_check =
         (fun () ->
+          (* Erase reason on inheriting nodes *)
           match hl1.diff_check () with
-          | Some reason -> Some reason
+          | Some _ as reason -> reason
           | None -> hl2.diff_check ());
     }
 
@@ -1862,8 +1868,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(for_append = false) ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80)
     ?backend ?hyperlink ?toc_specific_hyperlink ?(values_first_mode = true)
     ?(log_level = 9) ?snapshot_every_sec ?prev_run_file ?diff_ignore_pattern
-    ?max_distance_factor filename_stem :
-    (module PrintBox_runtime) =
+    ?max_distance_factor filename_stem : (module PrintBox_runtime) =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename_stem ^ ".md"
