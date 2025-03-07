@@ -478,36 +478,89 @@ let anchor_entry_id ~is_pure_text ~entry_id =
     let anchor = B.anchor ~id B.empty in
     if is_pure_text then B.hlist ~bars:false [ anchor; B.line " " ] else anchor
 
-type PrintBox.ext += Susp_box of (unit -> PrintBox.t)
+type B.ext += Susp_box of (unit -> B.t)
 
-let lbox f = PrintBox.extension ~key:"susp" (Susp_box f)
+let lbox f = B.extension ~key:"susp" (Susp_box f)
 
 (** [eval_susp_boxes box] traverses a PrintBox.t structure and replaces any Susp_box
     extensions with their actual content by executing the suspension.
     @return the box with all suspensions evaluated *)
-let rec eval_susp_boxes (box : PrintBox.t) : PrintBox.t =
-  match PrintBox.view box with
-  | PrintBox.Empty -> box
-  | PrintBox.Text _ -> box
-  | PrintBox.Frame { sub; stretch } -> PrintBox.frame ~stretch (eval_susp_boxes sub)
-  | PrintBox.Pad (pos, inner) ->
-      PrintBox.pad' ~col:pos.x ~lines:pos.y (eval_susp_boxes inner)
-  | PrintBox.Align { h; v; inner } -> PrintBox.align ~h ~v (eval_susp_boxes inner)
-  | PrintBox.Grid (style, arr) ->
+let rec eval_susp_boxes (box : B.t) : B.t =
+  match B.view box with
+  | B.Empty -> box
+  | B.Text _ -> box
+  | B.Frame { sub; stretch } -> B.frame ~stretch (eval_susp_boxes sub)
+  | B.Pad (pos, inner) ->
+      B.pad' ~col:pos.x ~lines:pos.y (eval_susp_boxes inner)
+  | B.Align { h; v; inner } -> B.align ~h ~v (eval_susp_boxes inner)
+  | B.Grid (style, arr) ->
       let arr' = Array.map (Array.map eval_susp_boxes) arr in
-      PrintBox.grid ~bars:(style = `Bars) arr'
-  | PrintBox.Tree (indent, label, children) ->
+      B.grid ~bars:(style = `Bars) arr'
+  | B.Tree (indent, label, children) ->
       let label' = eval_susp_boxes label in
       let children' = Array.map eval_susp_boxes children in
-      PrintBox.tree ~indent label' (Array.to_list children')
-  | PrintBox.Link { uri; inner } -> PrintBox.link ~uri (eval_susp_boxes inner)
-  | PrintBox.Anchor { id; inner } -> PrintBox.anchor ~id (eval_susp_boxes inner)
-  | PrintBox.Ext { key = _; ext } -> (
+      B.tree ~indent label' (Array.to_list children')
+  | B.Link { uri; inner } -> B.link ~uri (eval_susp_boxes inner)
+  | B.Anchor { id; inner } -> B.anchor ~id (eval_susp_boxes inner)
+  | B.Ext { key = _; ext } -> (
       match ext with
       | Susp_box f ->
           eval_susp_boxes (f ()) (* execute suspension and evaluate its result *)
       | _ -> box)
 (* keep other extensions as is *)
+
+
+(** [transform_tree_labels box] transforms every tree label in the box by converting
+    any Tree structure within the label into a vlist.
+    @return the box with transformed tree labels *)
+let rec transform_tree_labels (box : B.t) : B.t =
+  match B.view box with
+  | B.Empty -> box
+  | B.Text _ -> box
+  | B.Frame { sub; stretch } -> 
+      B.frame ~stretch (transform_tree_labels sub)
+  | B.Pad (pos, inner) ->
+      B.pad' ~col:pos.x ~lines:pos.y (transform_tree_labels inner)
+  | B.Align { h; v; inner } -> 
+      B.align ~h ~v (transform_tree_labels inner)
+  | B.Grid (style, arr) ->
+      let arr' = Array.map (Array.map transform_tree_labels) arr in
+      B.grid ~bars:(style = `Bars) arr'
+  | B.Tree (indent, label, children) ->
+      (* Transform the label by recursively processing it *)
+      let rec convert_trees_to_vlist box =
+        match B.view box with
+        | B.Tree (_inner_indent, inner_label, inner_children) ->
+            (* Convert this tree to vlist *)
+            let transformed_label = convert_trees_to_vlist inner_label in
+            let transformed_children = 
+              Array.to_list inner_children 
+              |> List.map (fun child -> convert_trees_to_vlist (transform_tree_labels child))
+            in
+            B.vlist ~bars:false (transformed_label :: transformed_children)
+        | B.Frame { sub; stretch } -> B.frame ~stretch (convert_trees_to_vlist sub)
+        | B.Pad (pos, inner) -> B.pad' ~col:pos.x ~lines:pos.y (convert_trees_to_vlist inner)
+        | B.Align { h; v; inner } -> B.align ~h ~v (convert_trees_to_vlist inner)
+        | B.Grid (style, arr) ->
+            let arr' = Array.map (Array.map convert_trees_to_vlist) arr in
+            B.grid ~bars:(style = `Bars) arr'
+        | B.Link { uri; inner } -> B.link ~uri (convert_trees_to_vlist inner)
+        | B.Anchor { id; inner } -> B.anchor ~id (convert_trees_to_vlist inner)
+        | B.Ext { key; ext } -> B.extension ~key ext
+        | _ -> box
+      in
+      let transformed_label = convert_trees_to_vlist label in
+      let children' = Array.map transform_tree_labels children in
+      B.tree ~indent transformed_label (Array.to_list children')
+  | B.Link { uri; inner } -> 
+      B.link ~uri (transform_tree_labels inner)
+  | B.Anchor { id; inner } -> 
+      B.anchor ~id (transform_tree_labels inner)
+  | B.Ext { key; ext } -> 
+      B.extension ~key ext  (* Extensions are kept as is *)
+
+let eval_and_transform_tree_labels (box : B.t) : B.t =
+  box |> eval_susp_boxes |> transform_tree_labels
 
 module PrevRun = struct
   type edit_type = Match | Insert | Delete | Change of string
@@ -1288,7 +1341,7 @@ module PrintBox (Log_to : Shared_config) = struct
        $(flame_subtree)</div>
        |}
     in
-    let header = eval_susp_boxes header in
+    let header = eval_and_transform_tree_labels header in
     let header =
       match config.backend with
       | `Text -> PrintBox_text.to_string header
@@ -1332,7 +1385,7 @@ module PrintBox (Log_to : Shared_config) = struct
     match B.view box with
     | Empty -> ()
     | _ ->
-        let box = eval_susp_boxes box in
+        let box = eval_and_transform_tree_labels box in
         (match config.backend with
         | `Text -> PrintBox_text.output ~style:false ch box
         | `Html config ->
