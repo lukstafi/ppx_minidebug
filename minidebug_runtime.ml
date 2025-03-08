@@ -625,7 +625,7 @@ module PrevRun = struct
         in
         Some { normalized_messages = normalized }
 
-  let init_run ?prev_file ?diff_ignore_pattern ?(max_distance_factor = 50) curr_file =
+  let init_run ?prev_file ?diff_ignore_pattern ?(max_distance_factor = 200) curr_file =
     let prev_ic = Option.map open_in_bin prev_file in
     let prev_chunk = Option.bind prev_ic load_next_chunk in
     let prev_normalized_chunk = normalize_chunk diff_ignore_pattern prev_chunk in

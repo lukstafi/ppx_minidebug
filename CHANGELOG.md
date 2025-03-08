@@ -1,8 +1,13 @@
-## [2.1.0] -- 2025-02-22
+## [2.1.0] -- 2025-03-08
 
 ### Added
 
 - New feature: highlight differences between runs. Allow ignoring expected change patterns in the logs.
+- `finish_and_cleanup` to finish or interrupt logging in a safe way (closes the files).
+
+### Fixed
+
+- Close files when finalizing a runtime.
 
 ## [2.0.3] -- 2025-01-02
 

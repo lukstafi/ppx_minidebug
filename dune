@@ -11,7 +11,7 @@
 (library
  (public_name ppx_minidebug.runtime)
  (name minidebug_runtime)
- (modules minidebug_runtime)
+ (modules dynarray minidebug_runtime)
  (libraries
   printbox
   printbox-text
