@@ -1113,7 +1113,10 @@ module PrintBox (Log_to : Shared_config) = struct
                    in
                    if full_reason then
                      B.tree (B.text summary)
-                       [ B.text @@ String.sub reason skip (String.length reason - skip) ]
+                       [
+                         B.text_with_style B.Style.preformatted
+                         @@ String.sub reason skip (String.length reason - skip);
+                       ]
                    else B.text summary);
                 ]
           | Some (_, reason) when String.length reason = 0 -> loop b
