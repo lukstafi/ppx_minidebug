@@ -478,7 +478,7 @@ let anchor_entry_id ~is_pure_text ~entry_id =
     let anchor = B.anchor ~id B.empty in
     if is_pure_text then B.hlist ~bars:false [ anchor; B.line " " ] else anchor
 
-type B.ext += Susp_box of (unit -> B.t)
+type B.ext += Susp_box of B.t Lazy.t
 
 let lbox f = B.extension ~key:"susp" (Susp_box f)
 
@@ -490,8 +490,7 @@ let rec eval_susp_boxes (box : B.t) : B.t =
   | B.Empty -> box
   | B.Text _ -> box
   | B.Frame { sub; stretch } -> B.frame ~stretch (eval_susp_boxes sub)
-  | B.Pad (pos, inner) ->
-      B.pad' ~col:pos.x ~lines:pos.y (eval_susp_boxes inner)
+  | B.Pad (pos, inner) -> B.pad' ~col:pos.x ~lines:pos.y (eval_susp_boxes inner)
   | B.Align { h; v; inner } -> B.align ~h ~v (eval_susp_boxes inner)
   | B.Grid (style, arr) ->
       let arr' = Array.map (Array.map eval_susp_boxes) arr in
@@ -505,13 +504,12 @@ let rec eval_susp_boxes (box : B.t) : B.t =
   | B.Ext { key = _; ext } -> (
       match ext with
       | Susp_box f ->
-          eval_susp_boxes (f ()) (* execute suspension and evaluate its result *)
+          eval_susp_boxes (Lazy.force f) (* execute suspension and evaluate its result *)
       | _ -> box)
 (* keep other extensions as is *)
 
-
-(** [transform_tree_labels box] transforms every tree label in the box by converting
-    any Tree structure within the label into a vlist.
+(** [transform_tree_labels box] transforms every tree label in the box by converting any
+    Tree structure within the label into a vlist.
     @return the box with transformed tree labels *)
 let rec transform_tree_labels (box : B.t) : B.t =
   match B.view box with
@@ -1102,8 +1100,9 @@ module PrintBox (Log_to : Shared_config) = struct
     if hl.pattern_match then loop b
     else if not config.highlight_diffs then b
     else
-      lbox (fun () ->
-          match hl.diff_check () with
+      lbox
+        (lazy
+          (match hl.diff_check () with
           | None -> b
           | Some reason when String.length reason > 30 ->
               B.hlist ~bars:false
@@ -1115,7 +1114,7 @@ module PrintBox (Log_to : Shared_config) = struct
                      [ B.text @@ String.sub reason skip (String.length reason - skip) ]);
                 ]
           | Some reason when String.length reason = 0 -> loop b
-          | Some reason -> B.hlist ~bars:false [ loop b; B.text reason ])
+          | Some reason -> B.hlist ~bars:false [ loop b; B.text reason ]))
 
   let hl_or hl1 hl2 =
     {
