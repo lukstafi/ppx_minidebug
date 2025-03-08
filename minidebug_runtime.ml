@@ -515,12 +515,9 @@ let rec transform_tree_labels (box : B.t) : B.t =
   match B.view box with
   | B.Empty -> box
   | B.Text _ -> box
-  | B.Frame { sub; stretch } -> 
-      B.frame ~stretch (transform_tree_labels sub)
-  | B.Pad (pos, inner) ->
-      B.pad' ~col:pos.x ~lines:pos.y (transform_tree_labels inner)
-  | B.Align { h; v; inner } -> 
-      B.align ~h ~v (transform_tree_labels inner)
+  | B.Frame { sub; stretch } -> B.frame ~stretch (transform_tree_labels sub)
+  | B.Pad (pos, inner) -> B.pad' ~col:pos.x ~lines:pos.y (transform_tree_labels inner)
+  | B.Align { h; v; inner } -> B.align ~h ~v (transform_tree_labels inner)
   | B.Grid (style, arr) ->
       let arr' = Array.map (Array.map transform_tree_labels) arr in
       B.grid ~bars:(style = `Bars) arr'
@@ -531,13 +528,15 @@ let rec transform_tree_labels (box : B.t) : B.t =
         | B.Tree (_inner_indent, inner_label, inner_children) ->
             (* Convert this tree to vlist *)
             let transformed_label = convert_trees_to_vlist inner_label in
-            let transformed_children = 
-              Array.to_list inner_children 
-              |> List.map (fun child -> convert_trees_to_vlist (transform_tree_labels child))
+            let transformed_children =
+              Array.to_list inner_children
+              |> List.map (fun child ->
+                     convert_trees_to_vlist (transform_tree_labels child))
             in
             B.vlist ~bars:false (transformed_label :: transformed_children)
         | B.Frame { sub; stretch } -> B.frame ~stretch (convert_trees_to_vlist sub)
-        | B.Pad (pos, inner) -> B.pad' ~col:pos.x ~lines:pos.y (convert_trees_to_vlist inner)
+        | B.Pad (pos, inner) ->
+            B.pad' ~col:pos.x ~lines:pos.y (convert_trees_to_vlist inner)
         | B.Align { h; v; inner } -> B.align ~h ~v (convert_trees_to_vlist inner)
         | B.Grid (style, arr) ->
             let arr' = Array.map (Array.map convert_trees_to_vlist) arr in
@@ -550,12 +549,9 @@ let rec transform_tree_labels (box : B.t) : B.t =
       let transformed_label = convert_trees_to_vlist label in
       let children' = Array.map transform_tree_labels children in
       B.tree ~indent transformed_label (Array.to_list children')
-  | B.Link { uri; inner } -> 
-      B.link ~uri (transform_tree_labels inner)
-  | B.Anchor { id; inner } -> 
-      B.anchor ~id (transform_tree_labels inner)
-  | B.Ext { key; ext } -> 
-      B.extension ~key ext  (* Extensions are kept as is *)
+  | B.Link { uri; inner } -> B.link ~uri (transform_tree_labels inner)
+  | B.Anchor { id; inner } -> B.anchor ~id (transform_tree_labels inner)
+  | B.Ext { key; ext } -> B.extension ~key ext (* Extensions are kept as is *)
 
 let eval_and_transform_tree_labels (box : B.t) : B.t =
   box |> eval_susp_boxes |> transform_tree_labels
@@ -1109,11 +1105,16 @@ module PrintBox (Log_to : Shared_config) = struct
                 [
                   loop b;
                   (let skip = String.length "Changed from: " in
+                   let summary =
+                     String.map
+                       (function '\n' | '\r' -> ' ' | c -> c)
+                       (String.sub reason 0 25)
+                     ^ "..."
+                   in
                    if full_reason then
-                     B.tree
-                       (B.text (String.sub reason 0 25 ^ "..."))
+                     B.tree (B.text summary)
                        [ B.text @@ String.sub reason skip (String.length reason - skip) ]
-                   else B.text (String.sub reason 0 25 ^ "..."));
+                   else B.text summary);
                 ]
           | Some (_, reason) when String.length reason = 0 -> loop b
           | Some (_, reason) -> B.hlist ~bars:false [ loop b; B.text reason ]))
@@ -1225,7 +1226,8 @@ module PrintBox (Log_to : Shared_config) = struct
             body
       in
       let results_hl =
-        hl_oneof ~full_reason:true @@ List.map (fun { highlighted; _ } -> highlighted) results
+        hl_oneof ~full_reason:true
+        @@ List.map (fun { highlighted; _ } -> highlighted) results
       in
       let results = unpack ~f:(fun { subtree; _ } -> subtree) results
       and body = unpack ~f:(fun { subtree; _ } -> subtree) body in
