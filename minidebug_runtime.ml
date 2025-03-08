@@ -852,7 +852,7 @@ module PrevRun = struct
 
     match (state.prev_ic, state.prev_chunk) with
     | None, None -> fun () -> None
-    | Some _, None -> fun () -> Some "New entry (no previous run data)"
+    | Some _, None -> fun () -> Some "New chunk"
     | None, Some _ -> assert false
     | Some _, Some prev_chunk ->
         compute_dp_upto state msg_idx;
@@ -1031,7 +1031,7 @@ module PrintBox (Log_to : Shared_config) = struct
       prev_run_file = None;
     }
 
-  type highlight = { pattern_match : bool; diff_check : unit -> string option }
+  type highlight = { pattern_match : bool; diff_check : unit -> (bool * string) option }
 
   type subentry = {
     result_id : int;
@@ -1104,17 +1104,19 @@ module PrintBox (Log_to : Shared_config) = struct
         (lazy
           (match hl.diff_check () with
           | None -> b
-          | Some reason when String.length reason > 30 ->
+          | Some (full_reason, reason) when String.length reason > 30 ->
               B.hlist ~bars:false
                 [
                   loop b;
                   (let skip = String.length "Changed from: " in
-                   B.tree
-                     (B.text (String.sub reason 0 25 ^ "..."))
-                     [ B.text @@ String.sub reason skip (String.length reason - skip) ]);
+                   if full_reason then
+                     B.tree
+                       (B.text (String.sub reason 0 25 ^ "..."))
+                       [ B.text @@ String.sub reason skip (String.length reason - skip) ]
+                   else B.text (String.sub reason 0 25 ^ "..."));
                 ]
-          | Some reason when String.length reason = 0 -> loop b
-          | Some reason -> B.hlist ~bars:false [ loop b; B.text reason ]))
+          | Some (_, reason) when String.length reason = 0 -> loop b
+          | Some (_, reason) -> B.hlist ~bars:false [ loop b; B.text reason ]))
 
   let hl_or hl1 hl2 =
     {
@@ -1124,7 +1126,7 @@ module PrintBox (Log_to : Shared_config) = struct
           (* Erase reason on inheriting nodes *)
           match hl1.diff_check () with
           | Some _ as reason -> reason
-          | None -> hl2.diff_check ());
+          | None -> Option.map (fun r -> (false, snd r)) @@ hl2.diff_check ());
     }
 
   let unpack ~f l =
@@ -1141,10 +1143,16 @@ module PrintBox (Log_to : Shared_config) = struct
     in
     unpack (config.truncate_children - 1) [] l
 
-  let hl_oneof highlighted =
+  let hl_oneof ~full_reason highlighted =
     {
       pattern_match = List.exists (fun hl -> hl.pattern_match) highlighted;
-      diff_check = (fun () -> List.find_map (fun hl -> hl.diff_check ()) highlighted);
+      diff_check =
+        (fun () ->
+          List.find_map
+            (fun hl ->
+              if full_reason then hl.diff_check ()
+              else Option.map (fun (_, r) -> (false, r)) @@ hl.diff_check ())
+            highlighted);
     }
 
   let stack_to_tree ~elapsed_on_close
@@ -1217,7 +1225,7 @@ module PrintBox (Log_to : Shared_config) = struct
             body
       in
       let results_hl =
-        hl_oneof @@ List.map (fun { highlighted; _ } -> highlighted) results
+        hl_oneof ~full_reason:true @@ List.map (fun { highlighted; _ } -> highlighted) results
       in
       let results = unpack ~f:(fun { subtree; _ } -> subtree) results
       and body = unpack ~f:(fun { subtree; _ } -> subtree) body in
@@ -1652,7 +1660,9 @@ module PrintBox (Log_to : Shared_config) = struct
     let diff_check =
       match !prev_run_state with
       | None -> fun () -> None
-      | Some state -> PrevRun.check_diff state ~depth message
+      | Some state ->
+          let diff_result = PrevRun.check_diff state ~depth message in
+          fun () -> Option.map (fun r -> (true, r)) @@ diff_result ()
     in
     match config.highlight_terms with
     | None -> { pattern_match = false; diff_check }
@@ -1766,10 +1776,13 @@ module PrintBox (Log_to : Shared_config) = struct
       | None -> hl_body
       | Some r -> if Re.execp r message then None else hl_body
     in
+    (* TODO: call get_highlight *)
     let diff_check =
       match !prev_run_state with
       | None -> fun () -> None
-      | Some state -> PrevRun.check_diff state ~depth message
+      | Some state ->
+          let diff_result = PrevRun.check_diff state ~depth message in
+          fun () -> Option.map (fun r -> (true, r)) @@ diff_result ()
     in
     let hl_header =
       {
@@ -1802,7 +1815,7 @@ module PrintBox (Log_to : Shared_config) = struct
         | List [ s ] -> loop ~depth:(depth + 1) s
         | List (Atom s :: l) ->
             let hl_body, bs = List.split @@ List.map (loop ~depth:(depth + 1)) l in
-            let hl_body = hl_oneof hl_body in
+            let hl_body = hl_oneof ~full_reason:false hl_body in
             let hl, b =
               (* Design choice: Don't render headers of multiline values as monospace, to
                  emphasize them. *)
@@ -1812,7 +1825,7 @@ module PrintBox (Log_to : Shared_config) = struct
             (hl, B.tree b bs)
         | List l ->
             let hls, bs = List.split @@ List.map (loop ~depth:(depth + 1)) l in
-            (hl_oneof hls, B.vlist ~bars:false bs)
+            (hl_oneof ~full_reason:false hls, B.vlist ~bars:false bs)
     in
     match (sexp, descr) with
     | (Atom s | List [ Atom s ]), Some d ->
