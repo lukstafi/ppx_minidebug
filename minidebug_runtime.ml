@@ -1147,17 +1147,20 @@ module PrintBox (Log_to : Shared_config) = struct
     in
     unpack (config.truncate_children - 1) [] l
 
-  let hl_oneof ~full_reason highlighted =
+  let set_full_highlight full hl =
     {
-      pattern_match = List.exists (fun hl -> hl.pattern_match) highlighted;
-      diff_check =
-        (fun () ->
-          List.find_map
-            (fun hl ->
-              if full_reason then hl.diff_check ()
-              else Option.map (fun (_, r) -> (false, r)) @@ hl.diff_check ())
-            highlighted);
+      hl with
+      diff_check = (fun () -> Option.map (fun r -> (full, snd r)) @@ hl.diff_check ());
     }
+
+  let hl_oneof ~full_reason highlighted =
+    let result =
+      {
+        pattern_match = List.exists (fun hl -> hl.pattern_match) highlighted;
+        diff_check = (fun () -> List.find_map (fun hl -> hl.diff_check ()) highlighted);
+      }
+    in
+    if full_reason then result else set_full_highlight false result
 
   let stack_to_tree ~elapsed_on_close
       {
@@ -1247,7 +1250,8 @@ module PrintBox (Log_to : Shared_config) = struct
                   (apply_highlight highlight value_header)
                   (b_path
                    :: B.tree
-                        (apply_highlight results_hl @@ B.line
+                        (apply_highlight (set_full_highlight false results_hl)
+                        @@ B.line
                         @@ if body = [] then "<values>" else "<returns>")
                         (Array.to_list result_body)
                    :: opt_message
@@ -1266,7 +1270,8 @@ module PrintBox (Log_to : Shared_config) = struct
             B.tree hl_header
             @@ b_path
                :: B.tree
-                    (apply_highlight results_hl @@ B.line
+                    (apply_highlight (set_full_highlight false results_hl)
+                    @@ B.line
                     @@ if body = [] then "<values>" else "<returns>")
                     results
                :: body )
@@ -1781,23 +1786,7 @@ module PrintBox (Log_to : Shared_config) = struct
       | None -> hl_body
       | Some r -> if Re.execp r message then None else hl_body
     in
-    (* TODO: call get_highlight *)
-    let diff_check =
-      match !prev_run_state with
-      | None -> fun () -> None
-      | Some state ->
-          let diff_result = PrevRun.check_diff state ~depth message in
-          fun () -> Option.map (fun r -> (true, r)) @@ diff_result ()
-    in
-    let hl_header =
-      {
-        pattern_match =
-          (match config.highlight_terms with
-          | None -> false
-          | Some r -> Re.execp r message);
-        diff_check;
-      }
-    in
+    let hl_header = get_highlight ~depth message in
     let hl = Option.value ~default:hl_header (Option.map (hl_or hl_header) hl_body) in
     (hl, apply_highlight hl b)
 
