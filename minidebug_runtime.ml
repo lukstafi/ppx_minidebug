@@ -838,6 +838,14 @@ module PrevRun = struct
     if state.last_computed_col < col then update_optimal_edits state col;
     state.last_computed_col <- max state.last_computed_col col
 
+  (* OCaml < 5.3.0 has no List.take *)
+  let list_take n l =
+    let[@tail_mod_cons] rec aux n l =
+      match (n, l) with 0, _ | _, [] -> [] | n, x :: l -> x :: aux (n - 1) l
+    in
+    if n < 0 then invalid_arg "List.take";
+    aux n l
+
   let check_diff state ~depth msg =
     let msg_idx = Dynarray.length state.curr_chunk in
     Dynarray.add_last state.curr_chunk { message = msg; depth };
@@ -893,7 +901,7 @@ module PrevRun = struct
                           | Change msg ->
                               Printf.sprintf "Change at %d: %s" edit.curr_index msg)
                       ""
-                      (List.take 5 state.optimal_edits)
+                      (list_take 5 state.optimal_edits)
                   in
                   Printf.sprintf
                     "Bad chunk? current position %d, previous: size %d, messages: \
