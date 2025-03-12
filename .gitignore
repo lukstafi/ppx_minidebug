@@ -30,3 +30,6 @@ _opam/
 
 # IDE configuration files
 .vscode/
+
+# AI interaction files
+.specstory/
