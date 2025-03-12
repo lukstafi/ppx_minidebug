@@ -570,6 +570,13 @@ module PrevRun = struct
   (* Normalized version of a chunk *)
   type normalized_chunk = { normalized_messages : string array }
 
+  (* Hashconsing table for messages *)
+  type hashcons_table = {
+    string_to_id : (string, int) Hashtbl.t;
+    id_to_string : (int, string) Hashtbl.t;
+    mutable next_id : int;
+  }
+
   (* The dynamic programming state *)
   type dp_state = {
     mutable prev_chunk : chunk option; (* Previous run's current chunk *)
@@ -591,7 +598,80 @@ module PrevRun = struct
     min_cost_rows : (int, int) Hashtbl.t; (* Column index -> row with minimum cost *)
     max_distance_factor : int;
         (* Maximum distance to consider as a factor of current position *)
+    meta_debug_oc : out_channel option;
+        (* Optional channel for meta-debugging information *)
+    meta_debug_queue : string Queue.t; (* Queue for meta-debug messages *)
+    hashcons : hashcons_table; (* Hashconsing table for messages *)
   }
+
+  (* Initialize a new hashconsing table *)
+  let create_hashcons_table () =
+    {
+      string_to_id = Hashtbl.create 10000;
+      id_to_string = Hashtbl.create 10000;
+      next_id = 0;
+    }
+
+  (* Get or create message ID from hashconsing table *)
+  let hashcons_get table msg =
+    try Hashtbl.find table.string_to_id msg
+    with Not_found ->
+      let id = table.next_id in
+      Hashtbl.add table.string_to_id msg id;
+      Hashtbl.add table.id_to_string id msg;
+      table.next_id <- id + 1;
+      id
+
+  (* Get string from ID in hashconsing table *)
+  let hashcons_to_string table id =
+    try Hashtbl.find table.id_to_string id
+    with Not_found -> Printf.sprintf "<unknown-id:%d>" id
+
+  let meta_debug state fmt =
+    let k msg =
+      match state.meta_debug_oc with
+      | None -> ()
+      | Some _ -> Queue.add msg state.meta_debug_queue
+    in
+    Format.kasprintf k fmt
+
+  let flush_meta_debug_queue state =
+    match state.meta_debug_oc with
+    | None -> ()
+    | Some oc ->
+        Queue.iter (fun msg -> Printf.fprintf oc "%s" msg) state.meta_debug_queue;
+        flush oc;
+        Queue.clear state.meta_debug_queue
+
+  let string_of_edit_type state = function
+    | Match -> "Match"
+    | Insert -> "Insert"
+    | Delete -> "Delete"
+    | Change s ->
+        let id = hashcons_get state.hashcons s in
+        Printf.sprintf "Change(msg#%d)" id
+
+  let dump_edits state edits =
+    meta_debug state "Optimal edit sequence (%d edits):\n" (List.length edits);
+    List.iteri
+      (fun i edit ->
+        if edit.edit_type <> Delete then
+          let edit_type_str = string_of_edit_type state edit.edit_type in
+          let curr_msg =
+            if edit.curr_index < Dynarray.length state.curr_chunk then
+              let msg = (Dynarray.get state.curr_chunk edit.curr_index).message in
+              let id = hashcons_get state.hashcons msg in
+              Printf.sprintf "curr#%d" id
+            else "<out-of-bounds>"
+          in
+          meta_debug state "  %d: %s at pos %d (%s)\n" i edit_type_str edit.curr_index
+            curr_msg)
+      edits
+
+  let dump_exploration_band state j center_row min_i max_i =
+    meta_debug state "Column %d: Exploring rows %d to %d (center: %d, band_size: %d)\n" j
+      min_i max_i center_row
+      (max_i - min_i + 1)
 
   let save_chunk oc messages =
     let chunk = { messages_with_depth = Array.of_seq (Dynarray.to_seq messages) } in
@@ -630,7 +710,26 @@ module PrevRun = struct
     let prev_chunk = Option.bind prev_ic load_next_chunk in
     let prev_normalized_chunk = normalize_chunk diff_ignore_pattern prev_chunk in
     let curr_oc = open_out_bin (curr_file ^ ".raw") in
+    let meta_debug_oc =
+      if Option.is_some prev_file then (
+        let oc = open_out (curr_file ^ ".meta-debug.log") in
+        Gc.finalise (fun _ -> close_out oc) oc;
+        Some oc)
+      else None
+    in
     Gc.finalise (fun _ -> close_out curr_oc) curr_oc;
+
+    (* Initialize hashconsing table *)
+    let hashcons = create_hashcons_table () in
+
+    (* Hashcons messages from previous chunk if available *)
+    (match prev_chunk with
+    | Some chunk ->
+        Array.iter
+          (fun md -> ignore (hashcons_get hashcons md.message))
+          chunk.messages_with_depth
+    | None -> ());
+
     Some
       {
         prev_chunk;
@@ -648,10 +747,11 @@ module PrevRun = struct
         curr_oc;
         diff_ignore_pattern;
         normalized_msgs = Hashtbl.create 1000;
-        (* Still keep this for messages not in chunks *)
         min_cost_rows = Hashtbl.create 1000;
-        (* Track min cost row for each column *)
         max_distance_factor;
+        meta_debug_oc;
+        meta_debug_queue = Queue.create ();
+        hashcons;
       }
 
   (* Get normalized message either from normalized chunk or by normalizing on demand *)
@@ -673,6 +773,13 @@ module PrevRun = struct
         normalize_message state
           (Option.get state.prev_chunk).messages_with_depth.(i).message
 
+  (* Get original message from previous chunk by index with its ID *)
+  let get_prev_msg_with_id state i =
+    let chunk = Option.get state.prev_chunk in
+    let msg = chunk.messages_with_depth.(i).message in
+    let id = hashcons_get state.hashcons msg in
+    (msg, id)
+
   (* Get normalized message from current chunk by index *)
   let get_normalized_curr state j =
     if j < Dynarray.length state.curr_normalized_chunk then
@@ -681,6 +788,13 @@ module PrevRun = struct
       let msg_with_depth = Dynarray.get state.curr_chunk j in
       let normalized = normalize_message state msg_with_depth.message in
       normalized
+
+  (* Get original message from current chunk by index with its ID *)
+  let get_curr_msg_with_id state j =
+    let msg_with_depth = Dynarray.get state.curr_chunk j in
+    let msg = msg_with_depth.message in
+    let id = hashcons_get state.hashcons msg in
+    (msg, id)
 
   (* Get depth from previous chunk by index *)
   let get_depth_prev state i = (Option.get state.prev_chunk).messages_with_depth.(i).depth
@@ -692,7 +806,7 @@ module PrevRun = struct
   let get_dp_value state i j =
     try Hashtbl.find state.dp_table (i, j) with Not_found -> (max_int, -1, -1)
 
-  let compute_dp_cell state i j =
+  let compute_dp_cell state ~meta_log i j =
     let normalized_prev = get_normalized_prev state i in
     let normalized_curr = get_normalized_curr state j in
     let base_match_cost =
@@ -703,6 +817,10 @@ module PrevRun = struct
     let prev_depth = get_depth_prev state i in
     let curr_depth = get_depth_curr state j in
     let depth_diff = curr_depth - prev_depth in
+
+    (* Get message IDs for logging *)
+    let _, prev_id = get_prev_msg_with_id state i in
+    let _, curr_id = get_curr_msg_with_id state j in
 
     (* Adjust costs based on relative depths *)
     let del_cost =
@@ -754,6 +872,9 @@ module PrevRun = struct
         (fun (mc, pi, pj) (c, i', j') -> if c <= mc then (c, i', j') else (mc, pi, pj))
         (max_int, -1, -1) costs
     in
+    if meta_log then
+      meta_debug state "DP(%d,%d) = %d from (%d,%d) [prev#%d vs curr#%d]\n" i j min_cost
+        prev_i prev_j prev_id curr_id;
     Hashtbl.replace state.dp_table (i, j) (min_cost, prev_i, prev_j);
     min_cost
 
@@ -770,6 +891,7 @@ module PrevRun = struct
         let cost, prev_i, prev_j = get_dp_value state i j in
         if prev_i <> i - 1 && prev_j <> j - 1 then (
           (* We are at an unpopulated cell, so we need to backtrack arbitrarily *)
+          let _, curr_id = get_curr_msg_with_id state j in
           let edit =
             {
               edit_type =
@@ -778,7 +900,9 @@ module PrevRun = struct
                  else
                    let normalized_prev = get_normalized_prev state i in
                    if normalized_prev = get_normalized_curr state j then Match
-                   else Change normalized_prev);
+                   else
+                     let prev_msg, _ = get_prev_msg_with_id state i in
+                     Change prev_msg);
               curr_index = j;
             }
           in
@@ -793,14 +917,30 @@ module PrevRun = struct
               let normalized_prev = get_normalized_prev state i in
               if normalized_prev = get_normalized_curr state j then
                 { edit_type = Match; curr_index = j }
-              else { edit_type = Change normalized_prev; curr_index = j }
+              else
+                let prev_msg, _ = get_prev_msg_with_id state i in
+                { edit_type = Change prev_msg; curr_index = j }
             else if prev_i = i - 1 then { edit_type = Delete; curr_index = j }
             else { edit_type = Insert; curr_index = j }
           in
           backtrack prev_i prev_j (edit :: acc)
     in
     let edits = backtrack state.num_rows col [] in
-    state.optimal_edits <- edits
+    state.optimal_edits <- edits;
+
+    (* Check if there are any current run messages without a match *)
+    let has_non_matches =
+      let curr_len = Dynarray.length state.curr_chunk in
+      let matches = Array.make curr_len false in
+      List.iter
+        (fun edit -> if edit.edit_type = Match then matches.(edit.curr_index) <- true)
+        edits;
+      Array.exists not matches
+    in
+    if has_non_matches then (
+      dump_edits state edits;
+      flush_meta_debug_queue state)
+    else Queue.clear state.meta_debug_queue
 
   let compute_dp_upto state col =
     (* Compute new cells with adaptive pruning - transposed for column-first iteration *)
@@ -821,21 +961,44 @@ module PrevRun = struct
       let min_i = max 0 (center_row - state.max_distance_factor) in
       let max_i = min state.num_rows (center_row + state.max_distance_factor) in
 
+      dump_exploration_band state j center_row min_i max_i;
       let min_cost_for_col = ref max_int in
       let min_cost_row = ref center_row in
 
       for i = min_i to max_i do
-        let cost = compute_dp_cell state i j in
+        let cost =
+          compute_dp_cell state
+            ~meta_log:(i = min_i || i = max_i || i = center_row || i = j)
+            i j
+        in
         if cost < !min_cost_for_col then (
           min_cost_for_col := cost;
           min_cost_row := i)
       done;
 
+      (* Log message IDs for the current column *)
+      let _, curr_id =
+        if j < Dynarray.length state.curr_chunk then get_curr_msg_with_id state j
+        else ("<out-of-bounds>", -1)
+      in
+
+      (* Log message IDs for the min cost row *)
+      let _, prev_id =
+        if !min_cost_row >= 0 && !min_cost_row <= state.num_rows then
+          get_prev_msg_with_id state !min_cost_row
+        else ("<out-of-bounds>", -1)
+      in
+
+      meta_debug state "Column %d (curr#%d): Minimum cost %d at row %d (prev#%d)\n" j
+        curr_id !min_cost_for_col !min_cost_row prev_id;
+
       (* Store the row with minimum cost for this column *)
       Hashtbl.replace state.min_cost_rows j !min_cost_row
     done;
 
-    if state.last_computed_col < col then update_optimal_edits state col;
+    if state.last_computed_col < col then (
+      update_optimal_edits state col;
+      state.last_computed_col <- max state.last_computed_col col);
     state.last_computed_col <- max state.last_computed_col col
 
   (* OCaml < 5.3.0 has no List.take *)
@@ -847,12 +1010,16 @@ module PrevRun = struct
     aux n l
 
   let check_diff state ~depth msg =
+    (* Hashcons the message to get its ID *)
+    let msg_id = hashcons_get state.hashcons msg in
     let msg_idx = Dynarray.length state.curr_chunk in
     Dynarray.add_last state.curr_chunk { message = msg; depth };
 
     (* Also add the normalized version to curr_normalized_chunk *)
     let normalized_msg = normalize_message state msg in
     Dynarray.add_last state.curr_normalized_chunk normalized_msg;
+
+    meta_debug state "Processing msg#%d at index %d\n" msg_id msg_idx;
 
     match (state.prev_ic, state.prev_chunk) with
     | None, None -> fun () -> None
@@ -876,7 +1043,9 @@ module PrevRun = struct
                   (fun edit ->
                     if edit.curr_index = msg_idx then
                       match edit.edit_type with
-                      | Change prev_msg -> Some ("Changed from: " ^ prev_msg)
+                      | Change prev_msg ->
+                          let prev_id = hashcons_get state.hashcons prev_msg in
+                          Some (Printf.sprintf "Changed from: msg#%d" prev_id)
                       | _ -> None
                     else None)
                   state.optimal_edits
@@ -899,25 +1068,45 @@ module PrevRun = struct
                           | Insert -> Printf.sprintf "Insert at %d" edit.curr_index
                           | Delete -> Printf.sprintf "Delete at %d" edit.curr_index
                           | Change msg ->
-                              Printf.sprintf "Change at %d: %s" edit.curr_index msg)
+                              let prev_id = hashcons_get state.hashcons msg in
+                              Printf.sprintf "Change at %d: msg#%d" edit.curr_index
+                                prev_id)
                       ""
                       (list_take 5 state.optimal_edits)
                   in
+
+                  (* Get IDs for the first and current messages in prev_chunk *)
+                  let first_msg_id =
+                    hashcons_get state.hashcons prev_chunk.messages_with_depth.(0).message
+                  in
+
+                  let current_msg_id_str =
+                    if msg_idx > 0 && msg_idx < state.num_rows then
+                      let id =
+                        hashcons_get state.hashcons
+                          prev_chunk.messages_with_depth.(msg_idx).message
+                      in
+                      Printf.sprintf " ... msg#%d" id
+                    else ""
+                  in
+
+                  let last_msg_id_str =
+                    if
+                      state.num_rows > 0
+                      && Array.length prev_chunk.messages_with_depth > state.num_rows
+                    then
+                      let id =
+                        hashcons_get state.hashcons
+                          prev_chunk.messages_with_depth.(state.num_rows).message
+                      in
+                      Printf.sprintf " ... msg#%d" id
+                    else ""
+                  in
+
                   Printf.sprintf
                     "Bad chunk? current position %d, previous: size %d, messages: \
-                     %s%s%s. 5 edits: %s"
-                    msg_idx state.num_rows prev_chunk.messages_with_depth.(0).message
-                    (if msg_idx > 0 && msg_idx < state.num_rows then
-                       " ... " ^ prev_chunk.messages_with_depth.(msg_idx).message
-                     else "")
-                    (if
-                       state.num_rows > 0
-                       && Array.length prev_chunk.messages_with_depth > state.num_rows
-                     then
-                       (* FIXME: How is Array.length prev_chunk.messages_with_depth >
-                          state.num_rows possible? *)
-                       " ... " ^ prev_chunk.messages_with_depth.(state.num_rows).message
-                     else "")
+                     msg#%d%s%s. 5 edits: %s"
+                    msg_idx state.num_rows first_msg_id current_msg_id_str last_msg_id_str
                     edits_str
               | None ->
                   (* Count deletions in the optimal edits *)
