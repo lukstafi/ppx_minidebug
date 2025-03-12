@@ -717,6 +717,13 @@ module PrevRun = struct
         Some oc)
       else None
     in
+    let meta_debug_oc =
+      if Option.is_some prev_file then (
+        let oc = open_out (curr_file ^ ".meta-debug.log") in
+        Gc.finalise (fun _ -> close_out oc) oc;
+        Some oc)
+      else None
+    in
     Gc.finalise (fun _ -> close_out curr_oc) curr_oc;
 
     (* Initialize hashconsing table *)
@@ -806,6 +813,7 @@ module PrevRun = struct
   let get_dp_value state i j =
     try Hashtbl.find state.dp_table (i, j) with Not_found -> (max_int, -1, -1)
 
+  let compute_dp_cell state ~meta_log i j =
   let compute_dp_cell state ~meta_log i j =
     let normalized_prev = get_normalized_prev state i in
     let normalized_curr = get_normalized_curr state j in
@@ -941,6 +949,21 @@ module PrevRun = struct
       dump_edits state edits;
       flush_meta_debug_queue state)
     else Queue.clear state.meta_debug_queue
+    state.optimal_edits <- edits;
+
+    (* Check if there are any current run messages without a match *)
+    let has_non_matches =
+      let curr_len = Dynarray.length state.curr_chunk in
+      let matches = Array.make curr_len false in
+      List.iter
+        (fun edit -> if edit.edit_type = Match then matches.(edit.curr_index) <- true)
+        edits;
+      Array.exists not matches
+    in
+    if has_non_matches then (
+      dump_edits state edits;
+      flush_meta_debug_queue state)
+    else Queue.clear state.meta_debug_queue
 
   let compute_dp_upto state col =
     (* Compute new cells with adaptive pruning - transposed for column-first iteration *)
@@ -962,10 +985,16 @@ module PrevRun = struct
       let max_i = min state.num_rows (center_row + state.max_distance_factor) in
 
       dump_exploration_band state j center_row min_i max_i;
+      dump_exploration_band state j center_row min_i max_i;
       let min_cost_for_col = ref max_int in
       let min_cost_row = ref center_row in
 
       for i = min_i to max_i do
+        let cost =
+          compute_dp_cell state
+            ~meta_log:(i = min_i || i = max_i || i = center_row || i = j)
+            i j
+        in
         let cost =
           compute_dp_cell state
             ~meta_log:(i = min_i || i = max_i || i = center_row || i = j)
@@ -996,6 +1025,9 @@ module PrevRun = struct
       Hashtbl.replace state.min_cost_rows j !min_cost_row
     done;
 
+    if state.last_computed_col < col then (
+      update_optimal_edits state col;
+      state.last_computed_col <- max state.last_computed_col col);
     if state.last_computed_col < col then (
       update_optimal_edits state col;
       state.last_computed_col <- max state.last_computed_col col);
