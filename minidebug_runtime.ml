@@ -622,11 +622,6 @@ module PrevRun = struct
       table.next_id <- id + 1;
       id
 
-  (* Get string from ID in hashconsing table *)
-  let hashcons_to_string table id =
-    try Hashtbl.find table.id_to_string id
-    with Not_found -> Printf.sprintf "<unknown-id:%d>" id
-
   let meta_debug state fmt =
     let k msg =
       match state.meta_debug_oc with
@@ -710,13 +705,6 @@ module PrevRun = struct
     let prev_chunk = Option.bind prev_ic load_next_chunk in
     let prev_normalized_chunk = normalize_chunk diff_ignore_pattern prev_chunk in
     let curr_oc = open_out_bin (curr_file ^ ".raw") in
-    let meta_debug_oc =
-      if Option.is_some prev_file then (
-        let oc = open_out (curr_file ^ ".meta-debug.log") in
-        Gc.finalise (fun _ -> close_out oc) oc;
-        Some oc)
-      else None
-    in
     let meta_debug_oc =
       if Option.is_some prev_file then (
         let oc = open_out (curr_file ^ ".meta-debug.log") in
@@ -814,7 +802,6 @@ module PrevRun = struct
     try Hashtbl.find state.dp_table (i, j) with Not_found -> (max_int, -1, -1)
 
   let compute_dp_cell state ~meta_log i j =
-  let compute_dp_cell state ~meta_log i j =
     let normalized_prev = get_normalized_prev state i in
     let normalized_curr = get_normalized_curr state j in
     let base_match_cost =
@@ -832,14 +819,14 @@ module PrevRun = struct
 
     (* Adjust costs based on relative depths *)
     let del_cost =
-      if depth_diff > 0 then
+      if depth_diff > 0 && base_del_cost > 0 then
         (* Current is deeper, prefer insertion over deletion *)
         base_del_cost + (depth_factor * depth_diff)
       else base_del_cost
     in
 
     let ins_cost =
-      if depth_diff < 0 then
+      if depth_diff < 0 && base_ins_cost > 0 then
         (* Previous is deeper, prefer deletion over insertion *)
         base_ins_cost + (depth_factor * abs depth_diff)
       else base_ins_cost
@@ -899,7 +886,6 @@ module PrevRun = struct
         let cost, prev_i, prev_j = get_dp_value state i j in
         if prev_i <> i - 1 && prev_j <> j - 1 then (
           (* We are at an unpopulated cell, so we need to backtrack arbitrarily *)
-          let _, curr_id = get_curr_msg_with_id state j in
           let edit =
             {
               edit_type =
@@ -933,7 +919,13 @@ module PrevRun = struct
           in
           backtrack prev_i prev_j (edit :: acc)
     in
-    let edits = backtrack state.num_rows col [] in
+    let edits =
+      (* Use min_cost_rows, because we don't want to penalize for the previous chunk
+         entries that could as well be matched by future columns. *)
+      backtrack
+        (try Hashtbl.find state.min_cost_rows col with Not_found -> state.num_rows)
+        col []
+    in
     state.optimal_edits <- edits;
 
     (* Check if there are any current run messages without a match *)
@@ -948,7 +940,7 @@ module PrevRun = struct
     if has_non_matches then (
       dump_edits state edits;
       flush_meta_debug_queue state)
-    else Queue.clear state.meta_debug_queue
+    else Queue.clear state.meta_debug_queue;
     state.optimal_edits <- edits;
 
     (* Check if there are any current run messages without a match *)
@@ -990,11 +982,6 @@ module PrevRun = struct
       let min_cost_row = ref center_row in
 
       for i = min_i to max_i do
-        let cost =
-          compute_dp_cell state
-            ~meta_log:(i = min_i || i = max_i || i = center_row || i = j)
-            i j
-        in
         let cost =
           compute_dp_cell state
             ~meta_log:(i = min_i || i = max_i || i = center_row || i = j)
@@ -1077,7 +1064,9 @@ module PrevRun = struct
                       match edit.edit_type with
                       | Change prev_msg ->
                           let prev_id = hashcons_get state.hashcons prev_msg in
-                          Some (Printf.sprintf "Changed from: msg#%d" prev_id)
+                          Some
+                            (Printf.sprintf "Changed: pos %d cur #%d from #%d %s" msg_idx
+                               msg_id prev_id prev_msg)
                       | _ -> None
                     else None)
                   state.optimal_edits
@@ -1150,8 +1139,9 @@ module PrevRun = struct
                       0 state.optimal_edits
                   in
                   if deletion_count > 0 then
-                    Printf.sprintf "Covers %d deletions in previous run" deletion_count
-                  else "Inserted in current run"
+                    Printf.sprintf "Covers %d deletions in previous run #%d"
+                      deletion_count msg_id
+                  else Printf.sprintf "Inserted in current run #%d" msg_id
             in
             Some edit_type
 
@@ -1329,7 +1319,7 @@ module PrintBox (Log_to : Shared_config) = struct
         (lazy
           (match hl.diff_check () with
           | None -> b
-          | Some (full_reason, reason) when String.length reason > 30 ->
+          | Some (full_reason, reason) when String.length reason > 40 ->
               B.hlist ~bars:false
                 [
                   loop b;
@@ -1337,7 +1327,7 @@ module PrintBox (Log_to : Shared_config) = struct
                    let summary =
                      String.map
                        (function '\n' | '\r' -> ' ' | c -> c)
-                       (String.sub reason 0 25)
+                       (String.sub reason 0 35)
                      ^ "..."
                    in
                    if full_reason then
