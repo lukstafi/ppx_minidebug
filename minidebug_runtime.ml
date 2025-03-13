@@ -602,6 +602,7 @@ module PrevRun = struct
         (* Optional channel for meta-debugging information *)
     meta_debug_queue : string Queue.t; (* Queue for meta-debug messages *)
     hashcons : hashcons_table; (* Hashconsing table for messages *)
+    depth_threshold : int; (* New parameter for depth discrepancy threshold *)
   }
 
   (* Initialize a new hashconsing table *)
@@ -700,7 +701,9 @@ module PrevRun = struct
         in
         Some { normalized_messages = normalized }
 
-  let init_run ?prev_file ?diff_ignore_pattern ?(max_distance_factor = 200) curr_file =
+  (* Update init_run to include the depth_threshold parameter *)
+  let init_run ?prev_file ?diff_ignore_pattern ?(max_distance_factor = 200)
+      ?(depth_threshold = 2) curr_file =
     let prev_ic = Option.map open_in_bin prev_file in
     let prev_chunk = Option.bind prev_ic load_next_chunk in
     let prev_normalized_chunk = normalize_chunk diff_ignore_pattern prev_chunk in
@@ -747,6 +750,7 @@ module PrevRun = struct
         meta_debug_oc;
         meta_debug_queue = Queue.create ();
         hashcons;
+        depth_threshold;
       }
 
   (* Get normalized message either from normalized chunk or by normalizing on demand *)
@@ -873,6 +877,7 @@ module PrevRun = struct
     Hashtbl.replace state.dp_table (i, j) (min_cost, prev_i, prev_j);
     min_cost
 
+  (* Modified backtracking in update_optimal_edits to handle skipped cells *)
   let update_optimal_edits state col =
     (* Backtrack through dp table to find optimal edit sequence *)
     let rec backtrack i j acc =
@@ -884,66 +889,50 @@ module PrevRun = struct
         backtrack i (j - 1) (edit :: acc)
       else
         let cost, prev_i, prev_j = get_dp_value state i j in
-        if prev_i <> i - 1 && prev_j <> j - 1 then (
-          (* We are at an unpopulated cell, so we need to backtrack arbitrarily *)
+        if cost = max_int then (
+          (* Cell was skipped due to depth discrepancy - treat as delete *)
+          meta_debug state "Backtrack hit max_int cost at (%d,%d), treating as delete\n" i
+            j;
+          let edit = { edit_type = Delete; curr_index = j } in
+          backtrack (i - 1) j (edit :: acc))
+        else if prev_i = i - 1 && prev_j = j - 1 then
+          (* Diagonal move: either match or change *)
+          let normalized_prev = get_normalized_prev state i in
           let edit =
-            {
-              edit_type =
-                (if i > j then Delete
-                 else if j > i then Insert
-                 else
-                   let normalized_prev = get_normalized_prev state i in
-                   if normalized_prev = get_normalized_curr state j then Match
-                   else
-                     let prev_msg, _ = get_prev_msg_with_id state i in
-                     Change prev_msg);
-              curr_index = j;
-            }
-          in
-          let prev_i, prev_j =
-            if i > j then (i - 1, j) else if j > i then (i, j - 1) else (i - 1, j - 1)
-          in
-          assert (cost = max_int);
-          backtrack prev_i prev_j (edit :: acc))
-        else
-          let edit =
-            if prev_i = i - 1 && prev_j = j - 1 then
-              let normalized_prev = get_normalized_prev state i in
-              if normalized_prev = get_normalized_curr state j then
-                { edit_type = Match; curr_index = j }
-              else
-                let prev_msg, _ = get_prev_msg_with_id state i in
-                { edit_type = Change prev_msg; curr_index = j }
-            else if prev_i = i - 1 then { edit_type = Delete; curr_index = j }
-            else { edit_type = Insert; curr_index = j }
+            if normalized_prev = get_normalized_curr state j then
+              { edit_type = Match; curr_index = j }
+            else
+              let prev_msg, _ = get_prev_msg_with_id state i in
+              { edit_type = Change prev_msg; curr_index = j }
           in
           backtrack prev_i prev_j (edit :: acc)
+        else if prev_i = i - 1 then
+          (* Moving up: deletion *)
+          let edit = { edit_type = Delete; curr_index = j } in
+          backtrack prev_i prev_j (edit :: acc)
+        else if prev_j = j - 1 then
+          (* Moving left: insertion *)
+          let edit = { edit_type = Insert; curr_index = j } in
+          backtrack prev_i prev_j (edit :: acc)
+        else (
+          (* Possibly unpopulated cell or unexpected transition *)
+          meta_debug state "Unexpected transition at (%d,%d) to (%d,%d), cost=%d\n" i j
+            prev_i prev_j cost;
+
+          (* Default to insertion as a fallback *)
+          let edit = { edit_type = Insert; curr_index = j } in
+          backtrack i (j - 1) (edit :: acc))
     in
-    let edits =
-      (* Use min_cost_rows, because we don't want to penalize for the previous chunk
-         entries that could as well be matched by future columns. *)
-      backtrack
-        (try Hashtbl.find state.min_cost_rows col with Not_found -> state.num_rows)
-        col []
+
+    (* Start backtracking from the best row in the current column *)
+    let row =
+      try Hashtbl.find state.min_cost_rows col with Not_found -> state.num_rows
     in
+
+    let edits = backtrack row col [] in
     state.optimal_edits <- edits;
 
-    (* Check if there are any current run messages without a match *)
-    let has_non_matches =
-      let curr_len = Dynarray.length state.curr_chunk in
-      let matches = Array.make curr_len false in
-      List.iter
-        (fun edit -> if edit.edit_type = Match then matches.(edit.curr_index) <- true)
-        edits;
-      Array.exists not matches
-    in
-    if has_non_matches then (
-      dump_edits state edits;
-      flush_meta_debug_queue state)
-    else Queue.clear state.meta_debug_queue;
-    state.optimal_edits <- edits;
-
-    (* Check if there are any current run messages without a match *)
+    (* Remaining logic for checking and logging edits *)
     let has_non_matches =
       let curr_len = Dynarray.length state.curr_chunk in
       let matches = Array.make curr_len false in
@@ -957,19 +946,16 @@ module PrevRun = struct
       flush_meta_debug_queue state)
     else Queue.clear state.meta_debug_queue
 
+  (* Modified version of compute_dp_upto to handle depth-based skipping *)
   let compute_dp_upto state col =
     (* Compute new cells with adaptive pruning - transposed for column-first iteration *)
-
-    (* For new columns, compute with adaptive pruning *)
     for j = state.last_computed_col + 1 to col do
       (* For each new column, determine the center row for exploration *)
       let center_row =
         if j > 0 && Hashtbl.mem state.min_cost_rows (j - 1) then
           (* Center around the min cost row from the previous column *)
           Hashtbl.find state.min_cost_rows (j - 1)
-        else
-          (* Default to diagonal if no previous column info *)
-          j
+        else j
       in
 
       (* Define exploration range around the center row *)
@@ -977,36 +963,74 @@ module PrevRun = struct
       let max_i = min state.num_rows (center_row + state.max_distance_factor) in
 
       dump_exploration_band state j center_row min_i max_i;
-      dump_exploration_band state j center_row min_i max_i;
       let min_cost_for_col = ref max_int in
       let min_cost_row = ref center_row in
+      let valid_rows = ref 0 in
+      (* Track number of non-skipped rows *)
 
+      (* First pass: identify and compute valid cells (not skipped due to depth) *)
       for i = min_i to max_i do
-        let cost =
-          compute_dp_cell state
-            ~meta_log:(i = min_i || i = max_i || i = center_row || i = j)
-            i j
-        in
-        if cost < !min_cost_for_col then (
-          min_cost_for_col := cost;
-          min_cost_row := i)
+        (* Check depth discrepancy first *)
+        let prev_depth = get_depth_prev state i in
+        let curr_depth = get_depth_curr state j in
+
+        (* Skip the cell if previous depth is significantly greater than current *)
+        if prev_depth > curr_depth && prev_depth - curr_depth > state.depth_threshold then (
+          if
+            (* Skip computing this cell and log it *)
+            i = min_i || i = max_i || i = center_row || i = j
+          then
+            meta_debug state
+              "Skipping DP(%d,%d) due to depth discrepancy: prev_depth=%d, curr_depth=%d\n"
+              i j prev_depth curr_depth)
+        else (
+          (* Cell is valid for computation *)
+          incr valid_rows;
+          let cost =
+            compute_dp_cell state
+              ~meta_log:(i = min_i || i = max_i || i = center_row || i = j)
+              i j
+          in
+          if cost < !min_cost_for_col then (
+            min_cost_for_col := cost;
+            min_cost_row := i))
       done;
 
-      (* Log message IDs for the current column *)
+      (* If no valid cells were found in the band, default to insertion *)
+      if !valid_rows = 0 then (
+        meta_debug state "All rows skipped in column %d, defaulting to insertion\n" j;
+
+        (* Use previous column's best row or a reasonable default *)
+        if j > 0 && Hashtbl.mem state.min_cost_rows (j - 1) then
+          min_cost_row := Hashtbl.find state.min_cost_rows (j - 1)
+        else min_cost_row := 0;
+
+        (* Start from beginning if no previous info *)
+
+        (* Set the cost to favor insertion *)
+        min_cost_for_col := if j > 0 then base_ins_cost else j * base_ins_cost;
+
+        (* Force an insertion edit by explicitly setting the dp table *)
+        Hashtbl.replace state.dp_table (!min_cost_row, j)
+          (!min_cost_for_col, !min_cost_row, j - 1);
+
+        meta_debug state "Forcing insertion at (%d,%d) with cost %d\n" !min_cost_row j
+          !min_cost_for_col);
+
+      (* Log the result for this column *)
       let _, curr_id =
         if j < Dynarray.length state.curr_chunk then get_curr_msg_with_id state j
         else ("<out-of-bounds>", -1)
       in
-
-      (* Log message IDs for the min cost row *)
       let _, prev_id =
         if !min_cost_row >= 0 && !min_cost_row <= state.num_rows then
           get_prev_msg_with_id state !min_cost_row
         else ("<out-of-bounds>", -1)
       in
 
-      meta_debug state "Column %d (curr#%d): Minimum cost %d at row %d (prev#%d)\n" j
-        curr_id !min_cost_for_col !min_cost_row prev_id;
+      meta_debug state
+        "Column %d (curr#%d): Minimum cost %d at row %d (prev#%d) [%d valid rows]\n" j
+        curr_id !min_cost_for_col !min_cost_row prev_id !valid_rows;
 
       (* Store the row with minimum cost for this column *)
       Hashtbl.replace state.min_cost_rows j !min_cost_row
@@ -1014,11 +1038,7 @@ module PrevRun = struct
 
     if state.last_computed_col < col then (
       update_optimal_edits state col;
-      state.last_computed_col <- max state.last_computed_col col);
-    if state.last_computed_col < col then (
-      update_optimal_edits state col;
-      state.last_computed_col <- max state.last_computed_col col);
-    state.last_computed_col <- max state.last_computed_col col
+      state.last_computed_col <- max state.last_computed_col col)
 
   (* OCaml < 5.3.0 has no List.take *)
   let list_take n l =
