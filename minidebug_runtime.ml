@@ -564,8 +564,8 @@ module PrevRun = struct
     curr_index : int; (* Index in current run where edit occurred *)
   }
 
-  type message_with_depth = { message : string; depth : int }
-  type chunk = { messages_with_depth : message_with_depth array }
+  type diffable = { message : string; depth : int; msg_idx : int }
+  type chunk = { messages_with_depth : diffable array }
 
   (* Normalized version of a chunk *)
   type normalized_chunk = { normalized_messages : string array }
@@ -582,7 +582,7 @@ module PrevRun = struct
     mutable prev_chunk : chunk option; (* Previous run's current chunk *)
     mutable prev_normalized_chunk : normalized_chunk option;
         (* Normalized version of prev_chunk *)
-    curr_chunk : message_with_depth Dynarray.t; (* Current chunk being built *)
+    curr_chunk : diffable Dynarray.t; (* Current chunk being built *)
     curr_normalized_chunk : string Dynarray.t; (* Normalized version of curr_chunk *)
     dp_table : (int * int, int * int * int) Hashtbl.t;
         (* (i,j) -> (edit_dist, prev_i, prev_j) *)
@@ -590,7 +590,7 @@ module PrevRun = struct
     mutable last_computed_col : int; (* Last computed column in dp table *)
     mutable optimal_edits : edit_info list; (* Optimal edit sequence so far *)
     prev_ic : in_channel option; (* Channel for reading previous chunks *)
-    curr_oc : out_channel; (* Channel for writing current chunks *)
+    curr_oc : out_channel option; (* Channel for writing current chunks *)
     diff_ignore_pattern : Re.re option;
         (* Pattern to normalize messages before comparison *)
     normalized_msgs : (string, string) Hashtbl.t;
@@ -710,6 +710,28 @@ module PrevRun = struct
         in
         Some { normalized_messages = normalized }
 
+  let empty_state =
+    {
+      prev_chunk = None;
+      prev_normalized_chunk = None;
+      curr_chunk = Dynarray.create ();
+      curr_normalized_chunk = Dynarray.create ();
+      dp_table = Hashtbl.create 0;
+      num_rows = 0;
+      last_computed_col = -1;
+      optimal_edits = [];
+      prev_ic = None;
+      curr_oc = None;
+      diff_ignore_pattern = None;
+      normalized_msgs = Hashtbl.create 0;
+      min_cost_rows = Hashtbl.create 0;
+      max_distance_factor = 200;
+      meta_debug_oc = None;
+      meta_debug_queue = Queue.create ();
+      hashcons = create_hashcons_table ();
+      depth_threshold = 1;
+    }
+
   (* Update init_run to include the depth_threshold parameter *)
   let init_run ?prev_file ?diff_ignore_pattern ?(max_distance_factor = 200)
       ?(depth_threshold = 1) curr_file =
@@ -737,30 +759,29 @@ module PrevRun = struct
           chunk.messages_with_depth
     | None -> ());
 
-    Some
-      {
-        prev_chunk;
-        prev_normalized_chunk;
-        curr_chunk = Dynarray.create ();
-        curr_normalized_chunk = Dynarray.create ();
-        dp_table = Hashtbl.create 10000;
-        num_rows =
-          (match prev_chunk with
-          | None -> 0
-          | Some chunk -> Array.length chunk.messages_with_depth - 1);
-        last_computed_col = -1;
-        optimal_edits = [];
-        prev_ic;
-        curr_oc;
-        diff_ignore_pattern;
-        normalized_msgs = Hashtbl.create 1000;
-        min_cost_rows = Hashtbl.create 1000;
-        max_distance_factor;
-        meta_debug_oc;
-        meta_debug_queue = Queue.create ();
-        hashcons;
-        depth_threshold;
-      }
+    {
+      prev_chunk;
+      prev_normalized_chunk;
+      curr_chunk = Dynarray.create ();
+      curr_normalized_chunk = Dynarray.create ();
+      dp_table = Hashtbl.create 10000;
+      num_rows =
+        (match prev_chunk with
+        | None -> 0
+        | Some chunk -> Array.length chunk.messages_with_depth - 1);
+      last_computed_col = -1;
+      optimal_edits = [];
+      prev_ic;
+      curr_oc = Some curr_oc;
+      diff_ignore_pattern;
+      normalized_msgs = Hashtbl.create 1000;
+      min_cost_rows = Hashtbl.create 1000;
+      max_distance_factor;
+      meta_debug_oc;
+      meta_debug_queue = Queue.create ();
+      hashcons;
+      depth_threshold;
+    }
 
   (* Get normalized message either from normalized chunk or by normalizing on demand *)
   let normalize_message state msg =
@@ -1045,29 +1066,37 @@ module PrevRun = struct
     if n < 0 then invalid_arg "List.take";
     aux n l
 
-  let check_diff state ~depth msg =
-    (* Hashcons the message to get its ID *)
-    let msg_id = hashcons_get state.hashcons msg in
+  (* Ensure the message is at the right position in the DP table regardless of when we
+     need to compute the match. *)
+  let get_diffable state message ~depth =
+    let _msg_id = hashcons_get state.hashcons message in
     let msg_idx = Dynarray.length state.curr_chunk in
-    Dynarray.add_last state.curr_chunk { message = msg; depth };
-
+    let res = { message; depth; msg_idx } in
+    Dynarray.add_last state.curr_chunk res;
     (* Also add the normalized version to curr_normalized_chunk *)
-    let normalized_msg = normalize_message state msg in
+    let normalized_msg = normalize_message state message in
     Dynarray.add_last state.curr_normalized_chunk normalized_msg;
+    if Option.is_some state.prev_ic && Option.is_some state.prev_chunk then
+      compute_dp_upto state msg_idx;
+    res
 
-    meta_debug state "Processing msg#%d/%d at index %d\n" msg_id depth msg_idx;
+  let check_diff state diffable =
+    (* Hashcons the message to get its ID *)
+    let msg_id = hashcons_get state.hashcons diffable.message in
+
+    meta_debug state "Processing msg#%d/%d at index %d\n" msg_id diffable.depth
+      diffable.msg_idx;
 
     match (state.prev_ic, state.prev_chunk) with
     | None, None -> fun () -> None
     | Some _, None -> fun () -> Some "New chunk"
     | None, Some _ -> assert false
     | Some _, Some prev_chunk ->
-        compute_dp_upto state msg_idx;
         fun () ->
           (* Find the edit for current message in optimal edit sequence *)
           let is_match =
             List.exists
-              (fun edit -> edit.curr_index = msg_idx && edit.edit_type = Match)
+              (fun edit -> edit.curr_index = diffable.msg_idx && edit.edit_type = Match)
               state.optimal_edits
           in
           if is_match then None
@@ -1077,13 +1106,13 @@ module PrevRun = struct
               match
                 List.find_map
                   (fun edit ->
-                    if edit.curr_index = msg_idx then
+                    if edit.curr_index = diffable.msg_idx then
                       match edit.edit_type with
                       | Change prev_msg ->
                           let prev_id = hashcons_get state.hashcons prev_msg in
                           Some
                             (Printf.sprintf "Changed: pos %d cur #%d/%d from #%d %s"
-                               msg_idx msg_id depth prev_id prev_msg)
+                               diffable.msg_idx msg_id diffable.depth prev_id prev_msg)
                       | _ -> None
                     else None)
                   state.optimal_edits
@@ -1092,7 +1121,7 @@ module PrevRun = struct
               | None when state.num_rows < 0 -> "No previous-run chunk"
               | None
                 when List.for_all
-                       (fun edit -> edit.curr_index <> msg_idx)
+                       (fun edit -> edit.curr_index <> diffable.msg_idx)
                        state.optimal_edits ->
                   let edits_str =
                     List.fold_left
@@ -1119,10 +1148,10 @@ module PrevRun = struct
                   in
 
                   let current_msg_id_str =
-                    if msg_idx > 0 && msg_idx < state.num_rows then
+                    if diffable.msg_idx > 0 && diffable.msg_idx < state.num_rows then
                       let id =
                         hashcons_get state.hashcons
-                          prev_chunk.messages_with_depth.(msg_idx).message
+                          prev_chunk.messages_with_depth.(diffable.msg_idx).message
                       in
                       Printf.sprintf " ... msg#%d" id
                     else ""
@@ -1144,27 +1173,30 @@ module PrevRun = struct
                   Printf.sprintf
                     "Bad chunk? current position %d, previous: size %d, messages: \
                      msg#%d%s%s. 5 edits: %s"
-                    msg_idx state.num_rows first_msg_id current_msg_id_str last_msg_id_str
-                    edits_str
+                    diffable.msg_idx state.num_rows first_msg_id current_msg_id_str
+                    last_msg_id_str edits_str
               | None ->
                   (* Count deletions in the optimal edits *)
                   let deletion_count =
                     List.fold_left
                       (fun count e ->
-                        if e.curr_index = msg_idx && e.edit_type = Delete then count + 1
+                        if e.curr_index = diffable.msg_idx && e.edit_type = Delete then
+                          count + 1
                         else count)
                       0 state.optimal_edits
                   in
                   if deletion_count > 0 then
                     Printf.sprintf "Covers %d deletions in previous run #%d/%d"
-                      deletion_count msg_id depth
-                  else Printf.sprintf "Ins curr. #%d/%d pos %d" msg_id depth msg_idx
+                      deletion_count msg_id diffable.depth
+                  else
+                    Printf.sprintf "Ins curr. #%d/%d pos %d" msg_id diffable.depth
+                      diffable.msg_idx
             in
             Some edit_type
 
   let signal_chunk_end state =
     if Dynarray.length state.curr_chunk > 0 then (
-      save_chunk state.curr_oc state.curr_chunk;
+      Option.iter (Fun.flip save_chunk state.curr_chunk) state.curr_oc;
       Dynarray.clear state.curr_chunk;
       Dynarray.clear state.curr_normalized_chunk;
       state.prev_chunk <- Option.bind state.prev_ic load_next_chunk;
@@ -1216,7 +1248,7 @@ module PrintBox (Log_to : Shared_config) = struct
   let log_level = ref init_log_level
   let max_nesting_depth = ref None
   let max_num_children = ref None
-  let prev_run_state = ref None
+  let prev_run_state = ref PrevRun.empty_state
   let check_log_level level = level <= !log_level
 
   type config = {
@@ -1687,7 +1719,7 @@ module PrintBox (Log_to : Shared_config) = struct
       pop_snapshot ();
       output_box ~for_toc:false ch box;
       if not from_snapshot then snapshot_ch ();
-      Option.iter PrevRun.signal_chunk_end !prev_run_state;
+      PrevRun.signal_chunk_end !prev_run_state;
       match table_of_contents_ch with
       | None -> ()
       | Some toc_ch ->
@@ -1902,17 +1934,14 @@ module PrintBox (Log_to : Shared_config) = struct
           ];
         close_log ~fname:"orphaned" ~start_lnum:entry_id ~entry_id:(-1)
 
-  let get_highlight ~depth message =
+  let get_highlight diffable =
     let diff_check =
-      match !prev_run_state with
-      | None -> fun () -> None
-      | Some state ->
-          let diff_result = PrevRun.check_diff state ~depth message in
-          fun () -> Option.map (fun r -> (true, r)) @@ diff_result ()
+      let diff_result = PrevRun.check_diff !prev_run_state diffable in
+      fun () -> Option.map (fun r -> (true, r)) @@ diff_result ()
     in
     match config.highlight_terms with
     | None -> { pattern_match = false; diff_check }
-    | Some r -> { pattern_match = Re.execp r message; diff_check }
+    | Some r -> { pattern_match = Re.execp r diffable.message; diff_check }
 
   let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id
       ~log_level track_or_explicit =
@@ -1950,7 +1979,10 @@ module PrintBox (Log_to : Shared_config) = struct
       let exclude =
         match config.exclude_on_path with Some r -> Re.execp r message | None -> false
       in
-      let highlight = get_highlight ~depth:(List.length !stack) message in
+      let highlight =
+        get_highlight
+        @@ PrevRun.get_diffable !prev_run_state message ~depth:(List.length !stack)
+      in
       let entry_message = global_prefix ^ message in
       stack :=
         {
@@ -1983,7 +2015,10 @@ module PrintBox (Log_to : Shared_config) = struct
       let exclude =
         match config.exclude_on_path with Some r -> Re.execp r message | None -> false
       in
-      let highlight = get_highlight ~depth:(List.length !stack) message in
+      let highlight =
+        get_highlight
+        @@ PrevRun.get_diffable !prev_run_state message ~depth:(List.length !stack)
+      in
       let entry_message = global_prefix ^ message in
       stack :=
         {
@@ -2013,16 +2048,29 @@ module PrintBox (Log_to : Shared_config) = struct
     in
     loop sexp
 
-  let highlight_box ~depth ?hl_body b =
+  let highlight_box ~depth ?body ?loop b =
+    (* Design choice: Don't render headers of multiline values as monospace, to emphasize
+       them. *)
     (* Recall the design choice: [exclude] does not apply to its own entry. Therefore, an
        entry "propagates its highlight". *)
     let message = PrintBox_text.to_string_with ~style:false b in
-    let hl_body =
-      match config.exclude_on_path with
-      | None -> hl_body
-      | Some r -> if Re.execp r message then None else hl_body
+    let hl_header =
+      get_highlight @@ PrevRun.get_diffable !prev_run_state message ~depth
     in
-    let hl_header = get_highlight ~depth message in
+    let hl_body, b =
+      match (body, loop) with
+      | None, None -> (None, b)
+      | Some _, None | None, Some _ -> assert false
+      | Some body, Some loop ->
+          let hl_body, bs = List.split @@ List.map (loop ~depth:(depth + 1)) body in
+          let hl_body = hl_oneof ~full_reason:false hl_body in
+          let hl_body =
+            match config.exclude_on_path with
+            | None -> Some hl_body
+            | Some r -> if Re.execp r message then None else Some hl_body
+          in
+          (hl_body, B.tree b bs)
+    in
     let hl = Option.value ~default:hl_header (Option.map (hl_or hl_header) hl_body) in
     (hl, apply_highlight hl b)
 
@@ -2043,16 +2091,9 @@ module PrintBox (Log_to : Shared_config) = struct
         | Atom s -> highlight_box ~depth @@ B.text_with_style B.Style.preformatted s
         | List [] -> ({ pattern_match = false; diff_check = (fun () -> None) }, B.empty)
         | List [ s ] -> loop ~depth:(depth + 1) s
-        | List (Atom s :: l) ->
-            let hl_body, bs = List.split @@ List.map (loop ~depth:(depth + 1)) l in
-            let hl_body = hl_oneof ~full_reason:false hl_body in
-            let hl, b =
-              (* Design choice: Don't render headers of multiline values as monospace, to
-                 emphasize them. *)
-              highlight_box ~depth ~hl_body
-              @@ if as_tree then B.text s else B.text_with_style B.Style.preformatted s
-            in
-            (hl, B.tree b bs)
+        | List (Atom s :: body) ->
+            highlight_box ~depth ~body ~loop:(loop ?as_tree:None)
+            @@ if as_tree then B.text s else B.text_with_style B.Style.preformatted s
         | List l ->
             let hls, bs = List.split @@ List.map (loop ~depth:(depth + 1)) l in
             (hl_oneof ~full_reason:false hls, B.vlist ~bars:false bs)
