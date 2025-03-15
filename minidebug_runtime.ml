@@ -570,13 +570,6 @@ module PrevRun = struct
   (* Normalized version of a chunk *)
   type normalized_chunk = { normalized_messages : string array }
 
-  (* Hashconsing table for messages *)
-  type hashcons_table = {
-    string_to_id : (string, int) Hashtbl.t;
-    id_to_string : (int, string) Hashtbl.t;
-    mutable next_id : int;
-  }
-
   (* The dynamic programming state *)
   type dp_state = {
     mutable prev_chunk : chunk option; (* Previous run's current chunk *)
@@ -601,27 +594,8 @@ module PrevRun = struct
     meta_debug_oc : out_channel option;
         (* Optional channel for meta-debugging information *)
     meta_debug_queue : string Queue.t; (* Queue for meta-debug messages *)
-    hashcons : hashcons_table; (* Hashconsing table for messages *)
     depth_threshold : int; (* New parameter for depth discrepancy threshold *)
   }
-
-  (* Initialize a new hashconsing table *)
-  let create_hashcons_table () =
-    {
-      string_to_id = Hashtbl.create 10000;
-      id_to_string = Hashtbl.create 10000;
-      next_id = 0;
-    }
-
-  (* Get or create message ID from hashconsing table *)
-  let hashcons_get table msg =
-    try Hashtbl.find table.string_to_id msg
-    with Not_found ->
-      let id = table.next_id in
-      Hashtbl.add table.string_to_id msg id;
-      Hashtbl.add table.id_to_string id msg;
-      table.next_id <- id + 1;
-      id
 
   let meta_debug state fmt =
     let k msg =
@@ -639,13 +613,11 @@ module PrevRun = struct
         flush oc;
         Queue.clear state.meta_debug_queue
 
-  let string_of_edit_type state = function
+  let string_of_edit_type = function
     | Match -> "Match"
     | Insert -> "Insert"
     | Delete -> "Delete"
-    | Change s ->
-        let id = hashcons_get state.hashcons s in
-        Printf.sprintf "Change(msg#%d)" id
+    | Change s -> Printf.sprintf "Change(%s)" s
 
   (* Get depth from previous chunk by index *)
   let get_depth_prev state i = (Option.get state.prev_chunk).messages_with_depth.(i).depth
@@ -660,12 +632,11 @@ module PrevRun = struct
         match edit.edit_type with
         | Delete | Insert -> ()
         | _ ->
-            let edit_type_str = string_of_edit_type state edit.edit_type in
+            let edit_type_str = string_of_edit_type edit.edit_type in
             let curr_msg =
               if edit.curr_index < Dynarray.length state.curr_chunk then
                 let msg = (Dynarray.get state.curr_chunk edit.curr_index).message in
-                let id = hashcons_get state.hashcons msg in
-                Printf.sprintf "curr#%d/%d" id (get_depth_curr state edit.curr_index)
+                Printf.sprintf "%d/%s" (get_depth_curr state edit.curr_index) msg
               else "<out-of-bounds>"
             in
             meta_debug state "  %d: %s at pos %d (%s)\n" i edit_type_str edit.curr_index
@@ -726,7 +697,6 @@ module PrevRun = struct
       max_distance_factor = 200;
       meta_debug_oc = None;
       meta_debug_queue = Queue.create ();
-      hashcons = create_hashcons_table ();
       depth_threshold = 1;
     }
 
@@ -745,17 +715,6 @@ module PrevRun = struct
       else None
     in
     Gc.finalise (fun _ -> close_out curr_oc) curr_oc;
-
-    (* Initialize hashconsing table *)
-    let hashcons = create_hashcons_table () in
-
-    (* Hashcons messages from previous chunk if available *)
-    (match prev_chunk with
-    | Some chunk ->
-        Array.iter
-          (fun md -> ignore (hashcons_get hashcons md.message))
-          chunk.messages_with_depth
-    | None -> ());
 
     {
       prev_chunk;
@@ -777,7 +736,6 @@ module PrevRun = struct
       max_distance_factor;
       meta_debug_oc;
       meta_debug_queue = Queue.create ();
-      hashcons;
       depth_threshold;
     }
 
@@ -801,11 +759,9 @@ module PrevRun = struct
           (Option.get state.prev_chunk).messages_with_depth.(i).message
 
   (* Get original message from previous chunk by index with its ID *)
-  let get_prev_msg_with_id state i =
+  let get_prev_msg state i =
     let chunk = Option.get state.prev_chunk in
-    let msg = chunk.messages_with_depth.(i).message in
-    let id = hashcons_get state.hashcons msg in
-    (msg, id)
+    chunk.messages_with_depth.(i).message
 
   (* Get normalized message from current chunk by index *)
   let get_normalized_curr state j =
@@ -815,13 +771,6 @@ module PrevRun = struct
       let msg_with_depth = Dynarray.get state.curr_chunk j in
       let normalized = normalize_message state msg_with_depth.message in
       normalized
-
-  (* Get original message from current chunk by index with its ID *)
-  let get_curr_msg_with_id state j =
-    let msg_with_depth = Dynarray.get state.curr_chunk j in
-    let msg = msg_with_depth.message in
-    let id = hashcons_get state.hashcons msg in
-    (msg, id)
 
   (* Get a value from the dp_table, handling edge cases *)
   let get_dp_value state i j =
@@ -866,8 +815,6 @@ module PrevRun = struct
     in
 
     (* Get message IDs for logging *)
-    let _, prev_id = get_prev_msg_with_id state i in
-    let _, curr_id = get_curr_msg_with_id state j in
     let prev_depth = get_depth_prev state i in
     let curr_depth = get_depth_curr state j in
 
@@ -893,8 +840,9 @@ module PrevRun = struct
     in
     if min_cost < max_int then (
       if meta_log then
-        meta_debug state "DP(%d,%d) = %d from (%d,%d) [prev#%d/%d vs curr#%d/%d]\n" i j
-          min_cost prev_i prev_j prev_id prev_depth curr_id curr_depth;
+        meta_debug state
+          "DP(%d,%d) = %d from (%d,%d) [prev/%d vs curr/%d]\nprev=%s\ncurr=%s\n\n" i j
+          min_cost prev_i prev_j prev_depth curr_depth normalized_prev normalized_curr;
       set_dp_value state i j (min_cost, prev_i, prev_j));
     min_cost
 
@@ -917,7 +865,7 @@ module PrevRun = struct
             if normalized_prev = get_normalized_curr state j then
               { edit_type = Match; curr_index = j }
             else
-              let prev_msg, _ = get_prev_msg_with_id state i in
+              let prev_msg = get_prev_msg state i in
               { edit_type = Change prev_msg; curr_index = j }
           in
           backtrack prev_i prev_j (edit :: acc)
@@ -1027,19 +975,9 @@ module PrevRun = struct
       dump_exploration_band state j center_row !min_i !max_i;
 
       (* Log the result for this column *)
-      let _, curr_id =
-        if j < Dynarray.length state.curr_chunk then get_curr_msg_with_id state j
-        else ("<out-of-bounds>", -1)
-      in
-      let _, prev_id =
-        if !min_cost_row >= 0 && !min_cost_row <= state.num_rows then
-          get_prev_msg_with_id state !min_cost_row
-        else ("<out-of-bounds>", -1)
-      in
-
       let prev_depth = get_depth_prev state !min_cost_row in
-      meta_debug state "Column %d (curr#%d/%d): Minimum cost %d at row %d (prev#%d/%d)\n"
-        j curr_id curr_depth !min_cost_for_col !min_cost_row prev_id prev_depth;
+      meta_debug state "Column %d (curr/%d): Minimum cost %d at row %d (prev/%d)\n" j
+        curr_depth !min_cost_for_col !min_cost_row prev_depth;
 
       (* Store the row with minimum cost for this column *)
       Hashtbl.replace state.min_cost_rows j !min_cost_row
@@ -1063,14 +1001,13 @@ module PrevRun = struct
     let msg_idx = Dynarray.length state.curr_chunk in
     let res = { message; depth; entry_id; msg_idx } in
     try
-      let msg_id = hashcons_get state.hashcons message in
+      let normalized_msg = normalize_message state message in
       Dynarray.add_last state.curr_chunk res;
       (* Also add the normalized version to curr_normalized_chunk *)
-      let normalized_msg = normalize_message state message in
       Dynarray.add_last state.curr_normalized_chunk normalized_msg;
-      meta_debug state "Processing msg#%d/%d entry_id=%s at index %d\n" msg_id depth
+      meta_debug state "Processing msg/%d entry_id=%s at index %d\nmsg=%s\n" depth
         (match res.entry_id with Some id -> Printf.sprintf "#%d" id | None -> "none")
-        msg_idx;
+        msg_idx normalized_msg;
       if Option.is_some state.prev_ic && Option.is_some state.prev_chunk then
         compute_dp_upto state msg_idx;
       res
@@ -1079,7 +1016,6 @@ module PrevRun = struct
       res
 
   let check_diff state diffable =
-    let msg_id = hashcons_get state.hashcons diffable.message in
     try
       match (state.prev_ic, state.prev_chunk) with
       | None, None -> fun () -> None
@@ -1103,10 +1039,9 @@ module PrevRun = struct
                       if edit.curr_index = diffable.msg_idx then
                         match edit.edit_type with
                         | Change prev_msg ->
-                            let prev_id = hashcons_get state.hashcons prev_msg in
                             Some
-                              (Printf.sprintf "Changed: pos %d cur #%d/%d from #%d"
-                                 diffable.msg_idx msg_id diffable.depth prev_id)
+                              (Printf.sprintf "Changed: pos %d curr/%d from %s"
+                                 diffable.msg_idx diffable.depth prev_msg)
                         | _ -> None
                       else None)
                     state.optimal_edits
@@ -1129,47 +1064,25 @@ module PrevRun = struct
                             | Insert -> Printf.sprintf "Insert at %d" edit.curr_index
                             | Delete -> Printf.sprintf "Delete at %d" edit.curr_index
                             | Change msg ->
-                                let prev_id = hashcons_get state.hashcons msg in
-                                Printf.sprintf "Change at %d: msg#%d" edit.curr_index
-                                  prev_id)
+                                Printf.sprintf "Change at %d: msg=%s" edit.curr_index msg)
                         ""
                         (list_take 5 state.optimal_edits)
                     in
 
                     (* Get IDs for the first and current messages in prev_chunk *)
-                    let first_msg_id =
-                      hashcons_get state.hashcons
-                        prev_chunk.messages_with_depth.(0).message
-                    in
+                    let first_msg = prev_chunk.messages_with_depth.(0).message in
 
-                    let current_msg_id_str =
+                    let current_msg =
                       if diffable.msg_idx > 0 && diffable.msg_idx < state.num_rows then
-                        let id =
-                          hashcons_get state.hashcons
-                            prev_chunk.messages_with_depth.(diffable.msg_idx).message
-                        in
-                        Printf.sprintf " ... msg#%d" id
-                      else ""
-                    in
-
-                    let last_msg_id_str =
-                      if
-                        state.num_rows > 0
-                        && Array.length prev_chunk.messages_with_depth > state.num_rows
-                      then
-                        let id =
-                          hashcons_get state.hashcons
-                            prev_chunk.messages_with_depth.(state.num_rows).message
-                        in
-                        Printf.sprintf " ... msg#%d" id
+                        Printf.sprintf " ... %s"
+                          prev_chunk.messages_with_depth.(diffable.msg_idx).message
                       else ""
                     in
 
                     Printf.sprintf
                       "Bad chunk? current position %d, previous: size %d, messages: \
-                       msg#%d%s%s. 5 edits: %s"
-                      diffable.msg_idx state.num_rows first_msg_id current_msg_id_str
-                      last_msg_id_str edits_str
+                       %s%s. 5 edits: %s"
+                      diffable.msg_idx state.num_rows first_msg current_msg edits_str
                 | None ->
                     (* Count deletions in the optimal edits *)
                     let deletion_count =
@@ -1181,11 +1094,8 @@ module PrevRun = struct
                         0 state.optimal_edits
                     in
                     if deletion_count > 0 then
-                      Printf.sprintf "Covers %d deletions in previous run #%d/%d"
-                        deletion_count msg_id diffable.depth
-                    else
-                      Printf.sprintf "Ins curr. #%d/%d pos %d" msg_id diffable.depth
-                        diffable.msg_idx
+                      Printf.sprintf "Covers %d deletions" deletion_count
+                    else Printf.sprintf "Inserted at pos %d" diffable.msg_idx
               in
               Some edit_type
     with e ->
