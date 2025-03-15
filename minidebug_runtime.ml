@@ -1966,9 +1966,9 @@ module PrintBox (Log_to : Shared_config) = struct
     let hl_header =
       get_highlight @@ PrevRun.get_diffable !prev_run_state message ~depth
     in
-    let hl_body, b =
+    let hl_body, b, bs =
       match (body, loop) with
-      | None, None -> (None, b)
+      | None, None -> (None, b, [])
       | Some _, None | None, Some _ -> assert false
       | Some body, Some loop ->
           let hl_body, bs = List.split @@ List.map (loop ~depth:(depth + 1)) body in
@@ -1978,10 +1978,11 @@ module PrintBox (Log_to : Shared_config) = struct
             | None -> Some hl_body
             | Some r -> if Re.execp r message then None else Some hl_body
           in
-          (hl_body, B.tree b bs)
+          (hl_body, b, bs)
     in
     let hl = Option.value ~default:hl_header (Option.map (hl_or hl_header) hl_body) in
-    (hl, apply_highlight hl b)
+    let b = apply_highlight hl b in
+    (hl, if List.is_empty bs then b else B.tree b bs)
 
   let pp_sexp ppf = function
     | Sexplib0.Sexp.Atom s when config.sexp_unescape_strings ->
@@ -2021,7 +2022,7 @@ module PrintBox (Log_to : Shared_config) = struct
           else ""
         in
         if String.length str > 0 && String.length str < config.max_inline_sexp_length then
-          (* TODO: Desing choice: consider not using monospace, at least for descr. *)
+          (* TODO: Design choice: consider not using monospace, at least for descr. *)
           highlight_box ~depth
           @@ B.text_with_style B.Style.preformatted
           @@ match descr with None -> str | Some d -> d ^ " = " ^ str
