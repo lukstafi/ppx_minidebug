@@ -980,7 +980,7 @@ module PrevRun = struct
             if depth_delta = center_delta then new_center_row
             else if depth_delta < center_delta then
               let rec find_center_row i =
-                if i > state.num_rows then i - 1
+                if i > state.num_rows then old_center_row
                 else
                   let new_center_depth = get_depth_prev state i in
                   let center_delta = new_center_depth - old_center_depth in
