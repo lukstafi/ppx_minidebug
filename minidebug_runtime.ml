@@ -595,6 +595,12 @@ module PrevRun = struct
         (* Optional channel for meta-debugging information *)
     meta_debug_queue : string Queue.t; (* Queue for meta-debug messages *)
     depth_threshold : int; (* New parameter for depth discrepancy threshold *)
+    reverse_entry_id_pairs : (int, int) Hashtbl.t;
+        (* Maps current entry_id to previous entry_id for forced matches *)
+    entry_id_to_pos : (int, int) Hashtbl.t;
+        (* Maps entry_id to its position in the chunk for the previous run *)
+    curr_entry_id_to_pos : (int, int) Hashtbl.t;
+        (* Maps entry_id to its position in the chunk for the current run *)
   }
 
   let meta_debug state fmt =
@@ -621,13 +627,11 @@ module PrevRun = struct
 
   (* Get depth from previous chunk by index *)
   let get_depth_prev state i =
-    if i < 0 then -1
-    else (Option.get state.prev_chunk).messages_with_depth.(i).depth
+    if i < 0 then -1 else (Option.get state.prev_chunk).messages_with_depth.(i).depth
 
   (* Get depth from current chunk by index *)
   let get_depth_curr state j =
-    if j < 0 then -1
-    else (Dynarray.get state.curr_chunk j).depth
+    if j < 0 then -1 else (Dynarray.get state.curr_chunk j).depth
 
   let dump_edits state edits =
     meta_debug state "Optimal edit sequence (%d edits):\n" (List.length edits);
@@ -703,24 +707,43 @@ module PrevRun = struct
       meta_debug_oc = None;
       meta_debug_queue = Queue.create ();
       depth_threshold = 1;
+      reverse_entry_id_pairs = Hashtbl.create 0;
+      entry_id_to_pos = Hashtbl.create 0;
+      curr_entry_id_to_pos = Hashtbl.create 0;
     }
 
-  (* Update init_run to include the depth_threshold parameter *)
+  let populate_entry_id_to_pos entry_id_to_pos chunk =
+    Array.iteri
+      (fun i md ->
+        match md.entry_id with
+        | Some entry_id -> Hashtbl.add entry_id_to_pos entry_id i
+        | None -> ())
+      chunk.messages_with_depth
+
   let init_run ?prev_file ?diff_ignore_pattern ?(max_distance_factor = 200)
-      ?(depth_threshold = 1) curr_file =
+      ?(depth_threshold = 1) ?(entry_id_pairs = []) curr_file =
     let prev_ic = Option.map open_in_bin prev_file in
     let prev_chunk = Option.bind prev_ic load_next_chunk in
     let prev_normalized_chunk = normalize_chunk diff_ignore_pattern prev_chunk in
     let curr_oc = open_out_bin (curr_file ^ ".raw") in
     let meta_debug_oc =
-      if Option.is_some prev_file then (
-        let oc = open_out (curr_file ^ ".meta-debug.log") in
-        Gc.finalise (fun _ -> close_out oc) oc;
-        Some oc)
-      else None
+      (* if Option.is_some prev_file then ( *)
+      let oc = open_out (curr_file ^ ".meta-debug.log") in
+      Gc.finalise (fun _ -> close_out oc) oc;
+      Some oc
+      (* ) else None *)
     in
     Gc.finalise (fun _ -> close_out curr_oc) curr_oc;
 
+    (* Initialize entry_id_pairs hashtable from the provided list *)
+    let reverse_entry_id_pairs = Hashtbl.create (List.length entry_id_pairs) in
+    List.iter
+      (fun (prev_id, curr_id) -> Hashtbl.add reverse_entry_id_pairs curr_id prev_id)
+      entry_id_pairs;
+
+    (* Initialize entry_id_to_pos hashtable from prev_chunk *)
+    let entry_id_to_pos = Hashtbl.create 100 in
+    Option.iter (populate_entry_id_to_pos entry_id_to_pos) prev_chunk;
     {
       prev_chunk;
       prev_normalized_chunk;
@@ -742,6 +765,9 @@ module PrevRun = struct
       meta_debug_oc;
       meta_debug_queue = Queue.create ();
       depth_threshold;
+      reverse_entry_id_pairs;
+      entry_id_to_pos;
+      curr_entry_id_to_pos = Hashtbl.create 100;
     }
 
   (* Get normalized message either from normalized chunk or by normalizing on demand *)
@@ -799,9 +825,10 @@ module PrevRun = struct
     assert (i >= 0 && j >= 0);
     assert (v >= 0);
     (if prev_i > -1 && prev_j > -1 then
-       let cost, _, _ = get_dp_value state prev_i prev_j in
+       let cost, p_i, p_j = get_dp_value state prev_i prev_j in
        if cost = max_int then
-         meta_debug state "set_dp_value: max_int at prev %d,%d\n" prev_i prev_j);
+         meta_debug state "set_dp_value: max_int at prev %d,%d from (%d,%d)\n" prev_i
+           prev_j p_i p_j);
     Hashtbl.replace state.dp_table (i, j) prev
 
   (* Being careful about overflow *)
@@ -867,7 +894,12 @@ module PrevRun = struct
         backtrack i (j - 1) (edit :: acc)
       else
         let cost, prev_i, prev_j = get_dp_value state i j in
-        if prev_i = i - 1 && prev_j = j - 1 then
+        if cost = max_int && prev_i = -1 && prev_j = -1 then (
+          (* Unpopulated cell, default to deletion as a fallback *)
+          let edit = { edit_type = Delete; curr_index = j } in
+          meta_debug state "Unpopulated cell at (%d,%d), defaulting to deletion\n" i j;
+          backtrack (i - 1) j (edit :: acc))
+        else if prev_i = i - 1 && prev_j = j - 1 then
           (* Diagonal move: either match or change *)
           let normalized_prev = get_normalized_prev state i in
           let edit =
@@ -886,10 +918,6 @@ module PrevRun = struct
           (* Moving left: insertion *)
           let edit = { edit_type = Insert; curr_index = j } in
           backtrack prev_i prev_j (edit :: acc)
-        else if cost = max_int && prev_i = -1 && prev_j = -1 then
-          (* Unpopulated cell, default to deletion as a fallback *)
-          let edit = { edit_type = Delete; curr_index = j } in
-          backtrack (i - 1) j (edit :: acc)
         else assert false
     in
 
@@ -919,77 +947,98 @@ module PrevRun = struct
   let compute_dp_upto state col =
     (* Compute new cells with adaptive pruning - transposed for column-first iteration *)
     for j = state.last_computed_col + 1 to col do
-      (* For each new column, determine the center row for exploration *)
-      let curr_depth = get_depth_curr state j in
-      let center_row =
-        if Hashtbl.mem state.min_cost_rows (j - 1) then
-          (* Center around the min cost row from the previous column *)
-          let old_center_row = Hashtbl.find state.min_cost_rows (j - 1) in
-          let old_center_depth = get_depth_prev state old_center_row in
-          let new_center_row = old_center_row + 1 in
-          (* Find the new center row with matching depth *)
-          if new_center_row > state.num_rows then old_center_row
-          else
-            let new_center_depth = get_depth_prev state new_center_row in
-            let old_depth = get_depth_curr state (j - 1) in
-            let depth_delta = curr_depth - old_depth in
-            let center_delta = new_center_depth - old_center_depth in
-            if depth_delta = center_delta then new_center_row
-            else if depth_delta < center_delta then
-              let rec find_center_row i =
-                if i > state.num_rows then old_center_row
-                else
-                  let new_center_depth = get_depth_prev state i in
-                  let center_delta = new_center_depth - old_center_depth in
-                  if depth_delta >= center_delta then i else find_center_row (i + 1)
-              in
-              find_center_row (old_center_row + 2)
-            else old_center_row
-        else j
-      in
-      let center_depth = get_depth_prev state center_row in
-      (* Define initial exploration range in a subtree-sensitive manner *)
-      let boundary p =
-        let depth = get_depth_prev state p in
-        depth + state.depth_threshold <= center_depth
-        || (depth <= center_depth && abs (p - center_row) >= state.max_distance_factor)
-      in
-      let min_i = ref (max 0 (center_row - state.max_distance_factor)) in
-      while !min_i > 0 && not (boundary !min_i) do
-        decr min_i
-      done;
-      let max_i = ref (min state.num_rows (center_row + state.max_distance_factor)) in
-      while !max_i < state.num_rows && not (boundary !max_i) do
-        incr max_i
-      done;
+      let curr = Dynarray.get state.curr_chunk j in
+      Option.iter
+        (fun curr_id ->
+          meta_debug state "pos %d entry_id=%d\n" j curr_id;
+          flush_meta_debug_queue state)
+        curr.entry_id;
+      match curr.entry_id with
+      | Some curr_id when Hashtbl.mem state.reverse_entry_id_pairs curr_id ->
+          meta_debug state "curr_id %d\n" curr_id;
+          let prev_id = Hashtbl.find state.reverse_entry_id_pairs curr_id in
+          meta_debug state "prev_id %d\n" prev_id;
+          flush_meta_debug_queue state;
+          let center_row = Hashtbl.find state.entry_id_to_pos prev_id in
+          meta_debug state "Using forced match cost %d at (%d,%d)\n" 0 center_row j;
+          flush_meta_debug_queue state;
+          set_dp_value state j center_row (0, center_row - 1, j - 1);
+          Hashtbl.replace state.min_cost_rows j center_row
+      | _ ->
+          (* For each new column, determine the center row for exploration *)
+          let curr_depth = get_depth_curr state j in
 
-      (* Track best result *)
-      let min_cost_for_col = ref max_int in
-      let min_cost_row = ref center_row in
-      let curr_depth = get_depth_curr state j in
+          (* Use the priority row if it exists, otherwise use regular heuristics *)
+          let center_row =
+            (* Regular heuristic-based center row calculation *)
+            if Hashtbl.mem state.min_cost_rows (j - 1) then
+              (* Center around the min cost row from the previous column *)
+              let old_center_row = Hashtbl.find state.min_cost_rows (j - 1) in
+              let old_center_depth = get_depth_prev state old_center_row in
+              let new_center_row = old_center_row + 1 in
+              (* Find the new center row with matching depth *)
+              if new_center_row > state.num_rows then old_center_row
+              else
+                let new_center_depth = get_depth_prev state new_center_row in
+                let old_depth = get_depth_curr state (j - 1) in
+                let depth_delta = curr_depth - old_depth in
+                let center_delta = new_center_depth - old_center_depth in
+                if depth_delta = center_delta then new_center_row
+                else if depth_delta < center_delta then
+                  let rec find_center_row i =
+                    if i > state.num_rows then old_center_row
+                    else
+                      let new_center_depth = get_depth_prev state i in
+                      let center_delta = new_center_depth - old_center_depth in
+                      if depth_delta >= center_delta then i else find_center_row (i + 1)
+                  in
+                  find_center_row (old_center_row + 2)
+                else old_center_row
+            else j
+          in
+          let center_depth = get_depth_prev state center_row in
+          (* Define initial exploration range in a subtree-sensitive manner *)
+          let boundary p =
+            let depth = get_depth_prev state p in
+            depth + state.depth_threshold <= center_depth
+            || (depth <= center_depth && abs (p - center_row) >= state.max_distance_factor)
+          in
+          let min_i = ref (max 0 (center_row - state.max_distance_factor)) in
+          while !min_i > 0 && not (boundary !min_i) do
+            decr min_i
+          done;
+          let max_i = ref (min state.num_rows (center_row + state.max_distance_factor)) in
+          while !max_i < state.num_rows && not (boundary !max_i) do
+            incr max_i
+          done;
 
-      for i = !min_i to !max_i do
-        let should_log = i = !min_i || i = center_row || i = j || i = !max_i in
+          (* Track best result *)
+          let min_cost_for_col = ref max_int in
+          let min_cost_row = ref center_row in
+          let curr_depth = get_depth_curr state j in
 
-        (* Cell is valid for computation *)
-        let cost = compute_dp_cell state ~meta_log:should_log i j in
+          for i = !min_i to !max_i do
+            let should_log = i = !min_i || i = center_row || i = j || i = !max_i in
 
-        (* Update minimum cost if better *)
-        if cost < !min_cost_for_col then (
-          min_cost_for_col := cost;
-          min_cost_row := i)
-      done;
+            (* Cell is valid for computation *)
+            let cost = compute_dp_cell state ~meta_log:should_log i j in
 
-      (* Log exploration band *)
-      dump_exploration_band state j center_row !min_i !max_i;
+            (* Update minimum cost if better *)
+            if cost < !min_cost_for_col then (
+              min_cost_for_col := cost;
+              min_cost_row := i)
+          done;
 
-      (* Log the result for this column *)
-      let prev_depth = get_depth_prev state !min_cost_row in
-      meta_debug state "Column %d (curr/%d): Minimum cost %d at row %d (prev/%d)\n" j
-        curr_depth !min_cost_for_col !min_cost_row prev_depth;
+          (* Log exploration band *)
+          dump_exploration_band state j center_row !min_i !max_i;
 
-      (* Store the row with minimum cost for this column *)
-      Hashtbl.replace state.min_cost_rows j !min_cost_row
+          (* Log the result for this column *)
+          let prev_depth = get_depth_prev state !min_cost_row in
+          meta_debug state "Column %d (curr/%d): Minimum cost %d at row %d (prev/%d)\n" j
+            curr_depth !min_cost_for_col !min_cost_row prev_depth;
+
+          (* Store the row with minimum cost for this column *)
+          Hashtbl.replace state.min_cost_rows j !min_cost_row
     done;
 
     if state.last_computed_col < col then (
@@ -1006,10 +1055,18 @@ module PrevRun = struct
 
   (* Ensure the message is at the right position in the DP table regardless of when we
      need to compute the match. *)
-  let get_diffable state ~depth ?entry_id message =
+  let get_diffable state ~depth ~entry_id message =
     let msg_idx = Dynarray.length state.curr_chunk in
     let res = { message; depth; entry_id; msg_idx } in
     try
+      (* Track entry_id to position mapping for the current run *)
+      (match entry_id with
+      | Some eid ->
+          Hashtbl.add state.curr_entry_id_to_pos eid msg_idx;
+          meta_debug state "Added curr entry_id mapping: %d -> %d\n" eid msg_idx;
+          flush_meta_debug_queue state
+      | None -> ());
+
       let normalized_msg = normalize_message state message in
       Dynarray.add_last state.curr_chunk res;
       (* Also add the normalized version to curr_normalized_chunk *)
@@ -1021,7 +1078,8 @@ module PrevRun = struct
         compute_dp_upto state msg_idx;
       res
     with e ->
-      meta_debug state "Error in get_diffable: %s\n" (Printexc.to_string e);
+      meta_debug state "Error in get_diffable: %s\n%s\n" (Printexc.to_string e)
+        (Printexc.get_backtrace ());
       flush_meta_debug_queue state;
       res
 
@@ -1111,7 +1169,8 @@ module PrevRun = struct
               in
               Some edit_type
     with e ->
-      meta_debug state "Error in check_diff: %s\n" (Printexc.to_string e);
+      meta_debug state "Error in check_diff: %s\n%s\n" (Printexc.to_string e)
+        (Printexc.get_backtrace ());
       flush_meta_debug_queue state;
       fun () -> None
 
@@ -1129,6 +1188,7 @@ module PrevRun = struct
         | None -> 0
         | Some chunk -> Array.length chunk.messages_with_depth - 1);
       Hashtbl.clear state.dp_table;
+      Option.iter (populate_entry_id_to_pos state.entry_id_to_pos) state.prev_chunk;
       state.last_computed_col <- -1;
       state.optimal_edits <- [];
       Hashtbl.clear state.normalized_msgs;
@@ -1903,6 +1963,7 @@ module PrintBox (Log_to : Shared_config) = struct
       let highlight =
         get_highlight
         @@ PrevRun.get_diffable !prev_run_state message ~depth:(List.length !stack)
+             ~entry_id:(Some entry_id)
       in
       let entry_message = global_prefix ^ message in
       stack :=
@@ -1939,6 +2000,7 @@ module PrintBox (Log_to : Shared_config) = struct
       let highlight =
         get_highlight
         @@ PrevRun.get_diffable !prev_run_state message ~depth:(List.length !stack)
+             ~entry_id:(Some entry_id)
       in
       let entry_message = global_prefix ^ message in
       stack :=
@@ -1969,14 +2031,14 @@ module PrintBox (Log_to : Shared_config) = struct
     in
     loop sexp
 
-  let highlight_box ~depth ?body ?loop b =
+  let highlight_box ~depth ?body ?loop ~entry_id b =
     (* Design choice: Don't render headers of multiline values as monospace, to emphasize
        them. *)
     (* Recall the design choice: [exclude] does not apply to its own entry. Therefore, an
        entry "propagates its highlight". *)
     let message = PrintBox_text.to_string_with ~style:false b in
     let hl_header =
-      get_highlight @@ PrevRun.get_diffable !prev_run_state message ~depth
+      get_highlight @@ PrevRun.get_diffable !prev_run_state message ~depth ~entry_id
     in
     let hl_body, b, bs =
       match (body, loop) with
@@ -2001,20 +2063,21 @@ module PrintBox (Log_to : Shared_config) = struct
         Format.pp_print_string ppf s
     | e -> Sexplib0.Sexp.pp_hum ppf e
 
-  let boxify ~descr ~depth sexp =
+  let boxify ~descr ~depth ~entry_id sexp =
     let open Sexplib0.Sexp in
     let rec loop ?(as_tree = false) ~depth sexp =
       if (not as_tree) && sexp_size sexp < config.boxify_sexp_from_size then
-        highlight_box ~depth
+        highlight_box ~depth ~entry_id
         @@ B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
       else
         match sexp with
         (* FIXME: Should we render [List [Atom s]] at [depth] also? *)
-        | Atom s -> highlight_box ~depth @@ B.text_with_style B.Style.preformatted s
+        | Atom s ->
+            highlight_box ~depth ~entry_id @@ B.text_with_style B.Style.preformatted s
         | List [] -> ({ pattern_match = false; diff_check = (fun () -> None) }, B.empty)
         | List [ s ] -> loop ~depth:(depth + 1) s
         | List (Atom s :: body) ->
-            highlight_box ~depth ~body ~loop:(loop ?as_tree:None)
+            highlight_box ~depth ~entry_id ~body ~loop:(loop ?as_tree:None)
             @@ if as_tree then B.text s else B.text_with_style B.Style.preformatted s
         | List l ->
             let hls, bs = List.split @@ List.map (loop ~depth:(depth + 1)) l in
@@ -2022,10 +2085,11 @@ module PrintBox (Log_to : Shared_config) = struct
     in
     match (sexp, descr) with
     | (Atom s | List [ Atom s ]), Some d ->
-        highlight_box ~depth @@ B.text_with_style B.Style.preformatted (d ^ " = " ^ s)
+        highlight_box ~depth ~entry_id
+        @@ B.text_with_style B.Style.preformatted (d ^ " = " ^ s)
     | (Atom s | List [ Atom s ]), None ->
-        highlight_box ~depth @@ B.text_with_style B.Style.preformatted s
-    | List [], Some d -> highlight_box ~depth @@ B.line d
+        highlight_box ~depth ~entry_id @@ B.text_with_style B.Style.preformatted s
+    | List [], Some d -> highlight_box ~depth ~entry_id @@ B.line d
     | List [], None -> ({ pattern_match = false; diff_check = (fun () -> None) }, B.empty)
     | List l, _ ->
         let str =
@@ -2035,7 +2099,7 @@ module PrintBox (Log_to : Shared_config) = struct
         in
         if String.length str > 0 && String.length str < config.max_inline_sexp_length then
           (* TODO: Design choice: consider not using monospace, at least for descr. *)
-          highlight_box ~depth
+          highlight_box ~depth ~entry_id
           @@ B.text_with_style B.Style.preformatted
           @@ match descr with None -> str | Some d -> d ^ " = " ^ str
         else
@@ -2048,10 +2112,10 @@ module PrintBox (Log_to : Shared_config) = struct
     if check_log_level log_level then (
       (if config.boxify_sexp_from_size >= 0 then
          stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
-         @@ boxify ~descr ~depth:(List.length !stack) sexp
+         @@ boxify ~descr ~depth:(List.length !stack) ~entry_id:None sexp
        else
          stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
-         @@ highlight_box ~depth:(List.length !stack)
+         @@ highlight_box ~depth:(List.length !stack) ~entry_id:None
          @@
          match descr with
          | None -> B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
@@ -2061,7 +2125,7 @@ module PrintBox (Log_to : Shared_config) = struct
   let log_value_pp ?descr ~entry_id ~log_level ~pp ~is_result v =
     if check_log_level log_level then (
       (stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
-      @@ highlight_box ~depth:(List.length !stack)
+      @@ highlight_box ~depth:(List.length !stack) ~entry_id:None
       @@
       match descr with
       | None -> B.asprintf_with_style B.Style.preformatted "%a" pp v
@@ -2071,7 +2135,7 @@ module PrintBox (Log_to : Shared_config) = struct
   let log_value_show ?descr ~entry_id ~log_level ~is_result v =
     if check_log_level log_level then (
       (stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
-      @@ highlight_box ~depth:(List.length !stack)
+      @@ highlight_box ~depth:(List.length !stack) ~entry_id:None
       @@
       match descr with
       | None -> B.sprintf_with_style B.Style.preformatted "%s" v
@@ -2081,7 +2145,7 @@ module PrintBox (Log_to : Shared_config) = struct
   let log_value_printbox ~entry_id ~log_level v =
     if check_log_level log_level then (
       stack_next ~entry_id ~is_result:false ~result_depth:0 ~result_size:1
-      @@ highlight_box ~depth:(List.length !stack) v;
+      @@ highlight_box ~depth:(List.length !stack) ~entry_id:None v;
       opt_auto_snapshot ())
 
   let no_debug_if cond =
@@ -2133,7 +2197,8 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(for_append = false) ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80)
     ?backend ?hyperlink ?toc_specific_hyperlink ?(values_first_mode = true)
     ?(log_level = 9) ?snapshot_every_sec ?prev_run_file ?diff_ignore_pattern
-    ?max_distance_factor filename_stem : (module PrintBox_runtime) =
+    ?max_distance_factor ?(entry_id_pairs = []) filename_stem : (module PrintBox_runtime)
+    =
   let filename =
     match backend with
     | None | Some (`Markdown _) -> filename_stem ^ ".md"
@@ -2170,7 +2235,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   Debug.prev_run_state :=
     PrevRun.init_run ?prev_file:prev_run_file
       ?diff_ignore_pattern:(Option.map Re.compile diff_ignore_pattern)
-      ?max_distance_factor filename_stem;
+      ?max_distance_factor ~entry_id_pairs filename_stem;
   (module Debug)
 
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)

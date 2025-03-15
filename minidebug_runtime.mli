@@ -292,6 +292,7 @@ val debug_file :
   ?prev_run_file:string ->
   ?diff_ignore_pattern:Re.t ->
   ?max_distance_factor:int ->
+  ?entry_id_pairs:(int * int) list ->
   string ->
   (module PrintBox_runtime)
 (** Creates a PrintBox-based debug runtime configured to output html or markdown to a file
@@ -311,6 +312,12 @@ val debug_file :
     comparison, allowing certain differences to be ignored. The [max_distance_factor]
     parameter (default 50) controls how far to search around a center row when computing
     edit distances between runs - higher values may find more matches but will be slower.
+
+    If [entry_id_pairs] is provided, the diffing algorithm will force matches between
+    specific entry IDs from the previous run and the current run. Each pair (prev_id,
+    curr_id) indicates that entry #prev_id from the previous run should be matched with
+    entry #curr_id from the current run. This is useful for ensuring specific debug
+    entries are compared even if their positions change significantly.
 
     By default [backend] is [`Markdown PrintBox.default_md_config]. See
     {!type:PrintBox.config} for details about PrintBox-specific parameters. See
