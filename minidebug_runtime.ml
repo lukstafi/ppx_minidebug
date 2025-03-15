@@ -620,10 +620,14 @@ module PrevRun = struct
     | Change s -> Printf.sprintf "Change(%s)" s
 
   (* Get depth from previous chunk by index *)
-  let get_depth_prev state i = (Option.get state.prev_chunk).messages_with_depth.(i).depth
+  let get_depth_prev state i =
+    if i < 0 then -1
+    else (Option.get state.prev_chunk).messages_with_depth.(i).depth
 
   (* Get depth from current chunk by index *)
-  let get_depth_curr state j = (Dynarray.get state.curr_chunk j).depth
+  let get_depth_curr state j =
+    if j < 0 then -1
+    else (Dynarray.get state.curr_chunk j).depth
 
   let dump_edits state edits =
     meta_debug state "Optimal edit sequence (%d edits):\n" (List.length edits);
@@ -662,6 +666,7 @@ module PrevRun = struct
   let base_del_cost = 2
   let base_ins_cost = 2
   let base_change_cost = 3
+  let base_depth_cost = 2
 
   (* Helper function to normalize a single message *)
   let normalize_single_message pattern msg =
@@ -817,6 +822,7 @@ module PrevRun = struct
     (* Get message IDs for logging *)
     let prev_depth = get_depth_prev state i in
     let curr_depth = get_depth_curr state j in
+    let delta = prev_depth - curr_depth in
 
     let above =
       let c, _, _ = get_dp_value state (i - 1) j in
@@ -835,7 +841,10 @@ module PrevRun = struct
     let min_cost, prev_i, prev_j =
       let costs = [ (above, i - 1, j); (left, i, j - 1); (diag, i - 1, j - 1) ] in
       List.fold_left
-        (fun (mc, pi, pj) (c, i', j') -> if c <= mc then (c, i', j') else (mc, pi, pj))
+        (fun (mc, pi, pj) (c, i', j') ->
+          let delta' = get_depth_prev state i' - get_depth_curr state j' in
+          let c' = safe_add c (if delta = delta' then 0 else base_depth_cost) in
+          if c' <= mc then (c', i', j') else (mc, pi, pj))
         (max_int, -1, -1) costs
     in
     if min_cost < max_int then (
@@ -1013,6 +1022,7 @@ module PrevRun = struct
       res
     with e ->
       meta_debug state "Error in get_diffable: %s\n" (Printexc.to_string e);
+      flush_meta_debug_queue state;
       res
 
   let check_diff state diffable =
@@ -1080,9 +1090,11 @@ module PrevRun = struct
                     in
 
                     Printf.sprintf
-                      "Bad chunk? current position %d, previous: size %d, messages: \
-                       %s%s. 5 edits: %s"
-                      diffable.msg_idx state.num_rows first_msg current_msg edits_str
+                      "Bad chunk? current position %d, previous: size %d, num edits: %d, \
+                       messages: %s%s. 5 edits: %s"
+                      diffable.msg_idx state.num_rows
+                      (List.length state.optimal_edits)
+                      first_msg current_msg edits_str
                 | None ->
                     (* Count deletions in the optimal edits *)
                     let deletion_count =
@@ -1099,8 +1111,8 @@ module PrevRun = struct
               in
               Some edit_type
     with e ->
-      Printf.eprintf "Error in check_diff: %s\n" (Printexc.to_string e);
       meta_debug state "Error in check_diff: %s\n" (Printexc.to_string e);
+      flush_meta_debug_queue state;
       fun () -> None
 
   let signal_chunk_end state =
