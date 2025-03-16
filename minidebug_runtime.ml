@@ -1123,9 +1123,7 @@ module PrevRun = struct
                       if edit.curr_index = diffable.msg_idx then
                         match edit.edit_type with
                         | Change prev_msg ->
-                            Some
-                              (Printf.sprintf "Changed: pos %d curr/%d from %s"
-                                 diffable.msg_idx diffable.depth prev_msg)
+                            Some (Printf.sprintf "Changed from: %s" prev_msg)
                         | _ -> None
                       else None)
                     state.optimal_edits
@@ -1181,7 +1179,7 @@ module PrevRun = struct
                     in
                     if deletion_count > 0 then
                       Printf.sprintf "Covers %d deletions" deletion_count
-                    else Printf.sprintf "Inserted at pos %d" diffable.msg_idx
+                    else Printf.sprintf "Inserted in current run"
               in
               Some edit_type
     with e ->

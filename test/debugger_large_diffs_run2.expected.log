@@ -1,64 +1,64 @@
 
 BEGIN DEBUG SESSION 
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐Changed from: random_char...
-│┌────────────────────────────────────────────────────────────────────┐Changed from: process_mes...                    │
-││process_message = [2024-07-13 12:45:02] prznoznjmq Processing: hello│process_message =  quqknrptibj Processing: hello│
-│└────────────────────────────────────────────────────────────────────┘                                                │
-├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐Changed from: random_chars = quqknrptibj
+│┌────────────────────────────────────────────────────────────────────┐Changed from: process_message = [20...                               │
+││process_message = [2024-07-13 12:45:02] prznoznjmq Processing: hello│process_message = [2024-04-05 19:40:04] quqknrptibj Processing: hello│
+│└────────────────────────────────────────────────────────────────────┘                                                                     │
+├───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":98:33
 ├─msg = hello
-└─┬────────────────────────────┐Changed from: random_char...
+└─┬────────────────────────────┐Changed from: random_chars = quqknrptibj
   │random_string_with_timestamp│
   ├────────────────────────────┘
   ├─"test/test_debug_large_diffs.ml":7:47
   ├─timestamp = [2024-07-13 12:45:02]
   │ └─"test/test_debug_large_diffs.ml":8:6
-  └─┬───────────────────────────────────────────────────────┐Changed from: random_char...
-    │┌─────────────────────────┐Changed from: random_char...│
-    ││random_chars = prznoznjmq│random_chars = quqknrptibj  │
-    │└─────────────────────────┘                            │
-    ├───────────────────────────────────────────────────────┘
+  └─┬───────────────────────────────────────────────────────────────────┐Changed from: random_chars = quqknrptibj
+    │┌─────────────────────────┐Changed from: random_chars = quqknrptibj│
+    ││random_chars = prznoznjmq│                                        │
+    │└─────────────────────────┘                                        │
+    ├───────────────────────────────────────────────────────────────────┘
     └─"test/test_debug_large_diffs.ml":14:6
-┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐Changed from: random_char...
-│┌────────────────────────────────────────────────────────────────────────┐Changed from: process_mes...                                 │
-││process_message = [2024-12-08 21:57:36] unvwhtrllputtg Processing: world│process_message =  cudarhjszodixrhpecbgfzri Processing: world│
-│└────────────────────────────────────────────────────────────────────────┘                                                             │
-├───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐Changed from: random_chars = cudarh...
+│┌────────────────────────────────────────────────────────────────────────┐Changed from: process_message = [20...                                            │
+││process_message = [2024-12-08 21:57:36] unvwhtrllputtg Processing: world│process_message = [2024-03-21 00:59:15] cudarhjszodixrhpecbgfzri Processing: world│
+│└────────────────────────────────────────────────────────────────────────┘                                                                                  │
+├────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":98:33
 ├─msg = world
-└─┬────────────────────────────┐Changed from: random_char...
+└─┬────────────────────────────┐Changed from: random_chars = cudarh...
   │random_string_with_timestamp│
   ├────────────────────────────┘
   ├─"test/test_debug_large_diffs.ml":7:47
   ├─timestamp = [2024-12-08 21:57:36]
   │ └─"test/test_debug_large_diffs.ml":8:6
-  └─┬──────────────────────────────────────────────────────────────────────┐Changed from: random_char...
-    │┌─────────────────────────────┐Changed from: random_char...           │
+  └─┬──────────────────────────────────────────────────────────────────────┐Changed from: random_chars = cudarh...
+    │┌─────────────────────────────┐Changed from: random_chars = cudarh... │
     ││random_chars = unvwhtrllputtg│random_chars = cudarhjszodixrhpecbgfzri│
     │└─────────────────────────────┘                                       │
     ├──────────────────────────────────────────────────────────────────────┘
     └─"test/test_debug_large_diffs.ml":14:6
-┌───────────────────────────────────────────────────────────────┐Changed from: random_char...
-│┌──────────────────────────────┐Changed from: process_dat...   │
+┌───────────────────────────────────────────────────────┐Changed from: random_chars = snwbxo...
+│┌──────────────────────────────┐Inserted in current run│
 ││process_data = (3 56 40 57 41)│process_data = (43 46 15 94 40)│
 │└──────────────────────────────┘                               │
 ├───────────────────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":106:30
 ├─size = 5
-├─┬────────────────────────────┐Changed from: random_char...
+├─┬────────────────────────────┐Changed from: random_chars = snwbxo...
 │ │random_string_with_timestamp│
 │ ├────────────────────────────┘
 │ ├─"test/test_debug_large_diffs.ml":7:47
 │ ├─timestamp = [2024-03-09 07:22:41]
 │ │ └─"test/test_debug_large_diffs.ml":8:6
-│ └─┬──────────────────────────────────────────────────────────────────────┐Changed from: random_char...
-│   │┌─────────────────────────────────────┐Changed from: random_char...   │
-│   ││random_chars = aacfqjzkwhxfegjmiuyvay│random_chars = snwbxobrujbfydjz│
-│   │└─────────────────────────────────────┘                               │
-│   ├──────────────────────────────────────────────────────────────────────┘
+│ └─┬─────────────────────────────────────────────────────────────────────────────┐Changed from: random_chars = snwbxo...
+│   │┌─────────────────────────────────────┐Changed from: random_chars = snwbxo...│
+│   ││random_chars = aacfqjzkwhxfegjmiuyvay│random_chars = snwbxobrujbfydjz       │
+│   │└─────────────────────────────────────┘                                      │
+│   ├─────────────────────────────────────────────────────────────────────────────┘
 │   └─"test/test_debug_large_diffs.ml":14:6
-└─┬────────────────────────────────────────────────────────────────────────────┐Changed from: (" snwbxobr...
-  │("[2024-03-09 07:22:41] aacfqjzkwhxfegjmiuyvay" "Processing data of size" 5)│└─(" snwbxobrujbfydjz" "Processing data of size" 5)
+└─┬────────────────────────────────────────────────────────────────────────────┐Changed from: ("[2024-04-24 21:57:4...
+  │("[2024-03-09 07:22:41] aacfqjzkwhxfegjmiuyvay" "Processing data of size" 5)│└─("[2024-04-24 21:57:40] snwbxobrujbfydjz" "Processing data of size" 5)
   └────────────────────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────────────────────────────────────┐Changed from: size = 10
 │┌────────────────────────────────────────────────┐Changed from: process_dat...               │
@@ -69,20 +69,20 @@ BEGIN DEBUG SESSION
 ├─┬─────────┐Changed from: size = 10
 │ │size = 11│
 │ └─────────┘
-├─┬────────────────────────────┐Changed from: random_char...
+├─┬────────────────────────────┐Changed from: random_chars = jllxux...
 │ │random_string_with_timestamp│
 │ ├────────────────────────────┘
 │ ├─"test/test_debug_large_diffs.ml":7:47
 │ ├─timestamp = [2024-05-09 17:24:15]
 │ │ └─"test/test_debug_large_diffs.ml":8:6
-│ └─┬──────────────────────────────────────────────────────────────┐Changed from: random_char...
-│   │┌──────────────────────┐Changed from: random_char...          │
+│ └─┬──────────────────────────────────────────────────────────────┐Changed from: random_chars = jllxux...
+│   │┌──────────────────────┐Changed from: random_chars = jllxux...│
 │   ││random_chars = yezxtyr│random_chars = jllxuxbnclkndzmyzspdsfh│
 │   │└──────────────────────┘                                      │
 │   ├──────────────────────────────────────────────────────────────┘
 │   └─"test/test_debug_large_diffs.ml":14:6
-└─┬──────────────────────────────────────────────────────────────┐Changed from: (" jllxuxbn...
-  │("[2024-05-09 17:24:15] yezxtyr" "Processing data of size" 11)│└─(" jllxuxbnclkndzmyzspdsfh" "Processing data of size"
+└─┬──────────────────────────────────────────────────────────────┐Changed from: ("[2024-11-05 00:00:4...
+  │("[2024-05-09 17:24:15] yezxtyr" "Processing data of size" 11)│└─("[2024-11-05 00:00:49] jllxuxbnclkndzmyzspdsfh" "Processing data of size"
   └──────────────────────────────────────────────────────────────┘   10)
 ┌─────────────────────────────────────────────────┐Changed from: random_char...
 │┌───────────────────┐Changed from: process_num...│
@@ -91,20 +91,20 @@ BEGIN DEBUG SESSION
 ├─────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":124:32
 ├─n = 5
-├─┬────────────────────────────┐Changed from: random_char...
+├─┬────────────────────────────┐Changed from: random_chars = hlxvtd
 │ │random_string_with_timestamp│
 │ ├────────────────────────────┘
 │ ├─"test/test_debug_large_diffs.ml":7:47
 │ ├─timestamp = [2024-02-25 21:25:27]
 │ │ └─"test/test_debug_large_diffs.ml":8:6
-│ └─┬────────────────────────────────────────────────────────────┐Changed from: random_char...
-│   │┌──────────────────────────────┐Changed from: random_char...│
-│   ││random_chars = ddzkgcpggoyrocn│random_chars = hlxvtd       │
-│   │└──────────────────────────────┘                            │
-│   ├────────────────────────────────────────────────────────────┘
+│ └─┬───────────────────────────────────────────────────────────────────┐Changed from: random_chars = hlxvtd
+│   │┌──────────────────────────────┐Changed from: random_chars = hlxvtd│
+│   ││random_chars = ddzkgcpggoyrocn│                                   │
+│   │└──────────────────────────────┘                                   │
+│   ├───────────────────────────────────────────────────────────────────┘
 │   └─"test/test_debug_large_diffs.ml":14:6
-├─┬───────────────────────────────────────────────────────────────┐Changed from: (" hlxvtd" ...
-│ │("[2024-02-25 21:25:27] ddzkgcpggoyrocn" "Processing number" 5)│└─(" hlxvtd" "Processing number" 5)
+├─┬───────────────────────────────────────────────────────────────┐Changed from: ("[2024-12-20 06:18:3...
+│ │("[2024-02-25 21:25:27] ddzkgcpggoyrocn" "Processing number" 5)│└─("[2024-12-20 06:18:32] hlxvtd" "Processing number" 5)
 │ └───────────────────────────────────────────────────────────────┘
 └─┬──────────────────────────────────────┐Changed from: x = 6
   │┌───────────┐Changed from: helper = 12│
@@ -115,20 +115,20 @@ BEGIN DEBUG SESSION
   ├─┬─────┐Changed from: x = 6
   │ │x = 7│
   │ └─────┘
-  ├─┬────────────────────────────┐Changed from: random_char...
+  ├─┬────────────────────────────┐Changed from: random_chars = cebobq...
   │ │random_string_with_timestamp│
   │ ├────────────────────────────┘
   │ ├─"test/test_debug_large_diffs.ml":7:47
   │ ├─timestamp = [2024-07-24 03:55:48]
   │ │ └─"test/test_debug_large_diffs.ml":8:6
-  │ └─┬──────────────────────────────────────────────────────────┐Changed from: random_char...
-  │   │┌─────────────────────┐Changed from: random_char...       │
-  │   ││random_chars = hqzbzg│random_chars = cebobqnigaatunwpjdzz│
-  │   │└─────────────────────┘                                   │
-  │   ├──────────────────────────────────────────────────────────┘
+  │ └─┬─────────────────────────────────────────────────────────────┐Changed from: random_chars = cebobq...
+  │   │┌─────────────────────┐Changed from: random_chars = cebobq...│
+  │   ││random_chars = hqzbzg│random_chars = cebobqnigaatunwpjdzz   │
+  │   │└─────────────────────┘                                      │
+  │   ├─────────────────────────────────────────────────────────────┘
   │   └─"test/test_debug_large_diffs.ml":14:6
-  └─┬───────────────────────────────────────────────────────┐Changed from: (" cebobqni...
-    │("[2024-07-24 03:55:48] hqzbzg" "Helper called with" 7)│└─(" cebobqnigaatunwpjdzz" "Helper called with" 6)
+  └─┬───────────────────────────────────────────────────────┐Changed from: ("[2024-09-08 00:43:1...
+    │("[2024-07-24 03:55:48] hqzbzg" "Helper called with" 7)│└─("[2024-09-08 00:43:12] cebobqnigaatunwpjdzz" "Helper called with" 6)
     └───────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────┐Changed from: random_char...
 │┌───────────────────┐Changed from: process_num...│
@@ -137,20 +137,20 @@ BEGIN DEBUG SESSION
 ├─────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":124:32
 ├─n = 10
-├─┬────────────────────────────┐Changed from: random_char...
+├─┬────────────────────────────┐Changed from: random_chars = jsrppd...
 │ │random_string_with_timestamp│
 │ ├────────────────────────────┘
 │ ├─"test/test_debug_large_diffs.ml":7:47
 │ ├─timestamp = [2024-04-06 11:19:19]
 │ │ └─"test/test_debug_large_diffs.ml":8:6
-│ └─┬──────────────────────────────────────────────────────┐Changed from: random_char...
-│   │┌──────────────────────┐Changed from: random_char...  │
-│   ││random_chars = rahvlor│random_chars = jsrppdeymhyfzke│
-│   │└──────────────────────┘                              │
-│   ├──────────────────────────────────────────────────────┘
+│ └─┬──────────────────────────────────────────────────────────────┐Changed from: random_chars = jsrppd...
+│   │┌──────────────────────┐Changed from: random_chars = jsrppd...│
+│   ││random_chars = rahvlor│random_chars = jsrppdeymhyfzke        │
+│   │└──────────────────────┘                                      │
+│   ├──────────────────────────────────────────────────────────────┘
 │   └─"test/test_debug_large_diffs.ml":14:6
-├─┬────────────────────────────────────────────────────────┐Changed from: (" jsrppdey...
-│ │("[2024-04-06 11:19:19] rahvlor" "Processing number" 10)│└─(" jsrppdeymhyfzke" "Processing number" 10)
+├─┬────────────────────────────────────────────────────────┐Changed from: ("[2024-05-05 18:11:1...
+│ │("[2024-04-06 11:19:19] rahvlor" "Processing number" 10)│└─("[2024-05-05 18:11:13] jsrppdeymhyfzke" "Processing number" 10)
 │ └────────────────────────────────────────────────────────┘
 └─┬──────────────────────────────────────┐Changed from: x = 11
   │┌───────────┐Changed from: helper = 22│
@@ -161,40 +161,40 @@ BEGIN DEBUG SESSION
   ├─┬──────┐Changed from: x = 11
   │ │x = 12│
   │ └──────┘
-  ├─┬────────────────────────────┐Changed from: random_char...
+  ├─┬────────────────────────────┐Changed from: random_chars = pnvmof...
   │ │random_string_with_timestamp│
   │ ├────────────────────────────┘
   │ ├─"test/test_debug_large_diffs.ml":7:47
   │ ├─timestamp = [2024-06-15 08:35:48]
   │ │ └─"test/test_debug_large_diffs.ml":8:6
-  │ └─┬─────────────────────────────────────────────────────────────────────┐Changed from: random_char...
-  │   │┌──────────────────────────────────┐Changed from: random_char...     │
-  │   ││random_chars = tdqsgatvnjtpbohriun│random_chars = pnvmofczwjcrnhpani│
-  │   │└──────────────────────────────────┘                                 │
-  │   ├─────────────────────────────────────────────────────────────────────┘
+  │ └─┬──────────────────────────────────────────────────────────────────────────┐Changed from: random_chars = pnvmof...
+  │   │┌──────────────────────────────────┐Changed from: random_chars = pnvmof...│
+  │   ││random_chars = tdqsgatvnjtpbohriun│random_chars = pnvmofczwjcrnhpani     │
+  │   │└──────────────────────────────────┘                                      │
+  │   ├──────────────────────────────────────────────────────────────────────────┘
   │   └─"test/test_debug_large_diffs.ml":14:6
-  └─┬─────────────────────────────────────────────────────────────────────┐Changed from: (" pnvmofcz...
-    │("[2024-06-15 08:35:48] tdqsgatvnjtpbohriun" "Helper called with" 12)│└─(" pnvmofczwjcrnhpani" "Helper called with" 11)
+  └─┬─────────────────────────────────────────────────────────────────────┐Changed from: ("[2024-04-03 23:49:2...
+    │("[2024-06-15 08:35:48] tdqsgatvnjtpbohriun" "Helper called with" 12)│└─("[2024-04-03 23:49:20] pnvmofczwjcrnhpani" "Helper called with" 11)
     └─────────────────────────────────────────────────────────────────────┘
-┌────────────────────────────────────────────────────────────────┐Changed from: random_char...
+┌────────────────────────────────────────────────────────────────┐Changed from: random_chars = idgfejq
 │complex_operation = ((this 4) (is 3) (a 3) (test 7) (string 10))│
 ├────────────────────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":136:35
 ├─input = this is a test string
-├─┬────────────────────────────┐Changed from: random_char...
+├─┬────────────────────────────┐Changed from: random_chars = idgfejq
 │ │random_string_with_timestamp│
 │ ├────────────────────────────┘
 │ ├─"test/test_debug_large_diffs.ml":7:47
 │ ├─timestamp = [2024-07-06 14:28:05]
 │ │ └─"test/test_debug_large_diffs.ml":8:6
-│ └─┬──────────────────────────────────────────────────┐Changed from: random_char...
-│   │┌────────────────────┐Changed from: random_char...│
-│   ││random_chars = lammr│random_chars = idgfejq      │
-│   │└────────────────────┘                            │
-│   ├──────────────────────────────────────────────────┘
+│ └─┬──────────────────────────────────────────────────────────┐Changed from: random_chars = idgfejq
+│   │┌────────────────────┐Changed from: random_chars = idgfejq│
+│   ││random_chars = lammr│                                    │
+│   │└────────────────────┘                                    │
+│   ├──────────────────────────────────────────────────────────┘
 │   └─"test/test_debug_large_diffs.ml":14:6
-└─┬───────────────────────────┐Changed from:  idgfejq
-  │[2024-07-06 14:28:05] lammr│
+└─┬───────────────────────────┐Changed from: [2024-08-17 12:46:07]...
+  │[2024-07-06 14:28:05] lammr│[2024-08-17 12:46:07] idgfejq
   ├───────────────────────────┘
   ├─Complex operation on:
   └─this is a test string
@@ -204,23 +204,23 @@ BEGIN DEBUG SESSION
 │└─────────────────────────────────────────────────────────────────────────────────────────────────┘                                                                                             │
 ├────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ├─"test/test_debug_large_diffs.ml":136:35
-├─┬────────────────────────────────────────────────────┐Changed from: input = ano...
+├─┬────────────────────────────────────────────────────┐Changed from: input = another examp...
 │ │input = a completely different string with new words│└─input = another example with more words to process
 │ └────────────────────────────────────────────────────┘
-├─┬────────────────────────────┐Changed from: random_char...
+├─┬────────────────────────────┐Changed from: random_chars = xogeyg...
 │ │random_string_with_timestamp│
 │ ├────────────────────────────┘
 │ ├─"test/test_debug_large_diffs.ml":7:47
 │ ├─timestamp = [2024-06-05 02:11:16]
 │ │ └─"test/test_debug_large_diffs.ml":8:6
-│ └─┬───────────────────────────────────────────────────────────────┐Changed from: random_char...
-│   │┌──────────────────────┐Changed from: random_char...           │
+│ └─┬───────────────────────────────────────────────────────────────┐Changed from: random_chars = xogeyg...
+│   │┌──────────────────────┐Changed from: random_chars = xogeyg... │
 │   ││random_chars = pnueimw│random_chars = xogeygjkphzjfpgykdfleqsd│
 │   │└──────────────────────┘                                       │
 │   ├───────────────────────────────────────────────────────────────┘
 │   └─"test/test_debug_large_diffs.ml":14:6
-└─┬─────────────────────────────┐Changed from:  xogeygjkph...
-  │[2024-06-05 02:11:16] pnueimw│ xogeygjkphzjfpgykdfleqsd
+└─┬─────────────────────────────┐Changed from: [2024-07-01 04:48:02]...
+  │[2024-06-05 02:11:16] pnueimw│[2024-07-01 04:48:02] xogeygjkphzjfpgykdfleqsd
   ├─────────────────────────────┘
   ├─Complex operation on:
   └─┬────────────────────────────────────────────┐Changed from: another exa...
