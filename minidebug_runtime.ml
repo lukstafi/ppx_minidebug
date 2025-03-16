@@ -929,9 +929,12 @@ module PrevRun = struct
         else assert false
     in
 
-    (* Start backtracking from the best row in the current column *)
+    (* We cannot start backtracking from the end of the column, because, especially early
+       on, the rows that we want to be matched later on can skew the results. And we
+       cannot always start from the best row, because that will prefer insertions over
+       substitutions. *)
     let row =
-      try Hashtbl.find state.min_cost_rows col
+      try max col (Hashtbl.find state.min_cost_rows col)
       with Not_found -> min state.num_rows (col + state.max_distance_factor)
     in
 
