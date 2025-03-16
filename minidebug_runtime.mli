@@ -314,9 +314,9 @@ val debug_file :
     edit distances between runs - higher values may find more matches but will be slower.
 
     If [entry_id_pairs] is provided, the diffing algorithm will force matches between
-    specific entry IDs from the previous run and the current run. Each pair (prev_id,
-    curr_id) indicates that entry #prev_id from the previous run should be matched with
-    entry #curr_id from the current run. This is useful for ensuring specific debug
+    specific entry IDs from the previous run and the current run. Each pair [(prev_id,
+    curr_id)] indicates that entry [prev_id] from the previous run should be matched with
+    entry [curr_id] from the current run. This is useful for ensuring specific debug
     entries are compared even if their positions change significantly.
 
     By default [backend] is [`Markdown PrintBox.default_md_config]. See

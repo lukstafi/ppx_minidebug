@@ -595,12 +595,15 @@ module PrevRun = struct
         (* Optional channel for meta-debugging information *)
     meta_debug_queue : string Queue.t; (* Queue for meta-debug messages *)
     depth_threshold : int; (* New parameter for depth discrepancy threshold *)
-    reverse_entry_id_pairs : (int, int) Hashtbl.t;
-        (* Maps current entry_id to previous entry_id for forced matches *)
+    entry_id_pairs : (int * int) list;
+        (* Maps previous entry_id to current entry_id for forced matches *)
     entry_id_to_pos : (int, int) Hashtbl.t;
         (* Maps entry_id to its position in the chunk for the previous run *)
     curr_entry_id_to_pos : (int, int) Hashtbl.t;
         (* Maps entry_id to its position in the chunk for the current run *)
+    mutable reverse_forced_matches : (int * int) list;
+        (* Remaining forced matches (entry_id for column, row of matching entry_id) sorted
+           by column *)
   }
 
   let meta_debug state fmt =
@@ -707,18 +710,26 @@ module PrevRun = struct
       meta_debug_oc = None;
       meta_debug_queue = Queue.create ();
       depth_threshold = 1;
-      reverse_entry_id_pairs = Hashtbl.create 0;
+      entry_id_pairs = [];
       entry_id_to_pos = Hashtbl.create 0;
       curr_entry_id_to_pos = Hashtbl.create 0;
+      reverse_forced_matches = [];
     }
 
-  let populate_entry_id_to_pos entry_id_to_pos chunk =
+  let populate_entry_id_to_pos state chunk =
     Array.iteri
       (fun i md ->
         match md.entry_id with
-        | Some entry_id -> Hashtbl.add entry_id_to_pos entry_id i
+        | Some entry_id -> Hashtbl.add state.entry_id_to_pos entry_id i
         | None -> ())
-      chunk.messages_with_depth
+      chunk.messages_with_depth;
+    state.reverse_forced_matches <-
+      List.filter_map
+        (fun (prev_id, curr_id) ->
+          try Some (curr_id, Hashtbl.find state.entry_id_to_pos prev_id)
+          with Not_found -> None)
+        state.entry_id_pairs
+      |> List.sort (fun (j0, _) (j1, _) -> Int.compare j0 j1)
 
   let init_run ?prev_file ?diff_ignore_pattern ?(max_distance_factor = 200)
       ?(depth_threshold = 1) ?(entry_id_pairs = []) curr_file =
@@ -734,41 +745,38 @@ module PrevRun = struct
       (* ) else None *)
     in
     Gc.finalise (fun _ -> close_out curr_oc) curr_oc;
-
-    (* Initialize entry_id_pairs hashtable from the provided list *)
-    let reverse_entry_id_pairs = Hashtbl.create (List.length entry_id_pairs) in
-    List.iter
-      (fun (prev_id, curr_id) -> Hashtbl.add reverse_entry_id_pairs curr_id prev_id)
-      entry_id_pairs;
-
-    (* Initialize entry_id_to_pos hashtable from prev_chunk *)
-    let entry_id_to_pos = Hashtbl.create 100 in
-    Option.iter (populate_entry_id_to_pos entry_id_to_pos) prev_chunk;
-    {
-      prev_chunk;
-      prev_normalized_chunk;
-      curr_chunk = Dynarray.create ();
-      curr_normalized_chunk = Dynarray.create ();
-      dp_table = Hashtbl.create 10000;
-      num_rows =
-        (match prev_chunk with
-        | None -> 0
-        | Some chunk -> Array.length chunk.messages_with_depth - 1);
-      last_computed_col = -1;
-      optimal_edits = [];
-      prev_ic;
-      curr_oc = Some curr_oc;
-      diff_ignore_pattern;
-      normalized_msgs = Hashtbl.create 1000;
-      min_cost_rows = Hashtbl.create 1000;
-      max_distance_factor;
-      meta_debug_oc;
-      meta_debug_queue = Queue.create ();
-      depth_threshold;
-      reverse_entry_id_pairs;
-      entry_id_to_pos;
-      curr_entry_id_to_pos = Hashtbl.create 100;
-    }
+    (* entry_id_to_pos and reverse_forced_matches are initialized in
+       populate_entry_id_to_pos *)
+    let state =
+      {
+        prev_chunk;
+        prev_normalized_chunk;
+        curr_chunk = Dynarray.create ();
+        curr_normalized_chunk = Dynarray.create ();
+        dp_table = Hashtbl.create 10000;
+        num_rows =
+          (match prev_chunk with
+          | None -> 0
+          | Some chunk -> Array.length chunk.messages_with_depth - 1);
+        last_computed_col = -1;
+        optimal_edits = [];
+        prev_ic;
+        curr_oc = Some curr_oc;
+        diff_ignore_pattern;
+        normalized_msgs = Hashtbl.create 1000;
+        min_cost_rows = Hashtbl.create 1000;
+        max_distance_factor;
+        meta_debug_oc;
+        meta_debug_queue = Queue.create ();
+        depth_threshold;
+        entry_id_pairs;
+        entry_id_to_pos = Hashtbl.create 100;
+        curr_entry_id_to_pos = Hashtbl.create 100;
+        reverse_forced_matches = [];
+      }
+    in
+    Option.iter (populate_entry_id_to_pos state) prev_chunk;
+    state
 
   (* Get normalized message either from normalized chunk or by normalizing on demand *)
   let normalize_message state msg =
@@ -953,15 +961,18 @@ module PrevRun = struct
           meta_debug state "pos %d entry_id=%d\n" j curr_id;
           flush_meta_debug_queue state)
         curr.entry_id;
+      let forced_entry_id, forced_pos =
+        match state.reverse_forced_matches with
+        | (curr_id, forced_pos) :: _ -> (curr_id, forced_pos)
+        | [] -> (-2, -2)
+      in
       match curr.entry_id with
-      | Some curr_id when Hashtbl.mem state.reverse_entry_id_pairs curr_id ->
+      | Some curr_id when curr_id = forced_entry_id ->
           meta_debug state "curr_id %d\n" curr_id;
-          let prev_id = Hashtbl.find state.reverse_entry_id_pairs curr_id in
-          meta_debug state "prev_id %d\n" prev_id;
-          flush_meta_debug_queue state;
-          let center_row = Hashtbl.find state.entry_id_to_pos prev_id in
+          let center_row = forced_pos in
           meta_debug state "Using forced match cost %d at (%d,%d)\n" 0 center_row j;
           flush_meta_debug_queue state;
+          state.reverse_forced_matches <- List.tl state.reverse_forced_matches;
           set_dp_value state ~i:center_row ~j (0, center_row - 1, j - 1);
           Hashtbl.replace state.min_cost_rows j center_row
       | _ ->
@@ -1011,6 +1022,11 @@ module PrevRun = struct
           while !max_i < state.num_rows && not (boundary !max_i) do
             incr max_i
           done;
+
+          (* Due to assymetry in insertions and deletions -- deletions are the default
+             fallback -- we incorporate forcing to push min_i up, but not max_i down *)
+          if forced_entry_id <> -2 then
+            min_i := min !min_i (forced_pos - state.max_distance_factor);
 
           (* Track best result *)
           let min_cost_for_col = ref max_int in
@@ -1188,7 +1204,7 @@ module PrevRun = struct
         | None -> 0
         | Some chunk -> Array.length chunk.messages_with_depth - 1);
       Hashtbl.clear state.dp_table;
-      Option.iter (populate_entry_id_to_pos state.entry_id_to_pos) state.prev_chunk;
+      Option.iter (populate_entry_id_to_pos state) state.prev_chunk;
       state.last_computed_col <- -1;
       state.optimal_edits <- [];
       Hashtbl.clear state.normalized_msgs;
