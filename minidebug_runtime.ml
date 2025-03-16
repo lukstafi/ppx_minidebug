@@ -804,7 +804,7 @@ module PrevRun = struct
       normalized
 
   (* Get a value from the dp_table, handling edge cases *)
-  let get_dp_value state i j =
+  let get_dp_value state ~i ~j =
     if i < 0 && j < 0 then
       (* Base case with no elements *)
       (0, -1, -1)
@@ -818,14 +818,14 @@ module PrevRun = struct
       (* For valid indices, try to find the value in the table *)
       try Hashtbl.find state.dp_table (i, j) with Not_found -> (max_int, -1, -1)
 
-  let set_dp_value state i j ((v, prev_i, prev_j) as prev) =
+  let set_dp_value state ~i ~j ((v, prev_i, prev_j) as prev) =
     if v = max_int then
       meta_debug state "set_dp_value: max_int at (%d,%d) with prev %d,%d\n" i j prev_i
         prev_j;
     assert (i >= 0 && j >= 0);
     assert (v >= 0);
     (if prev_i > -1 && prev_j > -1 then
-       let cost, p_i, p_j = get_dp_value state prev_i prev_j in
+       let cost, p_i, p_j = get_dp_value state ~i:prev_i ~j:prev_j in
        if cost = max_int then
          meta_debug state "set_dp_value: max_int at prev %d,%d from (%d,%d)\n" prev_i
            prev_j p_i p_j);
@@ -852,15 +852,15 @@ module PrevRun = struct
     let delta = prev_depth - curr_depth in
 
     let above =
-      let c, _, _ = get_dp_value state (i - 1) j in
+      let c, _, _ = get_dp_value state ~i:(i - 1) ~j in
       safe_add c base_del_cost
     in
     let left =
-      let c, _, _ = get_dp_value state i (j - 1) in
+      let c, _, _ = get_dp_value state ~i ~j:(j - 1) in
       safe_add c base_ins_cost
     in
     let diag =
-      let c, _, _ = get_dp_value state (i - 1) (j - 1) in
+      let c, _, _ = get_dp_value state ~i:(i - 1) ~j:(j - 1) in
       safe_add c base_match_cost
     in
 
@@ -879,7 +879,7 @@ module PrevRun = struct
         meta_debug state
           "DP(%d,%d) = %d from (%d,%d) [prev/%d vs curr/%d]\nprev=%s\ncurr=%s\n\n" i j
           min_cost prev_i prev_j prev_depth curr_depth normalized_prev normalized_curr;
-      set_dp_value state i j (min_cost, prev_i, prev_j));
+      set_dp_value state ~i ~j (min_cost, prev_i, prev_j));
     min_cost
 
   (* Modified backtracking in update_optimal_edits to handle skipped cells *)
@@ -893,7 +893,7 @@ module PrevRun = struct
         let edit = { edit_type = Insert; curr_index = j } in
         backtrack i (j - 1) (edit :: acc)
       else
-        let cost, prev_i, prev_j = get_dp_value state i j in
+        let cost, prev_i, prev_j = get_dp_value state ~i ~j in
         if cost = max_int && prev_i = -1 && prev_j = -1 then (
           (* Unpopulated cell, default to deletion as a fallback *)
           let edit = { edit_type = Delete; curr_index = j } in
@@ -962,7 +962,7 @@ module PrevRun = struct
           let center_row = Hashtbl.find state.entry_id_to_pos prev_id in
           meta_debug state "Using forced match cost %d at (%d,%d)\n" 0 center_row j;
           flush_meta_debug_queue state;
-          set_dp_value state j center_row (0, center_row - 1, j - 1);
+          set_dp_value state ~i:center_row ~j (0, center_row - 1, j - 1);
           Hashtbl.replace state.min_cost_rows j center_row
       | _ ->
           (* For each new column, determine the center row for exploration *)
