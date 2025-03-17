@@ -23,7 +23,7 @@ jobs:
           - 5.3.x
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - uses: ocaml/setup-ocaml@v3.2.11
       with:
         ocaml-compiler: ${{ matrix.ocaml-compiler }}
