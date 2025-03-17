@@ -1945,7 +1945,7 @@ module PrintBox (Log_to : Shared_config) = struct
     in
     let hl = Option.value ~default:hl_header (Option.map (hl_or hl_header) hl_body) in
     let b = apply_highlight hl b in
-    (hl, if List.is_empty bs then b else B.tree b bs)
+    (hl, if bs = [] then b else B.tree b bs)
 
   let pp_sexp ppf = function
     | Sexplib0.Sexp.Atom s when config.sexp_unescape_strings ->
