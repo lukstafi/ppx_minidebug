@@ -4911,7 +4911,7 @@ let%expect_test "%logify comparing differences with entry_id_pairs" =
     │ │ └─┬────────────────────────────┐Changed from: Entry one
     │ │   │"This is a new second entry"│
     │ │   └────────────────────────────┘
-    │ ├─┬─────────┐┌─┐┌────┐Changed from: Entry four
+    │ ├─┬─────────┐┌─┐┌────┐Changed from: Entry two
     │ │ │Entry one││ ││{#5}│
     │ │ ├─────────┘└─┘└────┘
     │ │ ├─┬─────────────────────────┐Changed from: "This is the fourth entry"
@@ -4923,13 +4923,13 @@ let%expect_test "%logify comparing differences with entry_id_pairs" =
     │ ├─┬─────────┐┌─┐┌────┐Changed from: Entry six
     │ │ │New third││ ││{#6}│
     │ │ ├─────────┘└─┘└────┘
-    │ │ └─┬───────────────────┐Inserted in current run
+    │ │ └─┬───────────────────┐Changed from: "This is the sixth entry"
     │ │   │"Another new entry"│
     │ │   └───────────────────┘
     │ ├─┬──────────┐┌─┐┌────┐Inserted in current run
     │ │ │Entry four││ ││{#7}│
     │ │ ├──────────┘└─┘└────┘
-    │ │ └─┬──────────────────────────┐Changed from: "This is the sixth entry"
+    │ │ └─┬──────────────────────────┐Inserted in current run
     │ │   │"This is the fourth entry"│
     │ │   └──────────────────────────┘
     │ └─Final content {#8}

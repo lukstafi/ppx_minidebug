@@ -624,16 +624,14 @@ module PrevRun = struct
 
   (* Get depth from previous chunk by index *)
   let get_depth_prev state i =
-    try
-      if i < 0 then -1 else (Option.get state.prev_chunk).messages_with_depth.(i).depth
+    try if i < 0 then -1 else (Option.get state.prev_chunk).messages_with_depth.(i).depth
     with Invalid_argument _ ->
       Printf.eprintf "get_depth_prev: index %d out of bounds\n" i;
       assert false
 
   (* Get depth from current chunk by index *)
   let get_depth_curr state j =
-    try
-      if j < 0 then -1 else (Dynarray.get state.curr_chunk j).depth
+    try if j < 0 then -1 else (Dynarray.get state.curr_chunk j).depth
     with Invalid_argument _ ->
       Printf.eprintf "get_depth_curr: index %d out of bounds\n" j;
       assert false
@@ -675,6 +673,7 @@ module PrevRun = struct
   let base_del_cost = 2
   let base_ins_cost = 2
   let base_change_cost = 3
+  let base_contiguous_change_cost = 2
   let base_depth_cost = 2
 
   let empty_state =
@@ -773,7 +772,8 @@ module PrevRun = struct
   (* Get normalized message from previous chunk by index *)
   let get_normalized_prev state i =
     try
-      normalize_message state (Option.get state.prev_chunk).messages_with_depth.(i).message
+      normalize_message state
+        (Option.get state.prev_chunk).messages_with_depth.(i).message
     with Invalid_argument _ ->
       Printf.eprintf "get_normalized_prev: index %d out of bounds\n" i;
       assert false
@@ -835,9 +835,6 @@ module PrevRun = struct
   let compute_dp_cell state ~meta_log i j =
     let normalized_prev = get_normalized_prev state i in
     let normalized_curr = get_normalized_curr state j in
-    let base_match_cost =
-      if normalized_prev = normalized_curr then 0 else base_change_cost
-    in
 
     (* Get message IDs for logging *)
     let prev_depth = get_depth_prev state i in
@@ -853,8 +850,15 @@ module PrevRun = struct
       safe_add c base_ins_cost
     in
     let diag =
-      let c, _, _ = get_dp_value state ~i:(i - 1) ~j:(j - 1) in
-      safe_add c base_match_cost
+      let c, prev_i, prev_j = get_dp_value state ~i:(i - 1) ~j:(j - 1) in
+      let match_cost =
+        if normalized_prev = normalized_curr then 0
+        else
+          let _, pi', pj' = get_dp_value state ~i:prev_i ~j:prev_j in
+          if pi' = prev_i - 1 && pj' = prev_j - 1 then base_contiguous_change_cost
+          else base_change_cost
+      in
+      safe_add c match_cost
     in
 
     (* Compute minimum cost operation *)
@@ -887,10 +891,10 @@ module PrevRun = struct
         backtrack i (j - 1) (edit :: acc)
       else
         let cost, prev_i, prev_j = get_dp_value state ~i ~j in
-        if cost = max_int && prev_i = -1 && prev_j = -1 then (
+        if cost = max_int && prev_i = -1 && prev_j = -1 then
           (* Unpopulated cell, default to deletion as a fallback *)
           let edit = { edit_type = Delete; curr_index = j } in
-          backtrack (i - 1) j (edit :: acc))
+          backtrack (i - 1) j (edit :: acc)
         else if prev_i = i - 1 && prev_j = j - 1 then
           (* Diagonal move: either match or change *)
           let normalized_prev = get_normalized_prev state i in
@@ -1108,8 +1112,7 @@ module PrevRun = struct
                       if edit.curr_index = diffable.msg_idx then
                         match edit.edit_type with
                         | Change prev_msg ->
-                            Some
-                              (Printf.sprintf "Changed from: %s" prev_msg)
+                            Some (Printf.sprintf "Changed from: %s" prev_msg)
                         | _ -> None
                       else None)
                     state.optimal_edits
