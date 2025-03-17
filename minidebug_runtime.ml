@@ -758,7 +758,7 @@ module PrevRun = struct
     | Some re -> (
         try Hashtbl.find state.normalized_msgs msg
         with Not_found ->
-          let normalized = Re.replace_string re ~by:"" msg in
+          let normalized = Re.replace_string re ~by:"..." msg in
           Hashtbl.add state.normalized_msgs msg normalized;
           normalized)
 
@@ -871,7 +871,6 @@ module PrevRun = struct
         if cost = max_int && prev_i = -1 && prev_j = -1 then (
           (* Unpopulated cell, default to deletion as a fallback *)
           let edit = { edit_type = Delete; curr_index = j } in
-          meta_debug state "Unpopulated cell at (%d,%d), defaulting to deletion\n" i j;
           backtrack (i - 1) j (edit :: acc))
         else if prev_i = i - 1 && prev_j = j - 1 then
           (* Diagonal move: either match or change *)
@@ -1090,7 +1089,9 @@ module PrevRun = struct
                       if edit.curr_index = diffable.msg_idx then
                         match edit.edit_type with
                         | Change prev_msg ->
-                            Some (Printf.sprintf "Changed from: %s" prev_msg)
+                            Some
+                              (Printf.sprintf "Changed from: %s"
+                              @@ normalize_message state prev_msg)
                         | _ -> None
                       else None)
                     state.optimal_edits
