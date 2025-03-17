@@ -140,7 +140,20 @@ module Debug_runtime =
 
 Note that the timestamps of the log entries are not treated as messages, so are necessarily ignored.
 
-For efficiency, the minimal edit distance search is limited, roughly speaking, to a band around the diagonal. The setting `max_distance_factor` controls the width of the band.
+For efficiency, the minimal edit distance search is limited, roughly speaking, to a band around the diagonal / greedy best match / forced match. The setting `max_distance_factor` controls the width of the band. (The implementation tweaks that heuristic somewhat to account for the tree structure.)
+
+You can force aligning certain entry IDs via the setting `entry_id_pairs`. The previous run's entry IDs come first in the pairs. See the example [test/debug_diffs_align.ml](test/debug_diffs_align.ml):
+
+```ocaml
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug_file ~values_first_mode:false ~print_entry_ids:true
+           ~backend:`Text ~prev_run_file:(prev_run ^ ".raw")
+           ~entry_id_pairs:[ (2, 4); (8, 6) ]
+             (* Force mappings: - Entry 2 (early prev) to Entry 4 (middle curr) - Entry 8
+                (late prev) to Entry 6 (in the shorter curr) *)
+           curr_run)
+  in
+```
 
 ### `PrintBox` creating helpers with defaults: `debug` and `debug_file`
 

@@ -69,8 +69,8 @@ let () =
     (val Minidebug_runtime.debug_file ~values_first_mode:false ~print_entry_ids:true
            ~backend:`Text ~prev_run_file:(prev_run ^ ".raw")
            ~entry_id_pairs:[ (2, 4); (8, 6) ]
-             (* Force mappings: - Entry 1 (early prev) to Entry 4 (middle curr) - Entry 6
-                (late prev) to Entry 13 (shorter curr) *)
+             (* Force mappings: - Entry 2 (early prev) to Entry 4 (middle curr) - Entry 8
+                (late prev) to Entry 6 (in the shorter curr) *)
            curr_run)
   in
   (* Second run with different structure to test diffing *)
