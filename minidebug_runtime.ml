@@ -585,9 +585,6 @@ module PrevRun = struct
     min_cost_rows : (int, int) Hashtbl.t; (* Column index -> row with minimum cost *)
     max_distance_factor : int;
         (* Maximum distance to consider as a factor of current position *)
-    meta_debug_oc : out_channel option;
-        (* Optional channel for meta-debugging information *)
-    meta_debug_queue : string Queue.t; (* Queue for meta-debug messages *)
     depth_threshold : int; (* New parameter for depth discrepancy threshold *)
     entry_id_pairs : (int * int) list;
         (* Maps previous entry_id to current entry_id for forced matches *)
@@ -599,28 +596,6 @@ module PrevRun = struct
         (* Remaining forced matches (entry_id for column, row of matching entry_id) sorted
            by column *)
   }
-
-  let meta_debug state fmt =
-    let k msg =
-      match state.meta_debug_oc with
-      | None -> ()
-      | Some _ -> Queue.add msg state.meta_debug_queue
-    in
-    Format.kasprintf k fmt
-
-  let flush_meta_debug_queue state =
-    match state.meta_debug_oc with
-    | None -> ()
-    | Some oc ->
-        Queue.iter (fun msg -> Printf.fprintf oc "%s" msg) state.meta_debug_queue;
-        flush oc;
-        Queue.clear state.meta_debug_queue
-
-  let string_of_edit_type = function
-    | Match -> "Match"
-    | Insert -> "Insert"
-    | Delete -> "Delete"
-    | Change s -> Printf.sprintf "Change(%s)" s
 
   (* Get depth from previous chunk by index *)
   let get_depth_prev state i =
@@ -635,29 +610,6 @@ module PrevRun = struct
     with Invalid_argument _ ->
       Printf.eprintf "get_depth_curr: index %d out of bounds\n" j;
       assert false
-
-  let dump_edits state edits =
-    meta_debug state "Optimal edit sequence (%d edits):\n" (List.length edits);
-    List.iteri
-      (fun i edit ->
-        match edit.edit_type with
-        | Delete | Insert -> ()
-        | _ ->
-            let edit_type_str = string_of_edit_type edit.edit_type in
-            let curr_msg =
-              if edit.curr_index < Dynarray.length state.curr_chunk then
-                let msg = (Dynarray.get state.curr_chunk edit.curr_index).message in
-                Printf.sprintf "%d/%s" (get_depth_curr state edit.curr_index) msg
-              else "<out-of-bounds>"
-            in
-            meta_debug state "  %d: %s at pos %d (%s)\n" i edit_type_str edit.curr_index
-              curr_msg)
-      edits
-
-  let dump_exploration_band state j center_row min_i max_i =
-    meta_debug state "Column %d: Exploring rows %d to %d (center: %d, band_size: %d)\n" j
-      min_i max_i center_row
-      (max_i - min_i + 1)
 
   let save_chunk oc messages =
     let chunk = { messages_with_depth = Array.of_seq (Dynarray.to_seq messages) } in
@@ -690,8 +642,6 @@ module PrevRun = struct
       normalized_msgs = Hashtbl.create 0;
       min_cost_rows = Hashtbl.create 0;
       max_distance_factor = 200;
-      meta_debug_oc = None;
-      meta_debug_queue = Queue.create ();
       depth_threshold = 1;
       entry_id_pairs = [];
       entry_id_to_pos = Hashtbl.create 0;
@@ -719,13 +669,6 @@ module PrevRun = struct
     let prev_ic = Option.map open_in_bin prev_file in
     let prev_chunk = Option.bind prev_ic load_next_chunk in
     let curr_oc = open_out_bin (curr_file ^ ".raw") in
-    let meta_debug_oc =
-      (* if Option.is_some prev_file then ( *)
-      let oc = open_out (curr_file ^ ".meta-debug.log") in
-      Gc.finalise (fun _ -> close_out oc) oc;
-      Some oc
-      (* ) else None *)
-    in
     Gc.finalise (fun _ -> close_out curr_oc) curr_oc;
     (* entry_id_to_pos and reverse_forced_matches are initialized in
        populate_entry_id_to_pos *)
@@ -746,8 +689,6 @@ module PrevRun = struct
         normalized_msgs = Hashtbl.create 1000;
         min_cost_rows = Hashtbl.create 1000;
         max_distance_factor;
-        meta_debug_oc;
-        meta_debug_queue = Queue.create ();
         depth_threshold;
         entry_id_pairs;
         entry_id_to_pos = Hashtbl.create 100;
@@ -811,17 +752,9 @@ module PrevRun = struct
       (* For valid indices, try to find the value in the table *)
       try Hashtbl.find state.dp_table (i, j) with Not_found -> (max_int, -1, -1)
 
-  let set_dp_value state ~i ~j ((v, prev_i, prev_j) as prev) =
-    if v = max_int then
-      meta_debug state "set_dp_value: max_int at (%d,%d) with prev %d,%d\n" i j prev_i
-        prev_j;
+  let set_dp_value state ~i ~j ((v, _prev_i, _prev_j) as prev) =
     assert (i >= 0 && j >= 0);
     assert (v >= 0);
-    (if prev_i > -1 && prev_j > -1 then
-       let cost, p_i, p_j = get_dp_value state ~i:prev_i ~j:prev_j in
-       if cost = max_int then
-         meta_debug state "set_dp_value: max_int at prev %d,%d from (%d,%d)\n" prev_i
-           prev_j p_i p_j);
     Hashtbl.replace state.dp_table (i, j) prev
 
   (* Being careful about overflow *)
@@ -832,7 +765,7 @@ module PrevRun = struct
     else if a > max_int - b then max_int
     else a + b
 
-  let compute_dp_cell state ~meta_log i j =
+  let compute_dp_cell state i j =
     let normalized_prev = get_normalized_prev state i in
     let normalized_curr = get_normalized_curr state j in
 
@@ -871,12 +804,7 @@ module PrevRun = struct
           if c' <= mc then (c', i', j') else (mc, pi, pj))
         (max_int, -1, -1) costs
     in
-    if min_cost < max_int then (
-      if meta_log then
-        meta_debug state
-          "DP(%d,%d) = %d from (%d,%d) [prev/%d vs curr/%d]\nprev=%s\ncurr=%s\n\n" i j
-          min_cost prev_i prev_j prev_depth curr_depth normalized_prev normalized_curr;
-      set_dp_value state ~i ~j (min_cost, prev_i, prev_j));
+    if min_cost < max_int then set_dp_value state ~i ~j (min_cost, prev_i, prev_j);
     min_cost
 
   (* Modified backtracking in update_optimal_edits to handle skipped cells *)
@@ -927,31 +855,12 @@ module PrevRun = struct
     in
 
     let edits = backtrack row col [] in
-    state.optimal_edits <- edits;
-
-    (* Remaining logic for checking and logging edits *)
-    let has_non_matches =
-      let curr_len = Dynarray.length state.curr_chunk in
-      let matches = Array.make curr_len false in
-      List.iter
-        (fun edit -> if edit.edit_type = Match then matches.(edit.curr_index) <- true)
-        edits;
-      Array.exists not matches
-    in
-    if has_non_matches then (
-      dump_edits state edits;
-      flush_meta_debug_queue state)
-    else Queue.clear state.meta_debug_queue
+    state.optimal_edits <- edits
 
   let compute_dp_upto state col =
     (* Compute new cells with adaptive pruning - transposed for column-first iteration *)
     for j = state.last_computed_col + 1 to col do
       let curr = Dynarray.get state.curr_chunk j in
-      Option.iter
-        (fun curr_id ->
-          meta_debug state "pos %d entry_id=%d\n" j curr_id;
-          flush_meta_debug_queue state)
-        curr.entry_id;
       let forced_entry_id, forced_pos =
         match state.reverse_forced_matches with
         | (curr_id, forced_pos) :: _ -> (curr_id, forced_pos)
@@ -959,10 +868,7 @@ module PrevRun = struct
       in
       match curr.entry_id with
       | Some curr_id when curr_id = forced_entry_id ->
-          meta_debug state "curr_id %d\n" curr_id;
           let center_row = forced_pos in
-          meta_debug state "Using forced match cost %d at (%d,%d)\n" 0 center_row j;
-          flush_meta_debug_queue state;
           state.reverse_forced_matches <- List.tl state.reverse_forced_matches;
           set_dp_value state ~i:center_row ~j (0, center_row - 1, j - 1);
           Hashtbl.replace state.min_cost_rows j center_row
@@ -1022,27 +928,16 @@ module PrevRun = struct
           (* Track best result *)
           let min_cost_for_col = ref max_int in
           let min_cost_row = ref center_row in
-          let curr_depth = get_depth_curr state j in
 
           for i = !min_i to !max_i do
-            let should_log = i = !min_i || i = center_row || i = j || i = !max_i in
-
             (* Cell is valid for computation *)
-            let cost = compute_dp_cell state ~meta_log:should_log i j in
+            let cost = compute_dp_cell state i j in
 
             (* Update minimum cost if better *)
             if cost < !min_cost_for_col then (
               min_cost_for_col := cost;
               min_cost_row := i)
           done;
-
-          (* Log exploration band *)
-          dump_exploration_band state j center_row !min_i !max_i;
-
-          (* Log the result for this column *)
-          let prev_depth = get_depth_prev state !min_cost_row in
-          meta_debug state "Column %d (curr/%d): Minimum cost %d at row %d (prev/%d)\n" j
-            curr_depth !min_cost_for_col !min_cost_row prev_depth;
 
           (* Store the row with minimum cost for this column *)
           Hashtbl.replace state.min_cost_rows j !min_cost_row
@@ -1068,24 +963,18 @@ module PrevRun = struct
     try
       (* Track entry_id to position mapping for the current run *)
       (match entry_id with
-      | Some eid ->
-          Hashtbl.add state.curr_entry_id_to_pos eid msg_idx;
-          meta_debug state "Added curr entry_id mapping: %d -> %d\n" eid msg_idx;
-          flush_meta_debug_queue state
+      | Some eid -> Hashtbl.add state.curr_entry_id_to_pos eid msg_idx
       | None -> ());
 
-      let normalized_msg = normalize_message state message in
+      let _normalized_msg = normalize_message state message in
       Dynarray.add_last state.curr_chunk res;
-      meta_debug state "Processing msg/%d entry_id=%s at index %d\nmsg=%s\n" depth
-        (match res.entry_id with Some id -> Printf.sprintf "#%d" id | None -> "none")
-        msg_idx normalized_msg;
       if Option.is_some state.prev_ic && Option.is_some state.prev_chunk then
         compute_dp_upto state msg_idx;
       res
-    with e ->
-      meta_debug state "Error in get_diffable: %s\n%s\n" (Printexc.to_string e)
+    with exn ->
+      Printf.eprintf "Error in get_diffable: %s\n%s\n%!"
+        (Printexc.to_string exn)
         (Printexc.get_backtrace ());
-      flush_meta_debug_queue state;
       res
 
   let check_diff state diffable =
@@ -1171,10 +1060,10 @@ module PrevRun = struct
                     else Printf.sprintf "Inserted in current run"
               in
               Some edit_type
-    with e ->
-      meta_debug state "Error in check_diff: %s\n%s\n" (Printexc.to_string e)
+    with exn ->
+      Printf.eprintf "Error in check_diff: %s\n%s\n%!"
+        (Printexc.to_string exn)
         (Printexc.get_backtrace ());
-      flush_meta_debug_queue state;
       fun () -> None
 
   let signal_chunk_end state =
