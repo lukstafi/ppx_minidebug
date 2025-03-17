@@ -148,7 +148,8 @@ module type Debug_runtime = sig
 
   val finish_and_cleanup : unit -> unit
   (** Snapshots any pending logs and closes any open files. This should be called at the
-      end of the program to ensure all logs are properly flushed and files are closed. *)
+      end of the program to ensure all logs are properly flushed and files are closed.
+      Do not call this function if there is a chance that the backend will be used again. *)
 
   val description : string
   (** A description that should be sufficient to locate where the logs end up. If not

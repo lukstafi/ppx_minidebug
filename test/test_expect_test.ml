@@ -4723,3 +4723,219 @@ let%expect_test "%debug_show comparing differences with normalized patterns" =
     │ └─processed = "[2024-03-22 15:30:45] Processing: hello"
     └─process_message = 39
     |}]
+
+let%expect_test "%logify comparing differences with entry_id_pairs" =
+  let prev_run = "test_expect_test_entry_id_pairs_prev" in
+  let curr_run = "test_expect_test_entry_id_pairs_curr" in
+
+  (* First run - create baseline with several entries *)
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug_file ~values_first_mode:false ~print_entry_ids:true
+           ~backend:`Text prev_run)
+  in
+  let%debug_show _run1 : unit =
+    let logify logs =
+      [%log_block
+        "logs";
+        let rec loop logs =
+          match logs with
+          | "start" :: header :: tl ->
+              let more =
+                [%log_entry
+                  header;
+                  loop tl]
+              in
+              loop more
+          | "end" :: tl -> tl
+          | msg :: tl ->
+              [%log msg];
+              loop tl
+          | [] -> []
+        in
+        ignore (loop logs)]
+    in
+
+    (* First run with specific entries *)
+    logify
+      [
+        "start";
+        "Entry one";
+        "This is the first entry";
+        "end";
+        "start";
+        "Entry two";
+        "This is the second entry";
+        "end";
+        "start";
+        "Entry three";
+        "This is the third entry";
+        "Some more content";
+        "end";
+        "start";
+        "Entry four";
+        "This is the fourth entry";
+        "end";
+        "start";
+        "Entry five";
+        "This is the fifth entry";
+        "end";
+        "start";
+        "Entry six";
+        "This is the sixth entry";
+        "end";
+        "start";
+        "Final content";
+        "end";
+      ]
+  in
+  Debug_runtime.finish_and_cleanup ();
+
+  (* Second run with different structure *)
+  let module Debug_runtime =
+    (val Minidebug_runtime.debug_file ~values_first_mode:false ~print_entry_ids:true
+           ~backend:`Text ~prev_run_file:(prev_run ^ ".raw")
+           ~entry_id_pairs:[ (2, 4); (8, 6) ]
+             (* Force mappings: - Entry 1 (early prev) to Entry 4 (middle curr) - Entry 6
+                (late prev) to Entry 13 (shorter curr) *)
+           curr_run)
+  in
+  (* Second run with different structure to test diffing *)
+  let%debug_show _run2 : unit =
+    let logify logs =
+      [%log_block
+        "logs";
+        let rec loop logs =
+          match logs with
+          | "start" :: header :: tl ->
+              let more =
+                [%log_entry
+                  header;
+                  loop tl]
+              in
+              loop more
+          | "end" :: tl -> tl
+          | msg :: tl ->
+              [%log msg];
+              loop tl
+          | [] -> []
+        in
+        ignore (loop logs)]
+    in
+    logify
+      [
+        "start";
+        "New first";
+        "This is a new first entry";
+        "end";
+        "start";
+        "New second";
+        "This is a new second entry";
+        "end";
+        "start";
+        "Entry one";
+        "This is the first entry";
+        "With some modifications";
+        "end";
+        "start";
+        "New third";
+        "Another new entry";
+        "end";
+        "start";
+        "Entry four";
+        "This is the fourth entry";
+        "end";
+        "start";
+        "Final content";
+        "end";
+      ]
+  in
+  Debug_runtime.finish_and_cleanup ();
+
+  (* Print the outputs to show the diff results *)
+  let print_log filename =
+    let log_file = open_in (filename ^ ".log") in
+    try
+      while true do
+        print_endline (input_line log_file)
+      done
+    with End_of_file -> close_in log_file
+  in
+
+  print_endline "=== Previous Run ===";
+  print_log prev_run;
+  print_endline "\n=== Current Run with Diff ===";
+  print_log curr_run;
+
+  [%expect {|
+    === Previous Run ===
+
+    BEGIN DEBUG SESSION
+    "test/test_expect_test.ml":4736:17: _run1 {#1}
+    ├─logs {#2}
+    │ ├─Entry one {#3}
+    │ │ └─"This is the first entry"
+    │ ├─Entry two {#4}
+    │ │ └─"This is the second entry"
+    │ ├─Entry three {#5}
+    │ │ ├─"This is the third entry"
+    │ │ └─"Some more content"
+    │ ├─Entry four {#6}
+    │ │ └─"This is the fourth entry"
+    │ ├─Entry five {#7}
+    │ │ └─"This is the fifth entry"
+    │ ├─Entry six {#8}
+    │ │ └─"This is the sixth entry"
+    │ └─Final content {#9}
+    └─_run1 = ()
+
+    END DEBUG SESSION
+
+    === Current Run with Diff ===
+
+    BEGIN DEBUG SESSION
+    ┌─────────────────────────────────────────┐┌─┐┌────┐Inserted in current run
+    │"test/test_expect_test.ml":4803:17: _run2││ ││{#1}│
+    ├─────────────────────────────────────────┘└─┘└────┘
+    ├─┬────┐┌─┐┌────┐Inserted in current run
+    │ │logs││ ││{#2}│
+    │ ├────┘└─┘└────┘
+    │ ├─┬─────────┐┌─┐┌────┐Inserted in current run
+    │ │ │New first││ ││{#3}│
+    │ │ ├─────────┘└─┘└────┘
+    │ │ └─┬───────────────────────────┐Changed from: _run1
+    │ │   │"This is a new first entry"│
+    │ │   └───────────────────────────┘
+    │ ├─┬──────────┐┌─┐┌────┐Changed from: logs
+    │ │ │New second││ ││{#4}│
+    │ │ ├──────────┘└─┘└────┘
+    │ │ └─┬────────────────────────────┐Changed from: Entry one
+    │ │   │"This is a new second entry"│
+    │ │   └────────────────────────────┘
+    │ ├─┬─────────┐┌─┐┌────┐Changed from: Entry four
+    │ │ │Entry one││ ││{#5}│
+    │ │ ├─────────┘└─┘└────┘
+    │ │ ├─┬─────────────────────────┐Changed from: "This is the fourth entry"
+    │ │ │ │"This is the first entry"│
+    │ │ │ └─────────────────────────┘
+    │ │ └─┬─────────────────────────┐Changed from: "This is the fifth entry"
+    │ │   │"With some modifications"│
+    │ │   └─────────────────────────┘
+    │ ├─┬─────────┐┌─┐┌────┐Changed from: Entry six
+    │ │ │New third││ ││{#6}│
+    │ │ ├─────────┘└─┘└────┘
+    │ │ └─┬───────────────────┐Inserted in current run
+    │ │   │"Another new entry"│
+    │ │   └───────────────────┘
+    │ ├─┬──────────┐┌─┐┌────┐Inserted in current run
+    │ │ │Entry four││ ││{#7}│
+    │ │ ├──────────┘└─┘└────┘
+    │ │ └─┬──────────────────────────┐Changed from: "This is the sixth entry"
+    │ │   │"This is the fourth entry"│
+    │ │   └──────────────────────────┘
+    │ └─Final content {#8}
+    └─┬──────────┐Changed from: _run1 = ()
+      │_run2 = ()│
+      └──────────┘
+
+    END DEBUG SESSION
+    |}]

@@ -624,11 +624,19 @@ module PrevRun = struct
 
   (* Get depth from previous chunk by index *)
   let get_depth_prev state i =
-    if i < 0 then -1 else (Option.get state.prev_chunk).messages_with_depth.(i).depth
+    try
+      if i < 0 then -1 else (Option.get state.prev_chunk).messages_with_depth.(i).depth
+    with Invalid_argument _ ->
+      Printf.eprintf "get_depth_prev: index %d out of bounds\n" i;
+      assert false
 
   (* Get depth from current chunk by index *)
   let get_depth_curr state j =
-    if j < 0 then -1 else (Dynarray.get state.curr_chunk j).depth
+    try
+      if j < 0 then -1 else (Dynarray.get state.curr_chunk j).depth
+    with Invalid_argument _ ->
+      Printf.eprintf "get_depth_curr: index %d out of bounds\n" j;
+      assert false
 
   let dump_edits state edits =
     meta_debug state "Optimal edit sequence (%d edits):\n" (List.length edits);
@@ -764,18 +772,29 @@ module PrevRun = struct
 
   (* Get normalized message from previous chunk by index *)
   let get_normalized_prev state i =
-    normalize_message state (Option.get state.prev_chunk).messages_with_depth.(i).message
+    try
+      normalize_message state (Option.get state.prev_chunk).messages_with_depth.(i).message
+    with Invalid_argument _ ->
+      Printf.eprintf "get_normalized_prev: index %d out of bounds\n" i;
+      assert false
 
   (* Get original message from previous chunk by index with its ID *)
   let get_prev_msg state i =
     let chunk = Option.get state.prev_chunk in
-    chunk.messages_with_depth.(i).message
+    try chunk.messages_with_depth.(i).message
+    with Invalid_argument _ ->
+      Printf.eprintf "get_prev_msg: index %d out of bounds\n" i;
+      assert false
 
   (* Get normalized message from current chunk by index *)
   let get_normalized_curr state j =
-    let msg_with_depth = Dynarray.get state.curr_chunk j in
-    let normalized = normalize_message state msg_with_depth.message in
-    normalized
+    try
+      let msg_with_depth = Dynarray.get state.curr_chunk j in
+      let normalized = normalize_message state msg_with_depth.message in
+      normalized
+    with Invalid_argument _ ->
+      Printf.eprintf "get_normalized_curr: index %d out of bounds\n" j;
+      assert false
 
   (* Get a value from the dp_table, handling edge cases *)
   let get_dp_value state ~i ~j =
@@ -994,7 +1013,7 @@ module PrevRun = struct
           (* Due to assymetry in insertions and deletions -- deletions are the default
              fallback -- we incorporate forcing to push min_i up, but not max_i down *)
           if forced_entry_id <> -2 then
-            min_i := min !min_i (forced_pos - state.max_distance_factor);
+            min_i := max 0 (min !min_i (forced_pos - state.max_distance_factor));
 
           (* Track best result *)
           let min_cost_for_col = ref max_int in
@@ -1090,8 +1109,7 @@ module PrevRun = struct
                         match edit.edit_type with
                         | Change prev_msg ->
                             Some
-                              (Printf.sprintf "Changed from: %s"
-                              @@ normalize_message state prev_msg)
+                              (Printf.sprintf "Changed from: %s" prev_msg)
                         | _ -> None
                       else None)
                     state.optimal_edits

@@ -426,3 +426,11 @@
  (alias runtest)
  (action
   (diff debugger_large_diffs_run3.expected.log debugger_large_diffs_run3.log)))
+
+(executable
+ (name debug_diffs_align)
+ (modules debug_diffs_align)
+ (libraries minidebug_runtime)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_deriving.show)))
