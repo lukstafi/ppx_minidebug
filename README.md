@@ -969,7 +969,6 @@ let () =
 
 Inlined example output, using the Markdown backend for PrintBox. Note that the elapsed time is wallclock time (see [`mtime`](https://erratique.ch/software/mtime)) and is due to fluctuate because of e.g. garbage collection or external system events.
 
-BEGIN DEBUG SESSION
 <details><summary><code>loop = 58435</code> &nbsp;  &lt;16850.93μs&gt;</summary>
 
 - ["test/test_debug_time_spans.ml":9:26-15:60](./test/test_debug_time_spans.ml#L9)

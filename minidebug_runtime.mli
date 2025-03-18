@@ -148,8 +148,8 @@ module type Debug_runtime = sig
 
   val finish_and_cleanup : unit -> unit
   (** Snapshots any pending logs and closes any open files. This should be called at the
-      end of the program to ensure all logs are properly flushed and files are closed.
-      Do not call this function if there is a chance that the backend will be used again. *)
+      end of the program to ensure all logs are properly flushed and files are closed. Do
+      not call this function if there is a chance that the backend will be used again. *)
 
   val description : string
   (** A description that should be sufficient to locate where the logs end up. If not
@@ -315,10 +315,10 @@ val debug_file :
     edit distances between runs - higher values may find more matches but will be slower.
 
     If [entry_id_pairs] is provided, the diffing algorithm will force matches between
-    specific entry IDs from the previous run and the current run. Each pair [(prev_id,
-    curr_id)] indicates that entry [prev_id] from the previous run should be matched with
-    entry [curr_id] from the current run. This is useful for ensuring specific debug
-    entries are compared even if their positions change significantly.
+    specific entry IDs from the previous run and the current run. Each pair
+    [(prev_id, curr_id)] indicates that entry [prev_id] from the previous run should be
+    matched with entry [curr_id] from the current run. This is useful for ensuring
+    specific debug entries are compared even if their positions change significantly.
 
     By default [backend] is [`Markdown PrintBox.default_md_config]. See
     {!type:PrintBox.config} for details about PrintBox-specific parameters. See

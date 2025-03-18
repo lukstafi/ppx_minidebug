@@ -22,28 +22,6 @@
   re
   sexplib0))
 
-(rule
- (target index.mld)
- (deps README.md)
- (alias doc)
- (mode
-  (promote (until-clean)))
- (action
-  (with-stdout-to
-   %{target}
-   (run md2mld %{deps}))))
-
 (documentation
  (package ppx_minidebug)
  (mld_files index))
-
-(rule
- (alias upload-doc)
- (deps
-  (alias doc))
- (action
-  (progn
-   (run cp -rf _doc/_html ../../docs/)
-   (run git add -A ../../docs)
-   (run git commit ../../docs -m "Update generated API docs")
-   (run git push origin main))))

@@ -108,13 +108,13 @@ let () =
 ]}
 
 Here we also convert the logged [sexp] values (with at least 50 atoms) to trees. Example result:
-{%html: <img src="docs/ppx_minidebug-foldable_trees.png" alt="PrintBox runtime with collapsible/foldable trees"/>%}
+{{image!docs/ppx_minidebug-foldable_trees.png%}PrintBox runtime with collapsible/foldable trees}
 
 {2 Highlighting search terms}
 
 The [PrintBox] runtime also supports highlighting paths to logs that match a [highlight_terms]
 regular expression. For example:
-{%html: <img src="docs/ppx_minidebug-highlight_term_169.png" alt="PrintBox runtime with collapsible/foldable trees"/>%}
+{image!docs/ppx_minidebug-highlight_term_169.png}PrintBox runtime with collapsible/foldable trees}
 
 To limit the highlight noise, some log entries can be excluded from propagating the highlight status
 using the [exclude_on_path] setting. To trim excessive logging while still providing some context,
@@ -230,10 +230,10 @@ BEGIN DEBUG SESSION
 ]}
 
 When logging uses sexps and boxification, and the result is decomposed into a subtree, only the header of the result subtree is put in the header line, and the rest of the result subtree is just underneath it with a [<returns>] or a [<values>] header. Example showcasing the [printbox-html] backend:
-{%html: <img src="docs/ppx_minidebug-html-hyperlink.png" alt="PrintBox HTML backend -- follow hyperlink"/>%}
+{{image!docs/ppx_minidebug-html-hyperlink.png}PrintBox HTML backend -- follow hyperlink}
 
 Example showcasing the [printbox-md] (Markdown) backend:
-{%html: <img src="docs/ppx_minidebug-md-hyperlink.png" alt="PrintBox Markdown backend -- follow hyperlink"/>%}
+{{image!docs/ppx_minidebug-md-hyperlink.png}PrintBox Markdown backend -- follow hyperlink}
 
 {1 Usage}
 
@@ -944,19 +944,19 @@ There are a few ways [ppx_minidebug] is helpful with large logs. You can:
 
 The {e table of contents} generation is enabled via [~with_toc_listing:true] or [~toc_flame_graph:true] or both (for file-based runtimes -- via [table_of_contents_ch] for channel-based runtimes). This will create an additional file (name ending in [-toc]), mirroring the main logs in a summarized way. Selected log headers are output there preserving the tree structure, and for [~with_toc_listing:true] they look the same as in the main file except there is no folding. The headers are hyperlinks pointing to the main log file (or files, if file splitting is enabled). For [~toc_flame_graph:true], the entries are put in boxes, like in the depicted example from the test suite. Presenting two configurations here:
 
-{%html: <img src="docs/flame_graph_paths_no_time.png" alt="Flame graph with paths, no time tags"/>%}
-{%html: <img src="docs/flame_graph_values_first_elapsed.png" alt="Flame graph with values first mode, elapsed times"/>%}
+{{image!docs/flame_graph_paths_no_time.png}Flame graph with paths, no time tags}
+{{image!docs/flame_graph_values_first_elapsed.png}Flame graph with values first mode, elapsed times}
 
 Note: if your flame graph trees run into each other, try setting [~flame_graph_separation:50] or higher.
 
 If you collaborate with someone or take notes, you can pass [~print_entry_ids:true]. In HTML and Markdown, this will output links to the anchors of the corresponding log entries. You can share them to point to specific log file locations.
 
-Example demonstrating foldable trees in Markdown:
+Example demonstrating foldable trees in HTML:
 
 {@ocaml[
 module Debug_runtime =
   (val Minidebug_runtime.debug_file ~elapsed_times:Microseconds ~hyperlink:"./"
-         ~backend:(`Markdown Minidebug_runtime.default_md_config)
+         ~backend:(`Html Minidebug_runtime.default_html_config)
          ~truncate_children:4 "debugger_sexp_time_spans")
 
 let sexp_of_int i = Sexplib0.Sexp.Atom (string_of_int i)
@@ -973,388 +973,11 @@ let () =
   print_endline @@ Int.to_string @@ loop 3
 ]}
 
-Inlined example output, using the Markdown backend for PrintBox. Note that the elapsed time is wallclock time (see {{: https://erratique.ch/software/mtime} [mtime]}) and is due to fluctuate because of e.g. garbage collection or external system events.
+Inlined example output, using the HTML backend for PrintBox. Note that the elapsed time is wallclock time (see {{: https://erratique.ch/software/mtime} [mtime]}) and is due to fluctuate because of e.g. garbage collection or external system events.
 
-BEGIN DEBUG SESSION
-<details><summary><code>loop = 58435</code> &nbsp;  &lt;16850.93μs&gt;</summary>
-{ul {- 
-
-{{: ./test/test_debug_time_spans.ml#L9} "test/test_debug_time_spans.ml":9:26-15:60}
-}{- 
-
-<earlier entries truncated>
-}{- 
-<details><summary><code>z = 4</code> &nbsp;  &lt;0.50μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>loop = 11685</code> &nbsp;  &lt;3111.59μs&gt;</summary>
-{ul {- 
-
-{{: ./test/test_debug_time_spans.ml#L9} "test/test_debug_time_spans.ml":9:26-15:60}
-}{- 
-
-<earlier entries truncated>
-}{- 
-<details><summary><code>z = 4</code> &nbsp;  &lt;0.48μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>loop = 1945</code> &nbsp;  &lt;494.56μs&gt;</summary>
-{ul {- 
-
-{{: ./test/test_debug_time_spans.ml#L9} "test/test_debug_time_spans.ml":9:26-15:60}
-}{- 
-
-<earlier entries truncated>
-}{- 
-<details><summary><code>z = 8</code> &nbsp;  &lt;0.48μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>loop = 190</code> &nbsp;  &lt;41.60μs&gt;</summary>
-{ul {- 
-
-{{: ./test/test_debug_time_spans.ml#L9} "test/test_debug_time_spans.ml":9:26-15:60}
-}{- 
-
-<earlier entries truncated>
-}{- 
-<details><summary><code>z = 16</code> &nbsp;  &lt;0.41μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 17</code> &nbsp;  &lt;0.42μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 18</code> &nbsp;  &lt;0.45μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 19</code> &nbsp;  &lt;0.45μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}}
-</details>
-}{- 
-<details><summary><code>z = 9</code> &nbsp;  &lt;0.49μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>loop = 190</code> &nbsp;  &lt;41.54μs&gt;</summary>
-{ul {- 
-
-{{: ./test/test_debug_time_spans.ml#L9} "test/test_debug_time_spans.ml":9:26-15:60}
-}{- 
-
-<earlier entries truncated>
-}{- 
-<details><summary><code>z = 16</code> &nbsp;  &lt;0.42μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 17</code> &nbsp;  &lt;0.45μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 18</code> &nbsp;  &lt;0.41μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 19</code> &nbsp;  &lt;0.45μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}}
-</details>
-}}
-</details>
-}{- 
-<details><summary><code>z = 5</code> &nbsp;  &lt;0.45μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>loop = 1945</code> &nbsp;  &lt;524.86μs&gt;</summary>
-{ul {- 
-
-{{: ./test/test_debug_time_spans.ml#L9} "test/test_debug_time_spans.ml":9:26-15:60}
-}{- 
-
-<earlier entries truncated>
-}{- 
-<details><summary><code>z = 8</code> &nbsp;  &lt;0.46μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>loop = 190</code> &nbsp;  &lt;42.11μs&gt;</summary>
-{ul {- 
-
-{{: ./test/test_debug_time_spans.ml#L9} "test/test_debug_time_spans.ml":9:26-15:60}
-}{- 
-
-<earlier entries truncated>
-}{- 
-<details><summary><code>z = 16</code> &nbsp;  &lt;0.45μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 17</code> &nbsp;  &lt;0.45μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 18</code> &nbsp;  &lt;0.45μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 19</code> &nbsp;  &lt;0.42μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}}
-</details>
-}{- 
-<details><summary><code>z = 9</code> &nbsp;  &lt;0.47μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>loop = 190</code> &nbsp;  &lt;42.85μs&gt;</summary>
-{ul {- 
-
-{{: ./test/test_debug_time_spans.ml#L9} "test/test_debug_time_spans.ml":9:26-15:60}
-}{- 
-
-<earlier entries truncated>
-}{- 
-<details><summary><code>z = 16</code> &nbsp;  &lt;0.43μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 17</code> &nbsp;  &lt;0.43μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 18</code> &nbsp;  &lt;0.45μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 19</code> &nbsp;  &lt;0.42μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}}
-</details>
-}}
-</details>
-}}
-</details>
-}{- 
-<details><summary><code>z = 5</code> &nbsp;  &lt;0.44μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>loop = 11685</code> &nbsp;  &lt;3166.55μs&gt;</summary>
-{ul {- 
-
-{{: ./test/test_debug_time_spans.ml#L9} "test/test_debug_time_spans.ml":9:26-15:60}
-}{- 
-
-<earlier entries truncated>
-}{- 
-<details><summary><code>z = 4</code> &nbsp;  &lt;0.49μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>loop = 1945</code> &nbsp;  &lt;499.49μs&gt;</summary>
-{ul {- 
-
-{{: ./test/test_debug_time_spans.ml#L9} "test/test_debug_time_spans.ml":9:26-15:60}
-}{- 
-
-<earlier entries truncated>
-}{- 
-<details><summary><code>z = 8</code> &nbsp;  &lt;0.50μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>loop = 190</code> &nbsp;  &lt;41.51μs&gt;</summary>
-{ul {- 
-
-{{: ./test/test_debug_time_spans.ml#L9} "test/test_debug_time_spans.ml":9:26-15:60}
-}{- 
-
-<earlier entries truncated>
-}{- 
-<details><summary><code>z = 16</code> &nbsp;  &lt;0.42μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 17</code> &nbsp;  &lt;0.46μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 18</code> &nbsp;  &lt;0.42μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 19</code> &nbsp;  &lt;0.42μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}}
-</details>
-}{- 
-<details><summary><code>z = 9</code> &nbsp;  &lt;0.49μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>loop = 190</code> &nbsp;  &lt;41.39μs&gt;</summary>
-{ul {- 
-
-{{: ./test/test_debug_time_spans.ml#L9} "test/test_debug_time_spans.ml":9:26-15:60}
-}{- 
-
-<earlier entries truncated>
-}{- 
-<details><summary><code>z = 16</code> &nbsp;  &lt;0.41μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 17</code> &nbsp;  &lt;0.41μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 18</code> &nbsp;  &lt;0.45μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 19</code> &nbsp;  &lt;0.46μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}}
-</details>
-}}
-</details>
-}{- 
-<details><summary><code>z = 5</code> &nbsp;  &lt;0.45μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>loop = 1945</code> &nbsp;  &lt;642.73μs&gt;</summary>
-{ul {- 
-
-{{: ./test/test_debug_time_spans.ml#L9} "test/test_debug_time_spans.ml":9:26-15:60}
-}{- 
-
-<earlier entries truncated>
-}{- 
-<details><summary><code>z = 8</code> &nbsp;  &lt;0.47μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>loop = 190</code> &nbsp;  &lt;210.44μs&gt;</summary>
-{ul {- 
-
-{{: ./test/test_debug_time_spans.ml#L9} "test/test_debug_time_spans.ml":9:26-15:60}
-}{- 
-
-<earlier entries truncated>
-}{- 
-<details><summary><code>z = 16</code> &nbsp;  &lt;167.41μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 17</code> &nbsp;  &lt;0.53μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 18</code> &nbsp;  &lt;0.43μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 19</code> &nbsp;  &lt;0.43μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}}
-</details>
-}{- 
-<details><summary><code>z = 9</code> &nbsp;  &lt;0.50μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>loop = 190</code> &nbsp;  &lt;42.02μs&gt;</summary>
-{ul {- 
-
-{{: ./test/test_debug_time_spans.ml#L9} "test/test_debug_time_spans.ml":9:26-15:60}
-}{- 
-
-<earlier entries truncated>
-}{- 
-<details><summary><code>z = 16</code> &nbsp;  &lt;0.43μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 17</code> &nbsp;  &lt;0.46μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 18</code> &nbsp;  &lt;0.42μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}{- 
-<details><summary><code>z = 19</code> &nbsp;  &lt;0.42μs&gt;</summary>
-{ul {- {{: ./test/test_debug_time_spans.ml#L14} "test/test_debug_time_spans.ml":14:15}
-}}
-</details>
-}}
-</details>
-}}
-</details>
-}}
-</details>
-}}
-</details>
+{%html:
+<div><details><summary><span><span><span><a id="1"></a></span>&nbsp;<span><span style="font-family: monospace">loop = 58435</span></span>&nbsp;<span><span> &lt;21456.80μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L9"><div>&quot;test/test_debug_time_spans.ml&quot;:9:26</div></a></div></li><li><div>&lt;earlier entries truncated&gt;</div></li><li><details><summary><span><span><span><a id="4004"></a></span>&nbsp;<span><span style="font-family: monospace">z = 4</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="4005"></a></span>&nbsp;<span><span style="font-family: monospace">loop = 11685</span></span>&nbsp;<span><span> &lt;3975.20μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L9"><div>&quot;test/test_debug_time_spans.ml&quot;:9:26</div></a></div></li><li><div>&lt;earlier entries truncated&gt;</div></li><li><details><summary><span><span><span><a id="4894"></a></span>&nbsp;<span><span style="font-family: monospace">z = 4</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="4895"></a></span>&nbsp;<span><span style="font-family: monospace">loop = 1945</span></span>&nbsp;<span><span> &lt;660.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L9"><div>&quot;test/test_debug_time_spans.ml&quot;:9:26</div></a></div></li><li><div>&lt;earlier entries truncated&gt;</div></li><li><details><summary><span><span><span><a id="5072"></a></span>&nbsp;<span><span style="font-family: monospace">z = 8</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5073"></a></span>&nbsp;<span><span style="font-family: monospace">loop = 190</span></span>&nbsp;<span><span> &lt;66.20μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L9"><div>&quot;test/test_debug_time_spans.ml&quot;:9:26</div></a></div></li><li><div>&lt;earlier entries truncated&gt;</div></li><li><details><summary><span><span><span><a id="5090"></a></span>&nbsp;<span><span style="font-family: monospace">z = 16</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5091"></a></span>&nbsp;<span><span style="font-family: monospace">z = 17</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5092"></a></span>&nbsp;<span><span style="font-family: monospace">z = 18</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5093"></a></span>&nbsp;<span><span style="font-family: monospace">z = 19</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li></ul></details></li><li><details><summary><span><span><span><a id="5094"></a></span>&nbsp;<span><span style="font-family: monospace">z = 9</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5095"></a></span>&nbsp;<span><span style="font-family: monospace">loop = 190</span></span>&nbsp;<span><span> &lt;47.30μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L9"><div>&quot;test/test_debug_time_spans.ml&quot;:9:26</div></a></div></li><li><div>&lt;earlier entries truncated&gt;</div></li><li><details><summary><span><span><span><a id="5112"></a></span>&nbsp;<span><span style="font-family: monospace">z = 16</span></span>&nbsp;<span><span> &lt;1.10μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5113"></a></span>&nbsp;<span><span style="font-family: monospace">z = 17</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5114"></a></span>&nbsp;<span><span style="font-family: monospace">z = 18</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5115"></a></span>&nbsp;<span><span style="font-family: monospace">z = 19</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li></ul></details></li></ul></details></li><li><details><summary><span><span><span><a id="5116"></a></span>&nbsp;<span><span style="font-family: monospace">z = 5</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5117"></a></span>&nbsp;<span><span style="font-family: monospace">loop = 1945</span></span>&nbsp;<span><span> &lt;665.70μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L9"><div>&quot;test/test_debug_time_spans.ml&quot;:9:26</div></a></div></li><li><div>&lt;earlier entries truncated&gt;</div></li><li><details><summary><span><span><span><a id="5294"></a></span>&nbsp;<span><span style="font-family: monospace">z = 8</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5295"></a></span>&nbsp;<span><span style="font-family: monospace">loop = 190</span></span>&nbsp;<span><span> &lt;47.30μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L9"><div>&quot;test/test_debug_time_spans.ml&quot;:9:26</div></a></div></li><li><div>&lt;earlier entries truncated&gt;</div></li><li><details><summary><span><span><span><a id="5312"></a></span>&nbsp;<span><span style="font-family: monospace">z = 16</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5313"></a></span>&nbsp;<span><span style="font-family: monospace">z = 17</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5314"></a></span>&nbsp;<span><span style="font-family: monospace">z = 18</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5315"></a></span>&nbsp;<span><span style="font-family: monospace">z = 19</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li></ul></details></li><li><details><summary><span><span><span><a id="5316"></a></span>&nbsp;<span><span style="font-family: monospace">z = 9</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5317"></a></span>&nbsp;<span><span style="font-family: monospace">loop = 190</span></span>&nbsp;<span><span> &lt;47.10μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L9"><div>&quot;test/test_debug_time_spans.ml&quot;:9:26</div></a></div></li><li><div>&lt;earlier entries truncated&gt;</div></li><li><details><summary><span><span><span><a id="5334"></a></span>&nbsp;<span><span style="font-family: monospace">z = 16</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5335"></a></span>&nbsp;<span><span style="font-family: monospace">z = 17</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5336"></a></span>&nbsp;<span><span style="font-family: monospace">z = 18</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5337"></a></span>&nbsp;<span><span style="font-family: monospace">z = 19</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li></ul></details></li></ul></details></li></ul></details></li><li><details><summary><span><span><span><a id="5338"></a></span>&nbsp;<span><span style="font-family: monospace">z = 5</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="5339"></a></span>&nbsp;<span><span style="font-family: monospace">loop = 11685</span></span>&nbsp;<span><span> &lt;4131.60μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L9"><div>&quot;test/test_debug_time_spans.ml&quot;:9:26</div></a></div></li><li><div>&lt;earlier entries truncated&gt;</div></li><li><details><summary><span><span><span><a id="6228"></a></span>&nbsp;<span><span style="font-family: monospace">z = 4</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6229"></a></span>&nbsp;<span><span style="font-family: monospace">loop = 1945</span></span>&nbsp;<span><span> &lt;562.70μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L9"><div>&quot;test/test_debug_time_spans.ml&quot;:9:26</div></a></div></li><li><div>&lt;earlier entries truncated&gt;</div></li><li><details><summary><span><span><span><a id="6406"></a></span>&nbsp;<span><span style="font-family: monospace">z = 8</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6407"></a></span>&nbsp;<span><span style="font-family: monospace">loop = 190</span></span>&nbsp;<span><span> &lt;48.50μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L9"><div>&quot;test/test_debug_time_spans.ml&quot;:9:26</div></a></div></li><li><div>&lt;earlier entries truncated&gt;</div></li><li><details><summary><span><span><span><a id="6424"></a></span>&nbsp;<span><span style="font-family: monospace">z = 16</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6425"></a></span>&nbsp;<span><span style="font-family: monospace">z = 17</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6426"></a></span>&nbsp;<span><span style="font-family: monospace">z = 18</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6427"></a></span>&nbsp;<span><span style="font-family: monospace">z = 19</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li></ul></details></li><li><details><summary><span><span><span><a id="6428"></a></span>&nbsp;<span><span style="font-family: monospace">z = 9</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6429"></a></span>&nbsp;<span><span style="font-family: monospace">loop = 190</span></span>&nbsp;<span><span> &lt;48.50μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L9"><div>&quot;test/test_debug_time_spans.ml&quot;:9:26</div></a></div></li><li><div>&lt;earlier entries truncated&gt;</div></li><li><details><summary><span><span><span><a id="6446"></a></span>&nbsp;<span><span style="font-family: monospace">z = 16</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6447"></a></span>&nbsp;<span><span style="font-family: monospace">z = 17</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6448"></a></span>&nbsp;<span><span style="font-family: monospace">z = 18</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6449"></a></span>&nbsp;<span><span style="font-family: monospace">z = 19</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li></ul></details></li></ul></details></li><li><details><summary><span><span><span><a id="6450"></a></span>&nbsp;<span><span style="font-family: monospace">z = 5</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6451"></a></span>&nbsp;<span><span style="font-family: monospace">loop = 1945</span></span>&nbsp;<span><span> &lt;643.40μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L9"><div>&quot;test/test_debug_time_spans.ml&quot;:9:26</div></a></div></li><li><div>&lt;earlier entries truncated&gt;</div></li><li><details><summary><span><span><span><a id="6628"></a></span>&nbsp;<span><span style="font-family: monospace">z = 8</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6629"></a></span>&nbsp;<span><span style="font-family: monospace">loop = 190</span></span>&nbsp;<span><span> &lt;47.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L9"><div>&quot;test/test_debug_time_spans.ml&quot;:9:26</div></a></div></li><li><div>&lt;earlier entries truncated&gt;</div></li><li><details><summary><span><span><span><a id="6646"></a></span>&nbsp;<span><span style="font-family: monospace">z = 16</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6647"></a></span>&nbsp;<span><span style="font-family: monospace">z = 17</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6648"></a></span>&nbsp;<span><span style="font-family: monospace">z = 18</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6649"></a></span>&nbsp;<span><span style="font-family: monospace">z = 19</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li></ul></details></li><li><details><summary><span><span><span><a id="6650"></a></span>&nbsp;<span><span style="font-family: monospace">z = 9</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6651"></a></span>&nbsp;<span><span style="font-family: monospace">loop = 190</span></span>&nbsp;<span><span> &lt;47.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L9"><div>&quot;test/test_debug_time_spans.ml&quot;:9:26</div></a></div></li><li><div>&lt;earlier entries truncated&gt;</div></li><li><details><summary><span><span><span><a id="6668"></a></span>&nbsp;<span><span style="font-family: monospace">z = 16</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6669"></a></span>&nbsp;<span><span style="font-family: monospace">z = 17</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6670"></a></span>&nbsp;<span><span style="font-family: monospace">z = 18</span></span>&nbsp;<span><span> &lt;0.90μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li><li><details><summary><span><span><span><a id="6671"></a></span>&nbsp;<span><span style="font-family: monospace">z = 19</span></span>&nbsp;<span><span> &lt;1.00μs&gt;</span></span></span></span></summary><ul><li><div><a href="./test/test_debug_time_spans.ml#L14"><div>&quot;test/test_debug_time_spans.ml&quot;:14:15</div></a></div></li></ul></details></li></ul></details></li></ul></details></li></ul></details></li></ul></details></div>
+%}
 
 {2 Providing the necessary type information}
 
