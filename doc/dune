@@ -1,0 +1,13 @@
+(documentation
+ (package ppx_minidebug)
+ (mld_files index))
+
+(install
+ (section doc)
+ (files
+  (flame_graph_paths_no_time.png as odoc-pages/flame_graph_paths_no_time.png)
+  ((ppx_minidebug-foldable_trees.png as odoc-pages/ppx_minidebug-foldable_trees.png)
+   (ppx_minidebug-html-hyperlink.png as odoc-pages/ppx_minidebug-html-hyperlink.png)
+   (flame_graph_values_first_elapsed.png as odoc-pages/flame_graph_values_first_elapsed.png)
+   (ppx_minidebug-highlight_term_169.png as odoc-pages/ppx_minidebug-highlight_term_169.png)
+   (ppx_minidebug-md-hyperlink.png as odoc-pages/ppx_minidebug-md-hyperlink.png))))

@@ -21,7 +21,3 @@
   mtime.clock.os
   re
   sexplib0))
-
-(documentation
- (package ppx_minidebug)
- (mld_files index))
