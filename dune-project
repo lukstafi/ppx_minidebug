@@ -47,8 +47,6 @@
    (and
     :with-test
     (>= v0.9.0)))
-  (odoc :with-doc)
-  ; FIXME(#17): continuous integration in opam-repository triggers this dependency.
-  md2mld)
+  (odoc :with-doc))
  (tags
   (logger debugger "printf debugging")))
