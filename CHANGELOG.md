@@ -1,4 +1,4 @@
-## [2.1.0] -- 2025-03-17
+## [2.1.0] -- 2025-03-19
 
 ### Added
 
@@ -8,6 +8,8 @@
 ### Fixed
 
 - Close files when finalizing a runtime.
+- Manual cleanup of the `README.md` -> `index.mld` translation.
+- Automate/standardize documentation deployment.
 
 ## [2.0.3] -- 2025-01-02
 
