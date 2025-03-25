@@ -1,9 +1,9 @@
 let debug_run1 () =
-  let module Debug_runtime =
-    (val Minidebug_runtime.debug_file ~values_first_mode:false ~backend:`Text
+  let _get_local_debug_runtime =
+    Minidebug_runtime.local_runtime ~values_first_mode:false ~backend:`Text
            ~diff_ignore_pattern:
              ((Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|}))
-           "debugger_timestamps_run1")
+           "debugger_timestamps_run1"
   in
   let%debug_show process_message (msg : string) : int =
     let timestamp : string = "[2024-03-21 10:00:00] " in
@@ -13,12 +13,12 @@ let debug_run1 () =
   ignore @@ process_message "hello"
 
 let debug_run2 () =
-  let module Debug_runtime =
-    (val Minidebug_runtime.debug_file ~values_first_mode:false ~backend:`Text
+  let _get_local_debug_runtime =
+    Minidebug_runtime.local_runtime ~values_first_mode:false ~backend:`Text
            ~prev_run_file:"debugger_timestamps_run1.raw"
            ~diff_ignore_pattern:
              ((Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|}))
-           "debugger_timestamps_run2")
+           "debugger_timestamps_run2"
   in
   let%debug_show process_message (msg : string) : int =
     let timestamp : string = "[2024-03-22 15:30:45] " in

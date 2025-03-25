@@ -47,6 +47,8 @@
    (and
     :with-test
     (>= v0.9.0)))
-  (odoc :with-doc))
+  (odoc :with-doc)
+  (thread-local-storage
+   (>= 0.2)))
  (tags
   (logger debugger "printf debugging")))

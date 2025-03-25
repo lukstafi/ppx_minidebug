@@ -3,8 +3,7 @@ let () =
   let curr_run = "test_expect_test_entry_id_pairs_curr" in
 
   (* First run - create baseline with several entries *)
-  let module Debug_runtime =
-    (val Minidebug_runtime.debug_file ~values_first_mode:false ~print_entry_ids:true
+  let _get_local_debug_runtime = ( Minidebug_runtime.local_runtime ~values_first_mode:false ~print_entry_ids:true
            ~backend:`Text prev_run)
   in
   let%debug_show _run1 : unit =
@@ -62,11 +61,10 @@ let () =
         "end";
       ]
   in
-  Debug_runtime.finish_and_cleanup ();
+  (let module D = (val _get_local_debug_runtime ()) in D.finish_and_cleanup ());
 
   (* Second run with different structure *)
-  let module Debug_runtime =
-    (val Minidebug_runtime.debug_file ~values_first_mode:false ~print_entry_ids:true
+  let _get_local_debug_runtime = ( Minidebug_runtime.local_runtime ~values_first_mode:false ~print_entry_ids:true
            ~backend:`Text ~prev_run_file:(prev_run ^ ".raw")
            ~entry_id_pairs:[ (2, 4); (8, 6) ]
              (* Force mappings: - Entry 2 (early prev) to Entry 4 (middle curr) - Entry 8
@@ -123,7 +121,7 @@ let () =
         "end";
       ]
   in
-  Debug_runtime.finish_and_cleanup ();
+  (let module D = (val _get_local_debug_runtime ()) in D.finish_and_cleanup ());
 
   (* Print the outputs to show the diff results *)
   let print_log filename =

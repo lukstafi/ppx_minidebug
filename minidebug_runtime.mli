@@ -179,85 +179,84 @@ module Flushing : functor (_ : Shared_config) -> Debug_runtime
 val default_html_config : PrintBox_html.Config.t
 val default_md_config : PrintBox_md.Config.t
 
+type printbox_config = {
+  mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
+      (** If [hyperlink] is [`Prefix prefix], code pointers are rendered as hyperlinks.
+          When [prefix] is either empty, starts with a dot, or starts with ["http:"] or
+          ["https:"], the link address has the form [sprintf "%s#L%d" fname start_lnum],
+          allowing browsing in HTML directly. Otherwise, it has the form
+          [sprintf "%s:%d:%d" fname start_lnum (start_colnum + 1)], intended for
+          editor-specific prefixes such as ["vscode://file/"].
+
+          Note that rendering a link on a node will make the node non-foldable, therefore
+          it is best to combine [`Prefix prefix] with [values_first_mode=true]. *)
+  mutable toc_specific_hyperlink : string option;
+      (** If provided, overrides [hyperlink] as the prefix used for generating URIs
+          pointing to anchors in logs. *)
+  mutable backend :
+    [ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ];
+      (** If the content is [`Text], logs are generated as monospaced text; for other
+          settings as html or markdown. *)
+  mutable boxify_sexp_from_size : int;
+      (** If positive, [Sexp.t]-based logs with this many or more atoms are converted to
+          print-boxes before logging. Disabled by default (i.e. negative). *)
+  mutable highlight_terms : Re.re option;
+      (** Uses a highlight style for logs on paths ending with a log matching the regular
+          expression. *)
+  mutable highlight_diffs : bool;
+      (** If true, highlights differences between the current run and the previous run
+          loaded from [prev_run_file]. *)
+  mutable exclude_on_path : Re.re option;
+      (** Does not propagate the highlight status from child logs through log headers
+          matching the given regular expression. *)
+  mutable prune_upto : int;
+      (** At depths lower than [prune_upto] (or equal if counting from 1) only outputs
+          highlighted boxes. This makes it simpler to trim excessive logging while still
+          providing some context. Defaults to [0] -- no pruning. *)
+  mutable truncate_children : int;
+      (** If > 0, only the given number of the most recent children is kept at each node.
+          Defaults to [0] -- keep all (no pruning). *)
+  mutable values_first_mode : bool;
+      (** If set to true, does not put the source code location of a computation as a
+          header of its subtree. Rather, puts the result of the computation as the header
+          of a computation subtree, if rendered as a single line -- or just the name, and
+          puts the result near the top. If false, puts the result at the end of the
+          computation subtree, i.e. preserves the order of the computation. *)
+  mutable max_inline_sexp_size : int;
+      (** Maximal size (in atoms) up to which a sexp value can be inlined during
+          "boxification". *)
+  mutable max_inline_sexp_length : int;
+      (** Maximal length (in characters/bytes) up to which a sexp value can be inlined
+          during "boxification". *)
+  mutable snapshot_every_sec : float option;
+      (** If given, output a snapshot of the pending logs when at least the given time (in
+          seconds) has passed since the previous output. This is only checked at calls to
+          log values. *)
+  mutable sexp_unescape_strings : bool;
+      (** If true, when a value is a sexp atom or is decomposed into a sexp atom by
+          boxification, it is not printed as a sexp, but the string of the atom is printed
+          directly. Defaults to [true]. *)
+  mutable with_toc_listing : bool;
+      (** If true, outputs non-collapsed trees of ToC entries in the Table of Contents
+          files. *)
+  mutable toc_flame_graph : bool;
+      (** If true, outputs a minimalistic rendering of a flame graph in the Table of
+          Contents files, with boxes positioned to reflect both the ToC entries hierarchy
+          and elapsed times for the opening and closing of entries. Not supported in the
+          [`Text] backend. *)
+  mutable flame_graph_separation : int;
+      (** How many pixels a single box, for a log header, is expected to take in a flame
+          graph. Defaults to [40]. Note: ideally the height of a flame tree should be
+          calculated automatically, then this setting would disappear. *)
+  mutable prev_run_file : string option;
+      (** If provided, enables highlighting differences between the current run and the
+          previous run loaded from this file. *)
+}
+
 module type PrintBox_runtime = sig
   include Debug_runtime
 
-  type config = {
-    mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
-        (** If [hyperlink] is [`Prefix prefix], code pointers are rendered as hyperlinks.
-            When [prefix] is either empty, starts with a dot, or starts with ["http:"] or
-            ["https:"], the link address has the form [sprintf "%s#L%d" fname start_lnum],
-            allowing browsing in HTML directly. Otherwise, it has the form
-            [sprintf "%s:%d:%d" fname start_lnum (start_colnum + 1)], intended for
-            editor-specific prefixes such as ["vscode://file/"].
-
-            Note that rendering a link on a node will make the node non-foldable,
-            therefore it is best to combine [`Prefix prefix] with
-            [values_first_mode=true]. *)
-    mutable toc_specific_hyperlink : string option;
-        (** If provided, overrides [hyperlink] as the prefix used for generating URIs
-            pointing to anchors in logs. *)
-    mutable backend :
-      [ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ];
-        (** If the content is [`Text], logs are generated as monospaced text; for other
-            settings as html or markdown. *)
-    mutable boxify_sexp_from_size : int;
-        (** If positive, [Sexp.t]-based logs with this many or more atoms are converted to
-            print-boxes before logging. Disabled by default (i.e. negative). *)
-    mutable highlight_terms : Re.re option;
-        (** Uses a highlight style for logs on paths ending with a log matching the
-            regular expression. *)
-    mutable highlight_diffs : bool;
-        (** If true, highlights differences between the current run and the previous run
-            loaded from [prev_run_file]. *)
-    mutable exclude_on_path : Re.re option;
-        (** Does not propagate the highlight status from child logs through log headers
-            matching the given regular expression. *)
-    mutable prune_upto : int;
-        (** At depths lower than [prune_upto] (or equal if counting from 1) only outputs
-            highlighted boxes. This makes it simpler to trim excessive logging while still
-            providing some context. Defaults to [0] -- no pruning. *)
-    mutable truncate_children : int;
-        (** If > 0, only the given number of the most recent children is kept at each
-            node. Defaults to [0] -- keep all (no pruning). *)
-    mutable values_first_mode : bool;
-        (** If set to true, does not put the source code location of a computation as a
-            header of its subtree. Rather, puts the result of the computation as the
-            header of a computation subtree, if rendered as a single line -- or just the
-            name, and puts the result near the top. If false, puts the result at the end
-            of the computation subtree, i.e. preserves the order of the computation. *)
-    mutable max_inline_sexp_size : int;
-        (** Maximal size (in atoms) up to which a sexp value can be inlined during
-            "boxification". *)
-    mutable max_inline_sexp_length : int;
-        (** Maximal length (in characters/bytes) up to which a sexp value can be inlined
-            during "boxification". *)
-    mutable snapshot_every_sec : float option;
-        (** If given, output a snapshot of the pending logs when at least the given time
-            (in seconds) has passed since the previous output. This is only checked at
-            calls to log values. *)
-    mutable sexp_unescape_strings : bool;
-        (** If true, when a value is a sexp atom or is decomposed into a sexp atom by
-            boxification, it is not printed as a sexp, but the string of the atom is
-            printed directly. Defaults to [true]. *)
-    mutable with_toc_listing : bool;
-        (** If true, outputs non-collapsed trees of ToC entries in the Table of Contents
-            files. *)
-    mutable toc_flame_graph : bool;
-        (** If true, outputs a minimalistic rendering of a flame graph in the Table of
-            Contents files, with boxes positioned to reflect both the ToC entries
-            hierarchy and elapsed times for the opening and closing of entries. Not
-            supported in the [`Text] backend. *)
-    mutable flame_graph_separation : int;
-        (** How many pixels a single box, for a log header, is expected to take in a flame
-            graph. Defaults to [40]. Note: ideally the height of a flame tree should be
-            calculated automatically, then this setting would disappear. *)
-    mutable prev_run_file : string option;
-        (** If provided, enables highlighting differences between the current run and the
-            previous run loaded from this file. *)
-  }
-
-  val config : config
+  val config : printbox_config
 end
 
 (** The logged traces will be pretty-printed as trees using the `printbox` package. This
@@ -320,9 +319,9 @@ val debug_file :
     matched with entry [curr_id] from the current run. This is useful for ensuring
     specific debug entries are compared even if their positions change significantly.
 
-    By default [backend] is [`Markdown PrintBox.default_md_config]. See
-    {!type:PrintBox.config} for details about PrintBox-specific parameters. See
-    {!shared_config} for the details about shared parameters. *)
+    By default [backend] is [`Text]. See {!type:PrintBox.config} for details about
+    PrintBox-specific parameters. See {!shared_config} for the details about shared
+    parameters. *)
 
 val debug :
   ?debug_ch:out_channel ->
@@ -335,18 +334,22 @@ val debug :
   ?global_prefix:string ->
   ?table_of_contents_ch:out_channel ->
   ?toc_entry:toc_entry_criteria ->
+  ?boxify_sexp_from_size:int ->
+  ?max_inline_sexp_length:int ->
+  ?backend:[ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ] ->
+  ?hyperlink:string ->
+  ?toc_specific_hyperlink:string ->
   ?highlight_terms:Re.t ->
   ?exclude_on_path:Re.t ->
   ?prune_upto:int ->
   ?truncate_children:int ->
-  ?toc_specific_hyperlink:string ->
   ?values_first_mode:bool ->
   ?log_level:int ->
   ?snapshot_every_sec:float ->
   unit ->
   (module PrintBox_runtime)
-(** Creates a PrintBox-based debug runtime for the [`Text] backend. By default it will log
-    to [stdout] and will not be time tagged.
+(** Same as {!debug_file}, but by default it will log to [stdout] and will not be time
+    tagged, and some functionality is not supported.
 
     See {!type:PrintBox.config} for details about PrintBox-specific parameters. See
     {!shared_config} for the details about shared parameters. *)
@@ -381,3 +384,116 @@ val forget_printbox : (module PrintBox_runtime) -> (module Debug_runtime)
 val sexp_of_lazy_t : ('a -> Sexplib0.Sexp.t) -> 'a lazy_t -> Sexplib0.Sexp.t
 (** Unlike [Lazy.sexp_of_t] available in the [Base] library, does not force the lazy
     value, only converts it if it's already computed and non-exception. *)
+
+val local_runtime :
+  ?time_tagged:time_tagged ->
+  ?elapsed_times:elapsed_times ->
+  ?location_format:location_format ->
+  ?print_entry_ids:bool ->
+  ?verbose_entry_ids:bool ->
+  ?global_prefix:string ->
+  ?split_files_after:int ->
+  ?with_toc_listing:bool ->
+  ?toc_entry:toc_entry_criteria ->
+  ?toc_flame_graph:bool ->
+  ?flame_graph_separation:int ->
+  ?highlight_terms:Re.t ->
+  ?exclude_on_path:Re.t ->
+  ?prune_upto:int ->
+  ?truncate_children:int ->
+  ?for_append:bool ->
+  ?boxify_sexp_from_size:int ->
+  ?max_inline_sexp_length:int ->
+  ?backend:[ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ] ->
+  ?hyperlink:string ->
+  ?toc_specific_hyperlink:string ->
+  ?values_first_mode:bool ->
+  ?log_level:int ->
+  ?snapshot_every_sec:float ->
+  ?prev_run_file:string ->
+  ?diff_ignore_pattern:Re.t ->
+  ?max_distance_factor:int ->
+  ?entry_id_pairs:(int * int) list ->
+  ?update_config:(printbox_config -> unit) ->
+  string ->
+  unit ->
+  (module Debug_runtime)
+(** A wrapper around {!debug_file}, the [local_runtime ... filename_stem] callback returns
+    a thread-local runtime, where a thread's log file is named
+    [filename_stem-thread_id.ext] (where [ext] is ".log", ".html", or ".md"). The runtime
+    can be re-configured during each retrieval using [update_config] if provided. *)
+
+val local_runtime_flushing :
+  ?table_of_contents_ch:out_channel ->
+  ?time_tagged:time_tagged ->
+  ?elapsed_times:elapsed_times ->
+  ?location_format:location_format ->
+  ?print_entry_ids:bool ->
+  ?verbose_entry_ids:bool ->
+  ?description:string ->
+  ?global_prefix:string ->
+  ?split_files_after:int ->
+  ?with_table_of_contents:bool ->
+  ?toc_entry:toc_entry_criteria ->
+  ?for_append:bool ->
+  ?log_level:int ->
+  string ->
+  unit ->
+  (module Debug_runtime)
+(** A wrapper around {!debug_flushing}, the [local_runtime_flushing ... filename_stem]
+    callback returns a thread-local runtime, where a thread's log file is named
+    [filename_stem-thread_id.log]. *)
+
+val global_runtime :
+  ?debug_ch:out_channel ->
+  ?time_tagged:time_tagged ->
+  ?elapsed_times:elapsed_times ->
+  ?location_format:location_format ->
+  ?print_entry_ids:bool ->
+  ?verbose_entry_ids:bool ->
+  ?description:string ->
+  ?global_prefix:string ->
+  ?table_of_contents_ch:out_channel ->
+  ?toc_entry:toc_entry_criteria ->
+  ?highlight_terms:Re.t ->
+  ?exclude_on_path:Re.t ->
+  ?prune_upto:int ->
+  ?truncate_children:int ->
+  ?values_first_mode:bool ->
+  ?boxify_sexp_from_size:int ->
+  ?max_inline_sexp_length:int ->
+  ?backend:[ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ] ->
+  ?hyperlink:string ->
+  ?toc_specific_hyperlink:string ->
+  ?log_level:int ->
+  ?snapshot_every_sec:float ->
+  ?update_config:(printbox_config -> unit) ->
+  unit ->
+  unit ->
+  (module Debug_runtime)
+(** Like {!debug}, but creates a global runtime that is shared by all threads. By default
+    it will log to [stdout] and will not be time tagged.
+
+    See {!type:PrintBox.config} for details about PrintBox-specific parameters. See
+    {!shared_config} for the details about shared parameters. *)
+
+val global_runtime_flushing :
+  ?debug_ch:out_channel ->
+  ?table_of_contents_ch:out_channel ->
+  ?time_tagged:time_tagged ->
+  ?elapsed_times:elapsed_times ->
+  ?location_format:location_format ->
+  ?print_entry_ids:bool ->
+  ?verbose_entry_ids:bool ->
+  ?description:string ->
+  ?global_prefix:string ->
+  ?split_files_after:int ->
+  ?with_table_of_contents:bool ->
+  ?toc_entry:toc_entry_criteria ->
+  ?for_append:bool ->
+  ?log_level:int ->
+  unit ->
+  unit ->
+  (module Debug_runtime)
+(** Like {!debug_flushing}, but creates a global runtime that is shared by all threads. By
+    default it will log to [stdout] and will not be time tagged. *)

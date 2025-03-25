@@ -3,7 +3,7 @@ module A = Ast_builder.Default
 (* module H = Ast_helper *)
 
 type log_value = Sexp | Show | Pp
-type toplevel_opt_arg = Nested | Toplevel_no_arg | Runtime_passing | Runtime_local
+type toplevel_kind = Nested | Runtime_outer | Runtime_passing | Runtime_local
 
 let is_local_debug_runtime = function Runtime_local -> true | _ -> false
 let global_log_count = ref 0
@@ -18,7 +18,7 @@ type context = {
   log_level : log_level;
   entry_log_level : log_level;
   hidden : bool;
-  toplevel_opt_arg : toplevel_opt_arg;
+  toplevel_kind : toplevel_kind;
 }
 
 let init_context =
@@ -31,7 +31,7 @@ let init_context =
       log_level = Comptime 9;
       entry_log_level = Comptime 1;
       hidden = false;
-      toplevel_opt_arg = Toplevel_no_arg;
+      toplevel_kind = Runtime_local;
     }
 
 let parse_log_level = function
@@ -591,20 +591,33 @@ let pass_runtime ?(always = false) toplevel_opt_arg exp =
   | _ -> exp
 
 let unpack_runtime toplevel_opt_arg exp =
+  Printf.printf "unpack_runtime: entering with toplevel_opt_arg=%s\n"
+    (match toplevel_opt_arg with
+     | Nested -> "Nested"
+     | Runtime_outer -> "Runtime_outer"
+     | Runtime_passing -> "Runtime_passing"
+     | Runtime_local -> "Runtime_local");
   let loc = exp.pexp_loc in
-  match toplevel_opt_arg with
-  | Nested | Toplevel_no_arg -> exp
+  let result = match toplevel_opt_arg with
+  | Nested | Runtime_outer -> 
+      Printf.printf "unpack_runtime: returning original expression for Nested/Runtime_outer\n";
+      exp
   | Runtime_local ->
+      Printf.printf "unpack_runtime: wrapping with local debug runtime\n";
       [%expr
         let module Debug_runtime = (val _get_local_debug_runtime ()) in
         [%e exp]]
   | Runtime_passing ->
+      Printf.printf "unpack_runtime: wrapping with passing debug runtime\n";
       [%expr
         let module Debug_runtime = (val _debug_runtime) in
         [%e exp]]
+  in
+  Printf.printf "unpack_runtime: returning result\n";
+  result
 
 let has_runtime_arg = function
-  | { toplevel_opt_arg = Runtime_passing; _ } -> true
+  | { toplevel_kind = Runtime_passing; _ } -> true
   | _ -> false
 
 let loc_to_name loc =
@@ -615,9 +628,16 @@ let is_comptime_nothing context =
   match context.log_level with Comptime i when i <= 0 -> true | _ -> false
 
 let debug_fun context callback ?typ ?ret_descr ?ret_typ exp =
+  Printf.printf "debug_fun: entering with context.toplevel_kind=%s\n" 
+    (match context.toplevel_kind with 
+     | Nested -> "Nested"
+     | Runtime_outer -> "Runtime_outer" 
+     | Runtime_passing -> "Runtime_passing"
+     | Runtime_local -> "Runtime_local");
   let log_count_before = !global_log_count in
   let args, body, ret_typ2 = collect_fun [] exp in
-  let nested = { context with toplevel_opt_arg = Nested } in
+  Printf.printf "debug_fun: collected %d function arguments\n" (List.length args);
+  let nested = { context with toplevel_kind = Nested } in
   let no_change_exp () =
     let body = callback nested body in
     let body =
@@ -627,7 +647,7 @@ let debug_fun context callback ?typ ?ret_descr ?ret_typ exp =
           [%expr ([%e body] : [%t typ])]
       | None -> body
     in
-    pass_runtime context.toplevel_opt_arg @@ expand_fun body args
+    pass_runtime context.toplevel_kind @@ expand_fun body args
   in
   if is_comptime_nothing context then no_change_exp ()
   else
@@ -649,7 +669,7 @@ let debug_fun context callback ?typ ?ret_descr ?ret_typ exp =
     in
     if
       (not (context.track_or_explicit = `Track))
-      && (context.toplevel_opt_arg = Nested || ret_descr = None)
+      && (context.toplevel_kind = Nested || ret_descr = None)
       && Option.is_none typ
     then no_change_exp ()
     else
@@ -694,8 +714,8 @@ let debug_fun context callback ?typ ?ret_descr ?ret_typ exp =
       let body =
         match ret_typ2 with None -> body | Some typ -> [%expr ([%e body] : [%t typ])]
       in
-      let exp = expand_fun (unpack_runtime context.toplevel_opt_arg body) args in
-      pass_runtime context.toplevel_opt_arg exp
+      let exp = expand_fun (unpack_runtime context.toplevel_kind body) args in
+      pass_runtime context.toplevel_kind exp
 
 let debug_case ?(unpack_context = Nested) context callback ?ret_descr ?ret_typ ?arg_typ
     kind i { pc_lhs; pc_guard; pc_rhs } =
@@ -724,8 +744,8 @@ let debug_case ?(unpack_context = Nested) context callback ?ret_descr ?ret_typ ?
   in
   let pc_rhs =
     if is_local_debug_runtime unpack_context then unpack_runtime unpack_context pc_rhs
-    else if is_local_debug_runtime context.toplevel_opt_arg then
-      unpack_runtime context.toplevel_opt_arg pc_rhs
+    else if is_local_debug_runtime context.toplevel_kind then
+      unpack_runtime context.toplevel_kind pc_rhs
     else pc_rhs
   in
   { pc_lhs; pc_guard; pc_rhs }
@@ -733,9 +753,9 @@ let debug_case ?(unpack_context = Nested) context callback ?ret_descr ?ret_typ ?
 let debug_function ?unpack_context context callback ~loc ?ret_descr ?ret_typ ?arg_typ
     cases =
   let unpack_context =
-    match unpack_context with None -> context.toplevel_opt_arg | Some ctx -> ctx
+    match unpack_context with None -> context.toplevel_kind | Some ctx -> ctx
   in
-  let nested = { context with toplevel_opt_arg = Nested } in
+  let nested = { context with toplevel_kind = Nested } in
   let exp =
     A.pexp_function ~loc
       (List.mapi
@@ -743,8 +763,8 @@ let debug_function ?unpack_context context callback ~loc ?ret_descr ?ret_typ ?ar
             "function")
          cases)
   in
-  match context.toplevel_opt_arg with
-  | Nested | Toplevel_no_arg | Runtime_local -> exp
+  match context.toplevel_kind with
+  | Nested | Runtime_outer | Runtime_local -> exp
   | Runtime_passing ->
       [%expr
         fun (_debug_runtime : (module Minidebug_runtime.Debug_runtime)) ->
@@ -752,22 +772,30 @@ let debug_function ?unpack_context context callback ~loc ?ret_descr ?ret_typ ?ar
           [%e exp]]
 
 let debug_binding context callback vb =
-  let nested = { context with toplevel_opt_arg = Nested } in
+  Printf.printf "debug_binding: entering with context.toplevel_kind=%s\n"
+    (match context.toplevel_kind with
+     | Nested -> "Nested"
+     | Runtime_outer -> "Runtime_outer"
+     | Runtime_passing -> "Runtime_passing" 
+     | Runtime_local -> "Runtime_local");
+  let nested = { context with toplevel_kind = Nested } in
   let pvb_pat =
     (* FIXME(#18): restoring a modified type constraint breaks typing. *)
-    match (vb.pvb_pat, context.toplevel_opt_arg) with
+    match (vb.pvb_pat, context.toplevel_kind) with
     | [%pat? ([%p? pat] : [%t? _typ])], Runtime_passing ->
+        Printf.printf "debug_binding: handling Runtime_passing pattern\n";
         pat
-        (* [%pat? ([%p pat] : (module Minidebug_runtime.Debug_runtime) -> [%t typ])] *)
     | _ -> vb.pvb_pat
   in
-  if is_comptime_nothing context then
+  let result = if is_comptime_nothing context then
+    (Printf.printf "debug_binding: is_comptime_nothing is true, skipping debug\n";
     {
       vb with
       pvb_pat;
-      pvb_expr = pass_runtime context.toplevel_opt_arg @@ callback nested vb.pvb_expr;
-    }
+      pvb_expr = pass_runtime context.toplevel_kind @@ callback nested vb.pvb_expr;
+    })
   else
+    (Printf.printf "debug_binding: is_comptime_nothing is false, proceeding with debug\n";
     let loc = vb.pvb_loc in
     let pat, ret_descr, typ =
       match vb.pvb_pat with
@@ -803,12 +831,12 @@ let debug_binding context callback vb =
           debug_function context callback ~loc:vb.pvb_expr.pexp_loc ?ret_descr ?ret_typ
             ?arg_typ cases
       | _
-        when context.toplevel_opt_arg = Nested
+        when context.toplevel_kind = Nested
              && (is_comptime_nothing context || context.track_or_explicit = `Diagn) ->
           callback nested exp
       | _ ->
           let result, bound = bound_patterns ~alt_typ:typ pat in
-          if bound = [] && context.toplevel_opt_arg = Nested then callback nested exp
+          if bound = [] && context.toplevel_kind = Nested then callback nested exp
           else
             let log_count_before = !global_log_count in
             let descr_loc = pat2descr ~default:"__val" pat in
@@ -830,20 +858,24 @@ let debug_binding context callback vb =
               open_log ~message:descr_loc.txt ~loc:descr_loc.loc
                 ~log_level:context.entry_log_level context.track_or_explicit
             in
-            entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
-              ~entry:(callback nested exp) ~result ~log_result ()
+            unpack_runtime context.toplevel_kind
+              (entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
+                ~entry:(callback nested exp) ~result ~log_result ())
     in
     let pvb_expr =
-      match (typ2, context.toplevel_opt_arg) with
-      | None, (Nested | Toplevel_no_arg | Runtime_local) -> exp
-      | Some typ, (Nested | Toplevel_no_arg | Runtime_local) ->
+      match (typ2, context.toplevel_kind) with
+      | None, (Nested | Runtime_outer | Runtime_local) -> exp
+      | Some typ, (Nested | Runtime_outer | Runtime_local) ->
           [%expr ([%e exp] : [%t typ])]
       | Some typ, Runtime_passing ->
           [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> [%t typ])]
       | None, Runtime_passing ->
           [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> _)]
     in
-    { vb with pvb_expr; pvb_pat }
+    { vb with pvb_expr; pvb_pat })
+  in
+  Printf.printf "debug_binding: returning result\n";
+  result
 
 let extract_type ?default ~alt_typ exp =
   let default =
@@ -954,7 +986,7 @@ let extract_type ?default ~alt_typ exp =
 type rule = {
   ext_point : string;
   track_or_explicit : [ `Diagn | `Debug | `Track ];
-  toplevel_opt_arg : toplevel_opt_arg;
+  toplevel_kind : toplevel_kind;
   expander : [ `Debug | `Str ];
   log_value : log_value;
   entry_log_level : log_level option;
@@ -969,7 +1001,7 @@ let rules =
               (fun log_level ->
                 List.concat
                 @@ List.map
-                     (fun toplevel_opt_arg ->
+                     (fun toplevel_kind ->
                        List.concat
                        @@ List.map
                             (fun expander ->
@@ -989,11 +1021,11 @@ let rules =
                                   (* The expander currently does not affect the extension
                                      point name. *)
                                   let ext_point =
-                                    match toplevel_opt_arg with
+                                    match toplevel_kind with
                                     | Nested -> assert false
-                                    | Toplevel_no_arg -> ext_point
+                                    | Runtime_outer -> ext_point ^ "_o"
                                     | Runtime_passing -> ext_point ^ "_rt"
-                                    | Runtime_local -> ext_point ^ "_l"
+                                    | Runtime_local -> ext_point
                                   in
                                   let ext_point =
                                     ext_point ^ "_"
@@ -1006,7 +1038,7 @@ let rules =
                                   {
                                     ext_point;
                                     track_or_explicit;
-                                    toplevel_opt_arg;
+                                    toplevel_kind;
                                     expander;
                                     log_value;
                                     entry_log_level =
@@ -1015,7 +1047,7 @@ let rules =
                                   })
                                 [ Pp; Sexp; Show ])
                             [ `Debug; `Str ])
-                     [ Toplevel_no_arg; Runtime_passing; Runtime_local ])
+                     [ Runtime_outer; Runtime_passing; Runtime_local ])
               [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9 ])
        [ `Track; `Debug; `Diagn ]
 
@@ -1045,13 +1077,21 @@ let traverse_expression =
     inherit [context] Ast_traverse.map_with_context as super
 
     method! expression context orig_exp =
+      Printf.printf "traverse_expression: entering with context.toplevel_kind=%s\n"
+        (match context.toplevel_kind with
+         | Nested -> "Nested"
+         | Runtime_outer -> "Runtime_outer"
+         | Runtime_passing -> "Runtime_passing"
+         | Runtime_local -> "Runtime_local");
       let callback context e = self#expression context e in
       let track_cases ?ret_descr ?ret_typ ?arg_typ kind =
         List.mapi (debug_case context callback ?ret_descr ?ret_typ ?arg_typ kind)
       in
       let orig_exp, ret_typ =
         match orig_exp with
-        | [%expr ([%e? exp] : [%t? typ])] -> (exp, Some typ)
+        | [%expr ([%e? exp] : [%t? typ])] -> 
+            Printf.printf "traverse_expression: found type annotation\n";
+            (exp, Some typ)
         | _ -> (orig_exp, None)
       in
       let loc = orig_exp.pexp_loc in
@@ -1065,7 +1105,7 @@ let traverse_expression =
             context.track_or_explicit
         in
         let context = { context with entry_log_level } in
-        let entry = callback { context with toplevel_opt_arg = Nested } entry in
+        let entry = callback { context with toplevel_kind = Nested } entry in
         let result =
           [%expr
             let __entry_id = Debug_runtime.get_entry_id () in
@@ -1085,7 +1125,7 @@ let traverse_expression =
       let exp =
         match exp.pexp_desc with
         | Pexp_let (rec_flag, bindings, body)
-          when context.toplevel_opt_arg <> Nested
+          when context.toplevel_kind <> Nested
                || not (context.track_or_explicit = `Diagn) ->
             let bindings = List.map (debug_binding context callback) bindings in
             {
@@ -1094,7 +1134,7 @@ let traverse_expression =
                 Pexp_let
                   ( rec_flag,
                     bindings,
-                    callback { context with toplevel_opt_arg = Nested } body );
+                    callback { context with toplevel_kind = Nested } body );
             }
         | Pexp_extension ({ loc = _; txt }, PStr [%str [%e? body]])
           when Hashtbl.mem entry_rules txt ->
@@ -1109,7 +1149,7 @@ let traverse_expression =
                 context with
                 log_value = r.log_value;
                 track_or_explicit = r.track_or_explicit;
-                toplevel_opt_arg = r.toplevel_opt_arg;
+                toplevel_kind = r.toplevel_kind;
                 entry_log_level;
               }
               body
@@ -1251,7 +1291,7 @@ let traverse_expression =
                   [%e? entry]] )
           when with_opt_digit ~prefix:"log" ~suffix:"_entry" txt ->
             if is_comptime_nothing context then
-              callback { context with toplevel_opt_arg = Nested } entry
+              callback { context with toplevel_kind = Nested } entry
             else
               let entry_log_level =
                 Option.value ~default:context.entry_log_level
@@ -1264,7 +1304,7 @@ let traverse_expression =
               in
               let result = A.ppat_var ~loc { loc; txt = "__res" } in
               let context = { context with entry_log_level } in
-              let entry = callback { context with toplevel_opt_arg = Nested } entry in
+              let entry = callback { context with toplevel_kind = Nested } entry in
               let log_result = [%expr ()] in
               entry_with_interrupts context ~loc ~message ~log_count_before ~preamble
                 ~entry ~result ~log_result ()
@@ -1274,7 +1314,7 @@ let traverse_expression =
                  "ppx_minidebug: bad syntax, expacted [%%log_entry <HEADER MESSAGE>; \
                   <BODY>]"
         | (Pexp_newtype _ | Pexp_fun _)
-          when context.toplevel_opt_arg <> Nested
+          when context.toplevel_kind <> Nested
                || not (context.track_or_explicit = `Diagn) ->
             debug_fun context callback ?typ:ret_typ exp
         | Pexp_match ([%expr ([%e? expr] : [%t? arg_typ])], cases)
@@ -1304,7 +1344,7 @@ let traverse_expression =
             in
             debug_function context callback ~loc:exp.pexp_loc ?arg_typ ?ret_typ cases
         | Pexp_function cases
-          when is_local_debug_runtime context.toplevel_opt_arg
+          when is_local_debug_runtime context.toplevel_kind
                && (not @@ is_comptime_nothing context) ->
             let arg_typ, ret_typ =
               match ret_typ with
@@ -1446,10 +1486,10 @@ let traverse_expression =
             if context.track_or_explicit = `Diagn && log_count_before = !global_log_count
             then { exp with pexp_desc }
             else transformed
-        | _ -> super#expression { context with toplevel_opt_arg = Nested } exp
+        | _ -> super#expression { context with toplevel_kind = Nested } exp
       in
       let unpacked_runtime, exp =
-        match (orig_exp.pexp_desc, context.toplevel_opt_arg) with
+        match (orig_exp.pexp_desc, context.toplevel_kind) with
         | ( Pexp_let
               ( _,
                 [
@@ -1465,21 +1505,21 @@ let traverse_expression =
         | Pexp_newtype _, _
         | Pexp_fun _, _
         | _, Nested
-        | _, Toplevel_no_arg ->
+        | _, Runtime_outer ->
             (false, exp)
-        | _ -> (true, unpack_runtime context.toplevel_opt_arg exp)
+        | _ -> (true, unpack_runtime context.toplevel_kind exp)
       in
       let exp =
         match ret_typ with None -> exp | Some typ -> [%expr ([%e exp] : [%t typ])]
       in
-      match (unpacked_runtime, context.toplevel_opt_arg) with
-      | true, Runtime_passing -> pass_runtime ~always:true context.toplevel_opt_arg exp
+      match (unpacked_runtime, context.toplevel_kind) with
+      | true, Runtime_passing -> pass_runtime ~always:true context.toplevel_kind exp
       | _ -> exp
 
     method! structure_item context si =
       (* Do not use for an entry_point, because it ignores the toplevel_opt_arg field! *)
       let callback context e = self#expression context e in
-      let nested = { context with toplevel_opt_arg = Nested } in
+      let nested = { context with toplevel_kind = Nested } in
       match si with
       | { pstr_desc = Pstr_value (rec_flag, bindings); pstr_loc = _; _ } ->
           let bindings = List.map (debug_binding nested callback) bindings in
@@ -1692,7 +1732,7 @@ let rules =
        (fun {
               ext_point;
               track_or_explicit;
-              toplevel_opt_arg;
+              toplevel_kind;
               expander;
               log_value;
               entry_log_level;
@@ -1706,7 +1746,7 @@ let rules =
                    debug_expander
                      {
                        !init_context with
-                       toplevel_opt_arg;
+                       toplevel_kind;
                        track_or_explicit;
                        entry_log_level =
                          Option.value entry_log_level ~default:(Comptime 1);
@@ -1719,7 +1759,7 @@ let rules =
                    str_expander
                      {
                        !init_context with
-                       toplevel_opt_arg;
+                       toplevel_kind;
                        track_or_explicit;
                        entry_log_level =
                          Option.value entry_log_level ~default:(Comptime 1);

@@ -972,8 +972,7 @@ module PrevRun = struct
         compute_dp_upto state msg_idx;
       res
     with exn ->
-      Printf.eprintf "Error in get_diffable: %s\n%s\n%!"
-        (Printexc.to_string exn)
+      Printf.eprintf "Error in get_diffable: %s\n%s\n%!" (Printexc.to_string exn)
         (Printexc.get_backtrace ());
       res
 
@@ -1061,8 +1060,7 @@ module PrevRun = struct
               in
               Some edit_type
     with exn ->
-      Printf.eprintf "Error in check_diff: %s\n%s\n%!"
-        (Printexc.to_string exn)
+      Printf.eprintf "Error in check_diff: %s\n%s\n%!" (Printexc.to_string exn)
         (Printexc.get_backtrace ());
       fun () -> None
 
@@ -1084,32 +1082,32 @@ module PrevRun = struct
       Hashtbl.clear state.min_cost_rows)
 end
 
+type printbox_config = {
+  mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
+  mutable toc_specific_hyperlink : string option;
+  mutable backend :
+    [ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ];
+  mutable boxify_sexp_from_size : int;
+  mutable highlight_terms : Re.re option;
+  mutable highlight_diffs : bool;
+  mutable exclude_on_path : Re.re option;
+  mutable prune_upto : int;
+  mutable truncate_children : int;
+  mutable values_first_mode : bool;
+  mutable max_inline_sexp_size : int;
+  mutable max_inline_sexp_length : int;
+  mutable snapshot_every_sec : float option;
+  mutable sexp_unescape_strings : bool;
+  mutable with_toc_listing : bool;
+  mutable toc_flame_graph : bool;
+  mutable flame_graph_separation : int;
+  mutable prev_run_file : string option;
+}
+
 module type PrintBox_runtime = sig
   include Debug_runtime
 
-  type config = {
-    mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
-    mutable toc_specific_hyperlink : string option;
-    mutable backend :
-      [ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ];
-    mutable boxify_sexp_from_size : int;
-    mutable highlight_terms : Re.re option;
-    mutable highlight_diffs : bool;
-    mutable exclude_on_path : Re.re option;
-    mutable prune_upto : int;
-    mutable truncate_children : int;
-    mutable values_first_mode : bool;
-    mutable max_inline_sexp_size : int;
-    mutable max_inline_sexp_length : int;
-    mutable snapshot_every_sec : float option;
-    mutable sexp_unescape_strings : bool;
-    mutable with_toc_listing : bool;
-    mutable toc_flame_graph : bool;
-    mutable flame_graph_separation : int;
-    mutable prev_run_file : string option;
-  }
-
-  val config : config
+  val config : printbox_config
 end
 
 module PrintBox (Log_to : Shared_config) = struct
@@ -1120,28 +1118,6 @@ module PrintBox (Log_to : Shared_config) = struct
   let max_num_children = ref None
   let prev_run_state = ref PrevRun.empty_state
   let check_log_level level = level <= !log_level
-
-  type config = {
-    mutable hyperlink : [ `Prefix of string | `No_hyperlinks ];
-    mutable toc_specific_hyperlink : string option;
-    mutable backend :
-      [ `Text | `Html of PrintBox_html.Config.t | `Markdown of PrintBox_md.Config.t ];
-    mutable boxify_sexp_from_size : int;
-    mutable highlight_terms : Re.re option;
-    mutable highlight_diffs : bool;
-    mutable exclude_on_path : Re.re option;
-    mutable prune_upto : int;
-    mutable truncate_children : int;
-    mutable values_first_mode : bool;
-    mutable max_inline_sexp_size : int;
-    mutable max_inline_sexp_length : int;
-    mutable snapshot_every_sec : float option;
-    mutable sexp_unescape_strings : bool;
-    mutable with_toc_listing : bool;
-    mutable toc_flame_graph : bool;
-    mutable flame_graph_separation : int;
-    mutable prev_run_file : string option;
-  }
 
   let config =
     {
@@ -2084,15 +2060,15 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(toc_entry = And []) ?(toc_flame_graph = false) ?(flame_graph_separation = 40)
     ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
     ?(for_append = false) ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80)
-    ?backend ?hyperlink ?toc_specific_hyperlink ?(values_first_mode = true)
+    ?(backend = `Text) ?hyperlink ?toc_specific_hyperlink ?(values_first_mode = true)
     ?(log_level = 9) ?snapshot_every_sec ?prev_run_file ?diff_ignore_pattern
     ?max_distance_factor ?(entry_id_pairs = []) filename_stem : (module PrintBox_runtime)
     =
   let filename =
     match backend with
-    | None | Some (`Markdown _) -> filename_stem ^ ".md"
-    | Some (`Html _) -> filename_stem ^ ".html"
-    | Some `Text -> filename_stem ^ ".log"
+    | `Markdown _ -> filename_stem ^ ".md"
+    | `Html _ -> filename_stem ^ ".html"
+    | `Text -> filename_stem ^ ".log"
   in
   let with_table_of_contents = toc_flame_graph || with_toc_listing in
   let module Debug =
@@ -2100,7 +2076,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
       ((val shared_config ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
               ~verbose_entry_ids ~global_prefix ~for_append ?split_files_after
               ~with_table_of_contents ~toc_entry ~log_level filename)) in
-  Debug.config.backend <- Option.value backend ~default:(`Markdown default_md_config);
+  Debug.config.backend <- backend;
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
   Debug.config.max_inline_sexp_length <- max_inline_sexp_length;
   Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
@@ -2115,7 +2091,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   Debug.log_level := log_level;
   Debug.config.snapshot_every_sec <- snapshot_every_sec;
   Debug.config.with_toc_listing <- with_toc_listing;
-  if toc_flame_graph && backend = Some `Text then
+  if toc_flame_graph && backend = `Text then
     invalid_arg
       "Minidebug_runtime.debug_file: flame graphs are not supported in the Text backend";
   Debug.config.toc_flame_graph <- toc_flame_graph;
@@ -2130,8 +2106,9 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
     ?description ?(global_prefix = "") ?table_of_contents_ch ?(toc_entry = And [])
-    ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
-    ?toc_specific_hyperlink ?(values_first_mode = true) ?(log_level = 9)
+    ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80) ?(backend = `Text)
+    ?hyperlink ?toc_specific_hyperlink ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
+    ?(truncate_children = 0) ?(values_first_mode = true) ?(log_level = 9)
     ?snapshot_every_sec () : (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
@@ -2171,13 +2148,18 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
     let toc_entry = toc_entry
     let init_log_level = log_level
   end) in
+  Debug.config.backend <- backend;
+  Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
+  Debug.config.max_inline_sexp_length <- max_inline_sexp_length;
   Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
+  Debug.config.hyperlink <-
+    (match hyperlink with None -> `No_hyperlinks | Some prefix -> `Prefix prefix);
+  Debug.config.toc_specific_hyperlink <- toc_specific_hyperlink;
   Debug.config.prune_upto <- prune_upto;
   Debug.config.truncate_children <- truncate_children;
   Debug.config.exclude_on_path <- Option.map Re.compile exclude_on_path;
   Debug.config.values_first_mode <- values_first_mode;
   Debug.config.snapshot_every_sec <- snapshot_every_sec;
-  Debug.config.toc_specific_hyperlink <- toc_specific_hyperlink;
   (module Debug)
 
 let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename
@@ -2251,3 +2233,75 @@ let forget_printbox (module Runtime : PrintBox_runtime) = (module Runtime : Debu
 let sexp_of_lazy_t sexp_of_a l =
   if Lazy.is_val l then Sexplib0.Sexp.List [ Atom "lazy"; sexp_of_a @@ Lazy.force l ]
   else Sexplib0.Sexp.List [ Atom "lazy"; Atom "<thunk>" ]
+
+let local_runtime ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
+    ?verbose_entry_ids ?global_prefix ?split_files_after ?with_toc_listing ?toc_entry
+    ?toc_flame_graph ?flame_graph_separation ?highlight_terms ?exclude_on_path ?prune_upto
+    ?truncate_children ?for_append ?boxify_sexp_from_size ?max_inline_sexp_length ?backend
+    ?hyperlink ?toc_specific_hyperlink ?values_first_mode ?log_level ?snapshot_every_sec
+    ?prev_run_file ?diff_ignore_pattern ?max_distance_factor ?entry_id_pairs
+    ?update_config filename_stem =
+  let get_thread_id () = Thread.id (Thread.self ()) in
+  let get_debug () : (module PrintBox_runtime) =
+    let filename = Printf.sprintf "%s-%d" filename_stem (get_thread_id ()) in
+    debug_file ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
+      ?verbose_entry_ids ?global_prefix ?split_files_after ?with_toc_listing ?toc_entry
+      ?toc_flame_graph ?flame_graph_separation ?highlight_terms ?exclude_on_path
+      ?prune_upto ?truncate_children ?for_append ?boxify_sexp_from_size
+      ?max_inline_sexp_length ?backend ?hyperlink ?toc_specific_hyperlink
+      ?values_first_mode ?log_level ?snapshot_every_sec ?prev_run_file
+      ?diff_ignore_pattern ?max_distance_factor ?entry_id_pairs filename
+  in
+  let key = Thread_local_storage.create () in
+  let get_local () = Thread_local_storage.get_default ~default:get_debug key in
+  match update_config with
+  | None -> fun () -> forget_printbox @@ get_local ()
+  | Some update_config ->
+      fun () ->
+        let module Debug = (val get_local ()) in
+        update_config Debug.config;
+        (module Debug : Debug_runtime)
+
+let local_runtime_flushing ?table_of_contents_ch ?time_tagged ?elapsed_times
+    ?location_format ?print_entry_ids ?verbose_entry_ids ?description ?global_prefix
+    ?split_files_after ?with_table_of_contents ?toc_entry ?for_append ?log_level
+    filename_stem =
+  let get_thread_id () = Thread.id (Thread.self ()) in
+  let get_debug () =
+    let filename = Printf.sprintf "%s-%d.log" filename_stem (get_thread_id ()) in
+    debug_flushing ?table_of_contents_ch ?time_tagged ?elapsed_times ?location_format
+      ?print_entry_ids ?verbose_entry_ids ?description ?global_prefix ?split_files_after
+      ?with_table_of_contents ?toc_entry ?for_append ?log_level ~filename ()
+  in
+  let key = Thread_local_storage.create () in
+  fun () -> Thread_local_storage.get_default ~default:get_debug key
+
+let global_runtime ?debug_ch ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
+    ?verbose_entry_ids ?description ?global_prefix ?table_of_contents_ch ?toc_entry
+    ?highlight_terms ?exclude_on_path ?prune_upto ?truncate_children ?values_first_mode
+    ?boxify_sexp_from_size ?max_inline_sexp_length ?backend ?hyperlink
+    ?toc_specific_hyperlink ?log_level ?snapshot_every_sec ?update_config () =
+  let module Debug =
+    (val debug ?debug_ch ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
+           ?verbose_entry_ids ?description ?global_prefix ?table_of_contents_ch ?toc_entry
+           ?highlight_terms ?exclude_on_path ?prune_upto ?truncate_children
+           ?boxify_sexp_from_size ?max_inline_sexp_length ?backend ?hyperlink
+           ?toc_specific_hyperlink ?values_first_mode ?log_level ?snapshot_every_sec ())
+  in
+  let runtime = (module Debug : Debug_runtime) in
+  match update_config with
+  | None -> fun () -> runtime
+  | Some update_config ->
+      fun () ->
+        update_config Debug.config;
+        runtime
+
+let global_runtime_flushing ?debug_ch ?table_of_contents_ch ?time_tagged ?elapsed_times
+    ?location_format ?print_entry_ids ?verbose_entry_ids ?description ?global_prefix
+    ?split_files_after ?with_table_of_contents ?toc_entry ?for_append ?log_level () =
+  let runtime =
+    debug_flushing ?debug_ch ?table_of_contents_ch ?time_tagged ?elapsed_times
+      ?location_format ?print_entry_ids ?verbose_entry_ids ?description ?global_prefix
+      ?split_files_after ?with_table_of_contents ?toc_entry ?for_append ?log_level ()
+  in
+  fun () -> runtime

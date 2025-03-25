@@ -1,5 +1,4 @@
-module Debug_runtime =
-  (val Minidebug_runtime.debug_flushing ~filename:"debugger_unannot_bindings" ())
+let _get_local_debug_runtime =  Minidebug_runtime.local_runtime_flushing "debugger_unannot_bindings"
 
 let%debug_show _result =
   let a = 1 in

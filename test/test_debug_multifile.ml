@@ -1,10 +1,10 @@
 open Sexplib0.Sexp_conv
 
-module Debug_runtime =
+let _get_local_debug_runtime =
   (* Split as soon as possible. *)
-  (val Minidebug_runtime.debug_file ~hyperlink:"../" ~split_files_after:(1 lsl 9)
+  Minidebug_runtime.local_runtime ~hyperlink:"../" ~split_files_after:(1 lsl 9)
          ~for_append:false ~backend:(`Markdown Minidebug_runtime.default_md_config)
-         "debugger_multifile")
+         "debugger_multifile"
 
 let%debug_sexp foo (x : int) : int list =
   let y : int = x + 1 in

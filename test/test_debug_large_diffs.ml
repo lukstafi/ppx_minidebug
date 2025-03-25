@@ -37,10 +37,10 @@ let create_data_structure size run_id =
 let debug_run1 () =
   Printf.printf "Running debug_run1...\n%!";
   
-  let module Debug_runtime =
-    (val Minidebug_runtime.debug_file ~values_first_mode:true ~backend:`Text
+  let _get_local_debug_runtime =
+    Minidebug_runtime.local_runtime ~values_first_mode:true ~backend:`Text
            ~diff_ignore_pattern:(Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|})
-           "debugger_large_diffs_run1")
+           "debugger_large_diffs_run1"
   in
   (* Chunk 1: Simple function with timestamps *)
   let%debug_sexp process_message (msg : string) : string =
@@ -88,17 +88,17 @@ let debug_run1 () =
 
   ignore @@ complex_operation "this is a test string";
   ignore @@ complex_operation "another example with more words to process";
-  Debug_runtime.finish_and_cleanup ()
+  (let module D = (val _get_local_debug_runtime ()) in D.finish_and_cleanup ())
 
 (* Run 2: Similar to run 1 but with some intentional changes *)
 let debug_run2 () =
   Printf.printf "Running debug_run2...\n%!";
   
-  let module Debug_runtime =
-    (val Minidebug_runtime.debug_file ~values_first_mode:true ~backend:`Text
+  let _get_local_debug_runtime =
+    Minidebug_runtime.local_runtime ~values_first_mode:true ~backend:`Text
            ~prev_run_file:"debugger_large_diffs_run1.raw"
            ~diff_ignore_pattern:(Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|})
-           "debugger_large_diffs_run2")
+           "debugger_large_diffs_run2"
   in
   (* Chunk 1: Same as run1 but with different timestamps *)
   let%debug_sexp process_message (msg : string) : string =
@@ -146,17 +146,17 @@ let debug_run2 () =
 
   ignore @@ complex_operation "this is a test string";
   ignore @@ complex_operation "a completely different string with new words"; (* Changed input *)
-  Debug_runtime.finish_and_cleanup ()
+  (let module D = (val _get_local_debug_runtime ()) in D.finish_and_cleanup ())
 
 (* Run 3: Test with additional chunks and more complex changes *)
 let debug_run3 () =
   Printf.printf "Running debug_run3...\n%!";
   
-  let module Debug_runtime =
-    (val Minidebug_runtime.debug_file ~values_first_mode:true ~backend:`Text
+  let _get_local_debug_runtime =
+    Minidebug_runtime.local_runtime ~values_first_mode:true ~backend:`Text
            ~prev_run_file:"debugger_large_diffs_run2.raw"
            ~diff_ignore_pattern:(Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|})
-           "debugger_large_diffs_run3")
+           "debugger_large_diffs_run3"
   in
   (* Chunk 1: Same as before *)
   let%debug_sexp process_message (msg : string) : string =
@@ -215,7 +215,7 @@ let debug_run3 () =
 
   ignore @@ new_operation 10 20;
   ignore @@ new_operation 5 7;
-  Debug_runtime.finish_and_cleanup ()
+  (let module D = (val _get_local_debug_runtime ()) in D.finish_and_cleanup ())
 
 (* Main function to run all tests sequentially *)
 let () =

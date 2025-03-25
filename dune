@@ -20,4 +20,6 @@
   ptime.clock.os
   mtime.clock.os
   re
-  sexplib0))
+  sexplib0
+  threads
+  thread-local-storage))

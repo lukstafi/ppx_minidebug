@@ -1,3 +1,15 @@
+## [2.2.0] -- 2025-03-26
+
+### Added
+
+- Added some missing configurations for runtime providers `debug`, `debug_flushing`.
+- New runtime providers that can directly be used for `_get_local_debug_runtime`: `local_runtime`, `local_runtime_flushing`, `global_runtime`, `global_runtime_flushing`.
+
+### Changed
+
+- Major, breaking change: the `_l_` variant entry points become default, and the default variants become `_o_`, e.g. `%debug_l_sexp` becomes `%debug_sexp`, `%debug_sexp` becomes `%debug_o_sexp`.
+- TODO: default environment variable for compile-time log levels.
+
 ## [2.1.0] -- 2025-03-19
 
 ### Added

@@ -1,5 +1,4 @@
-module Debug_runtime =
-  (val Minidebug_runtime.debug_flushing ~filename:"debugger_show_log_prefixed" ())
+let _get_local_debug_runtime =  Minidebug_runtime.local_runtime_flushing "debugger_show_log_prefixed"
 
 [%%global_debug_log_level 2]
 
