@@ -1,5 +1,5 @@
-module Debug_runtime = (val
-  Minidebug_runtime.debug_flushing ~filename:"debugger_show_flushing" ())
+let _get_local_debug_runtime =
+  Minidebug_runtime.local_runtime_flushing "debugger_show_flushing"
 ;;try
     let runtime_log_level =
       Stdlib.String.lowercase_ascii @@
@@ -15,46 +15,49 @@ module Debug_runtime = (val
               ("' at compile time, '" ^ (runtime_log_level ^ "' at runtime"))))
   with | Stdlib.Not_found -> ()
 let foo (x : int) =
-  (let __entry_id = Debug_runtime.get_entry_id () in
-   ();
-   (Debug_runtime.open_log ~fname:"test_debug_log_level_consistency.ml"
-      ~start_lnum:6 ~start_colnum:19 ~end_lnum:8 ~end_colnum:17
-      ~message:"foo" ~entry_id:__entry_id ~log_level:1 `Debug;
-    Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
-      ~log_level:1 ~is_result:false (([%show : int]) x));
-   (match let y : int =
-            let __entry_id = Debug_runtime.get_entry_id () in
-            ();
-            Debug_runtime.open_log
-              ~fname:"test_debug_log_level_consistency.ml" ~start_lnum:7
-              ~start_colnum:6 ~end_lnum:7 ~end_colnum:7 ~message:"y"
-              ~entry_id:__entry_id ~log_level:1 `Debug;
-            (match x + 1 with
-             | y as __res ->
-                 ((();
-                   Debug_runtime.log_value_show ?descr:(Some "y")
-                     ~entry_id:__entry_id ~log_level:1 ~is_result:true
-                     (([%show : int]) y));
-                  Debug_runtime.close_log
-                    ~fname:"test_debug_log_level_consistency.ml"
-                    ~start_lnum:7 ~entry_id:__entry_id;
-                  __res)
-             | exception e ->
-                 (Debug_runtime.close_log
-                    ~fname:"test_debug_log_level_consistency.ml"
-                    ~start_lnum:7 ~entry_id:__entry_id;
-                  raise e)) in
-          [x; y; 2 * y]
-    with
-    | __res ->
-        (Debug_runtime.log_value_show ?descr:(Some "foo")
-           ~entry_id:__entry_id ~log_level:1 ~is_result:true
-           (([%show : int list]) __res);
-         Debug_runtime.close_log ~fname:"test_debug_log_level_consistency.ml"
-           ~start_lnum:6 ~entry_id:__entry_id;
-         __res)
-    | exception e ->
-        (Debug_runtime.close_log ~fname:"test_debug_log_level_consistency.ml"
-           ~start_lnum:6 ~entry_id:__entry_id;
-         raise e)) : int list)
+  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+    (let __entry_id = Debug_runtime.get_entry_id () in
+     ();
+     (Debug_runtime.open_log ~fname:"test_debug_log_level_consistency.ml"
+        ~start_lnum:5 ~start_colnum:19 ~end_lnum:7 ~end_colnum:17
+        ~message:"foo" ~entry_id:__entry_id ~log_level:1 `Debug;
+      Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
+        ~log_level:1 ~is_result:false (([%show : int]) x));
+     (match let y : int =
+              let __entry_id = Debug_runtime.get_entry_id () in
+              ();
+              Debug_runtime.open_log
+                ~fname:"test_debug_log_level_consistency.ml" ~start_lnum:6
+                ~start_colnum:6 ~end_lnum:6 ~end_colnum:7 ~message:"y"
+                ~entry_id:__entry_id ~log_level:1 `Debug;
+              (match x + 1 with
+               | y as __res ->
+                   ((();
+                     Debug_runtime.log_value_show ?descr:(Some "y")
+                       ~entry_id:__entry_id ~log_level:1 ~is_result:true
+                       (([%show : int]) y));
+                    Debug_runtime.close_log
+                      ~fname:"test_debug_log_level_consistency.ml"
+                      ~start_lnum:6 ~entry_id:__entry_id;
+                    __res)
+               | exception e ->
+                   (Debug_runtime.close_log
+                      ~fname:"test_debug_log_level_consistency.ml"
+                      ~start_lnum:6 ~entry_id:__entry_id;
+                    raise e)) in
+            [x; y; 2 * y]
+      with
+      | __res ->
+          (Debug_runtime.log_value_show ?descr:(Some "foo")
+             ~entry_id:__entry_id ~log_level:1 ~is_result:true
+             (([%show : int list]) __res);
+           Debug_runtime.close_log
+             ~fname:"test_debug_log_level_consistency.ml" ~start_lnum:5
+             ~entry_id:__entry_id;
+           __res)
+      | exception e ->
+          (Debug_runtime.close_log
+             ~fname:"test_debug_log_level_consistency.ml" ~start_lnum:5
+             ~entry_id:__entry_id;
+           raise e)) : int list)
 let () = ignore @@ (List.hd @@ (foo 7))

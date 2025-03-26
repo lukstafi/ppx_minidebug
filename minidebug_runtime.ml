@@ -2243,7 +2243,10 @@ let local_runtime ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
     ?update_config filename_stem =
   let get_thread_id () = Thread.id (Thread.self ()) in
   let get_debug () : (module PrintBox_runtime) =
-    let filename = Printf.sprintf "%s-%d" filename_stem (get_thread_id ()) in
+    let filename =
+      let id = get_thread_id () in
+      if id = 0 then filename_stem else Printf.sprintf "%s-%d" filename_stem id
+    in
     debug_file ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
       ?verbose_entry_ids ?global_prefix ?split_files_after ?with_toc_listing ?toc_entry
       ?toc_flame_graph ?flame_graph_separation ?highlight_terms ?exclude_on_path
@@ -2268,7 +2271,10 @@ let local_runtime_flushing ?table_of_contents_ch ?time_tagged ?elapsed_times
     filename_stem =
   let get_thread_id () = Thread.id (Thread.self ()) in
   let get_debug () =
-    let filename = Printf.sprintf "%s-%d.log" filename_stem (get_thread_id ()) in
+    let filename =
+      let id = get_thread_id () in
+      if id = 0 then filename_stem else Printf.sprintf "%s-%d.log" filename_stem id
+    in
     debug_flushing ?table_of_contents_ch ?time_tagged ?elapsed_times ?location_format
       ?print_entry_ids ?verbose_entry_ids ?description ?global_prefix ?split_files_after
       ?with_table_of_contents ?toc_entry ?for_append ?log_level ~filename ()

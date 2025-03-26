@@ -1,26 +1,26 @@
 
 BEGIN DEBUG SESSION 
-loop_exceeded : int begin "test/test_debug_interrupts.ml":7:33:
+loop_exceeded : int begin "test/test_debug_interrupts.ml":7:35:
  x : int = 17
  z begin "test/test_debug_interrupts.ml":8:6:
   z : int = 8
  z end
- loop_exceeded : int begin "test/test_debug_interrupts.ml":7:33:
+ loop_exceeded : int begin "test/test_debug_interrupts.ml":7:35:
   x : int = 16
   z begin "test/test_debug_interrupts.ml":8:6:
    z : int = 7
   z end
-  loop_exceeded : int begin "test/test_debug_interrupts.ml":7:33:
+  loop_exceeded : int begin "test/test_debug_interrupts.ml":7:35:
    x : int = 15
    z begin "test/test_debug_interrupts.ml":8:6:
     z : int = 7
    z end
-   loop_exceeded : int begin "test/test_debug_interrupts.ml":7:33:
+   loop_exceeded : int begin "test/test_debug_interrupts.ml":7:35:
     x : int = 14
     z begin "test/test_debug_interrupts.ml":8:6:
      z : int = 6
     z end
-    loop_exceeded : int begin "test/test_debug_interrupts.ml":7:33:
+    loop_exceeded : int begin "test/test_debug_interrupts.ml":7:35:
      x : int = 13
      z begin "test/test_debug_interrupts.ml":8:6:
       z = <max_nesting_depth exceeded>
@@ -30,7 +30,7 @@ loop_exceeded : int begin "test/test_debug_interrupts.ml":7:33:
   loop_exceeded : int end
  loop_exceeded : int end
 loop_exceeded : int end
-bar : unit begin "test/test_debug_interrupts.ml":15:19:
+bar : unit begin "test/test_debug_interrupts.ml":15:21:
  for:test_debug_interrupts:16 begin "test/test_debug_interrupts.ml":16:2:
   i : int = 0
   <for i> begin "test/test_debug_interrupts.ml":16:6:

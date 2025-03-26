@@ -1,9 +1,9 @@
-module Debug_runtime =
-  (val Minidebug_runtime.debug_flushing ~filename:"debugger_show_log_nothing" ())
+let _get_local_debug_runtime =
+  Minidebug_runtime.local_runtime_flushing "debugger_generate_nothing"
 
 [%%global_debug_log_level 0]
 
-let%debug_o_show rec loop_exceeded (x : int) : int =
+let%debug_show rec loop_exceeded (x : int) : int =
   let z : int =
     [%log "ERROR: just kidding"];
     (x - 1) / 2
@@ -14,10 +14,11 @@ let () =
   try print_endline @@ Int.to_string @@ loop_exceeded 17
   with _ -> print_endline "Raised exception."
 
-let%track_o_show bar () : unit =
+let%track_show bar () : unit =
   for i = 0 to 100 do
     let _baz : int = i * 2 in
     [%log "loop step", (i : int), "value", (_baz : int)]
   done
 
 let () = try bar () with _ -> print_endline "Raised exception."
+let () = assert (not @@ Sys.file_exists "debugger_generate_nothing.log")

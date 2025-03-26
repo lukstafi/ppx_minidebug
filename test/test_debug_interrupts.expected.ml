@@ -14,7 +14,7 @@ let rec loop_exceeded (x : int) =
       failwith "ppx_minidebug: max_num_children exceeded")
    else
      ((Debug_runtime.open_log ~fname:"test_debug_interrupts.ml" ~start_lnum:7
-         ~start_colnum:33 ~end_lnum:9 ~end_colnum:55
+         ~start_colnum:35 ~end_lnum:9 ~end_colnum:55
          ~message:"loop_exceeded : int" ~entry_id:__entry_id ~log_level:1
          `Debug;
        Debug_runtime.log_value_show ?descr:(Some "x : int")
@@ -94,7 +94,7 @@ let bar () =
       failwith "ppx_minidebug: max_num_children exceeded")
    else
      (Debug_runtime.open_log ~fname:"test_debug_interrupts.ml" ~start_lnum:15
-        ~start_colnum:19 ~end_lnum:19 ~end_colnum:6 ~message:"bar : unit"
+        ~start_colnum:21 ~end_lnum:19 ~end_colnum:6 ~message:"bar : unit"
         ~entry_id:__entry_id ~log_level:1 `Track;
       if Debug_runtime.exceeds_max_nesting ()
       then

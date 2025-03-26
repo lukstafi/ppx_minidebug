@@ -6,7 +6,7 @@ let foo (x : int) =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();
    (Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:9
-      ~start_colnum:19 ~end_lnum:11 ~end_colnum:17 ~message:"foo"
+      ~start_colnum:21 ~end_lnum:11 ~end_colnum:17 ~message:"foo"
       ~entry_id:__entry_id ~log_level:1 `Debug;
     Debug_runtime.log_value_sexp ?descr:(Some "x") ~entry_id:__entry_id
       ~log_level:1 ~is_result:false (([%sexp_of : int]) x));
@@ -50,7 +50,7 @@ let bar (x : t) =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();
    (Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:17
-      ~start_colnum:19 ~end_lnum:19 ~end_colnum:14 ~message:"bar"
+      ~start_colnum:21 ~end_lnum:19 ~end_colnum:14 ~message:"bar"
       ~entry_id:__entry_id ~log_level:1 `Debug;
     Debug_runtime.log_value_sexp ?descr:(Some "x") ~entry_id:__entry_id
       ~log_level:1 ~is_result:false (([%sexp_of : t]) x));
@@ -91,7 +91,7 @@ let baz (x : t) =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();
    (Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:23
-      ~start_colnum:19 ~end_lnum:26 ~end_colnum:28 ~message:"baz"
+      ~start_colnum:21 ~end_lnum:26 ~end_colnum:28 ~message:"baz"
       ~entry_id:__entry_id ~log_level:1 `Debug;
     Debug_runtime.log_value_sexp ?descr:(Some "x") ~entry_id:__entry_id
       ~log_level:1 ~is_result:false (([%sexp_of : t]) x));
@@ -151,7 +151,7 @@ let lab ~x:(x : int)  =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();
    (Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:30
-      ~start_colnum:19 ~end_lnum:32 ~end_colnum:17 ~message:"lab"
+      ~start_colnum:21 ~end_lnum:32 ~end_colnum:17 ~message:"lab"
       ~entry_id:__entry_id ~log_level:1 `Debug;
     Debug_runtime.log_value_sexp ?descr:(Some "x") ~entry_id:__entry_id
       ~log_level:1 ~is_result:false (([%sexp_of : int]) x));
@@ -192,7 +192,7 @@ let rec loop (depth : int) (x : t) =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();
    ((Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:36
-       ~start_colnum:24 ~end_lnum:42 ~end_colnum:9 ~message:"loop"
+       ~start_colnum:26 ~end_lnum:42 ~end_colnum:9 ~message:"loop"
        ~entry_id:__entry_id ~log_level:1 `Debug;
      Debug_runtime.log_value_sexp ?descr:(Some "depth") ~entry_id:__entry_id
        ~log_level:1 ~is_result:false (([%sexp_of : int]) depth));

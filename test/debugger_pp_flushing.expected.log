@@ -1,45 +1,45 @@
 
 BEGIN DEBUG SESSION 
-bar begin "test/test_debug_pp.ml":7:17:
+bar begin "test/test_debug_pp.ml":6:17:
  x = { Test_debug_pp.first = 7; second = 42 }
- y begin "test/test_debug_pp.ml":8:6:
+ y begin "test/test_debug_pp.ml":7:6:
   y = 8
  y end
  bar = 336
 bar end
-baz begin "test/test_debug_pp.ml":13:17:
+baz begin "test/test_debug_pp.ml":12:17:
  x = { Test_debug_pp.first = 7; second = 42 }
- _yz begin "test/test_debug_pp.ml":14:36:
+ _yz begin "test/test_debug_pp.ml":13:36:
   _yz = { Test_debug_pp.first = 8; second = 3 }
  _yz end
  baz = 339
 baz end
-loop begin "test/test_debug_pp.ml":19:22:
+loop begin "test/test_debug_pp.ml":18:22:
  depth = 0
  x = { Test_debug_pp.first = 7; second = 42 }
- y begin "test/test_debug_pp.ml":23:8:
-  loop begin "test/test_debug_pp.ml":19:22:
+ y begin "test/test_debug_pp.ml":22:8:
+  loop begin "test/test_debug_pp.ml":18:22:
    depth = 1
    x = { Test_debug_pp.first = 41; second = 9 }
-   y begin "test/test_debug_pp.ml":23:8:
-    loop begin "test/test_debug_pp.ml":19:22:
+   y begin "test/test_debug_pp.ml":22:8:
+    loop begin "test/test_debug_pp.ml":18:22:
      depth = 2
      x = { Test_debug_pp.first = 8; second = 43 }
-     y begin "test/test_debug_pp.ml":23:8:
-      loop begin "test/test_debug_pp.ml":19:22:
+     y begin "test/test_debug_pp.ml":22:8:
+      loop begin "test/test_debug_pp.ml":18:22:
        depth = 3
        x = { Test_debug_pp.first = 42; second = 10 }
-       y begin "test/test_debug_pp.ml":23:8:
-        loop begin "test/test_debug_pp.ml":19:22:
+       y begin "test/test_debug_pp.ml":22:8:
+        loop begin "test/test_debug_pp.ml":18:22:
          depth = 4
          x = { Test_debug_pp.first = 9; second = 44 }
-         loop begin "test/test_debug_pp.ml":19:22:
+         loop begin "test/test_debug_pp.ml":18:22:
           depth = 5
           x = { Test_debug_pp.first = 45; second = 4 }
-          loop begin "test/test_debug_pp.ml":19:22:
+          loop begin "test/test_debug_pp.ml":18:22:
            depth = 6
            x = { Test_debug_pp.first = 5; second = 22 }
-           loop begin "test/test_debug_pp.ml":19:22:
+           loop begin "test/test_debug_pp.ml":18:22:
             depth = 7
             x = { Test_debug_pp.first = 23; second = 2 }
             loop = 25
@@ -52,17 +52,17 @@ loop begin "test/test_debug_pp.ml":19:22:
         loop end
         y = 25
        y end
-       z begin "test/test_debug_pp.ml":24:8:
-        loop begin "test/test_debug_pp.ml":19:22:
+       z begin "test/test_debug_pp.ml":23:8:
+        loop begin "test/test_debug_pp.ml":18:22:
          depth = 4
          x = { Test_debug_pp.first = 11; second = 25 }
-         loop begin "test/test_debug_pp.ml":19:22:
+         loop begin "test/test_debug_pp.ml":18:22:
           depth = 5
           x = { Test_debug_pp.first = 26; second = 5 }
-          loop begin "test/test_debug_pp.ml":19:22:
+          loop begin "test/test_debug_pp.ml":18:22:
            depth = 6
            x = { Test_debug_pp.first = 6; second = 13 }
-           loop begin "test/test_debug_pp.ml":19:22:
+           loop begin "test/test_debug_pp.ml":18:22:
             depth = 7
             x = { Test_debug_pp.first = 14; second = 3 }
             loop = 17
@@ -79,21 +79,21 @@ loop begin "test/test_debug_pp.ml":19:22:
       loop end
       y = 24
      y end
-     z begin "test/test_debug_pp.ml":24:8:
-      loop begin "test/test_debug_pp.ml":19:22:
+     z begin "test/test_debug_pp.ml":23:8:
+      loop begin "test/test_debug_pp.ml":18:22:
        depth = 3
        x = { Test_debug_pp.first = 44; second = 24 }
-       y begin "test/test_debug_pp.ml":23:8:
-        loop begin "test/test_debug_pp.ml":19:22:
+       y begin "test/test_debug_pp.ml":22:8:
+        loop begin "test/test_debug_pp.ml":18:22:
          depth = 4
          x = { Test_debug_pp.first = 23; second = 46 }
-         loop begin "test/test_debug_pp.ml":19:22:
+         loop begin "test/test_debug_pp.ml":18:22:
           depth = 5
           x = { Test_debug_pp.first = 47; second = 11 }
-          loop begin "test/test_debug_pp.ml":19:22:
+          loop begin "test/test_debug_pp.ml":18:22:
            depth = 6
            x = { Test_debug_pp.first = 12; second = 23 }
-           loop begin "test/test_debug_pp.ml":19:22:
+           loop begin "test/test_debug_pp.ml":18:22:
             depth = 7
             x = { Test_debug_pp.first = 24; second = 6 }
             loop = 30
@@ -106,17 +106,17 @@ loop begin "test/test_debug_pp.ml":19:22:
         loop end
         y = 30
        y end
-       z begin "test/test_debug_pp.ml":24:8:
-        loop begin "test/test_debug_pp.ml":19:22:
+       z begin "test/test_debug_pp.ml":23:8:
+        loop begin "test/test_debug_pp.ml":18:22:
          depth = 4
          x = { Test_debug_pp.first = 25; second = 30 }
-         loop begin "test/test_debug_pp.ml":19:22:
+         loop begin "test/test_debug_pp.ml":18:22:
           depth = 5
           x = { Test_debug_pp.first = 31; second = 12 }
-          loop begin "test/test_debug_pp.ml":19:22:
+          loop begin "test/test_debug_pp.ml":18:22:
            depth = 6
            x = { Test_debug_pp.first = 13; second = 15 }
-           loop begin "test/test_debug_pp.ml":19:22:
+           loop begin "test/test_debug_pp.ml":18:22:
             depth = 7
             x = { Test_debug_pp.first = 16; second = 6 }
             loop = 22
@@ -137,25 +137,25 @@ loop begin "test/test_debug_pp.ml":19:22:
     loop end
     y = 36
    y end
-   z begin "test/test_debug_pp.ml":24:8:
-    loop begin "test/test_debug_pp.ml":19:22:
+   z begin "test/test_debug_pp.ml":23:8:
+    loop begin "test/test_debug_pp.ml":18:22:
      depth = 2
      x = { Test_debug_pp.first = 10; second = 36 }
-     y begin "test/test_debug_pp.ml":23:8:
-      loop begin "test/test_debug_pp.ml":19:22:
+     y begin "test/test_debug_pp.ml":22:8:
+      loop begin "test/test_debug_pp.ml":18:22:
        depth = 3
        x = { Test_debug_pp.first = 35; second = 12 }
-       y begin "test/test_debug_pp.ml":23:8:
-        loop begin "test/test_debug_pp.ml":19:22:
+       y begin "test/test_debug_pp.ml":22:8:
+        loop begin "test/test_debug_pp.ml":18:22:
          depth = 4
          x = { Test_debug_pp.first = 11; second = 37 }
-         loop begin "test/test_debug_pp.ml":19:22:
+         loop begin "test/test_debug_pp.ml":18:22:
           depth = 5
           x = { Test_debug_pp.first = 38; second = 5 }
-          loop begin "test/test_debug_pp.ml":19:22:
+          loop begin "test/test_debug_pp.ml":18:22:
            depth = 6
            x = { Test_debug_pp.first = 6; second = 19 }
-           loop begin "test/test_debug_pp.ml":19:22:
+           loop begin "test/test_debug_pp.ml":18:22:
             depth = 7
             x = { Test_debug_pp.first = 20; second = 3 }
             loop = 23
@@ -168,17 +168,17 @@ loop begin "test/test_debug_pp.ml":19:22:
         loop end
         y = 23
        y end
-       z begin "test/test_debug_pp.ml":24:8:
-        loop begin "test/test_debug_pp.ml":19:22:
+       z begin "test/test_debug_pp.ml":23:8:
+        loop begin "test/test_debug_pp.ml":18:22:
          depth = 4
          x = { Test_debug_pp.first = 13; second = 23 }
-         loop begin "test/test_debug_pp.ml":19:22:
+         loop begin "test/test_debug_pp.ml":18:22:
           depth = 5
           x = { Test_debug_pp.first = 24; second = 6 }
-          loop begin "test/test_debug_pp.ml":19:22:
+          loop begin "test/test_debug_pp.ml":18:22:
            depth = 6
            x = { Test_debug_pp.first = 7; second = 12 }
-           loop begin "test/test_debug_pp.ml":19:22:
+           loop begin "test/test_debug_pp.ml":18:22:
             depth = 7
             x = { Test_debug_pp.first = 13; second = 3 }
             loop = 16
@@ -195,21 +195,21 @@ loop begin "test/test_debug_pp.ml":19:22:
       loop end
       y = 23
      y end
-     z begin "test/test_debug_pp.ml":24:8:
-      loop begin "test/test_debug_pp.ml":19:22:
+     z begin "test/test_debug_pp.ml":23:8:
+      loop begin "test/test_debug_pp.ml":18:22:
        depth = 3
        x = { Test_debug_pp.first = 37; second = 23 }
-       y begin "test/test_debug_pp.ml":23:8:
-        loop begin "test/test_debug_pp.ml":19:22:
+       y begin "test/test_debug_pp.ml":22:8:
+        loop begin "test/test_debug_pp.ml":18:22:
          depth = 4
          x = { Test_debug_pp.first = 22; second = 39 }
-         loop begin "test/test_debug_pp.ml":19:22:
+         loop begin "test/test_debug_pp.ml":18:22:
           depth = 5
           x = { Test_debug_pp.first = 40; second = 11 }
-          loop begin "test/test_debug_pp.ml":19:22:
+          loop begin "test/test_debug_pp.ml":18:22:
            depth = 6
            x = { Test_debug_pp.first = 12; second = 20 }
-           loop begin "test/test_debug_pp.ml":19:22:
+           loop begin "test/test_debug_pp.ml":18:22:
             depth = 7
             x = { Test_debug_pp.first = 21; second = 6 }
             loop = 27
@@ -222,17 +222,17 @@ loop begin "test/test_debug_pp.ml":19:22:
         loop end
         y = 27
        y end
-       z begin "test/test_debug_pp.ml":24:8:
-        loop begin "test/test_debug_pp.ml":19:22:
+       z begin "test/test_debug_pp.ml":23:8:
+        loop begin "test/test_debug_pp.ml":18:22:
          depth = 4
          x = { Test_debug_pp.first = 24; second = 27 }
-         loop begin "test/test_debug_pp.ml":19:22:
+         loop begin "test/test_debug_pp.ml":18:22:
           depth = 5
           x = { Test_debug_pp.first = 28; second = 12 }
-          loop begin "test/test_debug_pp.ml":19:22:
+          loop begin "test/test_debug_pp.ml":18:22:
            depth = 6
            x = { Test_debug_pp.first = 13; second = 14 }
-           loop begin "test/test_debug_pp.ml":19:22:
+           loop begin "test/test_debug_pp.ml":18:22:
             depth = 7
             x = { Test_debug_pp.first = 15; second = 6 }
             loop = 21
@@ -257,29 +257,29 @@ loop begin "test/test_debug_pp.ml":19:22:
   loop end
   y = 42
  y end
- z begin "test/test_debug_pp.ml":24:8:
-  loop begin "test/test_debug_pp.ml":19:22:
+ z begin "test/test_debug_pp.ml":23:8:
+  loop begin "test/test_debug_pp.ml":18:22:
    depth = 1
    x = { Test_debug_pp.first = 43; second = 42 }
-   y begin "test/test_debug_pp.ml":23:8:
-    loop begin "test/test_debug_pp.ml":19:22:
+   y begin "test/test_debug_pp.ml":22:8:
+    loop begin "test/test_debug_pp.ml":18:22:
      depth = 2
      x = { Test_debug_pp.first = 41; second = 45 }
-     y begin "test/test_debug_pp.ml":23:8:
-      loop begin "test/test_debug_pp.ml":19:22:
+     y begin "test/test_debug_pp.ml":22:8:
+      loop begin "test/test_debug_pp.ml":18:22:
        depth = 3
        x = { Test_debug_pp.first = 44; second = 43 }
-       y begin "test/test_debug_pp.ml":23:8:
-        loop begin "test/test_debug_pp.ml":19:22:
+       y begin "test/test_debug_pp.ml":22:8:
+        loop begin "test/test_debug_pp.ml":18:22:
          depth = 4
          x = { Test_debug_pp.first = 42; second = 46 }
-         loop begin "test/test_debug_pp.ml":19:22:
+         loop begin "test/test_debug_pp.ml":18:22:
           depth = 5
           x = { Test_debug_pp.first = 47; second = 21 }
-          loop begin "test/test_debug_pp.ml":19:22:
+          loop begin "test/test_debug_pp.ml":18:22:
            depth = 6
            x = { Test_debug_pp.first = 22; second = 23 }
-           loop begin "test/test_debug_pp.ml":19:22:
+           loop begin "test/test_debug_pp.ml":18:22:
             depth = 7
             x = { Test_debug_pp.first = 24; second = 11 }
             loop = 35
@@ -292,17 +292,17 @@ loop begin "test/test_debug_pp.ml":19:22:
         loop end
         y = 35
        y end
-       z begin "test/test_debug_pp.ml":24:8:
-        loop begin "test/test_debug_pp.ml":19:22:
+       z begin "test/test_debug_pp.ml":23:8:
+        loop begin "test/test_debug_pp.ml":18:22:
          depth = 4
          x = { Test_debug_pp.first = 44; second = 35 }
-         loop begin "test/test_debug_pp.ml":19:22:
+         loop begin "test/test_debug_pp.ml":18:22:
           depth = 5
           x = { Test_debug_pp.first = 36; second = 22 }
-          loop begin "test/test_debug_pp.ml":19:22:
+          loop begin "test/test_debug_pp.ml":18:22:
            depth = 6
            x = { Test_debug_pp.first = 23; second = 18 }
-           loop begin "test/test_debug_pp.ml":19:22:
+           loop begin "test/test_debug_pp.ml":18:22:
             depth = 7
             x = { Test_debug_pp.first = 19; second = 11 }
             loop = 30
@@ -319,21 +319,21 @@ loop begin "test/test_debug_pp.ml":19:22:
       loop end
       y = 37
      y end
-     z begin "test/test_debug_pp.ml":24:8:
-      loop begin "test/test_debug_pp.ml":19:22:
+     z begin "test/test_debug_pp.ml":23:8:
+      loop begin "test/test_debug_pp.ml":18:22:
        depth = 3
        x = { Test_debug_pp.first = 46; second = 37 }
-       y begin "test/test_debug_pp.ml":23:8:
-        loop begin "test/test_debug_pp.ml":19:22:
+       y begin "test/test_debug_pp.ml":22:8:
+        loop begin "test/test_debug_pp.ml":18:22:
          depth = 4
          x = { Test_debug_pp.first = 36; second = 48 }
-         loop begin "test/test_debug_pp.ml":19:22:
+         loop begin "test/test_debug_pp.ml":18:22:
           depth = 5
           x = { Test_debug_pp.first = 49; second = 18 }
-          loop begin "test/test_debug_pp.ml":19:22:
+          loop begin "test/test_debug_pp.ml":18:22:
            depth = 6
            x = { Test_debug_pp.first = 19; second = 24 }
-           loop begin "test/test_debug_pp.ml":19:22:
+           loop begin "test/test_debug_pp.ml":18:22:
             depth = 7
             x = { Test_debug_pp.first = 25; second = 9 }
             loop = 34
@@ -346,17 +346,17 @@ loop begin "test/test_debug_pp.ml":19:22:
         loop end
         y = 34
        y end
-       z begin "test/test_debug_pp.ml":24:8:
-        loop begin "test/test_debug_pp.ml":19:22:
+       z begin "test/test_debug_pp.ml":23:8:
+        loop begin "test/test_debug_pp.ml":18:22:
          depth = 4
          x = { Test_debug_pp.first = 38; second = 34 }
-         loop begin "test/test_debug_pp.ml":19:22:
+         loop begin "test/test_debug_pp.ml":18:22:
           depth = 5
           x = { Test_debug_pp.first = 35; second = 19 }
-          loop begin "test/test_debug_pp.ml":19:22:
+          loop begin "test/test_debug_pp.ml":18:22:
            depth = 6
            x = { Test_debug_pp.first = 20; second = 17 }
-           loop begin "test/test_debug_pp.ml":19:22:
+           loop begin "test/test_debug_pp.ml":18:22:
             depth = 7
             x = { Test_debug_pp.first = 18; second = 10 }
             loop = 28
@@ -377,25 +377,25 @@ loop begin "test/test_debug_pp.ml":19:22:
     loop end
     y = 42
    y end
-   z begin "test/test_debug_pp.ml":24:8:
-    loop begin "test/test_debug_pp.ml":19:22:
+   z begin "test/test_debug_pp.ml":23:8:
+    loop begin "test/test_debug_pp.ml":18:22:
      depth = 2
      x = { Test_debug_pp.first = 43; second = 42 }
-     y begin "test/test_debug_pp.ml":23:8:
-      loop begin "test/test_debug_pp.ml":19:22:
+     y begin "test/test_debug_pp.ml":22:8:
+      loop begin "test/test_debug_pp.ml":18:22:
        depth = 3
        x = { Test_debug_pp.first = 41; second = 45 }
-       y begin "test/test_debug_pp.ml":23:8:
-        loop begin "test/test_debug_pp.ml":19:22:
+       y begin "test/test_debug_pp.ml":22:8:
+        loop begin "test/test_debug_pp.ml":18:22:
          depth = 4
          x = { Test_debug_pp.first = 44; second = 43 }
-         loop begin "test/test_debug_pp.ml":19:22:
+         loop begin "test/test_debug_pp.ml":18:22:
           depth = 5
           x = { Test_debug_pp.first = 44; second = 22 }
-          loop begin "test/test_debug_pp.ml":19:22:
+          loop begin "test/test_debug_pp.ml":18:22:
            depth = 6
            x = { Test_debug_pp.first = 23; second = 22 }
-           loop begin "test/test_debug_pp.ml":19:22:
+           loop begin "test/test_debug_pp.ml":18:22:
             depth = 7
             x = { Test_debug_pp.first = 23; second = 11 }
             loop = 34
@@ -408,17 +408,17 @@ loop begin "test/test_debug_pp.ml":19:22:
         loop end
         y = 34
        y end
-       z begin "test/test_debug_pp.ml":24:8:
-        loop begin "test/test_debug_pp.ml":19:22:
+       z begin "test/test_debug_pp.ml":23:8:
+        loop begin "test/test_debug_pp.ml":18:22:
          depth = 4
          x = { Test_debug_pp.first = 46; second = 34 }
-         loop begin "test/test_debug_pp.ml":19:22:
+         loop begin "test/test_debug_pp.ml":18:22:
           depth = 5
           x = { Test_debug_pp.first = 35; second = 23 }
-          loop begin "test/test_debug_pp.ml":19:22:
+          loop begin "test/test_debug_pp.ml":18:22:
            depth = 6
            x = { Test_debug_pp.first = 24; second = 17 }
-           loop begin "test/test_debug_pp.ml":19:22:
+           loop begin "test/test_debug_pp.ml":18:22:
             depth = 7
             x = { Test_debug_pp.first = 18; second = 12 }
             loop = 30
@@ -435,21 +435,21 @@ loop begin "test/test_debug_pp.ml":19:22:
       loop end
       y = 37
      y end
-     z begin "test/test_debug_pp.ml":24:8:
-      loop begin "test/test_debug_pp.ml":19:22:
+     z begin "test/test_debug_pp.ml":23:8:
+      loop begin "test/test_debug_pp.ml":18:22:
        depth = 3
        x = { Test_debug_pp.first = 43; second = 37 }
-       y begin "test/test_debug_pp.ml":23:8:
-        loop begin "test/test_debug_pp.ml":19:22:
+       y begin "test/test_debug_pp.ml":22:8:
+        loop begin "test/test_debug_pp.ml":18:22:
          depth = 4
          x = { Test_debug_pp.first = 36; second = 45 }
-         loop begin "test/test_debug_pp.ml":19:22:
+         loop begin "test/test_debug_pp.ml":18:22:
           depth = 5
           x = { Test_debug_pp.first = 46; second = 18 }
-          loop begin "test/test_debug_pp.ml":19:22:
+          loop begin "test/test_debug_pp.ml":18:22:
            depth = 6
            x = { Test_debug_pp.first = 19; second = 23 }
-           loop begin "test/test_debug_pp.ml":19:22:
+           loop begin "test/test_debug_pp.ml":18:22:
             depth = 7
             x = { Test_debug_pp.first = 24; second = 9 }
             loop = 33
@@ -462,17 +462,17 @@ loop begin "test/test_debug_pp.ml":19:22:
         loop end
         y = 33
        y end
-       z begin "test/test_debug_pp.ml":24:8:
-        loop begin "test/test_debug_pp.ml":19:22:
+       z begin "test/test_debug_pp.ml":23:8:
+        loop begin "test/test_debug_pp.ml":18:22:
          depth = 4
          x = { Test_debug_pp.first = 38; second = 33 }
-         loop begin "test/test_debug_pp.ml":19:22:
+         loop begin "test/test_debug_pp.ml":18:22:
           depth = 5
           x = { Test_debug_pp.first = 34; second = 19 }
-          loop begin "test/test_debug_pp.ml":19:22:
+          loop begin "test/test_debug_pp.ml":18:22:
            depth = 6
            x = { Test_debug_pp.first = 20; second = 17 }
-           loop begin "test/test_debug_pp.ml":19:22:
+           loop begin "test/test_debug_pp.ml":18:22:
             depth = 7
             x = { Test_debug_pp.first = 18; second = 10 }
             loop = 28
