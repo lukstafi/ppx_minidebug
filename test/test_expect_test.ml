@@ -3598,7 +3598,7 @@ let%expect_test "%log_printbox" =
     |}]
 
 let%expect_test "%log_printbox flushing" =
-  let _get_local_debug_runtime =  Minidebug_runtime.global_runtime_flushing () in
+  let _get_local_debug_runtime = Minidebug_runtime.global_runtime_flushing () in
   let%debug_show foo () : unit =
     [%log_printbox
       PrintBox.init_grid ~line:5 ~col:5 (fun ~line ~col ->
@@ -4875,7 +4875,8 @@ let%expect_test "comparing differences with entry_id_pairs" =
         "end";
       ]
   in
-  (let module D = (val _get_local_debug_runtime ()) in D.finish_and_cleanup ());
+  (let module D = (val _get_local_debug_runtime ()) in
+  D.finish_and_cleanup ());
 
   (* Second run with different structure *)
   let _get_local_debug_runtime =
@@ -4936,7 +4937,8 @@ let%expect_test "comparing differences with entry_id_pairs" =
         "end";
       ]
   in
-  (let module D = (val _get_local_debug_runtime ()) in D.finish_and_cleanup ());
+  (let module D = (val _get_local_debug_runtime ()) in
+  D.finish_and_cleanup ());
 
   (* Print the outputs to show the diff results *)
   let print_log filename =
@@ -4982,7 +4984,7 @@ let%expect_test "comparing differences with entry_id_pairs" =
 
     BEGIN DEBUG SESSION
     ┌─────────────────────────────────────────┐┌─┐┌────┐Inserted in current run
-    │"test/test_expect_test.ml":4890:17: _run2││ ││{#1}│
+    │"test/test_expect_test.ml":4891:17: _run2││ ││{#1}│
     ├─────────────────────────────────────────┘└─┘└────┘
     ├─┬────┐┌─┐┌────┐Inserted in current run
     │ │logs││ ││{#2}│

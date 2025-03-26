@@ -2,7 +2,7 @@ open Sexplib0.Sexp_conv
 
 let _get_local_debug_runtime =
   Minidebug_runtime.local_runtime ~hyperlink:"../"
-         ~backend:(`Markdown Minidebug_runtime.default_md_config) "debugger_sexp_md"
+    ~backend:(`Markdown Minidebug_runtime.default_md_config) "debugger_sexp_md"
 
 let%debug_sexp foo (x : int) : int list =
   let y : int = x + 1 in

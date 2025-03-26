@@ -3,8 +3,9 @@ let () =
   let curr_run = "test_expect_test_entry_id_pairs_curr" in
 
   (* First run - create baseline with several entries *)
-  let _get_local_debug_runtime = ( Minidebug_runtime.local_runtime ~values_first_mode:false ~print_entry_ids:true
-           ~backend:`Text prev_run)
+  let _get_local_debug_runtime =
+    Minidebug_runtime.local_runtime ~values_first_mode:false ~print_entry_ids:true
+      ~backend:`Text prev_run
   in
   let%debug_show _run1 : unit =
     let logify logs =
@@ -61,15 +62,17 @@ let () =
         "end";
       ]
   in
-  (let module D = (val _get_local_debug_runtime ()) in D.finish_and_cleanup ());
+  (let module D = (val _get_local_debug_runtime ()) in
+  D.finish_and_cleanup ());
 
   (* Second run with different structure *)
-  let _get_local_debug_runtime = ( Minidebug_runtime.local_runtime ~values_first_mode:false ~print_entry_ids:true
-           ~backend:`Text ~prev_run_file:(prev_run ^ ".raw")
-           ~entry_id_pairs:[ (2, 4); (8, 6) ]
-             (* Force mappings: - Entry 2 (early prev) to Entry 4 (middle curr) - Entry 8
-                (late prev) to Entry 6 (in the shorter curr) *)
-           curr_run)
+  let _get_local_debug_runtime =
+    Minidebug_runtime.local_runtime ~values_first_mode:false ~print_entry_ids:true
+      ~backend:`Text ~prev_run_file:(prev_run ^ ".raw")
+      ~entry_id_pairs:[ (2, 4); (8, 6) ]
+        (* Force mappings: - Entry 2 (early prev) to Entry 4 (middle curr) - Entry 8 (late
+           prev) to Entry 6 (in the shorter curr) *)
+      curr_run
   in
   (* Second run with different structure to test diffing *)
   let%debug_show _run2 : unit =
@@ -121,7 +124,8 @@ let () =
         "end";
       ]
   in
-  (let module D = (val _get_local_debug_runtime ()) in D.finish_and_cleanup ());
+  (let module D = (val _get_local_debug_runtime ()) in
+  D.finish_and_cleanup ());
 
   (* Print the outputs to show the diff results *)
   let print_log filename =

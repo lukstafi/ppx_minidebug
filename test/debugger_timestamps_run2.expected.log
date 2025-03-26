@@ -1,9 +1,9 @@
 
 BEGIN DEBUG SESSION 
-"test/test_debug_timestamps.ml":23:33: process_message
+"test/test_debug_timestamps.ml":21:33: process_message
 ├─msg = "hello"
-├─"test/test_debug_timestamps.ml":24:8: timestamp
+├─"test/test_debug_timestamps.ml":22:8: timestamp
 │ └─timestamp = "[2024-03-22 15:30:45] "
-├─"test/test_debug_timestamps.ml":25:8: processed
+├─"test/test_debug_timestamps.ml":23:8: processed
 │ └─processed = "[2024-03-22 15:30:45] Processing: hello"
 └─process_message = 39

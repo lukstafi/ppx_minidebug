@@ -1,4 +1,5 @@
-let _get_local_debug_runtime =  Minidebug_runtime.local_runtime_flushing "debugger_pp_flushing"
+let _get_local_debug_runtime =
+  Minidebug_runtime.local_runtime_flushing "debugger_pp_flushing"
 
 type t = { first : int; second : int } [@@deriving show]
 type num = int [@@deriving show]

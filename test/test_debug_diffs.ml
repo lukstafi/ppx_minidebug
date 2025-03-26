@@ -3,7 +3,7 @@ open Sexplib0.Sexp_conv
 let debug_run1 () =
   let _get_local_debug_runtime =
     Minidebug_runtime.local_runtime ~values_first_mode:true ~boxify_sexp_from_size:0
-           ~backend:`Text "debugger_diffs_run1"
+      ~backend:`Text "debugger_diffs_run1"
   in
   let%debug_sexp foo (x : int) : int list =
     let y : int = x + 1 in
@@ -15,7 +15,7 @@ let debug_run1 () =
 let debug_run2 () =
   let _get_local_debug_runtime =
     Minidebug_runtime.local_runtime ~values_first_mode:true ~boxify_sexp_from_size:0
-           ~backend:`Text ~prev_run_file:"debugger_diffs_run1.raw" "debugger_diffs_run2"
+      ~backend:`Text ~prev_run_file:"debugger_diffs_run1.raw" "debugger_diffs_run2"
   in
   let%debug_sexp foo (x : int) : int list =
     let y : int = x + 1 in

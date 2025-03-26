@@ -2,9 +2,9 @@ open Sexplib0.Sexp_conv
 
 let _get_local_debug_runtime =
   Minidebug_runtime.local_runtime ~hyperlink:"../" ~toc_specific_hyperlink:"./"
-         ~with_toc_listing:true
-         ~backend:(`Html PrintBox_html.Config.(tree_summary true default))
-         "debugger_sexp_html"
+    ~with_toc_listing:true
+    ~backend:(`Html PrintBox_html.Config.(tree_summary true default))
+    "debugger_sexp_html"
 
 let%debug_sexp foo (x : int) : int list =
   let y : int = x + 1 in

@@ -19,7 +19,7 @@ let foo (x : int) =
     (let __entry_id = Debug_runtime.get_entry_id () in
      ();
      (Debug_runtime.open_log ~fname:"test_debug_log_level_consistency.ml"
-        ~start_lnum:5 ~start_colnum:19 ~end_lnum:7 ~end_colnum:17
+        ~start_lnum:6 ~start_colnum:19 ~end_lnum:8 ~end_colnum:17
         ~message:"foo" ~entry_id:__entry_id ~log_level:1 `Debug;
       Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
         ~log_level:1 ~is_result:false (([%show : int]) x));
@@ -27,8 +27,8 @@ let foo (x : int) =
               let __entry_id = Debug_runtime.get_entry_id () in
               ();
               Debug_runtime.open_log
-                ~fname:"test_debug_log_level_consistency.ml" ~start_lnum:6
-                ~start_colnum:6 ~end_lnum:6 ~end_colnum:7 ~message:"y"
+                ~fname:"test_debug_log_level_consistency.ml" ~start_lnum:7
+                ~start_colnum:6 ~end_lnum:7 ~end_colnum:7 ~message:"y"
                 ~entry_id:__entry_id ~log_level:1 `Debug;
               (match x + 1 with
                | y as __res ->
@@ -38,12 +38,12 @@ let foo (x : int) =
                        (([%show : int]) y));
                     Debug_runtime.close_log
                       ~fname:"test_debug_log_level_consistency.ml"
-                      ~start_lnum:6 ~entry_id:__entry_id;
+                      ~start_lnum:7 ~entry_id:__entry_id;
                     __res)
                | exception e ->
                    (Debug_runtime.close_log
                       ~fname:"test_debug_log_level_consistency.ml"
-                      ~start_lnum:6 ~entry_id:__entry_id;
+                      ~start_lnum:7 ~entry_id:__entry_id;
                     raise e)) in
             [x; y; 2 * y]
       with
@@ -52,12 +52,12 @@ let foo (x : int) =
              ~entry_id:__entry_id ~log_level:1 ~is_result:true
              (([%show : int list]) __res);
            Debug_runtime.close_log
-             ~fname:"test_debug_log_level_consistency.ml" ~start_lnum:5
+             ~fname:"test_debug_log_level_consistency.ml" ~start_lnum:6
              ~entry_id:__entry_id;
            __res)
       | exception e ->
           (Debug_runtime.close_log
-             ~fname:"test_debug_log_level_consistency.ml" ~start_lnum:5
+             ~fname:"test_debug_log_level_consistency.ml" ~start_lnum:6
              ~entry_id:__entry_id;
            raise e)) : int list)
 let () = ignore @@ (List.hd @@ (foo 7))
