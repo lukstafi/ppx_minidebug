@@ -479,3 +479,25 @@
   (diff
    debugger_multithread_files-3.expected.log
    debugger_multithread_files-3.log)))
+
+(executable
+ (name test_debug_multithread_stdout)
+ (modules test_debug_multithread_stdout)
+ (libraries minidebug_runtime threads)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_deriving.show)))
+
+(rule
+ (target debugger_multithread_stdout.log)
+ (action
+  (with-stdout-to
+   %{target}
+   (run %{dep:test_debug_multithread_stdout.exe}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff
+   debugger_multithread_stdout.expected.log
+   debugger_multithread_stdout.log)))

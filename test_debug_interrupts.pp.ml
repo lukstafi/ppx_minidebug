@@ -256,7 +256,7 @@ open! Ppx_minidebug
 [%%expect_test
 let "debug_interrupts with loop" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let () =
     try

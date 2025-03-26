@@ -23,7 +23,7 @@ let%expect_test "%debug_show flushing to a file" =
 
 let%expect_test "%debug_show flushing to stdout" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime_flushing ~time_tagged:Clock ()
+    Minidebug_runtime.prefixed_runtime_flushing ~time_tagged:Clock ()
   in
   let%debug_show bar (x : t) : int =
     let y : int = x.first + 1 in
@@ -66,7 +66,7 @@ let%expect_test "%debug_show flushing to stdout" =
 
 let%expect_test "%debug_show flushing to stdout" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime_flushing ~time_tagged:Elapsed ()
+    Minidebug_runtime.prefixed_runtime_flushing ~time_tagged:Elapsed ()
   in
   let%debug_show bar (x : t) : int =
     let y : int = x.first + 1 in
@@ -114,7 +114,7 @@ let%expect_test "%debug_show flushing to stdout" =
 
 let%expect_test "%debug_show flushing to stdout, time spans" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime_flushing ~elapsed_times:Microseconds ()
+    Minidebug_runtime.prefixed_runtime_flushing ~elapsed_times:Microseconds ()
   in
   let%debug_show bar (x : t) : int =
     let y : int = x.first + 1 in
@@ -154,7 +154,7 @@ let%expect_test "%debug_show flushing to stdout, time spans" =
 
 let%expect_test "%debug_show flushing with global prefix" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime_flushing ~time_tagged:Not_tagged
+    Minidebug_runtime.prefixed_runtime_flushing ~time_tagged:Not_tagged
       ~global_prefix:"test-51" ()
   in
   let%debug_show bar (x : t) : int =
@@ -192,7 +192,7 @@ let%expect_test "%debug_show flushing with global prefix" =
 
 let%expect_test "%debug_show disabled subtree" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%debug_show rec loop_complete (x : int) : int =
     let z : int = (x - 1) / 2 in
@@ -274,7 +274,7 @@ let%expect_test "%debug_show disabled subtree" =
 
 let%expect_test "%debug_show with exception" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%debug_show rec loop_truncated (x : int) : int =
     let z : int = (x - 1) / 2 in
@@ -325,7 +325,7 @@ let%expect_test "%debug_show with exception" =
 
 let%expect_test "%debug_show depth exceeded" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%debug_show rec loop_exceeded (x : int) : int =
     [%debug_interrupts
@@ -365,7 +365,7 @@ let%expect_test "%debug_show depth exceeded" =
 
 let%expect_test "%debug_show num children exceeded linear" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let () =
     (* FIXME: this test is not working with the current implementation of the debugger. *)
@@ -414,7 +414,7 @@ let%expect_test "%debug_show num children exceeded linear" =
 
 let%expect_test "%debug_show truncated children linear" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ~truncate_children:10 ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ~truncate_children:10 ()
   in
   let () =
     (* FIXME: this test is not working with the current implementation of the debugger. *)
@@ -457,7 +457,7 @@ let%expect_test "%debug_show truncated children linear" =
 
 let%expect_test "%track_show track for-loop num children exceeded" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let () =
     try
@@ -507,7 +507,7 @@ let%expect_test "%track_show track for-loop num children exceeded" =
 
 let%expect_test "%track_show track for-loop truncated children" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ~truncate_children:10 ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ~truncate_children:10 ()
   in
   let () =
     (* FIXME: this test is not working with the current implementation of the debugger. *)
@@ -553,7 +553,7 @@ let%expect_test "%track_show track for-loop truncated children" =
 
 let%expect_test "%track_show track for-loop" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let () =
     try
@@ -609,7 +609,7 @@ let%expect_test "%track_show track for-loop" =
 
 let%expect_test "%track_show track for-loop, time spans" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ~elapsed_times:Microseconds
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ~elapsed_times:Microseconds
       ()
   in
   let () =
@@ -670,7 +670,7 @@ let%expect_test "%track_show track for-loop, time spans" =
 
 let%expect_test "%track_show track while-loop" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let () =
     try
@@ -715,7 +715,7 @@ let%expect_test "%track_show track while-loop" =
 
 let%expect_test "%debug_show num children exceeded nested" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   (* FIXME: this test is not working with the current implementation of the debugger. *)
   let module Debug_runtime = (val _get_local_debug_runtime ()) in
@@ -776,7 +776,7 @@ let%expect_test "%debug_show num children exceeded nested" =
 
 let%expect_test "%debug_show truncated children nested" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ~truncate_children:4 ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ~truncate_children:4 ()
   in
   (* FIXME: this test is not working with the current implementation of the debugger. *)
   let module Debug_runtime = (val _get_local_debug_runtime ()) in
@@ -907,7 +907,7 @@ let%expect_test "%debug_show truncated children nested" =
 
 let%expect_test "%track_show highlight" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false
       ~highlight_terms:(Re.str "3") ()
   in
   (* FIXME: this test is not working with the current implementation of the debugger. *)
@@ -983,7 +983,7 @@ let%expect_test "%track_show highlight" =
 
 let%expect_test "%track_show PrintBox tracking" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%track_show track_branches (x : int) : int =
     if x < 6 then match x with 0 -> 1 | 1 -> 0 | _ -> ~-x
@@ -1014,7 +1014,7 @@ let%expect_test "%track_show PrintBox tracking" =
 
 let%expect_test "%track_show PrintBox tracking <function>" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%track_show track_branches = function
     | 0 -> 1
@@ -1041,7 +1041,7 @@ let%expect_test "%track_show PrintBox tracking <function>" =
 
 let%expect_test "%track_show PrintBox tracking with debug_notrace" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%track_show track_branches (x : int) : int =
     if x < 6 then
@@ -1089,7 +1089,7 @@ let%expect_test "%track_show PrintBox tracking with debug_notrace" =
 let%expect_test "%track_show PrintBox not tracking anonymous functions with debug_notrace"
     =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%track_show track_foo (x : int) : int =
     [%debug_notrace (fun (y : int) -> ignore y) x];
@@ -1114,7 +1114,7 @@ let%expect_test "%track_show PrintBox not tracking anonymous functions with debu
 
 let%expect_test "respect scope of nested extension points" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%track_show track_branches (x : int) : int =
     if x < 6 then
@@ -1160,7 +1160,7 @@ let%expect_test "respect scope of nested extension points" =
 
 let%expect_test "%debug_show un-annotated toplevel fun" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%debug_show anonymous x =
     let nested y = y + 1 in
@@ -1187,7 +1187,7 @@ let%expect_test "%debug_show un-annotated toplevel fun" =
 
 let%expect_test "%debug_show nested un-annotated toplevel fun" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%debug_show wrapper () =
     let%debug_show anonymous x =
@@ -1218,7 +1218,7 @@ let%expect_test "%debug_show nested un-annotated toplevel fun" =
 
 let%expect_test "%track_show no return type anonymous fun" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%debug_show anonymous (x : int) =
     Array.fold_left ( + ) 0 @@ Array.init (x + 1) (fun (i : int) -> i)
@@ -1258,7 +1258,7 @@ let%expect_test "%track_show no return type anonymous fun" =
 
 let%expect_test "%track_show anonymous fun, num children exceeded" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%track_show rec loop_exceeded (x : int) : int =
     [%debug_interrupts
@@ -1356,7 +1356,7 @@ let%expect_test "%track_show anonymous fun, num children exceeded" =
 
 let%expect_test "%track_show anonymous fun, truncated children" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ~truncate_children:2 ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ~truncate_children:2 ()
   in
   let%track_show rec loop_exceeded (x : int) : int =
     Array.fold_left ( + ) 0
@@ -1416,7 +1416,7 @@ end
 
 let%expect_test "%debug_show function with abstract type" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%debug_show foo (type d) (module D : T with type c = d) ~a (c : int) : int =
     if c = 0 then 0 else List.length [ a; D.c ]
@@ -1443,7 +1443,7 @@ let%expect_test "%debug_show function with abstract type" =
     |}]
 
 let%expect_test "%debug_show PrintBox values_first_mode to stdout with exception" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%debug_show rec loop_truncated (x : int) : int =
     let z : int = (x - 1) / 2 in
     if x <= 0 then failwith "the log as for loop_complete but without return values";
@@ -1501,7 +1501,7 @@ let%expect_test "%debug_show PrintBox values_first_mode to stdout with exception
 
 let%expect_test
     "%debug_show PrintBox values_first_mode to stdout num children exceeded linear" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let () =
     (* FIXME: this test is not working with the current implementation of the debugger. *)
     let module Debug_runtime = (val _get_local_debug_runtime ()) in
@@ -1549,7 +1549,7 @@ let%expect_test
     |}]
 
 let%expect_test "%track_show PrintBox values_first_mode to stdout track for-loop" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let () =
     (* FIXME: this test is not working with the current implementation of the debugger. *)
     let module Debug_runtime = (val _get_local_debug_runtime ()) in
@@ -1611,7 +1611,7 @@ let%expect_test "%track_show PrintBox values_first_mode to stdout track for-loop
 
 let%expect_test
     "%debug_show PrintBox values_first_mode to stdout num children exceeded nested" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%debug_show rec loop_exceeded (x : int) : int =
     [%debug_interrupts
       { max_nesting_depth = 1000; max_num_children = 10 };
@@ -1675,7 +1675,7 @@ let%expect_test
     "%debug_show elapsed times PrintBox values_first_mode to stdout nested, truncated \
      children" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~elapsed_times:Microseconds ~truncate_children:4 ()
+    Minidebug_runtime.prefixed_runtime ~elapsed_times:Microseconds ~truncate_children:4 ()
   in
   let%debug_show rec loop_exceeded (x : int) : int =
     Array.fold_left ( + ) 0
@@ -1839,7 +1839,7 @@ let%expect_test
 
 let%expect_test "%debug_show PrintBox values_first_mode to stdout highlight" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~highlight_terms:(Re.str "3") ()
+    Minidebug_runtime.prefixed_runtime ~highlight_terms:(Re.str "3") ()
   in
   let%debug_show rec loop_highlight (x : int) : int =
     let z : int = (x - 1) / 2 in
@@ -1907,7 +1907,7 @@ let%expect_test "%debug_show PrintBox values_first_mode to stdout highlight" =
     |}]
 
 let%expect_test "%track_show PrintBox values_first_mode tracking" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%track_show track_branches (x : int) : int =
     if x < 6 then match x with 0 -> 1 | 1 -> 0 | _ -> ~-x
     else match x with 6 -> 5 | 7 -> 4 | _ -> x
@@ -1941,7 +1941,7 @@ let%expect_test "%track_show PrintBox values_first_mode tracking" =
 
 let%expect_test
     "%track_show PrintBox values_first_mode to stdout no return type anonymous fun" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%track_show anonymous (x : int) =
     Array.fold_left ( + ) 0 @@ Array.init (x + 1) (fun (i : int) -> i)
   in
@@ -1972,7 +1972,7 @@ let%expect_test
 
 let%expect_test "%debug_show records" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%debug_show bar { first : int; second : int } : int =
     let { first : int = a; second : int = b } = { first; second = second + 3 } in
@@ -2010,7 +2010,7 @@ let%expect_test "%debug_show records" =
 
 let%expect_test "%debug_show tuples" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%debug_show bar ((first : int), (second : int)) : int =
     let y : int = first + 1 in
@@ -2053,7 +2053,7 @@ let%expect_test "%debug_show tuples" =
     |}]
 
 let%expect_test "%debug_show records values_first_mode" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%debug_show bar { first : int; second : int } : int =
     let { first : int = a; second : int = b } = { first; second = second + 3 } in
     let y : int = a + 1 in
@@ -2093,7 +2093,7 @@ let%expect_test "%debug_show records values_first_mode" =
     |}]
 
 let%expect_test "%debug_show tuples values_first_mode" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%debug_show bar ((first : int), (second : int)) : int =
     let y : int = first + 1 in
     second * y
@@ -2145,7 +2145,7 @@ type ('a, 'b) left_right = Left of 'a | Right of 'b
 type ('a, 'b, 'c) one_two_three = One of 'a | Two of 'b | Three of 'c
 
 let%expect_test "%track_show variants values_first_mode" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%track_show bar (Zero (x : int)) : int =
     let y = (x + 1 : int) in
     2 * y
@@ -2189,7 +2189,7 @@ let%expect_test "%track_show variants values_first_mode" =
     |}]
 
 let%expect_test "%debug_show tuples merge type info" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%debug_show baz (((first : int), (second : 'a)) : 'b * int) : int * int =
     let ((y : 'c), (z : int)) : int * 'd = (first + 1, 3) in
     let (a : int), b = (first + 1, (second + 3 : int)) in
@@ -2223,7 +2223,7 @@ let%expect_test "%debug_show tuples merge type info" =
     |}]
 
 let%expect_test "%debug_show decompose multi-argument function type" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%debug_show f : 'a. 'a -> int -> int = fun _a b -> b + 1 in
   let%debug_show g : 'a. 'a -> int -> 'a -> 'a -> int = fun _a b _c _d -> b * 2 in
   let () = print_endline @@ Int.to_string @@ f 'a' 6 in
@@ -2242,7 +2242,7 @@ let%expect_test "%debug_show decompose multi-argument function type" =
     |}]
 
 let%expect_test "%debug_show debug type info" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   [%debug_show
     [%debug_type_info
       let f : 'a. 'a -> int -> int = fun _a b -> b + 1 in
@@ -2265,7 +2265,7 @@ let%expect_test "%debug_show debug type info" =
     |}]
 
 let%expect_test "%track_show options values_first_mode" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%track_show foo l : int =
     match (l : int option) with None -> 7 | Some y -> y * 2
   in
@@ -2310,7 +2310,7 @@ let%expect_test "%track_show options values_first_mode" =
     |}]
 
 let%expect_test "%track_show list values_first_mode" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%track_show foo l : int = match (l : int list) with [] -> 7 | y :: _ -> y * 2 in
   let () = print_endline @@ Int.to_string @@ foo [ 7 ] in
   let%track_show bar (l : int list) : int = match l with [] -> 7 | y :: _ -> y * 2 in
@@ -2440,7 +2440,7 @@ let%expect_test "%track_rt_show procedure runtime passing" =
     |}]
 
 let%expect_test "%track_rt_show nested procedure runtime passing" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%debug_show rt_test () =
     let%track_rt_show bar () = (fun () -> ()) () in
     let%track_rt_show foo () =
@@ -2484,7 +2484,7 @@ let%expect_test "%log constant entries" =
   let update_config config =
     config.Minidebug_runtime.boxify_sexp_from_size <- !boxify_sexp_from
   in
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime ~update_config () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime ~update_config () in
   let%debug_show foo () : unit =
     [%log "This is the first log line"];
     [%log [ "This is the"; "2"; "log line" ]];
@@ -2520,7 +2520,7 @@ let%expect_test "%log constant entries" =
     |}]
 
 let%expect_test "%log with type annotations" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let i = 3 in
   let pi = 3.14 in
   let l = [ 1; 2; 3 ] in
@@ -2545,7 +2545,7 @@ let%expect_test "%log with type annotations" =
     |}]
 
 let%expect_test "%log with default type assumption" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let s = "3" in
   let pi = "3.14" in
   let x2 s = "2*" ^ s in
@@ -2573,7 +2573,7 @@ let%expect_test "%log with default type assumption" =
 
 let%expect_test "%log track while-loop" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%track_sexp result =
     let i = ref 0 in
@@ -2799,7 +2799,7 @@ let%expect_test "%log runtime log levels while-loop" =
     |}]
 
 let%expect_test "%log compile time log levels while-loop" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%track_sexp everything () : int =
     [%log_level
       9;
@@ -2941,7 +2941,7 @@ let%expect_test "%log compile time log levels while-loop" =
 
 let%expect_test "%log compile time log levels runtime-passing while-loop" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~global_prefix:"TOPLEVEL" ()
+    Minidebug_runtime.prefixed_runtime ~global_prefix:"TOPLEVEL" ()
   in
   (* Compile-time log level restrictions cannot be undone, since the logging code is not
      generated. *)
@@ -3025,7 +3025,7 @@ let%expect_test "%log compile time log levels runtime-passing while-loop" =
     |}]
 
 let%expect_test "%log track while-loop result" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%track_sexp result =
     let i = ref 0 in
     let j = ref 0 in
@@ -3082,7 +3082,7 @@ let%expect_test "%log track while-loop result" =
 
 let%expect_test "%log without scope" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ~print_entry_ids:true ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ~print_entry_ids:true ()
   in
   let i = 3 in
   let pi = 3.14 in
@@ -3120,7 +3120,7 @@ let%expect_test "%log without scope" =
 
 let%expect_test "%log without scope values_first_mode" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~print_entry_ids:true ()
+    Minidebug_runtime.prefixed_runtime ~print_entry_ids:true ()
   in
   let i = 3 in
   let pi = 3.14 in
@@ -3155,7 +3155,7 @@ let%expect_test "%log without scope values_first_mode" =
 
 let%expect_test "%log with print_entry_ids, mixed up scopes" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~print_entry_ids:true ()
+    Minidebug_runtime.prefixed_runtime ~print_entry_ids:true ()
   in
   let i = 3 in
   let pi = 3.14 in
@@ -3214,7 +3214,7 @@ let%expect_test "%log with print_entry_ids, mixed up scopes" =
 let%expect_test "%log with print_entry_ids, verbose_entry_ids in HTML, values_first_mode"
     =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~print_entry_ids:true ~verbose_entry_ids:true
+    Minidebug_runtime.prefixed_runtime ~print_entry_ids:true ~verbose_entry_ids:true
       ~backend:(`Html PrintBox_html.Config.default) ()
   in
   let i = 3 in
@@ -3265,7 +3265,7 @@ let%expect_test "%log with print_entry_ids, verbose_entry_ids in HTML, values_fi
     |}]
 
 let%expect_test "%diagn_show ignores type annots" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%diagn_show toplevel =
     let bar { first : int; second : int } : int =
       let { first : int = a; second : int = b } = { first; second = second + 3 } in
@@ -3294,7 +3294,7 @@ let%expect_test "%diagn_show ignores type annots" =
     |}]
 
 let%expect_test "%diagn_show ignores non-empty bindings" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%diagn_show bar { first : int; second : int } : int =
     let { first : int = a; second : int = b } = { first; second = second + 3 } in
     let y : int = a + 1 in
@@ -3324,7 +3324,7 @@ let%expect_test "%diagn_show ignores non-empty bindings" =
     |}]
 
 let%expect_test "%diagn_show no logs" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%diagn_show bar { first : int; second : int } : int =
     let { first : int = a; second : int = b } = { first; second = second + 3 } in
     let y : int = a + 1 in
@@ -3343,7 +3343,7 @@ let%expect_test "%diagn_show no logs" =
     |}]
 
 let%expect_test "%debug_show log level compile time" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%debug3_show () =
     [%log_level
       2;
@@ -3392,7 +3392,7 @@ let%expect_test "%debug_show log level compile time" =
     |}]
 
 let%expect_test "%debug_show log level runtime" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime ~log_level:2 () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime ~log_level:2 () in
   let%debug3_show () =
     let foo { first : int; second : int } : int =
       let { first : int = a; second : int = b } = { first; second = second + 3 } in
@@ -3438,7 +3438,7 @@ let%expect_test "%debug_show log level runtime" =
     |}]
 
 let%expect_test "%debug_show PrintBox snapshot" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%debug_show rec loop_highlight (x : int) : int =
     let z : int = (x - 1) / 2 in
     if z = 3 || x = 3 then Debug_runtime.snapshot ();
@@ -3522,7 +3522,7 @@ let%expect_test "%debug_show PrintBox snapshot" =
     |}]
 
 let%expect_test "%track_show don't show unannotated non-function bindings" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime ~log_level:3 () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime ~log_level:3 () in
   let result =
     [%track_show
       let%ppx_minidebug_noop_for_testing point =
@@ -3536,7 +3536,7 @@ let%expect_test "%track_show don't show unannotated non-function bindings" =
         BEGIN DEBUG SESSION |}]
 
 let%expect_test "%log_printbox" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%debug_show foo () : unit =
     [%log_printbox
       PrintBox.init_grid ~line:5 ~col:5 (fun ~line ~col ->
@@ -3598,7 +3598,7 @@ let%expect_test "%log_printbox" =
     |}]
 
 let%expect_test "%log_printbox flushing" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime_flushing () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime_flushing () in
   let%debug_show foo () : unit =
     [%log_printbox
       PrintBox.init_grid ~line:5 ~col:5 (fun ~line ~col ->
@@ -3668,7 +3668,7 @@ let%expect_test "%log_printbox flushing" =
 
 let%expect_test "%log_entry" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%diagn_show _logging_logic : unit =
     let rec loop logs =
@@ -4048,7 +4048,7 @@ let%expect_test "%track_rt_show expression runtime passing" =
 
 let%expect_test "%debug_show tuples values_first_mode highlighted" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~highlight_terms:Re.(alt [ str "339"; str "8" ]) ()
+    Minidebug_runtime.prefixed_runtime ~highlight_terms:Re.(alt [ str "339"; str "8" ]) ()
   in
   let%debug_show bar ((first : int), (second : int)) : int =
     let y : int = first + 1 in
@@ -4386,7 +4386,7 @@ let%expect_test "%logN_block runtime log levels" =
 
 let%expect_test "%log_block compile-time nothing" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%diagn_show _logging_logic : unit =
     [%log_level
@@ -4434,7 +4434,7 @@ let%expect_test "%log_block compile-time nothing" =
 
 let%expect_test "%log_block compile-time nothing dynamic scope" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.global_runtime ~values_first_mode:false ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let%diagn_show logify _logs =
     [%log_block
@@ -4481,7 +4481,7 @@ let%expect_test "%log_block compile-time nothing dynamic scope" =
   [%expect {| BEGIN DEBUG SESSION |}]
 
 let%expect_test "%log compile time log levels while-loop dynamic scope" =
-  let _get_local_debug_runtime = Minidebug_runtime.global_runtime () in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%track_sexp loop () =
     let i = ref 0 in
     let j = ref 0 in

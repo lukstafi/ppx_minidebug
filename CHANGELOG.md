@@ -3,7 +3,7 @@
 ### Added
 
 - Added some missing configurations for runtime providers `debug`, `debug_flushing`.
-- New runtime providers that can directly be used for `_get_local_debug_runtime`: `local_runtime`, `local_runtime_flushing`, `global_runtime`, `global_runtime_flushing`.
+- New runtime providers that can directly be used for `_get_local_debug_runtime`: `local_runtime`, `local_runtime_flushing`, `prefixed_runtime`, `prefixed_runtime_flushing`.
 
 ### Changed
 

@@ -2282,32 +2282,47 @@ let local_runtime_flushing ?table_of_contents_ch ?time_tagged ?elapsed_times
   let key = Thread_local_storage.create () in
   fun () -> Thread_local_storage.get_default ~default:get_debug key
 
-let global_runtime ?debug_ch ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
-    ?verbose_entry_ids ?description ?global_prefix ?table_of_contents_ch ?toc_entry
-    ?highlight_terms ?exclude_on_path ?prune_upto ?truncate_children ?values_first_mode
-    ?boxify_sexp_from_size ?max_inline_sexp_length ?backend ?hyperlink
+let prefixed_runtime ?debug_ch ?time_tagged ?elapsed_times ?location_format
+    ?print_entry_ids ?verbose_entry_ids ?description ?global_prefix ?table_of_contents_ch
+    ?toc_entry ?highlight_terms ?exclude_on_path ?prune_upto ?truncate_children
+    ?values_first_mode ?boxify_sexp_from_size ?max_inline_sexp_length ?backend ?hyperlink
     ?toc_specific_hyperlink ?log_level ?snapshot_every_sec ?update_config () =
-  let module Debug =
-    (val debug ?debug_ch ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
-           ?verbose_entry_ids ?description ?global_prefix ?table_of_contents_ch ?toc_entry
-           ?highlight_terms ?exclude_on_path ?prune_upto ?truncate_children
-           ?boxify_sexp_from_size ?max_inline_sexp_length ?backend ?hyperlink
-           ?toc_specific_hyperlink ?values_first_mode ?log_level ?snapshot_every_sec ())
+  let get_thread_id () = Thread.id (Thread.self ()) in
+  let get_debug () : (module PrintBox_runtime) =
+    let global_prefix =
+      let id = get_thread_id () in
+      if id = 0 then global_prefix
+      else Some (Printf.sprintf "%s-%d" (Option.value ~default:"Thread" global_prefix) id)
+    in
+    debug ?debug_ch ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
+      ?verbose_entry_ids ?description ?global_prefix ?table_of_contents_ch ?toc_entry
+      ?highlight_terms ?exclude_on_path ?prune_upto ?truncate_children
+      ?boxify_sexp_from_size ?max_inline_sexp_length ?backend ?hyperlink
+      ?toc_specific_hyperlink ?values_first_mode ?log_level ?snapshot_every_sec ()
   in
-  let runtime = (module Debug : Debug_runtime) in
+  let key = Thread_local_storage.create () in
+  let get_local () = Thread_local_storage.get_default ~default:get_debug key in
   match update_config with
-  | None -> fun () -> runtime
+  | None -> fun () -> forget_printbox @@ get_local ()
   | Some update_config ->
       fun () ->
+        let module Debug = (val get_local ()) in
         update_config Debug.config;
-        runtime
+        (module Debug : Debug_runtime)
 
-let global_runtime_flushing ?debug_ch ?table_of_contents_ch ?time_tagged ?elapsed_times
+let prefixed_runtime_flushing ?debug_ch ?table_of_contents_ch ?time_tagged ?elapsed_times
     ?location_format ?print_entry_ids ?verbose_entry_ids ?description ?global_prefix
     ?split_files_after ?with_table_of_contents ?toc_entry ?for_append ?log_level () =
-  let runtime =
+  let get_thread_id () = Thread.id (Thread.self ()) in
+  let get_debug () =
+    let global_prefix =
+      let id = get_thread_id () in
+      if id = 0 then global_prefix
+      else Some (Printf.sprintf "%s-%d" (Option.value ~default:"Thread" global_prefix) id)
+    in
     debug_flushing ?debug_ch ?table_of_contents_ch ?time_tagged ?elapsed_times
       ?location_format ?print_entry_ids ?verbose_entry_ids ?description ?global_prefix
       ?split_files_after ?with_table_of_contents ?toc_entry ?for_append ?log_level ()
   in
-  fun () -> runtime
+  let key = Thread_local_storage.create () in
+  fun () -> Thread_local_storage.get_default ~default:get_debug key

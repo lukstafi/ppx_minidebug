@@ -444,7 +444,7 @@ val local_runtime_flushing :
     callback returns a thread-local runtime, where a thread's log file is named
     [filename_stem-thread_id.log]. *)
 
-val global_runtime :
+val prefixed_runtime :
   ?debug_ch:out_channel ->
   ?time_tagged:time_tagged ->
   ?elapsed_times:elapsed_times ->
@@ -471,13 +471,16 @@ val global_runtime :
   unit ->
   unit ->
   (module Debug_runtime)
-(** Like {!debug}, but creates a global runtime that is shared by all threads. By default
-    it will log to [stdout] and will not be time tagged.
+(** A wrapper around {!debug}, the [prefixed_runtime ... ?global_prefix ... ()] callback
+    returns a thread-local runtime that prefixes all log messages with the given
+    [global_prefix] concatenated with the thread ID (if non-zero). If [global_prefix] is
+    not provided, the prefix will default to ["Thread-<thread ID>"] if the thread ID is
+    non-zero, or an empty string otherwise.
 
     See {!type:PrintBox.config} for details about PrintBox-specific parameters. See
     {!shared_config} for the details about shared parameters. *)
 
-val global_runtime_flushing :
+val prefixed_runtime_flushing :
   ?debug_ch:out_channel ->
   ?table_of_contents_ch:out_channel ->
   ?time_tagged:time_tagged ->
@@ -495,5 +498,6 @@ val global_runtime_flushing :
   unit ->
   unit ->
   (module Debug_runtime)
-(** Like {!debug_flushing}, but creates a global runtime that is shared by all threads. By
-    default it will log to [stdout] and will not be time tagged. *)
+(** A wrapper around {!debug_flushing}, following the same pattern as {!prefixed_runtime}.
+
+    See {!shared_config} for the details about shared parameters. *)
