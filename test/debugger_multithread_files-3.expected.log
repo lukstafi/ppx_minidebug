@@ -1,0 +1,310 @@
+
+BEGIN DEBUG SESSION 
+thread_work begin "test/test_debug_multithread_files.ml":4:27:
+ thread_id = 2
+ iterations = 100
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 200
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 201
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 202
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 203
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 204
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 205
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 206
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 207
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 208
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 209
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 210
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 211
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 212
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 213
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 214
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 215
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 216
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 217
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 218
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 219
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 220
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 221
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 222
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 223
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 224
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 225
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 226
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 227
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 228
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 229
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 230
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 231
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 232
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 233
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 234
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 235
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 236
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 237
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 238
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 239
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 240
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 241
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 242
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 243
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 244
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 245
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 246
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 247
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 248
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 249
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 250
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 251
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 252
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 253
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 254
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 255
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 256
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 257
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 258
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 259
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 260
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 261
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 262
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 263
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 264
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 265
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 266
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 267
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 268
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 269
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 270
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 271
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 272
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 273
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 274
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 275
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 276
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 277
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 278
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 279
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 280
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 281
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 282
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 283
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 284
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 285
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 286
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 287
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 288
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 289
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 290
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 291
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 292
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 293
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 294
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 295
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 296
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 297
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 298
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 299
+ result end
+ result begin "test/test_debug_multithread_files.ml":6:8:
+  result = 300
+ result end
+ thread_work = ()
+thread_work end

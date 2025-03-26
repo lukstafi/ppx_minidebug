@@ -2273,7 +2273,7 @@ let local_runtime_flushing ?table_of_contents_ch ?time_tagged ?elapsed_times
   let get_debug () =
     let filename =
       let id = get_thread_id () in
-      if id = 0 then filename_stem else Printf.sprintf "%s-%d.log" filename_stem id
+      if id = 0 then filename_stem else Printf.sprintf "%s-%d" filename_stem id
     in
     debug_flushing ?table_of_contents_ch ?time_tagged ?elapsed_times ?location_format
       ?print_entry_ids ?verbose_entry_ids ?description ?global_prefix ?split_files_after

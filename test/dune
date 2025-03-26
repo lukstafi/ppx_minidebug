@@ -442,3 +442,40 @@
  (modes exe)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
+
+(executable
+ (name test_debug_multithread_files)
+ (modules test_debug_multithread_files)
+ (libraries minidebug_runtime threads)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_deriving.show)))
+
+(rule
+ (targets
+  debugger_multithread_files-1.log
+  debugger_multithread_files-2.log
+  debugger_multithread_files-3.log)
+ (action
+  (run %{dep:test_debug_multithread_files.exe})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff
+   debugger_multithread_files-1.expected.log
+   debugger_multithread_files-1.log)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff
+   debugger_multithread_files-2.expected.log
+   debugger_multithread_files-2.log)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff
+   debugger_multithread_files-3.expected.log
+   debugger_multithread_files-3.log)))
