@@ -22,13 +22,20 @@ type context = {
 }
 
 let init_context =
+  let default = try Sys.getenv "PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL" with Not_found -> "" in
+  let default =
+    try int_of_string (if default = "" then "9" else default)
+    with Failure f ->
+      failwith
+      @@ "ppx_minidebug: MINIDEBUG_DEFAULT_LOG_LEVEL must be an integer, got error: " ^ f
+  in
   ref
     {
       log_value = Sexp;
       track_or_explicit = `Debug;
       output_type_info = false;
       interrupts = false;
-      log_level = Comptime 9;
+      log_level = Comptime default;
       entry_log_level = Comptime 1;
       hidden = false;
       toplevel_kind = Runtime_local;

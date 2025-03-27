@@ -578,9 +578,11 @@ This will not emit logging code that is above the stated log level. Note that th
 
 Currently `%log_level` adjusts the log level both in the lexical scope and the dynamic scope. These functionalities could in principle be separated.
 
-There's also a way to compile the code adaptively, using a shell environment variable: `[%%global_debug_log_level_from_env_var "environment_variable_name"]`. The variable name is case-sensitive, but the values should be integers.
+You can set the compile time log level by setting the environment variable `PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL` -- this provides a default that will be overriden by all the other configuration options. This approach is error prone since all your projects and files will share the same configuration, and there is no consistency checking; use at your own risk. Some errors can be avoided by adding `(preprocessor_deps (env_var PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL))` in dune files.
 
-The generated code will check that the compile-time adaptive pruning matches the runtime value of the environment variable. If that's an obstacle, use `%%global_debug_log_level_from_env_var_unsafe` which will not perform the check. Using `%%global_debug_log_level_from_env_var_unsafe` can be prone to workflow bugs where different parts of a codebase are compiled with different log levels, leading to confusing behavior. In any case, I recommend adding a dependency on the environment variable to the `dune` file: for libraries, that would be `(preprocessor_deps (env_var environment_variable_name))`.
+There's also a way to compile the code adaptively, using any shell environment variable: `[%%global_debug_log_level_from_env_var "environment_variable_name"]`. The variable name is case-sensitive, the values should be integers. I recommend configuring this in every affected file, otherwise the behavior is unspecified.
+
+With `[%%global_debug_log_level_from_env_var "environment_variable_name"]`, the generated code will check that the compile-time adaptive pruning matches the runtime value of the environment variable. If that's an obstacle, use `%%global_debug_log_level_from_env_var_unsafe` which will not perform the check. Using `%%global_debug_log_level_from_env_var_unsafe` or `PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL` can be prone to workflow bugs where different parts of a codebase are compiled with different log levels, leading to confusing behavior. In any case, I recommend adding a dependency on the environment variable to the `dune` file: for libraries, that would be `(preprocessor_deps (env_var environment_variable_name))`.
 
 Another example from the test suite, notice how the log level of `%log1` overrides the parent log level of `%debug3_show`:
 
