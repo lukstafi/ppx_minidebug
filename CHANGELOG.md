@@ -1,4 +1,4 @@
-## [2.2.0] -- 2025-03-26
+## [2.2.0] -- 2025-03-27
 
 ### Added
 
@@ -9,7 +9,6 @@
 ### Changed
 
 - Major, breaking change: the `_l_` variant entry points become default, and the default variants become `_o_`, e.g. `%debug_l_sexp` becomes `%debug_sexp`, `%debug_sexp` becomes `%debug_o_sexp`.
-- TODO: default environment variable for compile-time log levels.
 
 ## [2.1.0] -- 2025-03-19
 

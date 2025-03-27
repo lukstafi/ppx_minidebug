@@ -25,7 +25,7 @@
 
 ## `ppx_minidebug`: Debug logs for selected functions and let-bindings
 
-`ppx_minidebug` traces let bindings and functions within a selected scope if they have type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` (also `%track_pp`, `%diagn_pp` and `%track_show`, `%diagn_show`), based on `deriving.show`, and `%debug_sexp` (also `%track_sexp`, `%diagn_sexp`) based on `sexplib0` and `ppx_sexp_conv`. Explicit logs can be added with `%log` within a debug scope (`%log` is not a registered extension point to avoid conflicts with other logging frameworks). The syntax extension expects a function `_get_local_debug_runtime` or a module `Debug_runtime` in the scope, depending on the extension point. The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers multiple ways of logging the traces, as helper functions generating `Debug_runtime` modules. See [the generated documentation for `Minidebug_runtime`](https://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html).
+`ppx_minidebug` traces let bindings and functions within a selected scope if they have type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` (also `%track_pp`, `%diagn_pp` and `%track_show`, `%diagn_show`), based on `deriving.show`, and `%debug_sexp` (also `%track_sexp`, `%diagn_sexp`) based on `sexplib0` and `ppx_sexp_conv`. Explicit logs can be added with `%log` within a debug scope (`%log` is not a registered extension point to avoid conflicts with other logging frameworks). The syntax extension expects a function `_get_local_debug_runtime` in the scope (or a module `Debug_runtime` for extension points `_o_` e.g. `%debug_o_sexp`). The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers multiple ways of logging the traces, as helper functions generating `Debug_runtime` modules. See [the generated documentation for `Minidebug_runtime`](https://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html).
 
 Take a look at [`ppx_debug`](https://github.com/dariusf/ppx_debug) which has complementary strengths!
 
@@ -33,16 +33,18 @@ Try `opam install ppx_minidebug` to install from the opam repository. To install
 
 To use `ppx_minidebug` in a Dune project, add/modify these stanzas: `(preprocess (pps ... ppx_minidebug))`, and `(libraries ... ppx_minidebug.runtime)`.
 
-Here we define a `Debug_runtime` either using the entrypoint `module Debug_runtime = (val Minidebug_runtime.debug ())`,
-or using the `PrintBox` functor, e.g.:
+We can introduce `ppx_minidebug` runtimes in a project in multiple ways, but the most convenient is via the functions `local_runtime`, `local_runtime_flushing`, `prefixed_runtime`, `prefixed_runtime_flushing`.
 
+<!-- $MDX file=doc/sync_to_md.ml,part=introduction -->
 ```ocaml
-module Debug_runtime =
-  Minidebug_runtime.PrintBox((val Minidebug_runtime.shared_config "path/to/debugger_printbox.log" end))
-let () = Debug_runtime.config.values_first_mode <- false
+let _get_local_debug_runtime =
+  Minidebug_runtime.local_runtime "path/to/debugger_printbox.log"
+
+let%debug_sexp rec foo : int list -> int = function [] -> 0 | x :: xs -> x + foo xs
+let (_ : int) = foo [ 1; 2; 3 ]
 ```
 
-The logged traces will be pretty-printed as trees using the `printbox` package. Truncated example (using `%debug_sexp`):
+The logged traces will be pretty-printed as trees using the `printbox` package. Truncated example from the test-suite (using `%debug_sexp`):
 
 ```shell
 BEGIN DEBUG SESSION
@@ -552,7 +554,7 @@ At runtime, the level can be set via `Minidebug_runtime.debug ~log_level` or `Mi
   ...
 ```
 
-At compile time, the level can be set for a scope with `%log_level`, or globally with `%global_debug_log_level`.
+At compile time, the level can be set for a scope with `%log_level`, or globally with `%global_debug_log_level`, or silently via the environment variable `PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL` (unsafe).
 (`%log_level` is not registered to minimize incompatibility with other logging frameworks.) For example:
 
 ```ocaml
