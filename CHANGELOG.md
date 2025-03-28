@@ -5,7 +5,7 @@
 - Added some missing configurations for runtime providers `debug`, `debug_flushing`.
 - New runtime providers that can directly be used for `_get_local_debug_runtime`: `local_runtime`, `local_runtime_flushing`, `prefixed_runtime`, `prefixed_runtime_flushing`.
 - Added `PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL` environment variable to avoid forcing everyone to use `[%%global_debug_log_level_from_env_var "..."]` in every file.
-- Ability to prefix individual logs. For `prefixed_` runtimes, we prefix all logs, not only headers.
+- Ability to prefix individual logs in the flushing backend. For `prefixed_runtime_flushing`, we prefix all logs, not only headers.
 
 ### Changed
 
