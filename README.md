@@ -7,7 +7,7 @@
     - [Traces in HTML or Markdown as collapsible trees](#traces-in-html-or-markdown-as-collapsible-trees)
     - [Highlighting search terms](#highlighting-search-terms)
     - [Highlighting differences between runs](#highlighting-differences-between-runs)
-    - [PrintBox creating helpers with defaults: debug and debug_file](#printbox-creating-helpers-with-defaults-debug-and-debug_file)
+    - [Overview of runtime creating helpers](#overview-of-runtime-creating-helpers)
     - [Hyperlinks to source locations](#hyperlinks-to-source-locations)
     - [values_first_mode](#values_first_mode)
   - [Usage](#usage)
