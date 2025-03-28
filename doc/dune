@@ -20,3 +20,7 @@
   (promote (until-clean)))
  (action
   (run %{dep:sync_to_md.exe})))
+
+(mdx
+ (files index.mld)
+ (libraries minidebug_runtime))

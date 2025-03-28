@@ -1,5 +1,5 @@
 {0 ppx_minidebug}
-<!-- TOC -->
+
 {ul {- {{: #ppx_minidebug} ppx_minidebug}
 {ul {- {{: #ppx_minidebug-debug-logs-for-selected-functions-and-let-bindings} ppx_minidebug: Debug logs for selected functions and let-bindings}
 {ul {- {{: #traces-in-html-or-markdown-as-collapsible-trees} Traces in HTML or Markdown as collapsible trees}
@@ -23,7 +23,6 @@
 }}
 }}
 }}
-<!-- /TOC -->
 
 {1 [ppx_minidebug]: Debug logs for selected functions and let-bindings}
 
@@ -38,14 +37,15 @@ To use [ppx_minidebug] in a Dune project, add/modify these stanzas: [(preprocess
 We can introduce [ppx_minidebug] runtimes in a project in multiple ways, but the most convenient is via the functions [local_runtime], [local_runtime_flushing], [prefixed_runtime], [prefixed_runtime_flushing].
 <!-- $MDX -->
 
-{@ocaml file=doc/sync_to_md.ml,part=introduction [
+{@ocaml file=sync_to_md.ml,part=introduction[
 let _get_local_debug_runtime = Minidebug_runtime.local_runtime "sync_to_md-introduction"
 let%debug_sexp rec foo : int list -> int = function [] -> 0 | x :: xs -> x + foo xs
 let (_ : int) = foo [ 1; 2; 3 ]
 ]}
 
 The logged traces will be pretty-printed as trees using the [printbox] package. This produces:
-{ file=doc/sync_to_md-introduction.log [
+
+{@include file=sync_to_md-introduction.log[
 BEGIN DEBUG SESSION 
 foo = 6
 ├─"doc/sync_to_md.ml":5:73
@@ -71,7 +71,7 @@ foo = 6
 
 The [PrintBox] runtime can be configured to output logs using HTML or Markdown. The logs then become collapsible trees, so that you can expose only the relevant information when debugging. Example:
 
-{@ocaml file=doc/sync_to_md.ml,part=simple_html [
+{@ocaml file=sync_to_md.ml,part=simple_html[
 let _get_local_debug_runtime =
   Minidebug_runtime.local_runtime ~backend:(`Html Minidebug_runtime.default_html_config)
     "sync_to_md-simple_html"
@@ -82,7 +82,7 @@ let (_ : int) = foo [ 1; 2; 3 ]
 
 This produces:
 
-{ file=doc/sync_to_md-simple_html.html [
+{@include file=sync_to_md-simple_html.html[
 BEGIN DEBUG SESSION 
 <div><details><summary><span><span><span><a id="1"></a></span>&nbsp;<span><span style="font-family: monospace">foo = 6</span></span></span></span></summary><ul><li><div>&quot;doc/sync_to_md.ml&quot;:14:73</div></li><li><table class="non-framed"><tr><td><a id="1"></a></td><td><div>&lt;function -- branch 1&gt; :: (x, xs)</div></td></tr></table></li><li><pre style="font-family: monospace">x = 1</pre></li><li><pre style="font-family: monospace">xs = (2 3)</pre></li><li><details><summary><span><span><span><a id="2"></a></span>&nbsp;<span><span style="font-family: monospace">foo = 5</span></span></span></span></summary><ul><li><div>&quot;doc/sync_to_md.ml&quot;:14:73</div></li><li><table class="non-framed"><tr><td><a id="2"></a></td><td><div>&lt;function -- branch 1&gt; :: (x, xs)</div></td></tr></table></li><li><pre style="font-family: monospace">x = 2</pre></li><li><pre style="font-family: monospace">xs = 3</pre></li><li><details><summary><span><span><span><a id="3"></a></span>&nbsp;<span><span style="font-family: monospace">foo = 3</span></span></span></span></summary><ul><li><div>&quot;doc/sync_to_md.ml&quot;:14:73</div></li><li><table class="non-framed"><tr><td><a id="3"></a></td><td><div>&lt;function -- branch 1&gt; :: (x, xs)</div></td></tr></table></li><li><pre style="font-family: monospace">x = 3</pre></li><li><div>xs</div></li><li><details><summary><span><span><span><a id="4"></a></span>&nbsp;<span><span style="font-family: monospace">foo = 0</span></span></span></span></summary><ul><li><div>&quot;doc/sync_to_md.ml&quot;:14:58</div></li><li><table class="non-framed"><tr><td><a id="4"></a></td><td><div>&lt;function -- branch 0&gt; []</div></td></tr></table></li></ul></details></li></ul></details></li></ul></details></li></ul></details></div>
 ]}
@@ -104,7 +104,7 @@ you can set [prune_upto] to a level greater than 0, which only outputs highlight
 
 The [PrintBox] runtime can highlight differences between the current run and a previous run's logs. This is useful for understanding how program behavior changes between executions. To enable this feature, provide the [prev_run_file] argument when creating the runtime. It should be the "raw" messages file of the previous run, including the [.raw] suffix:
 
-{@ocaml file=doc/sync_to_md.ml,part=highlight_diffs [
+{@ocaml file=sync_to_md.ml,part=highlight_diffs[
 let _get_local_debug_runtime =
   Minidebug_runtime.local_runtime ~prev_run_file:"sync_to_md-introduction.raw"
     "sync_to_md-highlight_diffs"
@@ -114,7 +114,7 @@ let (_ : int) = foo [ 1; 5; 3; 4 ]
 ]}
 
 This produces:
-{ file=doc/sync_to_md-highlight_diffs.log [
+{@include file=sync_to_md-highlight_diffs.log[
 BEGIN DEBUG SESSION 
 ┌───────────────────────────────┐Changed from: xs = (2 3)
 │┌────────┐Changed from: foo = 6│
@@ -181,7 +181,7 @@ Note that the comparison is performed at the chunk level, where each chunk is a 
 
 The [diff_ignore_pattern] setting can be used to ignore certain patterns in the logs. For example in the test suite, ignoring message-level timestamps:
 
-{@ocaml file=test/test_debug_timestamps.ml,part=ignore_timestamps_setup [
+{@ocaml file=../test/test_debug_timestamps.ml,part=ignore_timestamps_setup[
   let _get_local_debug_runtime =
     Minidebug_runtime.local_runtime ~values_first_mode:false ~backend:`Text
       ~prev_run_file:"debugger_timestamps_run1.raw"
@@ -194,9 +194,9 @@ Note that the timestamps of the log entries are not treated as messages, so are 
 
 For efficiency, the minimal edit distance search is limited, roughly speaking, to a band around the diagonal / greedy best match / forced match. The setting [max_distance_factor] controls the width of the band. (The implementation tweaks that heuristic somewhat to account for the tree structure.)
 
-You can force aligning certain entry IDs via the setting [entry_id_pairs]. The previous run's entry IDs come first in the pairs. See the example {{: test/debug_diffs_align.ml} test/debug_diffs_align.ml}:
+You can force aligning certain entry IDs via the setting [entry_id_pairs]. The previous run's entry IDs come first in the pairs. See the example {{:https://github.com/lukstafi/ppx_minidebug/blob/main/test/debug_diffs_align.ml} test/debug_diffs_align.ml}:
 
-{@ocaml file=test/debug_diffs_align.ml,part=align_entry_ids [
+{@ocaml file=../test/debug_diffs_align.ml,part=align_entry_ids[
   let _get_local_debug_runtime =
     Minidebug_runtime.local_runtime ~values_first_mode:false ~print_entry_ids:true
       ~backend:`Text ~prev_run_file:(prev_run ^ ".raw")
@@ -215,7 +215,7 @@ Binding [_get_local_debug_runtime] to a result of the [_runtime] functions is th
 
 The HTML and Markdown outputs support emitting file locations as hyperlinks. For example:
 
-{@ocaml file=test/test_debug_html.ml,part=hyperlinks [
+{@ocaml file=../test/test_debug_html.ml,part=hyperlinks[
 let _get_local_debug_runtime =
   Minidebug_runtime.local_runtime ~hyperlink:"../" ~toc_specific_hyperlink:"./"
     ~with_toc_listing:true
@@ -238,7 +238,7 @@ This setting, by default [true], puts the result of the computation as the heade
 
 For example, the diffs example we saw before:
 
-{@ocaml file=test/test_debug_timestamps.ml,part=ignore_timestamps_setup [
+{@ocaml file=../test/test_debug_timestamps.ml,part=ignore_timestamps_setup[
   let _get_local_debug_runtime =
     Minidebug_runtime.local_runtime ~values_first_mode:false ~backend:`Text
       ~prev_run_file:"debugger_timestamps_run1.raw"
@@ -248,7 +248,7 @@ For example, the diffs example we saw before:
 ]}
 
 leads to:
-{ file=test/debugger_timestamps_run2.expected.log [
+{@include file=../test/debugger_timestamps_run2.expected.log[
 BEGIN DEBUG SESSION 
 "test/test_debug_timestamps.ml":23:33: process_message
 ├─msg = "hello"
@@ -289,7 +289,7 @@ The entry extension points vary along three axes:
 
 Plus, there are non-entry extension points [%log], [%log_printbox] and [%log_result] for logging values. They are not registered, which as a side effect should somewhat mitigate conflicts with other ppx extensions for logging. There's also an un-registered extension points [%log_entry] and [%log_block] for opening a log subtree; [%log_entry] is for arbitrary computations whereas [%log_block]'s body is for logging purposes only.
 
-See examples in {{: test/} the test directory}, and especially {{: test/test_expect_test.ml} the inline tests}.
+See examples in {{:https://github.com/lukstafi/ppx_minidebug/blob/main/test/} the test directory}, and especially {{:https://github.com/lukstafi/ppx_minidebug/blob/main/test/test_expect_test.ml} the inline tests}.
 
 Only type-annotated let-bindings, function arguments, function results can be implicitly logged. However, the bindings and function arguments can be nested patterns with only parts of them type-annotated! The explicit loggers [%log] and [%log_result] take a value and reconstruct its type from partial type annotations (deconstructing the expression), sometimes assuming unknown types are strings. The [%log_printbox] logger takes a [PrintBox.t] value. The [%log_entry] and [%log_block] loggers takes a string value for the header of the log subtree.
 
@@ -303,7 +303,7 @@ To ensure that log files are properly closed, you can use [Minidebug_runtime.fin
 
 PrintBox-based runtimes only produces any output when a top-level log entry gets closed. This makes it harder to debug infinite loops and especially infinite recursion. The setting [max_nesting_depth] terminates a computation when the given log nesting is exceeded. For example:
 
-{@ocaml file=test/test_expect_test.ml,part=debug_interrupts [
+{@ocaml file=../test/test_expect_test.ml,part=debug_interrupts[
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
@@ -346,7 +346,7 @@ PrintBox-based runtimes only produces any output when a top-level log entry gets
 
 Similarly, [max_num_children] raises a failure when the given number of logs with the same parent is exceeded. For example:
 
-{@ocaml file=test/test_expect_test.ml,part=debug_limit_children [
+{@ocaml file=../test/test_expect_test.ml,part=debug_limit_children[
     let module Debug_runtime = (val _get_local_debug_runtime ()) in
     try
       let%debug_o_show _bar : unit =
@@ -393,7 +393,7 @@ Similarly, [max_num_children] raises a failure when the given number of logs wit
 
 The [%debug_interrupts] extension point emits the interrupt checks in a lexically delimited scope. For convenience, we offer the extension point [%global_debug_interrupts] which triggers emitting the interrupt checks in the remainder of the source preprocessed in the same process (its scope is therefore less well defined). For example:
 
-{@ocaml file=test/test_debug_interrupts.ml,part=global_debug_interrupts [
+{@ocaml file=../test/test_debug_interrupts.ml,part=global_debug_interrupts[
 module Debug_runtime =
   (val Minidebug_runtime.debug_flushing ~filename:"debugger_show_interrupts" ())
 
@@ -407,7 +407,7 @@ let%debug_o_show rec loop_exceeded (x : int) : int =
 
 If that is insufficient, you can define [_get_local_debug_runtime] using a [_flushing] builder. The logged traces are still indented, but if the values to print are multi-line, their formatting might be messy. The benefit of "flushing" traces is that the output is flushed line-at-a-time, so no output should be lost if the traced program crashes. But in recent versions of [ppx_minidebug], uncaught exceptions no longer break logging. The indentation is also smaller (half of the PrintBox runtimes). Example:
 
-{@ocaml file=test/test_expect_test.ml,part=simple_flushing [
+{@ocaml file=../test/test_expect_test.ml,part=simple_flushing[
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime_flushing ~time_tagged:Not_tagged
       ~global_prefix:"test-51" ()
@@ -454,7 +454,7 @@ If you get fewer logs than you expected, try converting [%debug_] to [%track_].
 
 Example that also illustrates disabling tracing:
 
-{@ocaml file=test/test_expect_test.ml,part=track_notrace_example [
+{@ocaml file=../test/test_expect_test.ml,part=track_notrace_example[
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
@@ -504,7 +504,7 @@ Example that also illustrates disabling tracing:
 
 Another example:
 
-{@ocaml file=test/test_expect_test.ml,part=track_anonymous_example [
+{@ocaml file=../test/test_expect_test.ml,part=track_anonymous_example[
   let%track_show anonymous (x : int) =
     Array.fold_left ( + ) 0 @@ Array.init (x + 1) (fun (i : int) -> i)
   in
@@ -532,7 +532,7 @@ To disable, rather than enhance, debugging for a piece of code, you can use the 
 
 Explicit logging statements also help with tracking the execution, since they can be placed anywhere within a debug scope. Example from the test suite:
 
-{@ocaml file=test/test_expect_test.ml,part=track_while_loop_example [
+{@ocaml file=../test/test_expect_test.ml,part=track_while_loop_example[
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
@@ -594,7 +594,7 @@ The log levels are integers intended to be within the range 0-9, where 0 means n
 
 The [%diagn_] extension points further restrict logging to explicit logs only. Example from the test suite:
 
-{@ocaml file=test/test_expect_test.ml,part=diagn_show_ignores_bindings [
+{@ocaml file=../test/test_expect_test.ml,part=diagn_show_ignores_bindings[
   let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%diagn_show bar { first : int; second : int } : int =
     let { first : int = a; second : int = b } = { first; second = second + 3 } in
@@ -627,7 +627,7 @@ The [%diagn_] extension points further restrict logging to explicit logs only. E
 
 At runtime creation, the level can be set via the [~log_level] parameter, or via [Debug_runtime.log_level := ...] later on, also for the flushing backend. The following example also illustrates the [_rt_] runtime-passing entry points:
 
-{@ocaml file=test/test_expect_test.ml,part=log_runtime_log_levels_while_loop_example [
+{@ocaml file=../test/test_expect_test.ml,part=log_runtime_log_levels_while_loop_example[
   let%track_rt_sexp result () : int =
     let i = ref 0 in
     let j = ref 0 in
@@ -667,7 +667,7 @@ But there is a more convenient approach. Both at compile time (constant) and at 
 
 For example:
 
-{@ocaml file=test/test_debug_log_prefixed.ml,part=global_debug_log_level [
+{@ocaml file=../test/test_debug_log_prefixed.ml,part=global_debug_log_level[
 let _get_local_debug_runtime =
   Minidebug_runtime.local_runtime_flushing "debugger_show_log_prefixed"
 
@@ -694,7 +694,7 @@ With [[%%global_debug_log_level_from_env_var "environment_variable_name"]], the 
 
 Another example from the test suite, notice how the log level of [%log1] overrides the parent log level of [%debug3_show]:
 
-{@ocaml file=test/test_expect_test.ml,part=debug_show_log_level_runtime [
+{@ocaml file=../test/test_expect_test.ml,part=debug_show_log_level_runtime[
   let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime ~log_level:2 () in
   let%debug3_show () =
     let foo { first : int; second : int } : int =
@@ -743,7 +743,7 @@ The extension point [%log_result] lets you benefit from the [values_first_mode] 
 
 The extension point [%log_printbox] lets you embed a [PrintBox.t] in the logs directly. Example from the test suite:
 
-{@ocaml file=test/test_expect_test.ml,part=log_printbox [
+{@ocaml file=../test/test_expect_test.ml,part=log_printbox[
   let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%debug_show foo () : unit =
     [%log_printbox
@@ -808,7 +808,7 @@ The extension point [%log_printbox] lets you embed a [PrintBox.t] in the logs di
 
 The extension point [%log_entry] lets you shape arbitrary log tree structures. The similar extension point [%log_block] ensures that its body doesn't get executed (resp. generated) when the current runtime (resp. compile-time) log level is inadequate. Example:
 
-{@ocaml file=test/test_expect_test.ml,part=log_entry [
+{@ocaml file=../test/test_expect_test.ml,part=log_entry[
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
@@ -874,7 +874,7 @@ To express the runtime-known levels to log at more concisely, we have extension 
 
 In particular, [[%logN_block for_log_level "header"; Printf.printf "level %d" for_log_level]] is roughly equivalent to:
 
-{@ocaml file=doc/sync_to_md.ml,part=at_log_level [
+{@ocaml file=sync_to_md.ml,part=at_log_level[
 let _get_local_debug_runtime = Minidebug_runtime.local_runtime "sync_to_md-at_log_level"
 
 let%debug_sexp test_at_log_level for_log_level : unit =
@@ -889,9 +889,9 @@ let%debug_sexp _test_at_log_level_2 : unit = test_at_log_level 2
 let%debug_sexp _test_at_log_level_3 : unit = test_at_log_level 3
 ]}
 
-Take a look at the test ["%logN_block runtime log levels"] in {{: test/test_expect_test.ml} test_expect_test.ml}:
+Take a look at the test ["%logN_block runtime log levels"] in {{:https://github.com/lukstafi/ppx_minidebug/blob/main/test/test_expect_test.ml} test_expect_test.ml}:
 
-{@ocaml file=test/test_expect_test.ml,part=logN_block [
+{@ocaml file=../test/test_expect_test.ml,part=logN_block[
   let%track_rt_sexp result ~for_log_level : int =
     let i = ref 0 in
     let j = ref 0 in
@@ -918,7 +918,7 @@ expose the (lexical) entry id of an individual log, except when the log "wandere
 scopes, or you passed [~verbose_entry_ids:true] when creating a runtime. To be able to locate where such log originates from, pass [~print_entry_ids:true] when creating
 the runtime, and look for the path line with the log's entry id. When the backend is HTML or Markdown, the entry id is a hyperlink to the anchor of the entry. Example from the test suite:
 
-{@ocaml file=test/test_expect_test.ml,part=log_with_print_entry_ids_mixed_up_scopes [
+{@ocaml file=../test/test_expect_test.ml,part=log_with_print_entry_ids_mixed_up_scopes[
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime ~print_entry_ids:true ()
   in
@@ -995,7 +995,7 @@ The log levels discussed in the previous section certainly reduce the amount gen
 In the PrintBox backend, you can disable the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space.
 The test suite example:
 
-{@ocaml file=test/test_expect_test.ml,part=loop_changes [
+{@ocaml file=../test/test_expect_test.ml,part=loop_changes[
   let%debug_show rec loop_changes (x : int) : int =
     let z : int = (x - 1) / 2 in
     (* The call [x = 2] is not printed because it is a descendant of the no-debug call [x
@@ -1029,7 +1029,7 @@ The [no_debug_if] mechanism requires modifying the logged sources, and since it'
 
 Setting the option [truncate_children] will only log the given number of children at each node, prioritizing the most recent ones. An example from the test suite:
 
-{@ocaml file=test/test_expect_test.ml,part=track_for_loop_truncated_children [
+{@ocaml file=../test/test_expect_test.ml,part=track_for_loop_truncated_children[
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime ~values_first_mode:false ~truncate_children:10 ()
   in
@@ -1096,7 +1096,7 @@ If you collaborate with someone or take notes, you can pass [~print_entry_ids:tr
 
 Example demonstrating foldable trees in Markdown:
 
-{@ocaml file=test/test_debug_time_spans.ml [
+{@ocaml file=../test/test_debug_time_spans.ml[
 let _get_local_debug_runtime =
   Minidebug_runtime.local_runtime ~elapsed_times:Microseconds ~hyperlink:"./"
     ~backend:(`Markdown Minidebug_runtime.default_md_config) ~truncate_children:4
@@ -1145,9 +1145,9 @@ Here is a probably incomplete list of the restrictions:
 }{- We try reconstructing or guessing the types of expressions logged with [%log] and [%log_result], see details below.
 }}
 
-As a help in debugging whether the right type information got propagated, we offer the extension [%debug_type_info] (and [%global_debug_type_info]). (The display strips module qualifiers from types.) [%debug_type_info] is not an entry extension point ([%global_debug_type_info] is). Example {{: test/test_expect_test.ml} from the test suite}:
+As a help in debugging whether the right type information got propagated, we offer the extension [%debug_type_info] (and [%global_debug_type_info]). (The display strips module qualifiers from types.) [%debug_type_info] is not an entry extension point ([%global_debug_type_info] is). Example {{:https://github.com/lukstafi/ppx_minidebug/blob/main/test/test_expect_test.ml} from the test suite}:
 
-{@ocaml file=test/test_expect_test.ml,part=debug_type_info [
+{@ocaml file=../test/test_expect_test.ml,part=debug_type_info[
   let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   [%debug_show
     [%debug_type_info
@@ -1187,7 +1187,7 @@ There is an optional runtime instance-level setting [global_prefix], which adds 
 
 Example from the test suite:
 
-{@ocaml file=test/test_expect_test.ml,part=track_show_procedure_runtime_prefixes [
+{@ocaml file=../test/test_expect_test.ml,part=track_show_procedure_runtime_prefixes[
   let i = ref 0 in
   let _get_local_debug_runtime () =
     Minidebug_runtime.debug_flushing ~global_prefix:("foo-" ^ string_of_int !i) ()
@@ -1244,7 +1244,7 @@ Another similar feature is the extension points [%debug_rt_sexp], [%track_rt_sex
 
 Example from the test suite:
 
-{@ocaml file=test/test_expect_test.ml,part=track_rt_show_list_runtime_passing [
+{@ocaml file=../test/test_expect_test.ml,part=track_rt_show_list_runtime_passing[
   let%track_rt_show foo l : int = match (l : int list) with [] -> 7 | y :: _ -> y * 2 in
   let () =
     print_endline @@ Int.to_string

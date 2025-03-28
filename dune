@@ -25,5 +25,5 @@
   thread-local-storage))
 
 (mdx
- (files README.md doc/index.mld)
+ (files README.md)
  (libraries minidebug_runtime))

@@ -318,7 +318,7 @@ val debug_file :
     matched with entry [curr_id] from the current run. This is useful for ensuring
     specific debug entries are compared even if their positions change significantly.
 
-    By default [backend] is [`Text]. See {!type:PrintBox.config} for details about
+    By default [backend] is [`Text]. See {!type:printbox_config} for details about
     PrintBox-specific parameters. See {!shared_config} for the details about shared
     parameters. *)
 
@@ -349,8 +349,8 @@ val debug :
 (** Same as {!debug_file}, but by default it will log to [stdout] and will not be time
     tagged, and some functionality is not supported.
 
-    See {!type:PrintBox.config} for details about PrintBox-specific parameters. See
-    {!shared_config} for the details about shared parameters. *)
+    See {!type:printbox_config} for details about PrintBox-specific parameters.
+    See {!shared_config} for the details about shared parameters. *)
 
 val debug_flushing :
   ?debug_ch:out_channel ->
@@ -473,8 +473,8 @@ val prefixed_runtime :
     not provided, the prefix will default to ["Thread-<thread ID>"] if the thread ID is
     non-zero, or an empty string otherwise.
 
-    See {!type:PrintBox.config} for details about PrintBox-specific parameters. See
-    {!shared_config} for the details about shared parameters. *)
+    See {!type:printbox_config} for details about PrintBox-specific parameters.
+    See {!shared_config} for the details about shared parameters. *)
 
 val prefixed_runtime_flushing :
   ?debug_ch:out_channel ->
