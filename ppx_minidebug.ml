@@ -22,7 +22,9 @@ type context = {
 }
 
 let init_context =
-  let default = try Sys.getenv "PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL" with Not_found -> "" in
+  let default =
+    try Sys.getenv "PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL" with Not_found -> ""
+  in
   let default =
     try int_of_string (if default = "" then "9" else default)
     with Failure f ->
