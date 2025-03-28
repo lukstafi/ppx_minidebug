@@ -35,7 +35,6 @@ module type Shared_config = sig
   val global_prefix : string
   val split_files_after : int option
   val toc_entry : toc_entry_criteria
-  val description : string
   val init_log_level : int
 end
 
@@ -150,11 +149,6 @@ module type Debug_runtime = sig
   (** Snapshots any pending logs and closes any open files. This should be called at the
       end of the program to ensure all logs are properly flushed and files are closed. Do
       not call this function if there is a chance that the backend will be used again. *)
-
-  val description : string
-  (** A description that should be sufficient to locate where the logs end up. If not
-      configured explicitly, it will be some combination of: the global prefix, the file
-      name or "stdout". *)
 
   val no_debug_if : bool -> unit
   (** For [PrintBox] runtimes, when passed true within the scope of a log subtree,
@@ -330,7 +324,6 @@ val debug :
   ?location_format:location_format ->
   ?print_entry_ids:bool ->
   ?verbose_entry_ids:bool ->
-  ?description:string ->
   ?global_prefix:string ->
   ?table_of_contents_ch:out_channel ->
   ?toc_entry:toc_entry_criteria ->
@@ -363,7 +356,6 @@ val debug_flushing :
   ?location_format:location_format ->
   ?print_entry_ids:bool ->
   ?verbose_entry_ids:bool ->
-  ?description:string ->
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?with_table_of_contents:bool ->
@@ -430,7 +422,6 @@ val local_runtime_flushing :
   ?location_format:location_format ->
   ?print_entry_ids:bool ->
   ?verbose_entry_ids:bool ->
-  ?description:string ->
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?with_table_of_contents:bool ->
@@ -451,7 +442,6 @@ val prefixed_runtime :
   ?location_format:location_format ->
   ?print_entry_ids:bool ->
   ?verbose_entry_ids:bool ->
-  ?description:string ->
   ?global_prefix:string ->
   ?table_of_contents_ch:out_channel ->
   ?toc_entry:toc_entry_criteria ->
@@ -488,7 +478,6 @@ val prefixed_runtime_flushing :
   ?location_format:location_format ->
   ?print_entry_ids:bool ->
   ?verbose_entry_ids:bool ->
-  ?description:string ->
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?with_table_of_contents:bool ->
