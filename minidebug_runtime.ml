@@ -2110,12 +2110,11 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
 
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
-    ?(global_prefix = "") ?table_of_contents_ch
-    ?(toc_entry = And []) ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80)
-    ?(backend = `Text) ?hyperlink ?toc_specific_hyperlink ?highlight_terms
-    ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
-    ?(values_first_mode = true) ?(log_level = 9) ?snapshot_every_sec () :
-    (module PrintBox_runtime) =
+    ?(global_prefix = "") ?table_of_contents_ch ?(toc_entry = And [])
+    ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80) ?(backend = `Text)
+    ?hyperlink ?toc_specific_hyperlink ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
+    ?(truncate_children = 0) ?(values_first_mode = true) ?(log_level = 9)
+    ?snapshot_every_sec () : (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
     let ch = match debug_ch with None -> stdout | Some ch -> ch
@@ -2286,10 +2285,10 @@ let prefixed_runtime ?debug_ch ?time_tagged ?elapsed_times ?location_format
       else Some (Printf.sprintf "%s-%d" (Option.value ~default:"Thread" global_prefix) id)
     in
     debug ?debug_ch ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
-      ?verbose_entry_ids ?global_prefix ?table_of_contents_ch
-      ?toc_entry ?highlight_terms ?exclude_on_path ?prune_upto ?truncate_children
-      ?boxify_sexp_from_size ?max_inline_sexp_length ?backend ?hyperlink
-      ?toc_specific_hyperlink ?values_first_mode ?log_level ?snapshot_every_sec ()
+      ?verbose_entry_ids ?global_prefix ?table_of_contents_ch ?toc_entry ?highlight_terms
+      ?exclude_on_path ?prune_upto ?truncate_children ?boxify_sexp_from_size
+      ?max_inline_sexp_length ?backend ?hyperlink ?toc_specific_hyperlink
+      ?values_first_mode ?log_level ?snapshot_every_sec ()
   in
   let key = Thread_local_storage.create () in
   let get_local () = Thread_local_storage.get_default ~default:get_debug key in
