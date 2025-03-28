@@ -439,19 +439,19 @@ If that is insufficient, you can define `_get_local_debug_runtime` using a `_flu
     {|
     BEGIN DEBUG SESSION test-51
     test-51 bar begin "test/test_expect_test.ml":157:21:
-     x = { Test_expect_test.first = 7; second = 42 }
+     test-51 x = { Test_expect_test.first = 7; second = 42 }
      test-51 y begin "test/test_expect_test.ml":158:8:
-      y = 8
+      test-51 y = 8
      test-51 y end
-     bar = 336
+     test-51 bar = 336
     test-51 bar end
     336
     test-51 baz begin "test/test_expect_test.ml":162:21:
-     x = { Test_expect_test.first = 7; second = 42 }
+     test-51 x = { Test_expect_test.first = 7; second = 42 }
      test-51 _yz begin "test/test_expect_test.ml":163:19:
-      _yz = (8, 3)
+      test-51 _yz = (8, 3)
      test-51 _yz end
-     baz = 339
+     test-51 baz = 339
     test-51 baz end
     339
     |}]

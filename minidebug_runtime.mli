@@ -33,6 +33,7 @@ module type Shared_config = sig
   val print_entry_ids : bool
   val verbose_entry_ids : bool
   val global_prefix : string
+  val prefix_all_logs : bool
   val split_files_after : int option
   val toc_entry : toc_entry_criteria
   val init_log_level : int
@@ -45,6 +46,7 @@ val shared_config :
   ?print_entry_ids:bool ->
   ?verbose_entry_ids:bool ->
   ?global_prefix:string ->
+  ?prefix_all_logs:bool ->
   ?split_files_after:int ->
   ?with_table_of_contents:bool ->
   ?toc_entry:toc_entry_criteria ->
@@ -73,6 +75,9 @@ val shared_config :
 
     If [global_prefix] is given, the log header messages (and the log closing messages for
     the flushing backend) are prefixed with it.
+
+    If [prefix_all_logs] is true, all logs have the [global_prefix] prefixed, not just the
+    header messages. Does nothing for the [PrintBox] (i.e. non-flushing) runtimes.
 
     If [table_of_contents_ch] is given or [with_table_of_contents=true], outputs selected
     log headers to this channel. The provided file name is used as a prefix for links to
@@ -357,6 +362,7 @@ val debug_flushing :
   ?print_entry_ids:bool ->
   ?verbose_entry_ids:bool ->
   ?global_prefix:string ->
+  ?prefix_all_logs:bool ->
   ?split_files_after:int ->
   ?with_table_of_contents:bool ->
   ?toc_entry:toc_entry_criteria ->

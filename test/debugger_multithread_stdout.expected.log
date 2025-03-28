@@ -7,122 +7,122 @@ spawn_threads begin "test/test_debug_multithread_stdout.ml":10:29:
 
 BEGIN DEBUG SESSION Thread-1 
 Thread-1 thread_work begin "test/test_debug_multithread_stdout.ml":3:27:
- thread_id = 0
- iterations = 10
+ Thread-1 thread_id = 0
+ Thread-1 iterations = 10
  Thread-1 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 0
+  Thread-1 result = 0
  Thread-1 result end
  Thread-1 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 1
+  Thread-1 result = 1
  Thread-1 result end
  Thread-1 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 2
+  Thread-1 result = 2
  Thread-1 result end
  Thread-1 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 3
+  Thread-1 result = 3
  Thread-1 result end
  Thread-1 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 4
+  Thread-1 result = 4
  Thread-1 result end
  Thread-1 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 5
+  Thread-1 result = 5
  Thread-1 result end
  Thread-1 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 6
+  Thread-1 result = 6
  Thread-1 result end
  Thread-1 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 7
+  Thread-1 result = 7
  Thread-1 result end
  Thread-1 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 8
+  Thread-1 result = 8
  Thread-1 result end
  Thread-1 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 9
+  Thread-1 result = 9
  Thread-1 result end
  Thread-1 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 10
+  Thread-1 result = 10
  Thread-1 result end
- thread_work = ()
+ Thread-1 thread_work = ()
 Thread-1 thread_work end
 
 BEGIN DEBUG SESSION Thread-2 
 Thread-2 thread_work begin "test/test_debug_multithread_stdout.ml":3:27:
- thread_id = 1
- iterations = 10
+ Thread-2 thread_id = 1
+ Thread-2 iterations = 10
  Thread-2 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 100
+  Thread-2 result = 100
  Thread-2 result end
  Thread-2 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 101
+  Thread-2 result = 101
  Thread-2 result end
  Thread-2 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 102
+  Thread-2 result = 102
  Thread-2 result end
  Thread-2 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 103
+  Thread-2 result = 103
  Thread-2 result end
  Thread-2 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 104
+  Thread-2 result = 104
  Thread-2 result end
  Thread-2 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 105
+  Thread-2 result = 105
  Thread-2 result end
  Thread-2 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 106
+  Thread-2 result = 106
  Thread-2 result end
  Thread-2 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 107
+  Thread-2 result = 107
  Thread-2 result end
  Thread-2 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 108
+  Thread-2 result = 108
  Thread-2 result end
  Thread-2 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 109
+  Thread-2 result = 109
  Thread-2 result end
  Thread-2 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 110
+  Thread-2 result = 110
  Thread-2 result end
- thread_work = ()
+ Thread-2 thread_work = ()
 Thread-2 thread_work end
 
 BEGIN DEBUG SESSION Thread-3 
 Thread-3 thread_work begin "test/test_debug_multithread_stdout.ml":3:27:
- thread_id = 2
- iterations = 10
+ Thread-3 thread_id = 2
+ Thread-3 iterations = 10
  Thread-3 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 200
+  Thread-3 result = 200
  Thread-3 result end
  Thread-3 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 201
+  Thread-3 result = 201
  Thread-3 result end
  Thread-3 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 202
+  Thread-3 result = 202
  Thread-3 result end
  Thread-3 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 203
+  Thread-3 result = 203
  Thread-3 result end
  Thread-3 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 204
+  Thread-3 result = 204
  Thread-3 result end
  Thread-3 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 205
+  Thread-3 result = 205
  Thread-3 result end
  Thread-3 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 206
+  Thread-3 result = 206
  Thread-3 result end
  Thread-3 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 207
+  Thread-3 result = 207
  Thread-3 result end
  Thread-3 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 208
+  Thread-3 result = 208
  Thread-3 result end
  Thread-3 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 209
+  Thread-3 result = 209
  Thread-3 result end
  Thread-3 result begin "test/test_debug_multithread_stdout.ml":5:8:
-  result = 210
+  Thread-3 result = 210
  Thread-3 result end
- thread_work = ()
+ Thread-3 thread_work = ()
 Thread-3 thread_work end
  spawn_threads = ()
 spawn_threads end

@@ -65,6 +65,7 @@ module type Shared_config = sig
   val print_entry_ids : bool
   val verbose_entry_ids : bool
   val global_prefix : string
+  val prefix_all_logs : bool
   val split_files_after : int option
   val toc_entry : toc_entry_criteria
   val init_log_level : int
@@ -74,9 +75,9 @@ let elapsed_default = Not_reported
 
 let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
-    ?(global_prefix = "") ?split_files_after ?(with_table_of_contents = false)
-    ?(toc_entry = And []) ?(for_append = true) ?(log_level = 9) filename :
-    (module Shared_config) =
+    ?(global_prefix = "") ?(prefix_all_logs = false) ?split_files_after
+    ?(with_table_of_contents = false) ?(toc_entry = And []) ?(for_append = true)
+    ?(log_level = 9) filename : (module Shared_config) =
   let module Result = struct
     let current_ch_name = ref filename
 
@@ -166,6 +167,7 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     let print_entry_ids = print_entry_ids
     let verbose_entry_ids = verbose_entry_ids
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
+    let prefix_all_logs = prefix_all_logs
     let split_files_after = split_files_after
     let toc_entry = toc_entry
     let init_log_level = log_level
@@ -221,6 +223,8 @@ module type Debug_runtime = sig
   val max_nesting_depth : int option ref
   val max_num_children : int option ref
   val global_prefix : string
+
+  (* val prefix_all_logs : bool *)
   val snapshot : unit -> unit
   val finish_and_cleanup : unit -> unit
   val no_debug_if : bool -> unit
@@ -383,6 +387,8 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
       Printf.fprintf ch "%s\n%!" time_tag)
     else hidden_entries := entry_id :: !hidden_entries
 
+  let opt_global_prefix = if prefix_all_logs then global_prefix else ""
+
   let bump_stack_entry entry_id =
     match !stack with
     | ({ num_children; _ } as entry) :: tl ->
@@ -394,7 +400,8 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
     if check_log_level log_level then
       let orphaned = bump_stack_entry entry_id in
       let descr = match descr with None -> "" | Some d -> d ^ " = " in
-      Printf.fprintf (debug_ch ()) "%s%s%s%s\n%!" (indent ()) orphaned descr
+      Printf.fprintf (debug_ch ()) "%s%s%s%s%s\n%!" (indent ()) opt_global_prefix orphaned
+        descr
         (Sexplib0.Sexp.to_string_hum sexp)
 
   let log_value_pp ?descr ~entry_id ~log_level ~pp ~is_result:_ v =
@@ -406,21 +413,24 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
       pp formatter v;
       CFormat.pp_print_flush formatter ();
       let v_str = Buffer.contents buf in
-      Printf.fprintf (debug_ch ()) "%s%s%s%s\n%!" (indent ()) orphaned descr v_str)
+      Printf.fprintf (debug_ch ()) "%s%s%s%s%s\n%!" (indent ()) opt_global_prefix orphaned
+        descr v_str)
 
   let log_value_show ?descr ~entry_id ~log_level ~is_result:_ v =
     if check_log_level log_level then
       let orphaned = bump_stack_entry entry_id in
       let descr = match descr with None -> "" | Some d -> d ^ " = " in
-      Printf.fprintf (debug_ch ()) "%s%s%s%s\n%!" (indent ()) orphaned descr v
+      Printf.fprintf (debug_ch ()) "%s%s%s%s%s\n%!" (indent ()) opt_global_prefix orphaned
+        descr v
 
   let log_value_printbox ~entry_id ~log_level v =
     if check_log_level log_level then
       let orphaned = bump_stack_entry entry_id in
       let orphaned = if orphaned = "" then "" else " " ^ orphaned in
       let indent = indent () in
-      Printf.fprintf (debug_ch ()) "%a%s\n%!"
-        (PrintBox_text.output ?style:None ~indent:(String.length indent))
+      Printf.fprintf (debug_ch ()) "%s%a%s\n%!" opt_global_prefix
+        (PrintBox_text.output ?style:None
+           ~indent:(String.length indent + String.length opt_global_prefix))
         v orphaned
 
   let exceeds_max_nesting () =
@@ -2100,16 +2110,16 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
 
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
-    ?(global_prefix = "") ?table_of_contents_ch ?(toc_entry = And [])
-    ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80) ?(backend = `Text)
-    ?hyperlink ?toc_specific_hyperlink ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
-    ?(truncate_children = 0) ?(values_first_mode = true) ?(log_level = 9)
-    ?snapshot_every_sec () : (module PrintBox_runtime) =
+    ?(global_prefix = "") ?table_of_contents_ch
+    ?(toc_entry = And []) ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80)
+    ?(backend = `Text) ?hyperlink ?toc_specific_hyperlink ?highlight_terms
+    ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
+    ?(values_first_mode = true) ?(log_level = 9) ?snapshot_every_sec () :
+    (module PrintBox_runtime) =
   let module Debug = PrintBox (struct
     let refresh_ch () = false
     let ch = match debug_ch with None -> stdout | Some ch -> ch
     let current_snapshot = ref 0
-
 
     let snapshot_ch () =
       match debug_ch with
@@ -2132,6 +2142,7 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
     let print_entry_ids = print_entry_ids
     let verbose_entry_ids = verbose_entry_ids
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
+    let prefix_all_logs = false
     let split_files_after = None
     let toc_entry = toc_entry
     let init_log_level = log_level
@@ -2153,7 +2164,7 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
 let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename
     ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
-    ?(global_prefix = "") ?split_files_after
+    ?(global_prefix = "") ?(prefix_all_logs = false) ?split_files_after
     ?(with_table_of_contents = false) ?(toc_entry = And []) ?(for_append = false)
     ?(log_level = 9) () : (module Debug_runtime) =
   let log_to =
@@ -2163,7 +2174,6 @@ let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename
           let refresh_ch () = false
           let ch = match d_ch with None -> stdout | Some ch -> ch
           let current_snapshot = ref 0
-
 
           let snapshot_ch () =
             match d_ch with
@@ -2192,6 +2202,7 @@ let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename
           let print_entry_ids = print_entry_ids
           let verbose_entry_ids = verbose_entry_ids
           let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
+          let prefix_all_logs = prefix_all_logs
           let split_files_after = split_files_after
           let toc_entry = toc_entry
           let init_log_level = log_level
@@ -2247,9 +2258,8 @@ let local_runtime ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
         (module Debug : Debug_runtime)
 
 let local_runtime_flushing ?table_of_contents_ch ?time_tagged ?elapsed_times
-    ?location_format ?print_entry_ids ?verbose_entry_ids ?global_prefix
-    ?split_files_after ?with_table_of_contents ?toc_entry ?for_append ?log_level
-    filename_stem =
+    ?location_format ?print_entry_ids ?verbose_entry_ids ?global_prefix ?split_files_after
+    ?with_table_of_contents ?toc_entry ?for_append ?log_level filename_stem =
   let get_thread_id () = Thread.id (Thread.self ()) in
   let get_debug () =
     let filename =
@@ -2264,9 +2274,9 @@ let local_runtime_flushing ?table_of_contents_ch ?time_tagged ?elapsed_times
   fun () -> Thread_local_storage.get_default ~default:get_debug key
 
 let prefixed_runtime ?debug_ch ?time_tagged ?elapsed_times ?location_format
-    ?print_entry_ids ?verbose_entry_ids ?global_prefix ?table_of_contents_ch
-    ?toc_entry ?highlight_terms ?exclude_on_path ?prune_upto ?truncate_children
-    ?values_first_mode ?boxify_sexp_from_size ?max_inline_sexp_length ?backend ?hyperlink
+    ?print_entry_ids ?verbose_entry_ids ?global_prefix ?table_of_contents_ch ?toc_entry
+    ?highlight_terms ?exclude_on_path ?prune_upto ?truncate_children ?values_first_mode
+    ?boxify_sexp_from_size ?max_inline_sexp_length ?backend ?hyperlink
     ?toc_specific_hyperlink ?log_level ?snapshot_every_sec ?update_config () =
   let get_thread_id () = Thread.id (Thread.self ()) in
   let get_debug () : (module PrintBox_runtime) =
@@ -2276,8 +2286,8 @@ let prefixed_runtime ?debug_ch ?time_tagged ?elapsed_times ?location_format
       else Some (Printf.sprintf "%s-%d" (Option.value ~default:"Thread" global_prefix) id)
     in
     debug ?debug_ch ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
-      ?verbose_entry_ids ?global_prefix ?table_of_contents_ch ?toc_entry
-      ?highlight_terms ?exclude_on_path ?prune_upto ?truncate_children
+      ?verbose_entry_ids ?global_prefix ?table_of_contents_ch
+      ?toc_entry ?highlight_terms ?exclude_on_path ?prune_upto ?truncate_children
       ?boxify_sexp_from_size ?max_inline_sexp_length ?backend ?hyperlink
       ?toc_specific_hyperlink ?values_first_mode ?log_level ?snapshot_every_sec ()
   in
@@ -2292,8 +2302,8 @@ let prefixed_runtime ?debug_ch ?time_tagged ?elapsed_times ?location_format
         (module Debug : Debug_runtime)
 
 let prefixed_runtime_flushing ?debug_ch ?table_of_contents_ch ?time_tagged ?elapsed_times
-    ?location_format ?print_entry_ids ?verbose_entry_ids ?global_prefix
-    ?split_files_after ?with_table_of_contents ?toc_entry ?for_append ?log_level () =
+    ?location_format ?print_entry_ids ?verbose_entry_ids ?global_prefix ?split_files_after
+    ?with_table_of_contents ?toc_entry ?for_append ?log_level () =
   let get_thread_id () = Thread.id (Thread.self ()) in
   let get_debug () =
     let global_prefix =
@@ -2303,7 +2313,8 @@ let prefixed_runtime_flushing ?debug_ch ?table_of_contents_ch ?time_tagged ?elap
     in
     debug_flushing ?debug_ch ?table_of_contents_ch ?time_tagged ?elapsed_times
       ?location_format ?print_entry_ids ?verbose_entry_ids ?global_prefix
-      ?split_files_after ?with_table_of_contents ?toc_entry ?for_append ?log_level ()
+      ~prefix_all_logs:true ?split_files_after ?with_table_of_contents ?toc_entry
+      ?for_append ?log_level ()
   in
   let key = Thread_local_storage.create () in
   fun () -> Thread_local_storage.get_default ~default:get_debug key
