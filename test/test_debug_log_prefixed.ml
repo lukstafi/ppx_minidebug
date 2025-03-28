@@ -1,3 +1,4 @@
+(* $MDX part-begin=global_debug_log_level *)
 let _get_local_debug_runtime =
   Minidebug_runtime.local_runtime_flushing "debugger_show_log_prefixed"
 
@@ -10,6 +11,7 @@ let%diagn_show rec loop_exceeded (x : int) : int =
     (x - 1) / 2
   in
   if x <= 0 then 0 else z + loop_exceeded (z + (x / 2))
+(* $MDX part-end *)
 
 let () =
   try print_endline @@ Int.to_string @@ loop_exceeded 7

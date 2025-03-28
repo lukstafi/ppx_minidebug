@@ -1,3 +1,4 @@
+(* $MDX part-begin=global_debug_interrupts *)
 module Debug_runtime =
   (val Minidebug_runtime.debug_flushing ~filename:"debugger_show_interrupts" ())
 
@@ -7,6 +8,7 @@ module Debug_runtime =
 let%debug_o_show rec loop_exceeded (x : int) : int =
   let z : int = (x - 1) / 2 in
   if x <= 0 then 0 else z + loop_exceeded (z + (x / 2))
+(* $MDX part-end *)
 
 let () =
   try print_endline @@ Int.to_string @@ loop_exceeded 17

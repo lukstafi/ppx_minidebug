@@ -13,7 +13,7 @@ doc: "https://lukstafi.github.io/ppx_minidebug/ppx_minidebug"
 bug-reports: "https://github.com/lukstafi/ppx_minidebug/issues"
 depends: [
   "ocaml" {>= "4.13"}
-  "dune" {>= "3.7"}
+  "dune" {>= "3.10"}
   "ppx_deriving"
   "ppx_sexp_conv"
   "ppxlib" {>= "0.26.0"}
@@ -28,6 +28,7 @@ depends: [
   "ppx_expect" {with-test & >= "v0.9.0"}
   "odoc" {with-doc}
   "thread-local-storage" {>= "0.2"}
+  "mdx" {>= "2.5.0"}
 ]
 build: [
   ["dune" "subst"] {dev}

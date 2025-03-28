@@ -149,6 +149,7 @@ let%expect_test "%debug_show flushing to stdout, time spans" =
     |}]
 
 let%expect_test "%debug_show flushing with global prefix" =
+  (* $MDX part-begin=simple_flushing *)
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime_flushing ~time_tagged:Not_tagged
       ~global_prefix:"test-51" ()
@@ -168,23 +169,24 @@ let%expect_test "%debug_show flushing with global prefix" =
   [%expect
     {|
     BEGIN DEBUG SESSION test-51
-    test-51 bar begin "test/test_expect_test.ml":156:21:
+    test-51 bar begin "test/test_expect_test.ml":157:21:
      x = { Test_expect_test.first = 7; second = 42 }
-     test-51 y begin "test/test_expect_test.ml":157:8:
+     test-51 y begin "test/test_expect_test.ml":158:8:
       y = 8
      test-51 y end
      bar = 336
     test-51 bar end
     336
-    test-51 baz begin "test/test_expect_test.ml":161:21:
+    test-51 baz begin "test/test_expect_test.ml":162:21:
      x = { Test_expect_test.first = 7; second = 42 }
-     test-51 _yz begin "test/test_expect_test.ml":162:19:
+     test-51 _yz begin "test/test_expect_test.ml":163:19:
       _yz = (8, 3)
      test-51 _yz end
      baz = 339
     test-51 baz end
     339
     |}]
+(* $MDX part-end *)
 
 let%expect_test "%debug_show disabled subtree" =
   let _get_local_debug_runtime =
@@ -198,37 +200,37 @@ let%expect_test "%debug_show disabled subtree" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":193:35: loop_complete
+    "test/test_expect_test.ml":195:35: loop_complete
     ├─x = 7
-    ├─"test/test_expect_test.ml":194:8: z
+    ├─"test/test_expect_test.ml":196:8: z
     │ └─z = 3
-    ├─"test/test_expect_test.ml":193:35: loop_complete
+    ├─"test/test_expect_test.ml":195:35: loop_complete
     │ ├─x = 6
-    │ ├─"test/test_expect_test.ml":194:8: z
+    │ ├─"test/test_expect_test.ml":196:8: z
     │ │ └─z = 2
-    │ ├─"test/test_expect_test.ml":193:35: loop_complete
+    │ ├─"test/test_expect_test.ml":195:35: loop_complete
     │ │ ├─x = 5
-    │ │ ├─"test/test_expect_test.ml":194:8: z
+    │ │ ├─"test/test_expect_test.ml":196:8: z
     │ │ │ └─z = 2
-    │ │ ├─"test/test_expect_test.ml":193:35: loop_complete
+    │ │ ├─"test/test_expect_test.ml":195:35: loop_complete
     │ │ │ ├─x = 4
-    │ │ │ ├─"test/test_expect_test.ml":194:8: z
+    │ │ │ ├─"test/test_expect_test.ml":196:8: z
     │ │ │ │ └─z = 1
-    │ │ │ ├─"test/test_expect_test.ml":193:35: loop_complete
+    │ │ │ ├─"test/test_expect_test.ml":195:35: loop_complete
     │ │ │ │ ├─x = 3
-    │ │ │ │ ├─"test/test_expect_test.ml":194:8: z
+    │ │ │ │ ├─"test/test_expect_test.ml":196:8: z
     │ │ │ │ │ └─z = 1
-    │ │ │ │ ├─"test/test_expect_test.ml":193:35: loop_complete
+    │ │ │ │ ├─"test/test_expect_test.ml":195:35: loop_complete
     │ │ │ │ │ ├─x = 2
-    │ │ │ │ │ ├─"test/test_expect_test.ml":194:8: z
+    │ │ │ │ │ ├─"test/test_expect_test.ml":196:8: z
     │ │ │ │ │ │ └─z = 0
-    │ │ │ │ │ ├─"test/test_expect_test.ml":193:35: loop_complete
+    │ │ │ │ │ ├─"test/test_expect_test.ml":195:35: loop_complete
     │ │ │ │ │ │ ├─x = 1
-    │ │ │ │ │ │ ├─"test/test_expect_test.ml":194:8: z
+    │ │ │ │ │ │ ├─"test/test_expect_test.ml":196:8: z
     │ │ │ │ │ │ │ └─z = 0
-    │ │ │ │ │ │ ├─"test/test_expect_test.ml":193:35: loop_complete
+    │ │ │ │ │ │ ├─"test/test_expect_test.ml":195:35: loop_complete
     │ │ │ │ │ │ │ ├─x = 0
-    │ │ │ │ │ │ │ ├─"test/test_expect_test.ml":194:8: z
+    │ │ │ │ │ │ │ ├─"test/test_expect_test.ml":196:8: z
     │ │ │ │ │ │ │ │ └─z = 0
     │ │ │ │ │ │ │ └─loop_complete = 0
     │ │ │ │ │ │ └─loop_complete = 0
@@ -240,6 +242,8 @@ let%expect_test "%debug_show disabled subtree" =
     └─loop_complete = 9
     9
     |}];
+
+  (* $MDX part-begin=loop_changes *)
   let%debug_show rec loop_changes (x : int) : int =
     let z : int = (x - 1) / 2 in
     (* The call [x = 2] is not printed because it is a descendant of the no-debug call [x
@@ -250,23 +254,24 @@ let%expect_test "%debug_show disabled subtree" =
   let () = print_endline @@ Int.to_string @@ loop_changes 7 in
   [%expect
     {|
-    "test/test_expect_test.ml":243:34: loop_changes
+    "test/test_expect_test.ml":247:34: loop_changes
     ├─x = 7
-    ├─"test/test_expect_test.ml":244:8: z
+    ├─"test/test_expect_test.ml":248:8: z
     │ └─z = 3
-    ├─"test/test_expect_test.ml":243:34: loop_changes
+    ├─"test/test_expect_test.ml":247:34: loop_changes
     │ ├─x = 6
-    │ ├─"test/test_expect_test.ml":244:8: z
+    │ ├─"test/test_expect_test.ml":248:8: z
     │ │ └─z = 2
-    │ ├─"test/test_expect_test.ml":243:34: loop_changes
+    │ ├─"test/test_expect_test.ml":247:34: loop_changes
     │ │ ├─x = 5
-    │ │ ├─"test/test_expect_test.ml":244:8: z
+    │ │ ├─"test/test_expect_test.ml":248:8: z
     │ │ │ └─z = 2
     │ │ └─loop_changes = 4
     │ └─loop_changes = 6
     └─loop_changes = 9
     9
     |}]
+(* $MDX part-end *)
 
 let%expect_test "%debug_show with exception" =
   let _get_local_debug_runtime =
@@ -284,42 +289,43 @@ let%expect_test "%debug_show with exception" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":275:36: loop_truncated
+    "test/test_expect_test.ml":280:36: loop_truncated
     ├─x = 7
-    ├─"test/test_expect_test.ml":276:8: z
+    ├─"test/test_expect_test.ml":281:8: z
     │ └─z = 3
-    └─"test/test_expect_test.ml":275:36: loop_truncated
+    └─"test/test_expect_test.ml":280:36: loop_truncated
       ├─x = 6
-      ├─"test/test_expect_test.ml":276:8: z
+      ├─"test/test_expect_test.ml":281:8: z
       │ └─z = 2
-      └─"test/test_expect_test.ml":275:36: loop_truncated
+      └─"test/test_expect_test.ml":280:36: loop_truncated
         ├─x = 5
-        ├─"test/test_expect_test.ml":276:8: z
+        ├─"test/test_expect_test.ml":281:8: z
         │ └─z = 2
-        └─"test/test_expect_test.ml":275:36: loop_truncated
+        └─"test/test_expect_test.ml":280:36: loop_truncated
           ├─x = 4
-          ├─"test/test_expect_test.ml":276:8: z
+          ├─"test/test_expect_test.ml":281:8: z
           │ └─z = 1
-          └─"test/test_expect_test.ml":275:36: loop_truncated
+          └─"test/test_expect_test.ml":280:36: loop_truncated
             ├─x = 3
-            ├─"test/test_expect_test.ml":276:8: z
+            ├─"test/test_expect_test.ml":281:8: z
             │ └─z = 1
-            └─"test/test_expect_test.ml":275:36: loop_truncated
+            └─"test/test_expect_test.ml":280:36: loop_truncated
               ├─x = 2
-              ├─"test/test_expect_test.ml":276:8: z
+              ├─"test/test_expect_test.ml":281:8: z
               │ └─z = 0
-              └─"test/test_expect_test.ml":275:36: loop_truncated
+              └─"test/test_expect_test.ml":280:36: loop_truncated
                 ├─x = 1
-                ├─"test/test_expect_test.ml":276:8: z
+                ├─"test/test_expect_test.ml":281:8: z
                 │ └─z = 0
-                └─"test/test_expect_test.ml":275:36: loop_truncated
+                └─"test/test_expect_test.ml":280:36: loop_truncated
                   ├─x = 0
-                  └─"test/test_expect_test.ml":276:8: z
+                  └─"test/test_expect_test.ml":281:8: z
                     └─z = 0
     Raised exception.
     |}]
 
 let%expect_test "%debug_show depth exceeded" =
+  (* $MDX part-begin=debug_interrupts *)
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
@@ -336,35 +342,36 @@ let%expect_test "%debug_show depth exceeded" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":326:35: loop_exceeded
+    "test/test_expect_test.ml":332:35: loop_exceeded
     ├─x = 7
-    ├─"test/test_expect_test.ml":329:10: z
+    ├─"test/test_expect_test.ml":335:10: z
     │ └─z = 3
-    └─"test/test_expect_test.ml":326:35: loop_exceeded
+    └─"test/test_expect_test.ml":332:35: loop_exceeded
       ├─x = 6
-      ├─"test/test_expect_test.ml":329:10: z
+      ├─"test/test_expect_test.ml":335:10: z
       │ └─z = 2
-      └─"test/test_expect_test.ml":326:35: loop_exceeded
+      └─"test/test_expect_test.ml":332:35: loop_exceeded
         ├─x = 5
-        ├─"test/test_expect_test.ml":329:10: z
+        ├─"test/test_expect_test.ml":335:10: z
         │ └─z = 2
-        └─"test/test_expect_test.ml":326:35: loop_exceeded
+        └─"test/test_expect_test.ml":332:35: loop_exceeded
           ├─x = 4
-          ├─"test/test_expect_test.ml":329:10: z
+          ├─"test/test_expect_test.ml":335:10: z
           │ └─z = 1
-          └─"test/test_expect_test.ml":326:35: loop_exceeded
+          └─"test/test_expect_test.ml":332:35: loop_exceeded
             ├─x = 3
-            └─"test/test_expect_test.ml":329:10: z
+            └─"test/test_expect_test.ml":335:10: z
               └─z = <max_nesting_depth exceeded>
     Raised exception.
     |}]
+(* $MDX part-end *)
 
 let%expect_test "%debug_show num children exceeded linear" =
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
   let () =
-    (* FIXME: this test is not working with the current implementation of the debugger. *)
+    (* $MDX part-begin=debug_limit_children *)
     let module Debug_runtime = (val _get_local_debug_runtime ()) in
     try
       let%debug_o_show _bar : unit =
@@ -381,40 +388,39 @@ let%expect_test "%debug_show num children exceeded linear" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":370:23: _bar
-    ├─"test/test_expect_test.ml":374:16: _baz
+    "test/test_expect_test.ml":377:23: _bar
+    ├─"test/test_expect_test.ml":381:16: _baz
     │ └─_baz = 0
-    ├─"test/test_expect_test.ml":374:16: _baz
+    ├─"test/test_expect_test.ml":381:16: _baz
     │ └─_baz = 2
-    ├─"test/test_expect_test.ml":374:16: _baz
+    ├─"test/test_expect_test.ml":381:16: _baz
     │ └─_baz = 4
-    ├─"test/test_expect_test.ml":374:16: _baz
+    ├─"test/test_expect_test.ml":381:16: _baz
     │ └─_baz = 6
-    ├─"test/test_expect_test.ml":374:16: _baz
+    ├─"test/test_expect_test.ml":381:16: _baz
     │ └─_baz = 8
-    ├─"test/test_expect_test.ml":374:16: _baz
+    ├─"test/test_expect_test.ml":381:16: _baz
     │ └─_baz = 10
-    ├─"test/test_expect_test.ml":374:16: _baz
+    ├─"test/test_expect_test.ml":381:16: _baz
     │ └─_baz = 12
-    ├─"test/test_expect_test.ml":374:16: _baz
+    ├─"test/test_expect_test.ml":381:16: _baz
     │ └─_baz = 14
-    ├─"test/test_expect_test.ml":374:16: _baz
+    ├─"test/test_expect_test.ml":381:16: _baz
     │ └─_baz = 16
-    ├─"test/test_expect_test.ml":374:16: _baz
+    ├─"test/test_expect_test.ml":381:16: _baz
     │ └─_baz = 18
-    ├─"test/test_expect_test.ml":374:16: _baz
+    ├─"test/test_expect_test.ml":381:16: _baz
     │ └─_baz = 20
     └─_baz = <max_num_children exceeded>
     Raised exception: ppx_minidebug: max_num_children exceeded
     |}]
+(* $MDX part-end *)
 
 let%expect_test "%debug_show truncated children linear" =
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime ~values_first_mode:false ~truncate_children:10 ()
   in
   let () =
-    (* FIXME: this test is not working with the current implementation of the debugger. *)
-    let module Debug_runtime = (val _get_local_debug_runtime ()) in
     try
       let%debug_show _bar : unit =
         for i = 0 to 30 do
@@ -428,25 +434,25 @@ let%expect_test "%debug_show truncated children linear" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":419:21: _bar
+    "test/test_expect_test.ml":425:21: _bar
     ├─<earlier entries truncated>
-    ├─"test/test_expect_test.ml":421:14: _baz
+    ├─"test/test_expect_test.ml":427:14: _baz
     │ └─_baz = 44
-    ├─"test/test_expect_test.ml":421:14: _baz
+    ├─"test/test_expect_test.ml":427:14: _baz
     │ └─_baz = 46
-    ├─"test/test_expect_test.ml":421:14: _baz
+    ├─"test/test_expect_test.ml":427:14: _baz
     │ └─_baz = 48
-    ├─"test/test_expect_test.ml":421:14: _baz
+    ├─"test/test_expect_test.ml":427:14: _baz
     │ └─_baz = 50
-    ├─"test/test_expect_test.ml":421:14: _baz
+    ├─"test/test_expect_test.ml":427:14: _baz
     │ └─_baz = 52
-    ├─"test/test_expect_test.ml":421:14: _baz
+    ├─"test/test_expect_test.ml":427:14: _baz
     │ └─_baz = 54
-    ├─"test/test_expect_test.ml":421:14: _baz
+    ├─"test/test_expect_test.ml":427:14: _baz
     │ └─_baz = 56
-    ├─"test/test_expect_test.ml":421:14: _baz
+    ├─"test/test_expect_test.ml":427:14: _baz
     │ └─_baz = 58
-    ├─"test/test_expect_test.ml":421:14: _baz
+    ├─"test/test_expect_test.ml":427:14: _baz
     │ └─_baz = 60
     └─_bar = ()
     |}]
@@ -457,8 +463,6 @@ let%expect_test "%track_show track for-loop num children exceeded" =
   in
   let () =
     try
-      (* FIXME: this test is not working with the current implementation of the
-         debugger. *)
       let module Debug_runtime = (val _get_local_debug_runtime ()) in
       let%track_show _bar : unit =
         [%debug_interrupts
@@ -474,27 +478,27 @@ let%expect_test "%track_show track for-loop num children exceeded" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":463:21: _bar
-    └─"test/test_expect_test.ml":466:10: for:test_expect_test:466
+    "test/test_expect_test.ml":467:21: _bar
+    └─"test/test_expect_test.ml":470:10: for:test_expect_test:470
       ├─i = 0
-      ├─"test/test_expect_test.ml":466:14: <for i>
-      │ └─"test/test_expect_test.ml":467:16: _baz
+      ├─"test/test_expect_test.ml":470:14: <for i>
+      │ └─"test/test_expect_test.ml":471:16: _baz
       │   └─_baz = 0
       ├─i = 1
-      ├─"test/test_expect_test.ml":466:14: <for i>
-      │ └─"test/test_expect_test.ml":467:16: _baz
+      ├─"test/test_expect_test.ml":470:14: <for i>
+      │ └─"test/test_expect_test.ml":471:16: _baz
       │   └─_baz = 2
       ├─i = 2
-      ├─"test/test_expect_test.ml":466:14: <for i>
-      │ └─"test/test_expect_test.ml":467:16: _baz
+      ├─"test/test_expect_test.ml":470:14: <for i>
+      │ └─"test/test_expect_test.ml":471:16: _baz
       │   └─_baz = 4
       ├─i = 3
-      ├─"test/test_expect_test.ml":466:14: <for i>
-      │ └─"test/test_expect_test.ml":467:16: _baz
+      ├─"test/test_expect_test.ml":470:14: <for i>
+      │ └─"test/test_expect_test.ml":471:16: _baz
       │   └─_baz = 6
       ├─i = 4
-      ├─"test/test_expect_test.ml":466:14: <for i>
-      │ └─"test/test_expect_test.ml":467:16: _baz
+      ├─"test/test_expect_test.ml":470:14: <for i>
+      │ └─"test/test_expect_test.ml":471:16: _baz
       │   └─_baz = 8
       ├─i = 5
       └─i = <max_num_children exceeded>
@@ -502,12 +506,11 @@ let%expect_test "%track_show track for-loop num children exceeded" =
     |}]
 
 let%expect_test "%track_show track for-loop truncated children" =
+  (* $MDX part-begin=track_for_loop_truncated_children *)
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime ~values_first_mode:false ~truncate_children:10 ()
   in
   let () =
-    (* FIXME: this test is not working with the current implementation of the debugger. *)
-    let module Debug_runtime = (val _get_local_debug_runtime ()) in
     try
       let%track_show _bar : unit =
         for i = 0 to 30 do
@@ -521,31 +524,32 @@ let%expect_test "%track_show track for-loop truncated children" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":512:21: _bar
-    ├─"test/test_expect_test.ml":513:8: for:test_expect_test:513
+    "test/test_expect_test.ml":515:21: _bar
+    ├─"test/test_expect_test.ml":516:8: for:test_expect_test:516
     │ ├─<earlier entries truncated>
     │ ├─i = 26
-    │ ├─"test/test_expect_test.ml":513:12: <for i>
-    │ │ └─"test/test_expect_test.ml":514:14: _baz
+    │ ├─"test/test_expect_test.ml":516:12: <for i>
+    │ │ └─"test/test_expect_test.ml":517:14: _baz
     │ │   └─_baz = 52
     │ ├─i = 27
-    │ ├─"test/test_expect_test.ml":513:12: <for i>
-    │ │ └─"test/test_expect_test.ml":514:14: _baz
+    │ ├─"test/test_expect_test.ml":516:12: <for i>
+    │ │ └─"test/test_expect_test.ml":517:14: _baz
     │ │   └─_baz = 54
     │ ├─i = 28
-    │ ├─"test/test_expect_test.ml":513:12: <for i>
-    │ │ └─"test/test_expect_test.ml":514:14: _baz
+    │ ├─"test/test_expect_test.ml":516:12: <for i>
+    │ │ └─"test/test_expect_test.ml":517:14: _baz
     │ │   └─_baz = 56
     │ ├─i = 29
-    │ ├─"test/test_expect_test.ml":513:12: <for i>
-    │ │ └─"test/test_expect_test.ml":514:14: _baz
+    │ ├─"test/test_expect_test.ml":516:12: <for i>
+    │ │ └─"test/test_expect_test.ml":517:14: _baz
     │ │   └─_baz = 58
     │ ├─i = 30
-    │ └─"test/test_expect_test.ml":513:12: <for i>
-    │   └─"test/test_expect_test.ml":514:14: _baz
+    │ └─"test/test_expect_test.ml":516:12: <for i>
+    │   └─"test/test_expect_test.ml":517:14: _baz
     │     └─_baz = 60
     └─_bar = ()
     |}]
+(* $MDX part-end *)
 
 let%expect_test "%track_show track for-loop" =
   let _get_local_debug_runtime =
@@ -553,8 +557,6 @@ let%expect_test "%track_show track for-loop" =
   in
   let () =
     try
-      (* FIXME: this test is not working with the current implementation of the
-         debugger. *)
       let module Debug_runtime = (val _get_local_debug_runtime ()) in
       let%track_show _bar : unit =
         [%debug_interrupts
@@ -570,46 +572,45 @@ let%expect_test "%track_show track for-loop" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":559:21: _bar
-    ├─"test/test_expect_test.ml":562:10: for:test_expect_test:562
+    "test/test_expect_test.ml":561:21: _bar
+    ├─"test/test_expect_test.ml":564:10: for:test_expect_test:564
     │ ├─i = 0
-    │ ├─"test/test_expect_test.ml":562:14: <for i>
-    │ │ └─"test/test_expect_test.ml":563:16: _baz
+    │ ├─"test/test_expect_test.ml":564:14: <for i>
+    │ │ └─"test/test_expect_test.ml":565:16: _baz
     │ │   └─_baz = 0
     │ ├─i = 1
-    │ ├─"test/test_expect_test.ml":562:14: <for i>
-    │ │ └─"test/test_expect_test.ml":563:16: _baz
+    │ ├─"test/test_expect_test.ml":564:14: <for i>
+    │ │ └─"test/test_expect_test.ml":565:16: _baz
     │ │   └─_baz = 2
     │ ├─i = 2
-    │ ├─"test/test_expect_test.ml":562:14: <for i>
-    │ │ └─"test/test_expect_test.ml":563:16: _baz
+    │ ├─"test/test_expect_test.ml":564:14: <for i>
+    │ │ └─"test/test_expect_test.ml":565:16: _baz
     │ │   └─_baz = 4
     │ ├─i = 3
-    │ ├─"test/test_expect_test.ml":562:14: <for i>
-    │ │ └─"test/test_expect_test.ml":563:16: _baz
+    │ ├─"test/test_expect_test.ml":564:14: <for i>
+    │ │ └─"test/test_expect_test.ml":565:16: _baz
     │ │   └─_baz = 6
     │ ├─i = 4
-    │ ├─"test/test_expect_test.ml":562:14: <for i>
-    │ │ └─"test/test_expect_test.ml":563:16: _baz
+    │ ├─"test/test_expect_test.ml":564:14: <for i>
+    │ │ └─"test/test_expect_test.ml":565:16: _baz
     │ │   └─_baz = 8
     │ ├─i = 5
-    │ ├─"test/test_expect_test.ml":562:14: <for i>
-    │ │ └─"test/test_expect_test.ml":563:16: _baz
+    │ ├─"test/test_expect_test.ml":564:14: <for i>
+    │ │ └─"test/test_expect_test.ml":565:16: _baz
     │ │   └─_baz = 10
     │ ├─i = 6
-    │ └─"test/test_expect_test.ml":562:14: <for i>
-    │   └─"test/test_expect_test.ml":563:16: _baz
+    │ └─"test/test_expect_test.ml":564:14: <for i>
+    │   └─"test/test_expect_test.ml":565:16: _baz
     │     └─_baz = 12
     └─_bar = ()
     |}]
 
 let%expect_test "%track_show track for-loop, time spans" =
   let _get_local_debug_runtime =
-    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ~elapsed_times:Microseconds
-      ()
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false
+      ~elapsed_times:Microseconds ()
   in
   let () =
-    (* FIXME: this test is not working with the current implementation of the debugger. *)
     let module Debug_runtime = (val _get_local_debug_runtime ()) in
     try
       let%track_show _bar : unit =
@@ -631,35 +632,35 @@ let%expect_test "%track_show track for-loop, time spans" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":615:21: _bar <N.NNμs>
-    ├─"test/test_expect_test.ml":618:10: for:test_expect_test:618 <N.NNμs>
+    "test/test_expect_test.ml":616:21: _bar <N.NNμs>
+    ├─"test/test_expect_test.ml":619:10: for:test_expect_test:619 <N.NNμs>
     │ ├─i = 0
-    │ ├─"test/test_expect_test.ml":618:14: <for i> <N.NNμs>
-    │ │ └─"test/test_expect_test.ml":619:16: _baz <N.NNμs>
+    │ ├─"test/test_expect_test.ml":619:14: <for i> <N.NNμs>
+    │ │ └─"test/test_expect_test.ml":620:16: _baz <N.NNμs>
     │ │   └─_baz = 0
     │ ├─i = 1
-    │ ├─"test/test_expect_test.ml":618:14: <for i> <N.NNμs>
-    │ │ └─"test/test_expect_test.ml":619:16: _baz <N.NNμs>
+    │ ├─"test/test_expect_test.ml":619:14: <for i> <N.NNμs>
+    │ │ └─"test/test_expect_test.ml":620:16: _baz <N.NNμs>
     │ │   └─_baz = 2
     │ ├─i = 2
-    │ ├─"test/test_expect_test.ml":618:14: <for i> <N.NNμs>
-    │ │ └─"test/test_expect_test.ml":619:16: _baz <N.NNμs>
+    │ ├─"test/test_expect_test.ml":619:14: <for i> <N.NNμs>
+    │ │ └─"test/test_expect_test.ml":620:16: _baz <N.NNμs>
     │ │   └─_baz = 4
     │ ├─i = 3
-    │ ├─"test/test_expect_test.ml":618:14: <for i> <N.NNμs>
-    │ │ └─"test/test_expect_test.ml":619:16: _baz <N.NNμs>
+    │ ├─"test/test_expect_test.ml":619:14: <for i> <N.NNμs>
+    │ │ └─"test/test_expect_test.ml":620:16: _baz <N.NNμs>
     │ │   └─_baz = 6
     │ ├─i = 4
-    │ ├─"test/test_expect_test.ml":618:14: <for i> <N.NNμs>
-    │ │ └─"test/test_expect_test.ml":619:16: _baz <N.NNμs>
+    │ ├─"test/test_expect_test.ml":619:14: <for i> <N.NNμs>
+    │ │ └─"test/test_expect_test.ml":620:16: _baz <N.NNμs>
     │ │   └─_baz = 8
     │ ├─i = 5
-    │ ├─"test/test_expect_test.ml":618:14: <for i> <N.NNμs>
-    │ │ └─"test/test_expect_test.ml":619:16: _baz <N.NNμs>
+    │ ├─"test/test_expect_test.ml":619:14: <for i> <N.NNμs>
+    │ │ └─"test/test_expect_test.ml":620:16: _baz <N.NNμs>
     │ │   └─_baz = 10
     │ ├─i = 6
-    │ └─"test/test_expect_test.ml":618:14: <for i> <N.NNμs>
-    │   └─"test/test_expect_test.ml":619:16: _baz <N.NNμs>
+    │ └─"test/test_expect_test.ml":619:14: <for i> <N.NNμs>
+    │   └─"test/test_expect_test.ml":620:16: _baz <N.NNμs>
     │     └─_baz = 12
     └─_bar = ()
     |}]
@@ -670,9 +671,6 @@ let%expect_test "%track_show track while-loop" =
   in
   let () =
     try
-      (* FIXME: this test is not working with the current implementation of the
-         debugger. *)
-      let module Debug_runtime = (val _get_local_debug_runtime ()) in
       let%track_show _bar : unit =
         let i = ref 0 in
         while !i < 6 do
@@ -686,25 +684,25 @@ let%expect_test "%track_show track while-loop" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":676:21: _bar
-    ├─"test/test_expect_test.ml":678:8: while:test_expect_test:678
-    │ ├─"test/test_expect_test.ml":679:10: <while loop>
-    │ │ └─"test/test_expect_test.ml":679:14: _baz
+    "test/test_expect_test.ml":674:21: _bar
+    ├─"test/test_expect_test.ml":676:8: while:test_expect_test:676
+    │ ├─"test/test_expect_test.ml":677:10: <while loop>
+    │ │ └─"test/test_expect_test.ml":677:14: _baz
     │ │   └─_baz = 0
-    │ ├─"test/test_expect_test.ml":679:10: <while loop>
-    │ │ └─"test/test_expect_test.ml":679:14: _baz
+    │ ├─"test/test_expect_test.ml":677:10: <while loop>
+    │ │ └─"test/test_expect_test.ml":677:14: _baz
     │ │   └─_baz = 2
-    │ ├─"test/test_expect_test.ml":679:10: <while loop>
-    │ │ └─"test/test_expect_test.ml":679:14: _baz
+    │ ├─"test/test_expect_test.ml":677:10: <while loop>
+    │ │ └─"test/test_expect_test.ml":677:14: _baz
     │ │   └─_baz = 4
-    │ ├─"test/test_expect_test.ml":679:10: <while loop>
-    │ │ └─"test/test_expect_test.ml":679:14: _baz
+    │ ├─"test/test_expect_test.ml":677:10: <while loop>
+    │ │ └─"test/test_expect_test.ml":677:14: _baz
     │ │   └─_baz = 6
-    │ ├─"test/test_expect_test.ml":679:10: <while loop>
-    │ │ └─"test/test_expect_test.ml":679:14: _baz
+    │ ├─"test/test_expect_test.ml":677:10: <while loop>
+    │ │ └─"test/test_expect_test.ml":677:14: _baz
     │ │   └─_baz = 8
-    │ └─"test/test_expect_test.ml":679:10: <while loop>
-    │   └─"test/test_expect_test.ml":679:14: _baz
+    │ └─"test/test_expect_test.ml":677:10: <while loop>
+    │   └─"test/test_expect_test.ml":677:14: _baz
     │     └─_baz = 10
     └─_bar = ()
     |}]
@@ -713,7 +711,6 @@ let%expect_test "%debug_show num children exceeded nested" =
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
-  (* FIXME: this test is not working with the current implementation of the debugger. *)
   let module Debug_runtime = (val _get_local_debug_runtime ()) in
   let%debug_show rec loop_exceeded (x : int) : int =
     [%debug_interrupts
@@ -732,39 +729,39 @@ let%expect_test "%debug_show num children exceeded nested" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":718:35: loop_exceeded
+    "test/test_expect_test.ml":715:35: loop_exceeded
     ├─x = 3
-    ├─"test/test_expect_test.ml":725:17: z
+    ├─"test/test_expect_test.ml":722:17: z
     │ └─z = 1
-    └─"test/test_expect_test.ml":718:35: loop_exceeded
+    └─"test/test_expect_test.ml":715:35: loop_exceeded
       ├─x = 2
-      ├─"test/test_expect_test.ml":725:17: z
+      ├─"test/test_expect_test.ml":722:17: z
       │ └─z = 0
-      └─"test/test_expect_test.ml":718:35: loop_exceeded
+      └─"test/test_expect_test.ml":715:35: loop_exceeded
         ├─x = 1
-        ├─"test/test_expect_test.ml":725:17: z
+        ├─"test/test_expect_test.ml":722:17: z
         │ └─z = 0
-        └─"test/test_expect_test.ml":718:35: loop_exceeded
+        └─"test/test_expect_test.ml":715:35: loop_exceeded
           ├─x = 0
-          ├─"test/test_expect_test.ml":725:17: z
+          ├─"test/test_expect_test.ml":722:17: z
           │ └─z = 0
-          ├─"test/test_expect_test.ml":725:17: z
+          ├─"test/test_expect_test.ml":722:17: z
           │ └─z = 1
-          ├─"test/test_expect_test.ml":725:17: z
+          ├─"test/test_expect_test.ml":722:17: z
           │ └─z = 2
-          ├─"test/test_expect_test.ml":725:17: z
+          ├─"test/test_expect_test.ml":722:17: z
           │ └─z = 3
-          ├─"test/test_expect_test.ml":725:17: z
+          ├─"test/test_expect_test.ml":722:17: z
           │ └─z = 4
-          ├─"test/test_expect_test.ml":725:17: z
+          ├─"test/test_expect_test.ml":722:17: z
           │ └─z = 5
-          ├─"test/test_expect_test.ml":725:17: z
+          ├─"test/test_expect_test.ml":722:17: z
           │ └─z = 6
-          ├─"test/test_expect_test.ml":725:17: z
+          ├─"test/test_expect_test.ml":722:17: z
           │ └─z = 7
-          ├─"test/test_expect_test.ml":725:17: z
+          ├─"test/test_expect_test.ml":722:17: z
           │ └─z = 8
-          ├─"test/test_expect_test.ml":725:17: z
+          ├─"test/test_expect_test.ml":722:17: z
           │ └─z = 9
           └─z = <max_num_children exceeded>
     Raised exception: ppx_minidebug: max_num_children exceeded
@@ -774,8 +771,6 @@ let%expect_test "%debug_show truncated children nested" =
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime ~values_first_mode:false ~truncate_children:4 ()
   in
-  (* FIXME: this test is not working with the current implementation of the debugger. *)
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
   let%debug_show rec loop_exceeded (x : int) : int =
     Array.fold_left ( + ) 0
     @@ Array.init
@@ -791,108 +786,108 @@ let%expect_test "%debug_show truncated children nested" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":779:35: loop_exceeded
+    "test/test_expect_test.ml":774:35: loop_exceeded
     ├─<earlier entries truncated>
-    ├─"test/test_expect_test.ml":779:35: loop_exceeded
+    ├─"test/test_expect_test.ml":774:35: loop_exceeded
     │ ├─<earlier entries truncated>
-    │ ├─"test/test_expect_test.ml":779:35: loop_exceeded
+    │ ├─"test/test_expect_test.ml":774:35: loop_exceeded
     │ │ ├─<earlier entries truncated>
-    │ │ ├─"test/test_expect_test.ml":779:35: loop_exceeded
+    │ │ ├─"test/test_expect_test.ml":774:35: loop_exceeded
     │ │ │ ├─<earlier entries truncated>
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 17
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 18
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 19
     │ │ │ └─loop_exceeded = 190
-    │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ └─z = 9
-    │ │ ├─"test/test_expect_test.ml":779:35: loop_exceeded
+    │ │ ├─"test/test_expect_test.ml":774:35: loop_exceeded
     │ │ │ ├─<earlier entries truncated>
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 17
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 18
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 19
     │ │ │ └─loop_exceeded = 190
     │ │ └─loop_exceeded = 1945
-    │ ├─"test/test_expect_test.ml":784:15: z
+    │ ├─"test/test_expect_test.ml":779:15: z
     │ │ └─z = 5
-    │ ├─"test/test_expect_test.ml":779:35: loop_exceeded
+    │ ├─"test/test_expect_test.ml":774:35: loop_exceeded
     │ │ ├─<earlier entries truncated>
-    │ │ ├─"test/test_expect_test.ml":779:35: loop_exceeded
+    │ │ ├─"test/test_expect_test.ml":774:35: loop_exceeded
     │ │ │ ├─<earlier entries truncated>
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 17
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 18
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 19
     │ │ │ └─loop_exceeded = 190
-    │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ └─z = 9
-    │ │ ├─"test/test_expect_test.ml":779:35: loop_exceeded
+    │ │ ├─"test/test_expect_test.ml":774:35: loop_exceeded
     │ │ │ ├─<earlier entries truncated>
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 17
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 18
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 19
     │ │ │ └─loop_exceeded = 190
     │ │ └─loop_exceeded = 1945
     │ └─loop_exceeded = 11685
-    ├─"test/test_expect_test.ml":784:15: z
+    ├─"test/test_expect_test.ml":779:15: z
     │ └─z = 5
-    ├─"test/test_expect_test.ml":779:35: loop_exceeded
+    ├─"test/test_expect_test.ml":774:35: loop_exceeded
     │ ├─<earlier entries truncated>
-    │ ├─"test/test_expect_test.ml":779:35: loop_exceeded
+    │ ├─"test/test_expect_test.ml":774:35: loop_exceeded
     │ │ ├─<earlier entries truncated>
-    │ │ ├─"test/test_expect_test.ml":779:35: loop_exceeded
+    │ │ ├─"test/test_expect_test.ml":774:35: loop_exceeded
     │ │ │ ├─<earlier entries truncated>
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 17
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 18
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 19
     │ │ │ └─loop_exceeded = 190
-    │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ └─z = 9
-    │ │ ├─"test/test_expect_test.ml":779:35: loop_exceeded
+    │ │ ├─"test/test_expect_test.ml":774:35: loop_exceeded
     │ │ │ ├─<earlier entries truncated>
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 17
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 18
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 19
     │ │ │ └─loop_exceeded = 190
     │ │ └─loop_exceeded = 1945
-    │ ├─"test/test_expect_test.ml":784:15: z
+    │ ├─"test/test_expect_test.ml":779:15: z
     │ │ └─z = 5
-    │ ├─"test/test_expect_test.ml":779:35: loop_exceeded
+    │ ├─"test/test_expect_test.ml":774:35: loop_exceeded
     │ │ ├─<earlier entries truncated>
-    │ │ ├─"test/test_expect_test.ml":779:35: loop_exceeded
+    │ │ ├─"test/test_expect_test.ml":774:35: loop_exceeded
     │ │ │ ├─<earlier entries truncated>
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 17
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 18
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 19
     │ │ │ └─loop_exceeded = 190
-    │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ └─z = 9
-    │ │ ├─"test/test_expect_test.ml":779:35: loop_exceeded
+    │ │ ├─"test/test_expect_test.ml":774:35: loop_exceeded
     │ │ │ ├─<earlier entries truncated>
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 17
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 18
-    │ │ │ ├─"test/test_expect_test.ml":784:15: z
+    │ │ │ ├─"test/test_expect_test.ml":779:15: z
     │ │ │ │ └─z = 19
     │ │ │ └─loop_exceeded = 190
     │ │ └─loop_exceeded = 1945
@@ -906,7 +901,6 @@ let%expect_test "%track_show highlight" =
     Minidebug_runtime.prefixed_runtime ~values_first_mode:false
       ~highlight_terms:(Re.str "3") ()
   in
-  (* FIXME: this test is not working with the current implementation of the debugger. *)
   let module Debug_runtime = (val _get_local_debug_runtime ()) in
   let%debug_show rec loop_highlight (x : int) : int =
     [%debug_interrupts
@@ -919,52 +913,52 @@ let%expect_test "%track_show highlight" =
     {|
     BEGIN DEBUG SESSION
     ┌─────────────────────────────────────────────────┐
-    │"test/test_expect_test.ml":911:36: loop_highlight│
+    │"test/test_expect_test.ml":905:36: loop_highlight│
     ├─────────────────────────────────────────────────┘
     ├─x = 7
     ├─┬────────────────────────────────────┐
-    │ │"test/test_expect_test.ml":914:10: z│
+    │ │"test/test_expect_test.ml":908:10: z│
     │ ├────────────────────────────────────┘
     │ └─┬─────┐
     │   │z = 3│
     │   └─────┘
     ├─┬─────────────────────────────────────────────────┐
-    │ │"test/test_expect_test.ml":911:36: loop_highlight│
+    │ │"test/test_expect_test.ml":905:36: loop_highlight│
     │ ├─────────────────────────────────────────────────┘
     │ ├─x = 6
-    │ ├─"test/test_expect_test.ml":914:10: z
+    │ ├─"test/test_expect_test.ml":908:10: z
     │ │ └─z = 2
     │ ├─┬─────────────────────────────────────────────────┐
-    │ │ │"test/test_expect_test.ml":911:36: loop_highlight│
+    │ │ │"test/test_expect_test.ml":905:36: loop_highlight│
     │ │ ├─────────────────────────────────────────────────┘
     │ │ ├─x = 5
-    │ │ ├─"test/test_expect_test.ml":914:10: z
+    │ │ ├─"test/test_expect_test.ml":908:10: z
     │ │ │ └─z = 2
     │ │ ├─┬─────────────────────────────────────────────────┐
-    │ │ │ │"test/test_expect_test.ml":911:36: loop_highlight│
+    │ │ │ │"test/test_expect_test.ml":905:36: loop_highlight│
     │ │ │ ├─────────────────────────────────────────────────┘
     │ │ │ ├─x = 4
-    │ │ │ ├─"test/test_expect_test.ml":914:10: z
+    │ │ │ ├─"test/test_expect_test.ml":908:10: z
     │ │ │ │ └─z = 1
     │ │ │ ├─┬─────────────────────────────────────────────────┐
-    │ │ │ │ │"test/test_expect_test.ml":911:36: loop_highlight│
+    │ │ │ │ │"test/test_expect_test.ml":905:36: loop_highlight│
     │ │ │ │ ├─────────────────────────────────────────────────┘
     │ │ │ │ ├─┬─────┐
     │ │ │ │ │ │x = 3│
     │ │ │ │ │ └─────┘
-    │ │ │ │ ├─"test/test_expect_test.ml":914:10: z
+    │ │ │ │ ├─"test/test_expect_test.ml":908:10: z
     │ │ │ │ │ └─z = 1
-    │ │ │ │ ├─"test/test_expect_test.ml":911:36: loop_highlight
+    │ │ │ │ ├─"test/test_expect_test.ml":905:36: loop_highlight
     │ │ │ │ │ ├─x = 2
-    │ │ │ │ │ ├─"test/test_expect_test.ml":914:10: z
+    │ │ │ │ │ ├─"test/test_expect_test.ml":908:10: z
     │ │ │ │ │ │ └─z = 0
-    │ │ │ │ │ ├─"test/test_expect_test.ml":911:36: loop_highlight
+    │ │ │ │ │ ├─"test/test_expect_test.ml":905:36: loop_highlight
     │ │ │ │ │ │ ├─x = 1
-    │ │ │ │ │ │ ├─"test/test_expect_test.ml":914:10: z
+    │ │ │ │ │ │ ├─"test/test_expect_test.ml":908:10: z
     │ │ │ │ │ │ │ └─z = 0
-    │ │ │ │ │ │ ├─"test/test_expect_test.ml":911:36: loop_highlight
+    │ │ │ │ │ │ ├─"test/test_expect_test.ml":905:36: loop_highlight
     │ │ │ │ │ │ │ ├─x = 0
-    │ │ │ │ │ │ │ ├─"test/test_expect_test.ml":914:10: z
+    │ │ │ │ │ │ │ ├─"test/test_expect_test.ml":908:10: z
     │ │ │ │ │ │ │ │ └─z = 0
     │ │ │ │ │ │ │ └─loop_highlight = 0
     │ │ │ │ │ │ └─loop_highlight = 0
@@ -994,16 +988,16 @@ let%expect_test "%track_show PrintBox tracking" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":984:32: track_branches
+    "test/test_expect_test.ml":978:32: track_branches
     ├─x = 7
-    ├─"test/test_expect_test.ml":986:9: else:test_expect_test:986
-    │ └─"test/test_expect_test.ml":986:36: <match -- branch 1>
+    ├─"test/test_expect_test.ml":980:9: else:test_expect_test:980
+    │ └─"test/test_expect_test.ml":980:36: <match -- branch 1>
     └─track_branches = 4
     4
-    "test/test_expect_test.ml":984:32: track_branches
+    "test/test_expect_test.ml":978:32: track_branches
     ├─x = 3
-    ├─"test/test_expect_test.ml":985:18: then:test_expect_test:985
-    │ └─"test/test_expect_test.ml":985:54: <match -- branch 2>
+    ├─"test/test_expect_test.ml":979:18: then:test_expect_test:979
+    │ └─"test/test_expect_test.ml":979:54: <match -- branch 2>
     └─track_branches = -3
     -3
     |}]
@@ -1029,13 +1023,14 @@ let%expect_test "%track_show PrintBox tracking <function>" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1019:11: <function -- branch 3>
+    "test/test_expect_test.ml":1013:11: <function -- branch 3>
     4
-    "test/test_expect_test.ml":1021:11: <function -- branch 5> x
+    "test/test_expect_test.ml":1015:11: <function -- branch 5> x
     -3
     |}]
 
 let%expect_test "%track_show PrintBox tracking with debug_notrace" =
+  (* $MDX part-begin=track_notrace_example *)
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
@@ -1064,23 +1059,24 @@ let%expect_test "%track_show PrintBox tracking with debug_notrace" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1042:32: track_branches
+    "test/test_expect_test.ml":1037:32: track_branches
     ├─x = 8
-    ├─"test/test_expect_test.ml":1051:6: else:test_expect_test:1051
-    │ └─"test/test_expect_test.ml":1055:10: <match -- branch 2>
-    │   └─"test/test_expect_test.ml":1055:14: result
-    │     ├─"test/test_expect_test.ml":1055:44: then:test_expect_test:1055
+    ├─"test/test_expect_test.ml":1046:6: else:test_expect_test:1046
+    │ └─"test/test_expect_test.ml":1050:10: <match -- branch 2>
+    │   └─"test/test_expect_test.ml":1050:14: result
+    │     ├─"test/test_expect_test.ml":1050:44: then:test_expect_test:1050
     │     └─result = 8
     └─track_branches = 8
     8
-    "test/test_expect_test.ml":1042:32: track_branches
+    "test/test_expect_test.ml":1037:32: track_branches
     ├─x = 3
-    ├─"test/test_expect_test.ml":1044:6: then:test_expect_test:1044
-    │ └─"test/test_expect_test.ml":1048:14: result
+    ├─"test/test_expect_test.ml":1039:6: then:test_expect_test:1039
+    │ └─"test/test_expect_test.ml":1043:14: result
     │   └─result = 3
     └─track_branches = 3
     3
     |}]
+(* $MDX part-end *)
 
 let%expect_test "%track_show PrintBox not tracking anonymous functions with debug_notrace"
     =
@@ -1100,9 +1096,9 @@ let%expect_test "%track_show PrintBox not tracking anonymous functions with debu
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1090:27: track_foo
+    "test/test_expect_test.ml":1086:27: track_foo
     ├─x = 8
-    ├─"test/test_expect_test.ml":1093:4: fun:test_expect_test:1093
+    ├─"test/test_expect_test.ml":1089:4: fun:test_expect_test:1089
     │ └─z = 8
     └─track_foo = 8
     8
@@ -1137,18 +1133,18 @@ let%expect_test "respect scope of nested extension points" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1115:32: track_branches
+    "test/test_expect_test.ml":1111:32: track_branches
     ├─x = 8
-    ├─"test/test_expect_test.ml":1124:6: else:test_expect_test:1124
-    │ └─"test/test_expect_test.ml":1128:25: result
-    │   ├─"test/test_expect_test.ml":1128:55: then:test_expect_test:1128
+    ├─"test/test_expect_test.ml":1120:6: else:test_expect_test:1120
+    │ └─"test/test_expect_test.ml":1124:25: result
+    │   ├─"test/test_expect_test.ml":1124:55: then:test_expect_test:1124
     │   └─result = 8
     └─track_branches = 8
     8
-    "test/test_expect_test.ml":1115:32: track_branches
+    "test/test_expect_test.ml":1111:32: track_branches
     ├─x = 3
-    ├─"test/test_expect_test.ml":1117:6: then:test_expect_test:1117
-    │ └─"test/test_expect_test.ml":1121:25: result
+    ├─"test/test_expect_test.ml":1113:6: then:test_expect_test:1113
+    │ └─"test/test_expect_test.ml":1117:25: result
     │   └─result = 3
     └─track_branches = 3
     3
@@ -1175,7 +1171,7 @@ let%expect_test "%debug_show un-annotated toplevel fun" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1161:27: anonymous
+    "test/test_expect_test.ml":1157:27: anonymous
     └─"We do log this function"
     6
     6
@@ -1205,8 +1201,8 @@ let%expect_test "%debug_show nested un-annotated toplevel fun" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1188:25: wrapper
-    "test/test_expect_test.ml":1189:29: anonymous
+    "test/test_expect_test.ml":1184:25: wrapper
+    "test/test_expect_test.ml":1185:29: anonymous
     └─"We do log this function"
     6
     6
@@ -1226,10 +1222,12 @@ let%expect_test "%track_show no return type anonymous fun" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1219:27: anonymous
+    "test/test_expect_test.ml":1215:27: anonymous
     └─x = 3
     6
     |}];
+
+  (* $MDX part-begin=track_anonymous_example *)
   let%track_show anonymous (x : int) =
     Array.fold_left ( + ) 0 @@ Array.init (x + 1) (fun (i : int) -> i)
   in
@@ -1239,18 +1237,19 @@ let%expect_test "%track_show no return type anonymous fun" =
   in
   [%expect
     {|
-    "test/test_expect_test.ml":1233:27: anonymous
+    "test/test_expect_test.ml":1231:27: anonymous
     ├─x = 3
-    ├─"test/test_expect_test.ml":1234:50: fun:test_expect_test:1234
+    ├─"test/test_expect_test.ml":1232:50: fun:test_expect_test:1232
     │ └─i = 0
-    ├─"test/test_expect_test.ml":1234:50: fun:test_expect_test:1234
+    ├─"test/test_expect_test.ml":1232:50: fun:test_expect_test:1232
     │ └─i = 1
-    ├─"test/test_expect_test.ml":1234:50: fun:test_expect_test:1234
+    ├─"test/test_expect_test.ml":1232:50: fun:test_expect_test:1232
     │ └─i = 2
-    └─"test/test_expect_test.ml":1234:50: fun:test_expect_test:1234
+    └─"test/test_expect_test.ml":1232:50: fun:test_expect_test:1232
       └─i = 3
     6
     |}]
+(* $MDX part-end *)
 
 let%expect_test "%track_show anonymous fun, num children exceeded" =
   let _get_local_debug_runtime =
@@ -1273,80 +1272,80 @@ let%expect_test "%track_show anonymous fun, num children exceeded" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1259:35: loop_exceeded
+    "test/test_expect_test.ml":1258:35: loop_exceeded
     ├─x = 3
-    └─"test/test_expect_test.ml":1265:11: fun:test_expect_test:1265
+    └─"test/test_expect_test.ml":1264:11: fun:test_expect_test:1264
       ├─i = 0
-      ├─"test/test_expect_test.ml":1266:17: z
+      ├─"test/test_expect_test.ml":1265:17: z
       │ └─z = 1
-      └─"test/test_expect_test.ml":1267:35: else:test_expect_test:1267
-        └─"test/test_expect_test.ml":1259:35: loop_exceeded
+      └─"test/test_expect_test.ml":1266:35: else:test_expect_test:1266
+        └─"test/test_expect_test.ml":1258:35: loop_exceeded
           ├─x = 2
-          └─"test/test_expect_test.ml":1265:11: fun:test_expect_test:1265
+          └─"test/test_expect_test.ml":1264:11: fun:test_expect_test:1264
             ├─i = 0
-            ├─"test/test_expect_test.ml":1266:17: z
+            ├─"test/test_expect_test.ml":1265:17: z
             │ └─z = 0
-            └─"test/test_expect_test.ml":1267:35: else:test_expect_test:1267
-              └─"test/test_expect_test.ml":1259:35: loop_exceeded
+            └─"test/test_expect_test.ml":1266:35: else:test_expect_test:1266
+              └─"test/test_expect_test.ml":1258:35: loop_exceeded
                 ├─x = 1
-                └─"test/test_expect_test.ml":1265:11: fun:test_expect_test:1265
+                └─"test/test_expect_test.ml":1264:11: fun:test_expect_test:1264
                   ├─i = 0
-                  ├─"test/test_expect_test.ml":1266:17: z
+                  ├─"test/test_expect_test.ml":1265:17: z
                   │ └─z = 0
-                  └─"test/test_expect_test.ml":1267:35: else:test_expect_test:1267
-                    └─"test/test_expect_test.ml":1259:35: loop_exceeded
+                  └─"test/test_expect_test.ml":1266:35: else:test_expect_test:1266
+                    └─"test/test_expect_test.ml":1258:35: loop_exceeded
                       ├─x = 0
-                      ├─"test/test_expect_test.ml":1265:11: fun:test_expect_test:1265
+                      ├─"test/test_expect_test.ml":1264:11: fun:test_expect_test:1264
                       │ ├─i = 0
-                      │ ├─"test/test_expect_test.ml":1266:17: z
+                      │ ├─"test/test_expect_test.ml":1265:17: z
                       │ │ └─z = 0
-                      │ └─"test/test_expect_test.ml":1267:28: then:test_expect_test:1267
-                      ├─"test/test_expect_test.ml":1265:11: fun:test_expect_test:1265
+                      │ └─"test/test_expect_test.ml":1266:28: then:test_expect_test:1266
+                      ├─"test/test_expect_test.ml":1264:11: fun:test_expect_test:1264
                       │ ├─i = 1
-                      │ ├─"test/test_expect_test.ml":1266:17: z
+                      │ ├─"test/test_expect_test.ml":1265:17: z
                       │ │ └─z = 1
-                      │ └─"test/test_expect_test.ml":1267:28: then:test_expect_test:1267
-                      ├─"test/test_expect_test.ml":1265:11: fun:test_expect_test:1265
+                      │ └─"test/test_expect_test.ml":1266:28: then:test_expect_test:1266
+                      ├─"test/test_expect_test.ml":1264:11: fun:test_expect_test:1264
                       │ ├─i = 2
-                      │ ├─"test/test_expect_test.ml":1266:17: z
+                      │ ├─"test/test_expect_test.ml":1265:17: z
                       │ │ └─z = 2
-                      │ └─"test/test_expect_test.ml":1267:28: then:test_expect_test:1267
-                      ├─"test/test_expect_test.ml":1265:11: fun:test_expect_test:1265
+                      │ └─"test/test_expect_test.ml":1266:28: then:test_expect_test:1266
+                      ├─"test/test_expect_test.ml":1264:11: fun:test_expect_test:1264
                       │ ├─i = 3
-                      │ ├─"test/test_expect_test.ml":1266:17: z
+                      │ ├─"test/test_expect_test.ml":1265:17: z
                       │ │ └─z = 3
-                      │ └─"test/test_expect_test.ml":1267:28: then:test_expect_test:1267
-                      ├─"test/test_expect_test.ml":1265:11: fun:test_expect_test:1265
+                      │ └─"test/test_expect_test.ml":1266:28: then:test_expect_test:1266
+                      ├─"test/test_expect_test.ml":1264:11: fun:test_expect_test:1264
                       │ ├─i = 4
-                      │ ├─"test/test_expect_test.ml":1266:17: z
+                      │ ├─"test/test_expect_test.ml":1265:17: z
                       │ │ └─z = 4
-                      │ └─"test/test_expect_test.ml":1267:28: then:test_expect_test:1267
-                      ├─"test/test_expect_test.ml":1265:11: fun:test_expect_test:1265
+                      │ └─"test/test_expect_test.ml":1266:28: then:test_expect_test:1266
+                      ├─"test/test_expect_test.ml":1264:11: fun:test_expect_test:1264
                       │ ├─i = 5
-                      │ ├─"test/test_expect_test.ml":1266:17: z
+                      │ ├─"test/test_expect_test.ml":1265:17: z
                       │ │ └─z = 5
-                      │ └─"test/test_expect_test.ml":1267:28: then:test_expect_test:1267
-                      ├─"test/test_expect_test.ml":1265:11: fun:test_expect_test:1265
+                      │ └─"test/test_expect_test.ml":1266:28: then:test_expect_test:1266
+                      ├─"test/test_expect_test.ml":1264:11: fun:test_expect_test:1264
                       │ ├─i = 6
-                      │ ├─"test/test_expect_test.ml":1266:17: z
+                      │ ├─"test/test_expect_test.ml":1265:17: z
                       │ │ └─z = 6
-                      │ └─"test/test_expect_test.ml":1267:28: then:test_expect_test:1267
-                      ├─"test/test_expect_test.ml":1265:11: fun:test_expect_test:1265
+                      │ └─"test/test_expect_test.ml":1266:28: then:test_expect_test:1266
+                      ├─"test/test_expect_test.ml":1264:11: fun:test_expect_test:1264
                       │ ├─i = 7
-                      │ ├─"test/test_expect_test.ml":1266:17: z
+                      │ ├─"test/test_expect_test.ml":1265:17: z
                       │ │ └─z = 7
-                      │ └─"test/test_expect_test.ml":1267:28: then:test_expect_test:1267
-                      ├─"test/test_expect_test.ml":1265:11: fun:test_expect_test:1265
+                      │ └─"test/test_expect_test.ml":1266:28: then:test_expect_test:1266
+                      ├─"test/test_expect_test.ml":1264:11: fun:test_expect_test:1264
                       │ ├─i = 8
-                      │ ├─"test/test_expect_test.ml":1266:17: z
+                      │ ├─"test/test_expect_test.ml":1265:17: z
                       │ │ └─z = 8
-                      │ └─"test/test_expect_test.ml":1267:28: then:test_expect_test:1267
-                      ├─"test/test_expect_test.ml":1265:11: fun:test_expect_test:1265
+                      │ └─"test/test_expect_test.ml":1266:28: then:test_expect_test:1266
+                      ├─"test/test_expect_test.ml":1264:11: fun:test_expect_test:1264
                       │ ├─i = 9
-                      │ ├─"test/test_expect_test.ml":1266:17: z
+                      │ ├─"test/test_expect_test.ml":1265:17: z
                       │ │ └─z = 9
-                      │ └─"test/test_expect_test.ml":1267:28: then:test_expect_test:1267
-                      └─fun:test_expect_test:1265 = <max_num_children exceeded>
+                      │ └─"test/test_expect_test.ml":1266:28: then:test_expect_test:1266
+                      └─fun:test_expect_test:1264 = <max_num_children exceeded>
     Raised exception: ppx_minidebug: max_num_children exceeded
     |}]
 
@@ -1369,34 +1368,34 @@ let%expect_test "%track_show anonymous fun, truncated children" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1357:35: loop_exceeded
+    "test/test_expect_test.ml":1356:35: loop_exceeded
     ├─<earlier entries truncated>
-    ├─"test/test_expect_test.ml":1361:9: fun:test_expect_test:1361
+    ├─"test/test_expect_test.ml":1360:9: fun:test_expect_test:1360
     │ ├─<earlier entries truncated>
-    │ ├─"test/test_expect_test.ml":1362:15: z
+    │ ├─"test/test_expect_test.ml":1361:15: z
     │ │ └─z = 7
-    │ └─"test/test_expect_test.ml":1363:33: else:test_expect_test:1363
-    │   └─"test/test_expect_test.ml":1357:35: loop_exceeded
+    │ └─"test/test_expect_test.ml":1362:33: else:test_expect_test:1362
+    │   └─"test/test_expect_test.ml":1356:35: loop_exceeded
     │     ├─<earlier entries truncated>
-    │     ├─"test/test_expect_test.ml":1361:9: fun:test_expect_test:1361
+    │     ├─"test/test_expect_test.ml":1360:9: fun:test_expect_test:1360
     │     │ ├─<earlier entries truncated>
-    │     │ ├─"test/test_expect_test.ml":1362:15: z
+    │     │ ├─"test/test_expect_test.ml":1361:15: z
     │     │ │ └─z = 9
-    │     │ └─"test/test_expect_test.ml":1363:33: else:test_expect_test:1363
-    │     │   └─"test/test_expect_test.ml":1357:35: loop_exceeded
+    │     │ └─"test/test_expect_test.ml":1362:33: else:test_expect_test:1362
+    │     │   └─"test/test_expect_test.ml":1356:35: loop_exceeded
     │     │     ├─<earlier entries truncated>
-    │     │     ├─"test/test_expect_test.ml":1361:9: fun:test_expect_test:1361
+    │     │     ├─"test/test_expect_test.ml":1360:9: fun:test_expect_test:1360
     │     │     │ ├─<earlier entries truncated>
-    │     │     │ ├─"test/test_expect_test.ml":1362:15: z
+    │     │     │ ├─"test/test_expect_test.ml":1361:15: z
     │     │     │ │ └─z = 14
-    │     │     │ └─"test/test_expect_test.ml":1363:33: else:test_expect_test:1363
-    │     │     │   └─"test/test_expect_test.ml":1357:35: loop_exceeded
+    │     │     │ └─"test/test_expect_test.ml":1362:33: else:test_expect_test:1362
+    │     │     │   └─"test/test_expect_test.ml":1356:35: loop_exceeded
     │     │     │     ├─<earlier entries truncated>
-    │     │     │     ├─"test/test_expect_test.ml":1361:9: fun:test_expect_test:1361
+    │     │     │     ├─"test/test_expect_test.ml":1360:9: fun:test_expect_test:1360
     │     │     │     │ ├─<earlier entries truncated>
-    │     │     │     │ ├─"test/test_expect_test.ml":1362:15: z
+    │     │     │     │ ├─"test/test_expect_test.ml":1361:15: z
     │     │     │     │ │ └─z = 29
-    │     │     │     │ └─"test/test_expect_test.ml":1363:26: then:test_expect_test:1363
+    │     │     │     │ └─"test/test_expect_test.ml":1362:26: then:test_expect_test:1362
     │     │     │     └─loop_exceeded = 435
     │     │     └─loop_exceeded = 6630
     │     └─loop_exceeded = 66345
@@ -1432,7 +1431,7 @@ let%expect_test "%debug_show function with abstract type" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1417:21: foo
+    "test/test_expect_test.ml":1416:21: foo
     ├─c = 1
     └─foo = 2
     2
@@ -1453,45 +1452,45 @@ let%expect_test "%debug_show PrintBox values_first_mode to stdout with exception
     {|
     BEGIN DEBUG SESSION
     loop_truncated
-    ├─"test/test_expect_test.ml":1443:36
+    ├─"test/test_expect_test.ml":1442:36
     ├─x = 7
     ├─z = 3
-    │ └─"test/test_expect_test.ml":1444:8
+    │ └─"test/test_expect_test.ml":1443:8
     └─loop_truncated
-      ├─"test/test_expect_test.ml":1443:36
+      ├─"test/test_expect_test.ml":1442:36
       ├─x = 6
       ├─z = 2
-      │ └─"test/test_expect_test.ml":1444:8
+      │ └─"test/test_expect_test.ml":1443:8
       └─loop_truncated
-        ├─"test/test_expect_test.ml":1443:36
+        ├─"test/test_expect_test.ml":1442:36
         ├─x = 5
         ├─z = 2
-        │ └─"test/test_expect_test.ml":1444:8
+        │ └─"test/test_expect_test.ml":1443:8
         └─loop_truncated
-          ├─"test/test_expect_test.ml":1443:36
+          ├─"test/test_expect_test.ml":1442:36
           ├─x = 4
           ├─z = 1
-          │ └─"test/test_expect_test.ml":1444:8
+          │ └─"test/test_expect_test.ml":1443:8
           └─loop_truncated
-            ├─"test/test_expect_test.ml":1443:36
+            ├─"test/test_expect_test.ml":1442:36
             ├─x = 3
             ├─z = 1
-            │ └─"test/test_expect_test.ml":1444:8
+            │ └─"test/test_expect_test.ml":1443:8
             └─loop_truncated
-              ├─"test/test_expect_test.ml":1443:36
+              ├─"test/test_expect_test.ml":1442:36
               ├─x = 2
               ├─z = 0
-              │ └─"test/test_expect_test.ml":1444:8
+              │ └─"test/test_expect_test.ml":1443:8
               └─loop_truncated
-                ├─"test/test_expect_test.ml":1443:36
+                ├─"test/test_expect_test.ml":1442:36
                 ├─x = 1
                 ├─z = 0
-                │ └─"test/test_expect_test.ml":1444:8
+                │ └─"test/test_expect_test.ml":1443:8
                 └─loop_truncated
-                  ├─"test/test_expect_test.ml":1443:36
+                  ├─"test/test_expect_test.ml":1442:36
                   ├─x = 0
                   └─z = 0
-                    └─"test/test_expect_test.ml":1444:8
+                    └─"test/test_expect_test.ml":1443:8
     Raised exception.
     |}]
 
@@ -1499,7 +1498,6 @@ let%expect_test
     "%debug_show PrintBox values_first_mode to stdout num children exceeded linear" =
   let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let () =
-    (* FIXME: this test is not working with the current implementation of the debugger. *)
     let module Debug_runtime = (val _get_local_debug_runtime ()) in
     try
       let%debug_show _bar : unit =
@@ -1517,29 +1515,29 @@ let%expect_test
     {|
     BEGIN DEBUG SESSION
     _bar
-    ├─"test/test_expect_test.ml":1505:21
+    ├─"test/test_expect_test.ml":1503:21
     ├─_baz = 0
-    │ └─"test/test_expect_test.ml":1509:16
+    │ └─"test/test_expect_test.ml":1507:16
     ├─_baz = 2
-    │ └─"test/test_expect_test.ml":1509:16
+    │ └─"test/test_expect_test.ml":1507:16
     ├─_baz = 4
-    │ └─"test/test_expect_test.ml":1509:16
+    │ └─"test/test_expect_test.ml":1507:16
     ├─_baz = 6
-    │ └─"test/test_expect_test.ml":1509:16
+    │ └─"test/test_expect_test.ml":1507:16
     ├─_baz = 8
-    │ └─"test/test_expect_test.ml":1509:16
+    │ └─"test/test_expect_test.ml":1507:16
     ├─_baz = 10
-    │ └─"test/test_expect_test.ml":1509:16
+    │ └─"test/test_expect_test.ml":1507:16
     ├─_baz = 12
-    │ └─"test/test_expect_test.ml":1509:16
+    │ └─"test/test_expect_test.ml":1507:16
     ├─_baz = 14
-    │ └─"test/test_expect_test.ml":1509:16
+    │ └─"test/test_expect_test.ml":1507:16
     ├─_baz = 16
-    │ └─"test/test_expect_test.ml":1509:16
+    │ └─"test/test_expect_test.ml":1507:16
     ├─_baz = 18
-    │ └─"test/test_expect_test.ml":1509:16
+    │ └─"test/test_expect_test.ml":1507:16
     ├─_baz = 20
-    │ └─"test/test_expect_test.ml":1509:16
+    │ └─"test/test_expect_test.ml":1507:16
     └─_baz = <max_num_children exceeded>
     Raised exception: ppx_minidebug: max_num_children exceeded
     |}]
@@ -1547,7 +1545,6 @@ let%expect_test
 let%expect_test "%track_show PrintBox values_first_mode to stdout track for-loop" =
   let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let () =
-    (* FIXME: this test is not working with the current implementation of the debugger. *)
     let module Debug_runtime = (val _get_local_debug_runtime ()) in
     try
       let%track_show _bar : unit =
@@ -1565,44 +1562,44 @@ let%expect_test "%track_show PrintBox values_first_mode to stdout track for-loop
     {|
     BEGIN DEBUG SESSION
     _bar = ()
-    ├─"test/test_expect_test.ml":1553:21
-    └─for:test_expect_test:1556
-      ├─"test/test_expect_test.ml":1556:10
+    ├─"test/test_expect_test.ml":1550:21
+    └─for:test_expect_test:1553
+      ├─"test/test_expect_test.ml":1553:10
       ├─i = 0
       ├─<for i>
-      │ ├─"test/test_expect_test.ml":1556:14
+      │ ├─"test/test_expect_test.ml":1553:14
       │ └─_baz = 0
-      │   └─"test/test_expect_test.ml":1557:16
+      │   └─"test/test_expect_test.ml":1554:16
       ├─i = 1
       ├─<for i>
-      │ ├─"test/test_expect_test.ml":1556:14
+      │ ├─"test/test_expect_test.ml":1553:14
       │ └─_baz = 2
-      │   └─"test/test_expect_test.ml":1557:16
+      │   └─"test/test_expect_test.ml":1554:16
       ├─i = 2
       ├─<for i>
-      │ ├─"test/test_expect_test.ml":1556:14
+      │ ├─"test/test_expect_test.ml":1553:14
       │ └─_baz = 4
-      │   └─"test/test_expect_test.ml":1557:16
+      │   └─"test/test_expect_test.ml":1554:16
       ├─i = 3
       ├─<for i>
-      │ ├─"test/test_expect_test.ml":1556:14
+      │ ├─"test/test_expect_test.ml":1553:14
       │ └─_baz = 6
-      │   └─"test/test_expect_test.ml":1557:16
+      │   └─"test/test_expect_test.ml":1554:16
       ├─i = 4
       ├─<for i>
-      │ ├─"test/test_expect_test.ml":1556:14
+      │ ├─"test/test_expect_test.ml":1553:14
       │ └─_baz = 8
-      │   └─"test/test_expect_test.ml":1557:16
+      │   └─"test/test_expect_test.ml":1554:16
       ├─i = 5
       ├─<for i>
-      │ ├─"test/test_expect_test.ml":1556:14
+      │ ├─"test/test_expect_test.ml":1553:14
       │ └─_baz = 10
-      │   └─"test/test_expect_test.ml":1557:16
+      │   └─"test/test_expect_test.ml":1554:16
       ├─i = 6
       └─<for i>
-        ├─"test/test_expect_test.ml":1556:14
+        ├─"test/test_expect_test.ml":1553:14
         └─_baz = 12
-          └─"test/test_expect_test.ml":1557:16
+          └─"test/test_expect_test.ml":1554:16
     |}]
 
 let%expect_test
@@ -1626,43 +1623,43 @@ let%expect_test
     {|
     BEGIN DEBUG SESSION
     loop_exceeded
-    ├─"test/test_expect_test.ml":1611:35
+    ├─"test/test_expect_test.ml":1608:35
     ├─x = 3
     ├─z = 1
-    │ └─"test/test_expect_test.ml":1618:17
+    │ └─"test/test_expect_test.ml":1615:17
     └─loop_exceeded
-      ├─"test/test_expect_test.ml":1611:35
+      ├─"test/test_expect_test.ml":1608:35
       ├─x = 2
       ├─z = 0
-      │ └─"test/test_expect_test.ml":1618:17
+      │ └─"test/test_expect_test.ml":1615:17
       └─loop_exceeded
-        ├─"test/test_expect_test.ml":1611:35
+        ├─"test/test_expect_test.ml":1608:35
         ├─x = 1
         ├─z = 0
-        │ └─"test/test_expect_test.ml":1618:17
+        │ └─"test/test_expect_test.ml":1615:17
         └─loop_exceeded
-          ├─"test/test_expect_test.ml":1611:35
+          ├─"test/test_expect_test.ml":1608:35
           ├─x = 0
           ├─z = 0
-          │ └─"test/test_expect_test.ml":1618:17
+          │ └─"test/test_expect_test.ml":1615:17
           ├─z = 1
-          │ └─"test/test_expect_test.ml":1618:17
+          │ └─"test/test_expect_test.ml":1615:17
           ├─z = 2
-          │ └─"test/test_expect_test.ml":1618:17
+          │ └─"test/test_expect_test.ml":1615:17
           ├─z = 3
-          │ └─"test/test_expect_test.ml":1618:17
+          │ └─"test/test_expect_test.ml":1615:17
           ├─z = 4
-          │ └─"test/test_expect_test.ml":1618:17
+          │ └─"test/test_expect_test.ml":1615:17
           ├─z = 5
-          │ └─"test/test_expect_test.ml":1618:17
+          │ └─"test/test_expect_test.ml":1615:17
           ├─z = 6
-          │ └─"test/test_expect_test.ml":1618:17
+          │ └─"test/test_expect_test.ml":1615:17
           ├─z = 7
-          │ └─"test/test_expect_test.ml":1618:17
+          │ └─"test/test_expect_test.ml":1615:17
           ├─z = 8
-          │ └─"test/test_expect_test.ml":1618:17
+          │ └─"test/test_expect_test.ml":1615:17
           ├─z = 9
-          │ └─"test/test_expect_test.ml":1618:17
+          │ └─"test/test_expect_test.ml":1615:17
           └─z = <max_num_children exceeded>
     Raised exception: ppx_minidebug: max_num_children exceeded
     |}]
@@ -1694,142 +1691,142 @@ let%expect_test
     {|
     BEGIN DEBUG SESSION
     loop_exceeded = 58435 <N.NNμs>
-    ├─"test/test_expect_test.ml":1676:35
+    ├─"test/test_expect_test.ml":1673:35
     ├─<earlier entries truncated>
     ├─z = 4 <N.NNμs>
-    │ └─"test/test_expect_test.ml":1681:15
+    │ └─"test/test_expect_test.ml":1678:15
     ├─loop_exceeded = 11685 <N.NNμs>
-    │ ├─"test/test_expect_test.ml":1676:35
+    │ ├─"test/test_expect_test.ml":1673:35
     │ ├─<earlier entries truncated>
     │ ├─z = 4 <N.NNμs>
-    │ │ └─"test/test_expect_test.ml":1681:15
+    │ │ └─"test/test_expect_test.ml":1678:15
     │ ├─loop_exceeded = 1945 <N.NNμs>
-    │ │ ├─"test/test_expect_test.ml":1676:35
+    │ │ ├─"test/test_expect_test.ml":1673:35
     │ │ ├─<earlier entries truncated>
     │ │ ├─z = 8 <N.NNμs>
-    │ │ │ └─"test/test_expect_test.ml":1681:15
+    │ │ │ └─"test/test_expect_test.ml":1678:15
     │ │ ├─loop_exceeded = 190 <N.NNμs>
-    │ │ │ ├─"test/test_expect_test.ml":1676:35
+    │ │ │ ├─"test/test_expect_test.ml":1673:35
     │ │ │ ├─<earlier entries truncated>
     │ │ │ ├─z = 16 <N.NNμs>
-    │ │ │ │ └─"test/test_expect_test.ml":1681:15
+    │ │ │ │ └─"test/test_expect_test.ml":1678:15
     │ │ │ ├─z = 17 <N.NNμs>
-    │ │ │ │ └─"test/test_expect_test.ml":1681:15
+    │ │ │ │ └─"test/test_expect_test.ml":1678:15
     │ │ │ ├─z = 18 <N.NNμs>
-    │ │ │ │ └─"test/test_expect_test.ml":1681:15
+    │ │ │ │ └─"test/test_expect_test.ml":1678:15
     │ │ │ └─z = 19 <N.NNμs>
-    │ │ │   └─"test/test_expect_test.ml":1681:15
+    │ │ │   └─"test/test_expect_test.ml":1678:15
     │ │ ├─z = 9 <N.NNμs>
-    │ │ │ └─"test/test_expect_test.ml":1681:15
+    │ │ │ └─"test/test_expect_test.ml":1678:15
     │ │ └─loop_exceeded = 190 <N.NNμs>
-    │ │   ├─"test/test_expect_test.ml":1676:35
+    │ │   ├─"test/test_expect_test.ml":1673:35
     │ │   ├─<earlier entries truncated>
     │ │   ├─z = 16 <N.NNμs>
-    │ │   │ └─"test/test_expect_test.ml":1681:15
+    │ │   │ └─"test/test_expect_test.ml":1678:15
     │ │   ├─z = 17 <N.NNμs>
-    │ │   │ └─"test/test_expect_test.ml":1681:15
+    │ │   │ └─"test/test_expect_test.ml":1678:15
     │ │   ├─z = 18 <N.NNμs>
-    │ │   │ └─"test/test_expect_test.ml":1681:15
+    │ │   │ └─"test/test_expect_test.ml":1678:15
     │ │   └─z = 19 <N.NNμs>
-    │ │     └─"test/test_expect_test.ml":1681:15
+    │ │     └─"test/test_expect_test.ml":1678:15
     │ ├─z = 5 <N.NNμs>
-    │ │ └─"test/test_expect_test.ml":1681:15
+    │ │ └─"test/test_expect_test.ml":1678:15
     │ └─loop_exceeded = 1945 <N.NNμs>
-    │   ├─"test/test_expect_test.ml":1676:35
+    │   ├─"test/test_expect_test.ml":1673:35
     │   ├─<earlier entries truncated>
     │   ├─z = 8 <N.NNμs>
-    │   │ └─"test/test_expect_test.ml":1681:15
+    │   │ └─"test/test_expect_test.ml":1678:15
     │   ├─loop_exceeded = 190 <N.NNμs>
-    │   │ ├─"test/test_expect_test.ml":1676:35
+    │   │ ├─"test/test_expect_test.ml":1673:35
     │   │ ├─<earlier entries truncated>
     │   │ ├─z = 16 <N.NNμs>
-    │   │ │ └─"test/test_expect_test.ml":1681:15
+    │   │ │ └─"test/test_expect_test.ml":1678:15
     │   │ ├─z = 17 <N.NNμs>
-    │   │ │ └─"test/test_expect_test.ml":1681:15
+    │   │ │ └─"test/test_expect_test.ml":1678:15
     │   │ ├─z = 18 <N.NNμs>
-    │   │ │ └─"test/test_expect_test.ml":1681:15
+    │   │ │ └─"test/test_expect_test.ml":1678:15
     │   │ └─z = 19 <N.NNμs>
-    │   │   └─"test/test_expect_test.ml":1681:15
+    │   │   └─"test/test_expect_test.ml":1678:15
     │   ├─z = 9 <N.NNμs>
-    │   │ └─"test/test_expect_test.ml":1681:15
+    │   │ └─"test/test_expect_test.ml":1678:15
     │   └─loop_exceeded = 190 <N.NNμs>
-    │     ├─"test/test_expect_test.ml":1676:35
+    │     ├─"test/test_expect_test.ml":1673:35
     │     ├─<earlier entries truncated>
     │     ├─z = 16 <N.NNμs>
-    │     │ └─"test/test_expect_test.ml":1681:15
+    │     │ └─"test/test_expect_test.ml":1678:15
     │     ├─z = 17 <N.NNμs>
-    │     │ └─"test/test_expect_test.ml":1681:15
+    │     │ └─"test/test_expect_test.ml":1678:15
     │     ├─z = 18 <N.NNμs>
-    │     │ └─"test/test_expect_test.ml":1681:15
+    │     │ └─"test/test_expect_test.ml":1678:15
     │     └─z = 19 <N.NNμs>
-    │       └─"test/test_expect_test.ml":1681:15
+    │       └─"test/test_expect_test.ml":1678:15
     ├─z = 5 <N.NNμs>
-    │ └─"test/test_expect_test.ml":1681:15
+    │ └─"test/test_expect_test.ml":1678:15
     └─loop_exceeded = 11685 <N.NNμs>
-      ├─"test/test_expect_test.ml":1676:35
+      ├─"test/test_expect_test.ml":1673:35
       ├─<earlier entries truncated>
       ├─z = 4 <N.NNμs>
-      │ └─"test/test_expect_test.ml":1681:15
+      │ └─"test/test_expect_test.ml":1678:15
       ├─loop_exceeded = 1945 <N.NNμs>
-      │ ├─"test/test_expect_test.ml":1676:35
+      │ ├─"test/test_expect_test.ml":1673:35
       │ ├─<earlier entries truncated>
       │ ├─z = 8 <N.NNμs>
-      │ │ └─"test/test_expect_test.ml":1681:15
+      │ │ └─"test/test_expect_test.ml":1678:15
       │ ├─loop_exceeded = 190 <N.NNμs>
-      │ │ ├─"test/test_expect_test.ml":1676:35
+      │ │ ├─"test/test_expect_test.ml":1673:35
       │ │ ├─<earlier entries truncated>
       │ │ ├─z = 16 <N.NNμs>
-      │ │ │ └─"test/test_expect_test.ml":1681:15
+      │ │ │ └─"test/test_expect_test.ml":1678:15
       │ │ ├─z = 17 <N.NNμs>
-      │ │ │ └─"test/test_expect_test.ml":1681:15
+      │ │ │ └─"test/test_expect_test.ml":1678:15
       │ │ ├─z = 18 <N.NNμs>
-      │ │ │ └─"test/test_expect_test.ml":1681:15
+      │ │ │ └─"test/test_expect_test.ml":1678:15
       │ │ └─z = 19 <N.NNμs>
-      │ │   └─"test/test_expect_test.ml":1681:15
+      │ │   └─"test/test_expect_test.ml":1678:15
       │ ├─z = 9 <N.NNμs>
-      │ │ └─"test/test_expect_test.ml":1681:15
+      │ │ └─"test/test_expect_test.ml":1678:15
       │ └─loop_exceeded = 190 <N.NNμs>
-      │   ├─"test/test_expect_test.ml":1676:35
+      │   ├─"test/test_expect_test.ml":1673:35
       │   ├─<earlier entries truncated>
       │   ├─z = 16 <N.NNμs>
-      │   │ └─"test/test_expect_test.ml":1681:15
+      │   │ └─"test/test_expect_test.ml":1678:15
       │   ├─z = 17 <N.NNμs>
-      │   │ └─"test/test_expect_test.ml":1681:15
+      │   │ └─"test/test_expect_test.ml":1678:15
       │   ├─z = 18 <N.NNμs>
-      │   │ └─"test/test_expect_test.ml":1681:15
+      │   │ └─"test/test_expect_test.ml":1678:15
       │   └─z = 19 <N.NNμs>
-      │     └─"test/test_expect_test.ml":1681:15
+      │     └─"test/test_expect_test.ml":1678:15
       ├─z = 5 <N.NNμs>
-      │ └─"test/test_expect_test.ml":1681:15
+      │ └─"test/test_expect_test.ml":1678:15
       └─loop_exceeded = 1945 <N.NNμs>
-        ├─"test/test_expect_test.ml":1676:35
+        ├─"test/test_expect_test.ml":1673:35
         ├─<earlier entries truncated>
         ├─z = 8 <N.NNμs>
-        │ └─"test/test_expect_test.ml":1681:15
+        │ └─"test/test_expect_test.ml":1678:15
         ├─loop_exceeded = 190 <N.NNμs>
-        │ ├─"test/test_expect_test.ml":1676:35
+        │ ├─"test/test_expect_test.ml":1673:35
         │ ├─<earlier entries truncated>
         │ ├─z = 16 <N.NNμs>
-        │ │ └─"test/test_expect_test.ml":1681:15
+        │ │ └─"test/test_expect_test.ml":1678:15
         │ ├─z = 17 <N.NNμs>
-        │ │ └─"test/test_expect_test.ml":1681:15
+        │ │ └─"test/test_expect_test.ml":1678:15
         │ ├─z = 18 <N.NNμs>
-        │ │ └─"test/test_expect_test.ml":1681:15
+        │ │ └─"test/test_expect_test.ml":1678:15
         │ └─z = 19 <N.NNμs>
-        │   └─"test/test_expect_test.ml":1681:15
+        │   └─"test/test_expect_test.ml":1678:15
         ├─z = 9 <N.NNμs>
-        │ └─"test/test_expect_test.ml":1681:15
+        │ └─"test/test_expect_test.ml":1678:15
         └─loop_exceeded = 190 <N.NNμs>
-          ├─"test/test_expect_test.ml":1676:35
+          ├─"test/test_expect_test.ml":1673:35
           ├─<earlier entries truncated>
           ├─z = 16 <N.NNμs>
-          │ └─"test/test_expect_test.ml":1681:15
+          │ └─"test/test_expect_test.ml":1678:15
           ├─z = 17 <N.NNμs>
-          │ └─"test/test_expect_test.ml":1681:15
+          │ └─"test/test_expect_test.ml":1678:15
           ├─z = 18 <N.NNμs>
-          │ └─"test/test_expect_test.ml":1681:15
+          │ └─"test/test_expect_test.ml":1678:15
           └─z = 19 <N.NNμs>
-            └─"test/test_expect_test.ml":1681:15
+            └─"test/test_expect_test.ml":1678:15
     58435
     |}]
 
@@ -1848,57 +1845,57 @@ let%expect_test "%debug_show PrintBox values_first_mode to stdout highlight" =
     ┌──────────────────┐
     │loop_highlight = 9│
     ├──────────────────┘
-    ├─"test/test_expect_test.ml":1840:36
+    ├─"test/test_expect_test.ml":1837:36
     ├─x = 7
     ├─┬─────┐
     │ │z = 3│
     │ ├─────┘
-    │ └─"test/test_expect_test.ml":1841:8
+    │ └─"test/test_expect_test.ml":1838:8
     └─┬──────────────────┐
       │loop_highlight = 6│
       ├──────────────────┘
-      ├─"test/test_expect_test.ml":1840:36
+      ├─"test/test_expect_test.ml":1837:36
       ├─x = 6
       ├─z = 2
-      │ └─"test/test_expect_test.ml":1841:8
+      │ └─"test/test_expect_test.ml":1838:8
       └─┬──────────────────┐
         │loop_highlight = 4│
         ├──────────────────┘
-        ├─"test/test_expect_test.ml":1840:36
+        ├─"test/test_expect_test.ml":1837:36
         ├─x = 5
         ├─z = 2
-        │ └─"test/test_expect_test.ml":1841:8
+        │ └─"test/test_expect_test.ml":1838:8
         └─┬──────────────────┐
           │loop_highlight = 2│
           ├──────────────────┘
-          ├─"test/test_expect_test.ml":1840:36
+          ├─"test/test_expect_test.ml":1837:36
           ├─x = 4
           ├─z = 1
-          │ └─"test/test_expect_test.ml":1841:8
+          │ └─"test/test_expect_test.ml":1838:8
           └─┬──────────────────┐
             │loop_highlight = 1│
             ├──────────────────┘
-            ├─"test/test_expect_test.ml":1840:36
+            ├─"test/test_expect_test.ml":1837:36
             ├─┬─────┐
             │ │x = 3│
             │ └─────┘
             ├─z = 1
-            │ └─"test/test_expect_test.ml":1841:8
+            │ └─"test/test_expect_test.ml":1838:8
             └─loop_highlight = 0
-              ├─"test/test_expect_test.ml":1840:36
+              ├─"test/test_expect_test.ml":1837:36
               ├─x = 2
               ├─z = 0
-              │ └─"test/test_expect_test.ml":1841:8
+              │ └─"test/test_expect_test.ml":1838:8
               └─loop_highlight = 0
-                ├─"test/test_expect_test.ml":1840:36
+                ├─"test/test_expect_test.ml":1837:36
                 ├─x = 1
                 ├─z = 0
-                │ └─"test/test_expect_test.ml":1841:8
+                │ └─"test/test_expect_test.ml":1838:8
                 └─loop_highlight = 0
-                  ├─"test/test_expect_test.ml":1840:36
+                  ├─"test/test_expect_test.ml":1837:36
                   ├─x = 0
                   └─z = 0
-                    └─"test/test_expect_test.ml":1841:8
+                    └─"test/test_expect_test.ml":1838:8
     9
     |}]
 
@@ -1918,20 +1915,20 @@ let%expect_test "%track_show PrintBox values_first_mode tracking" =
     {|
     BEGIN DEBUG SESSION
     track_branches = 4
-    ├─"test/test_expect_test.ml":1907:32
+    ├─"test/test_expect_test.ml":1904:32
     ├─x = 7
-    └─else:test_expect_test:1909
-      ├─"test/test_expect_test.ml":1909:9
+    └─else:test_expect_test:1906
+      ├─"test/test_expect_test.ml":1906:9
       └─<match -- branch 1>
-        └─"test/test_expect_test.ml":1909:36
+        └─"test/test_expect_test.ml":1906:36
     4
     track_branches = -3
-    ├─"test/test_expect_test.ml":1907:32
+    ├─"test/test_expect_test.ml":1904:32
     ├─x = 3
-    └─then:test_expect_test:1908
-      ├─"test/test_expect_test.ml":1908:18
+    └─then:test_expect_test:1905
+      ├─"test/test_expect_test.ml":1905:18
       └─<match -- branch 2>
-        └─"test/test_expect_test.ml":1908:54
+        └─"test/test_expect_test.ml":1905:54
     -3
     |}]
 
@@ -1949,19 +1946,19 @@ let%expect_test
     {|
     BEGIN DEBUG SESSION
     anonymous
-    ├─"test/test_expect_test.ml":1941:27
+    ├─"test/test_expect_test.ml":1938:27
     ├─x = 3
-    ├─fun:test_expect_test:1942
-    │ ├─"test/test_expect_test.ml":1942:50
+    ├─fun:test_expect_test:1939
+    │ ├─"test/test_expect_test.ml":1939:50
     │ └─i = 0
-    ├─fun:test_expect_test:1942
-    │ ├─"test/test_expect_test.ml":1942:50
+    ├─fun:test_expect_test:1939
+    │ ├─"test/test_expect_test.ml":1939:50
     │ └─i = 1
-    ├─fun:test_expect_test:1942
-    │ ├─"test/test_expect_test.ml":1942:50
+    ├─fun:test_expect_test:1939
+    │ ├─"test/test_expect_test.ml":1939:50
     │ └─i = 2
-    └─fun:test_expect_test:1942
-      ├─"test/test_expect_test.ml":1942:50
+    └─fun:test_expect_test:1939
+      ├─"test/test_expect_test.ml":1939:50
       └─i = 3
     6
     |}]
@@ -1984,20 +1981,20 @@ let%expect_test "%debug_show records" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1973:21: bar
+    "test/test_expect_test.ml":1970:21: bar
     ├─first = 7
     ├─second = 42
-    ├─"test/test_expect_test.ml":1974:8: {first=a; second=b}
+    ├─"test/test_expect_test.ml":1971:8: {first=a; second=b}
     │ ├─a = 7
     │ └─b = 45
-    ├─"test/test_expect_test.ml":1975:8: y
+    ├─"test/test_expect_test.ml":1972:8: y
     │ └─y = 8
     └─bar = 336
     336
-    "test/test_expect_test.ml":1979:21: baz
+    "test/test_expect_test.ml":1976:21: baz
     ├─first = 7
     ├─second = 42
-    ├─"test/test_expect_test.ml":1980:8: {first; second}
+    ├─"test/test_expect_test.ml":1977:8: {first; second}
     │ ├─first = 8
     │ └─second = 45
     └─baz = 109
@@ -2024,21 +2021,21 @@ let%expect_test "%debug_show tuples" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":2011:21: bar
+    "test/test_expect_test.ml":2008:21: bar
     ├─first = 7
     ├─second = 42
-    ├─"test/test_expect_test.ml":2012:8: y
+    ├─"test/test_expect_test.ml":2009:8: y
     │ └─y = 8
     └─bar = 336
     336
-    "test/test_expect_test.ml":2021:17: (r1, r2)
-    ├─"test/test_expect_test.ml":2016:21: baz
+    "test/test_expect_test.ml":2018:17: (r1, r2)
+    ├─"test/test_expect_test.ml":2013:21: baz
     │ ├─first = 7
     │ ├─second = 42
-    │ ├─"test/test_expect_test.ml":2017:8: (y, z)
+    │ ├─"test/test_expect_test.ml":2014:8: (y, z)
     │ │ ├─y = 8
     │ │ └─z = 3
-    │ ├─"test/test_expect_test.ml":2018:8: (a, b)
+    │ ├─"test/test_expect_test.ml":2015:8: (a, b)
     │ │ ├─a = 8
     │ │ └─b = 45
     │ └─baz = (339, 109)
@@ -2065,23 +2062,23 @@ let%expect_test "%debug_show records values_first_mode" =
     {|
     BEGIN DEBUG SESSION
     bar = 336
-    ├─"test/test_expect_test.ml":2053:21
+    ├─"test/test_expect_test.ml":2050:21
     ├─first = 7
     ├─second = 42
     ├─{first=a; second=b}
-    │ ├─"test/test_expect_test.ml":2054:8
+    │ ├─"test/test_expect_test.ml":2051:8
     │ └─<values>
     │   ├─a = 7
     │   └─b = 45
     └─y = 8
-      └─"test/test_expect_test.ml":2055:8
+      └─"test/test_expect_test.ml":2052:8
     336
     baz = 109
-    ├─"test/test_expect_test.ml":2059:21
+    ├─"test/test_expect_test.ml":2056:21
     ├─first = 7
     ├─second = 42
     └─{first; second}
-      ├─"test/test_expect_test.ml":2060:8
+      ├─"test/test_expect_test.ml":2057:8
       └─<values>
         ├─first = 8
         └─second = 45
@@ -2107,28 +2104,28 @@ let%expect_test "%debug_show tuples values_first_mode" =
     {|
     BEGIN DEBUG SESSION
     bar = 336
-    ├─"test/test_expect_test.ml":2093:21
+    ├─"test/test_expect_test.ml":2090:21
     ├─first = 7
     ├─second = 42
     └─y = 8
-      └─"test/test_expect_test.ml":2094:8
+      └─"test/test_expect_test.ml":2091:8
     336
     (r1, r2)
-    ├─"test/test_expect_test.ml":2103:17
+    ├─"test/test_expect_test.ml":2100:17
     ├─<returns>
     │ ├─r1 = 339
     │ └─r2 = 109
     └─baz = (339, 109)
-      ├─"test/test_expect_test.ml":2098:21
+      ├─"test/test_expect_test.ml":2095:21
       ├─first = 7
       ├─second = 42
       ├─(y, z)
-      │ ├─"test/test_expect_test.ml":2099:8
+      │ ├─"test/test_expect_test.ml":2096:8
       │ └─<values>
       │   ├─y = 8
       │   └─z = 3
       └─(a, b)
-        ├─"test/test_expect_test.ml":2100:8
+        ├─"test/test_expect_test.ml":2097:8
         └─<values>
           ├─a = 8
           └─b = 45
@@ -2162,25 +2159,25 @@ let%expect_test "%track_show variants values_first_mode" =
     {|
     BEGIN DEBUG SESSION
     bar = 16
-    ├─"test/test_expect_test.ml":2145:21
+    ├─"test/test_expect_test.ml":2142:21
     ├─x = 7
     └─y = 8
-      └─"test/test_expect_test.ml":2146:8
+      └─"test/test_expect_test.ml":2143:8
     16
     baz = 5
-    ├─"test/test_expect_test.ml":2151:24
+    ├─"test/test_expect_test.ml":2148:24
     ├─<function -- branch 0> Left x
     └─x = 4
     5
     baz = 6
-    ├─"test/test_expect_test.ml":2152:31
+    ├─"test/test_expect_test.ml":2149:31
     ├─<function -- branch 1> Right Two y
     └─y = 3
     6
     foo = 3
-    ├─"test/test_expect_test.ml":2155:21
+    ├─"test/test_expect_test.ml":2152:21
     └─<match -- branch 2>
-      └─"test/test_expect_test.ml":2156:81
+      └─"test/test_expect_test.ml":2153:81
     3
     |}]
 
@@ -2199,21 +2196,21 @@ let%expect_test "%debug_show tuples merge type info" =
     {|
     BEGIN DEBUG SESSION
     (r1, r2)
-    ├─"test/test_expect_test.ml":2194:17
+    ├─"test/test_expect_test.ml":2191:17
     ├─<returns>
     │ ├─r1 = 339
     │ └─r2 = 109
     └─baz = (339, 109)
-      ├─"test/test_expect_test.ml":2189:21
+      ├─"test/test_expect_test.ml":2186:21
       ├─first = 7
       ├─second = 42
       ├─(y, z)
-      │ ├─"test/test_expect_test.ml":2190:8
+      │ ├─"test/test_expect_test.ml":2187:8
       │ └─<values>
       │   ├─y = 8
       │   └─z = 3
       └─a = 8
-        └─"test/test_expect_test.ml":2191:8
+        └─"test/test_expect_test.ml":2188:8
     339
     109
     |}]
@@ -2228,16 +2225,17 @@ let%expect_test "%debug_show decompose multi-argument function type" =
     {|
     BEGIN DEBUG SESSION
     f = 7
-    ├─"test/test_expect_test.ml":2223:44
+    ├─"test/test_expect_test.ml":2220:44
     └─b = 6
     7
     g = 12
-    ├─"test/test_expect_test.ml":2224:56
+    ├─"test/test_expect_test.ml":2221:56
     └─b = 6
     12
     |}]
 
 let%expect_test "%debug_show debug type info" =
+  (* $MDX part-begin=debug_type_info *)
   let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   [%debug_show
     [%debug_type_info
@@ -2249,16 +2247,17 @@ let%expect_test "%debug_show debug type info" =
     {|
     BEGIN DEBUG SESSION
     f : int = 7
-    ├─"test/test_expect_test.ml":2244:37
+    ├─"test/test_expect_test.ml":2242:37
     ├─f : int
     └─b : int = 6
     7
     g : int = 12
-    ├─"test/test_expect_test.ml":2245:49
+    ├─"test/test_expect_test.ml":2243:49
     ├─g : int
     └─b : int = 6
     12
     |}]
+(* $MDX part-end *)
 
 let%expect_test "%track_show options values_first_mode" =
   let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
@@ -2281,24 +2280,24 @@ let%expect_test "%track_show options values_first_mode" =
     {|
     BEGIN DEBUG SESSION
     foo = 14
-    ├─"test/test_expect_test.ml":2265:21
+    ├─"test/test_expect_test.ml":2264:21
     └─<match -- branch 1> Some y
-      ├─"test/test_expect_test.ml":2266:54
+      ├─"test/test_expect_test.ml":2265:54
       └─y = 7
     14
     bar = 14
-    ├─"test/test_expect_test.ml":2269:21
+    ├─"test/test_expect_test.ml":2268:21
     ├─l = (Some 7)
     └─<match -- branch 1> Some y
-      └─"test/test_expect_test.ml":2270:39
+      └─"test/test_expect_test.ml":2269:39
     14
     baz = 8
-    ├─"test/test_expect_test.ml":2273:74
+    ├─"test/test_expect_test.ml":2272:74
     ├─<function -- branch 1> Some y
     └─y = 4
     8
     zoo = 9
-    ├─"test/test_expect_test.ml":2277:21
+    ├─"test/test_expect_test.ml":2276:21
     ├─<function -- branch 1> Some (y, z)
     ├─y = 4
     └─z = 5
@@ -2324,30 +2323,30 @@ let%expect_test "%track_show list values_first_mode" =
     {|
     BEGIN DEBUG SESSION
     foo = 14
-    ├─"test/test_expect_test.ml":2310:21
+    ├─"test/test_expect_test.ml":2309:21
     └─<match -- branch 1> :: (y, _)
-      ├─"test/test_expect_test.ml":2310:77
+      ├─"test/test_expect_test.ml":2309:77
       └─y = 7
     14
     bar = 14
-    ├─"test/test_expect_test.ml":2312:21
+    ├─"test/test_expect_test.ml":2311:21
     ├─l = [7]
     └─<match -- branch 1> :: (y, _)
-      └─"test/test_expect_test.ml":2312:77
+      └─"test/test_expect_test.ml":2311:77
     14
     baz = 8
-    ├─"test/test_expect_test.ml":2316:15
+    ├─"test/test_expect_test.ml":2315:15
     ├─<function -- branch 1> :: (y, [])
     └─y = 4
     8
     baz = 9
-    ├─"test/test_expect_test.ml":2317:18
+    ├─"test/test_expect_test.ml":2316:18
     ├─<function -- branch 2> :: (y, :: (z, []))
     ├─y = 4
     └─z = 5
     9
     baz = 10
-    ├─"test/test_expect_test.ml":2318:21
+    ├─"test/test_expect_test.ml":2317:21
     ├─<function -- branch 3> :: (y, :: (z, _))
     ├─y = 4
     └─z = 5
@@ -2355,6 +2354,7 @@ let%expect_test "%track_show list values_first_mode" =
     |}]
 
 let%expect_test "%track_rt_show list runtime passing" =
+  (* $MDX part-begin=track_rt_show_list_runtime_passing *)
   let%track_rt_show foo l : int = match (l : int list) with [] -> 7 | y :: _ -> y * 2 in
   let () =
     print_endline @@ Int.to_string
@@ -2401,6 +2401,7 @@ let%expect_test "%track_rt_show list runtime passing" =
     └─z = 5
     10
     |}]
+(* $MDX part-end *)
 
 let%expect_test "%track_rt_show procedure runtime passing" =
   let%track_rt_show bar () = (fun () -> ()) () in
@@ -2415,23 +2416,23 @@ let%expect_test "%track_rt_show procedure runtime passing" =
   [%expect
     {|
     BEGIN DEBUG SESSION bar-1
-    bar-1 bar begin "test/test_expect_test.ml":2406:24:
-     bar-1 fun:test_expect_test:2406 begin "test/test_expect_test.ml":2406:29:
-     bar-1 fun:test_expect_test:2406 end
+    bar-1 bar begin "test/test_expect_test.ml":2407:24:
+     bar-1 fun:test_expect_test:2407 begin "test/test_expect_test.ml":2407:29:
+     bar-1 fun:test_expect_test:2407 end
     bar-1 bar end
 
     BEGIN DEBUG SESSION bar-2
-    bar-2 bar begin "test/test_expect_test.ml":2406:24:
-     bar-2 fun:test_expect_test:2406 begin "test/test_expect_test.ml":2406:29:
-     bar-2 fun:test_expect_test:2406 end
+    bar-2 bar begin "test/test_expect_test.ml":2407:24:
+     bar-2 fun:test_expect_test:2407 begin "test/test_expect_test.ml":2407:29:
+     bar-2 fun:test_expect_test:2407 end
     bar-2 bar end
 
     BEGIN DEBUG SESSION foo-1
-    foo-1 foo begin "test/test_expect_test.ml":2409:24:
+    foo-1 foo begin "test/test_expect_test.ml":2410:24:
     foo-1 foo end
 
     BEGIN DEBUG SESSION foo-2
-    foo-2 foo begin "test/test_expect_test.ml":2409:24:
+    foo-2 foo begin "test/test_expect_test.ml":2410:24:
     foo-2 foo end
     |}]
 
@@ -2455,23 +2456,23 @@ let%expect_test "%track_rt_show nested procedure runtime passing" =
     BEGIN DEBUG SESSION
 
     BEGIN DEBUG SESSION foo-1
-    foo-1 foo begin "test/test_expect_test.ml":2442:26:
+    foo-1 foo begin "test/test_expect_test.ml":2443:26:
     foo-1 foo end
 
     BEGIN DEBUG SESSION foo-2
-    foo-2 foo begin "test/test_expect_test.ml":2442:26:
+    foo-2 foo begin "test/test_expect_test.ml":2443:26:
     foo-2 foo end
 
     BEGIN DEBUG SESSION bar-1
-    bar-1 bar begin "test/test_expect_test.ml":2441:26:
-     bar-1 fun:test_expect_test:2441 begin "test/test_expect_test.ml":2441:31:
-     bar-1 fun:test_expect_test:2441 end
+    bar-1 bar begin "test/test_expect_test.ml":2442:26:
+     bar-1 fun:test_expect_test:2442 begin "test/test_expect_test.ml":2442:31:
+     bar-1 fun:test_expect_test:2442 end
     bar-1 bar end
 
     BEGIN DEBUG SESSION bar-2
-    bar-2 bar begin "test/test_expect_test.ml":2441:26:
-     bar-2 fun:test_expect_test:2441 begin "test/test_expect_test.ml":2441:31:
-     bar-2 fun:test_expect_test:2441 end
+    bar-2 bar begin "test/test_expect_test.ml":2442:26:
+     bar-2 fun:test_expect_test:2442 begin "test/test_expect_test.ml":2442:31:
+     bar-2 fun:test_expect_test:2442 end
     bar-2 bar end
     |}]
 
@@ -2498,12 +2499,12 @@ let%expect_test "%log constant entries" =
     {|
     BEGIN DEBUG SESSION
     foo = ()
-    ├─"test/test_expect_test.ml":2484:21
+    ├─"test/test_expect_test.ml":2485:21
     ├─"This is the first log line"
     ├─["This is the"; "2"; "log line"]
     └─("This is the", 3, "or", 3.14, "log line")
     bar
-    ├─"test/test_expect_test.ml":2491:21
+    ├─"test/test_expect_test.ml":2492:21
     ├─This is the first log line
     ├─This is the
     │ ├─2
@@ -2532,7 +2533,7 @@ let%expect_test "%log with type annotations" =
     {|
     BEGIN DEBUG SESSION
     foo = ()
-    ├─"test/test_expect_test.ml":2523:21
+    ├─"test/test_expect_test.ml":2524:21
     ├─("This is like", 3, "or", 3.14, "above")
     ├─("tau =", 6.28)
     ├─[4; 1; 2; 3]
@@ -2560,7 +2561,7 @@ let%expect_test "%log with default type assumption" =
     {|
     BEGIN DEBUG SESSION
     foo = ()
-    ├─"test/test_expect_test.ml":2549:21
+    ├─"test/test_expect_test.ml":2550:21
     ├─"2*3"
     ├─("This is like", "3", "or", "3.14", "above")
     ├─("tau =", "2*3.14")
@@ -2568,6 +2569,7 @@ let%expect_test "%log with default type assumption" =
     |}]
 
 let%expect_test "%log track while-loop" =
+  (* $MDX part-begin=track_while_loop_example *)
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
@@ -2587,36 +2589,38 @@ let%expect_test "%log track while-loop" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":2574:17: result
-    └─"test/test_expect_test.ml":2577:4: while:test_expect_test:2577
-      ├─"test/test_expect_test.ml":2578:6: <while loop>
+    "test/test_expect_test.ml":2576:17: result
+    └─"test/test_expect_test.ml":2579:4: while:test_expect_test:2579
+      ├─"test/test_expect_test.ml":2580:6: <while loop>
       │ ├─(1 i= 0)
       │ ├─(2 i= 1)
       │ └─(3 j= 1)
-      ├─"test/test_expect_test.ml":2578:6: <while loop>
+      ├─"test/test_expect_test.ml":2580:6: <while loop>
       │ ├─(1 i= 1)
       │ ├─(2 i= 2)
       │ └─(3 j= 3)
-      ├─"test/test_expect_test.ml":2578:6: <while loop>
+      ├─"test/test_expect_test.ml":2580:6: <while loop>
       │ ├─(1 i= 2)
       │ ├─(2 i= 3)
       │ └─(3 j= 6)
-      ├─"test/test_expect_test.ml":2578:6: <while loop>
+      ├─"test/test_expect_test.ml":2580:6: <while loop>
       │ ├─(1 i= 3)
       │ ├─(2 i= 4)
       │ └─(3 j= 10)
-      ├─"test/test_expect_test.ml":2578:6: <while loop>
+      ├─"test/test_expect_test.ml":2580:6: <while loop>
       │ ├─(1 i= 4)
       │ ├─(2 i= 5)
       │ └─(3 j= 15)
-      └─"test/test_expect_test.ml":2578:6: <while loop>
+      └─"test/test_expect_test.ml":2580:6: <while loop>
         ├─(1 i= 5)
         ├─(2 i= 6)
         └─(3 j= 21)
     21
     |}]
+(* $MDX part-end *)
 
 let%expect_test "%log runtime log levels while-loop" =
+  (* $MDX part-begin=log_runtime_log_levels_while_loop_example *)
   let%track_rt_sexp result () : int =
     let i = ref 0 in
     let j = ref 0 in
@@ -2650,6 +2654,7 @@ let%expect_test "%log runtime log levels while-loop" =
           Minidebug_runtime.(
             forget_printbox @@ debug ~log_level:1 ~global_prefix:"Error" ())
           ());
+  (* $MDX part-end *)
   print_endline
   @@ Int.to_string
        (result
@@ -2659,39 +2664,39 @@ let%expect_test "%log runtime log levels while-loop" =
   [%expect
     {|
     BEGIN DEBUG SESSION Everything
-    "test/test_expect_test.ml":2620:27: Everything result
-    ├─"test/test_expect_test.ml":2623:4: Everything while:test_expect_test:2623
-    │ ├─"test/test_expect_test.ml":2625:6: Everything <while loop>
-    │ │ ├─"test/test_expect_test.ml":2625:21: Everything then:test_expect_test:2625
+    "test/test_expect_test.ml":2624:27: Everything result
+    ├─"test/test_expect_test.ml":2627:4: Everything while:test_expect_test:2627
+    │ ├─"test/test_expect_test.ml":2629:6: Everything <while loop>
+    │ │ ├─"test/test_expect_test.ml":2629:21: Everything then:test_expect_test:2629
     │ │ │ └─(ERROR: 1 i= 0)
     │ │ ├─(WARNING: 2 i= 1)
-    │ │ ├─"test/test_expect_test.ml":2628:11: Everything fun:test_expect_test:2628
+    │ │ ├─"test/test_expect_test.ml":2632:11: Everything fun:test_expect_test:2632
     │ │ └─(INFO: 3 j= 1)
-    │ ├─"test/test_expect_test.ml":2625:6: Everything <while loop>
-    │ │ ├─"test/test_expect_test.ml":2625:21: Everything then:test_expect_test:2625
+    │ ├─"test/test_expect_test.ml":2629:6: Everything <while loop>
+    │ │ ├─"test/test_expect_test.ml":2629:21: Everything then:test_expect_test:2629
     │ │ │ └─(ERROR: 1 i= 1)
     │ │ ├─(WARNING: 2 i= 2)
-    │ │ ├─"test/test_expect_test.ml":2628:11: Everything fun:test_expect_test:2628
+    │ │ ├─"test/test_expect_test.ml":2632:11: Everything fun:test_expect_test:2632
     │ │ └─(INFO: 3 j= 3)
-    │ ├─"test/test_expect_test.ml":2625:6: Everything <while loop>
-    │ │ ├─"test/test_expect_test.ml":2625:64: Everything else:test_expect_test:2625
+    │ ├─"test/test_expect_test.ml":2629:6: Everything <while loop>
+    │ │ ├─"test/test_expect_test.ml":2629:64: Everything else:test_expect_test:2629
     │ │ ├─(WARNING: 2 i= 3)
-    │ │ ├─"test/test_expect_test.ml":2628:11: Everything fun:test_expect_test:2628
+    │ │ ├─"test/test_expect_test.ml":2632:11: Everything fun:test_expect_test:2632
     │ │ └─(INFO: 3 j= 6)
-    │ ├─"test/test_expect_test.ml":2625:6: Everything <while loop>
-    │ │ ├─"test/test_expect_test.ml":2625:64: Everything else:test_expect_test:2625
+    │ ├─"test/test_expect_test.ml":2629:6: Everything <while loop>
+    │ │ ├─"test/test_expect_test.ml":2629:64: Everything else:test_expect_test:2629
     │ │ ├─(WARNING: 2 i= 4)
-    │ │ ├─"test/test_expect_test.ml":2628:11: Everything fun:test_expect_test:2628
+    │ │ ├─"test/test_expect_test.ml":2632:11: Everything fun:test_expect_test:2632
     │ │ └─(INFO: 3 j= 10)
-    │ ├─"test/test_expect_test.ml":2625:6: Everything <while loop>
-    │ │ ├─"test/test_expect_test.ml":2625:64: Everything else:test_expect_test:2625
+    │ ├─"test/test_expect_test.ml":2629:6: Everything <while loop>
+    │ │ ├─"test/test_expect_test.ml":2629:64: Everything else:test_expect_test:2629
     │ │ ├─(WARNING: 2 i= 5)
-    │ │ ├─"test/test_expect_test.ml":2628:11: Everything fun:test_expect_test:2628
+    │ │ ├─"test/test_expect_test.ml":2632:11: Everything fun:test_expect_test:2632
     │ │ └─(INFO: 3 j= 15)
-    │ └─"test/test_expect_test.ml":2625:6: Everything <while loop>
-    │   ├─"test/test_expect_test.ml":2625:64: Everything else:test_expect_test:2625
+    │ └─"test/test_expect_test.ml":2629:6: Everything <while loop>
+    │   ├─"test/test_expect_test.ml":2629:64: Everything else:test_expect_test:2629
     │   ├─(WARNING: 2 i= 6)
-    │   ├─"test/test_expect_test.ml":2628:11: Everything fun:test_expect_test:2628
+    │   ├─"test/test_expect_test.ml":2632:11: Everything fun:test_expect_test:2632
     │   └─(INFO: 3 j= 21)
     └─result = 21
     21
@@ -2699,98 +2704,98 @@ let%expect_test "%log runtime log levels while-loop" =
 
     BEGIN DEBUG SESSION Error
     result = 21
-    ├─"test/test_expect_test.ml":2620:27
-    └─Error while:test_expect_test:2623
-      ├─"test/test_expect_test.ml":2623:4
+    ├─"test/test_expect_test.ml":2624:27
+    └─Error while:test_expect_test:2627
+      ├─"test/test_expect_test.ml":2627:4
       ├─Error <while loop>
-      │ ├─"test/test_expect_test.ml":2625:6
-      │ ├─Error then:test_expect_test:2625
-      │ │ ├─"test/test_expect_test.ml":2625:21
+      │ ├─"test/test_expect_test.ml":2629:6
+      │ ├─Error then:test_expect_test:2629
+      │ │ ├─"test/test_expect_test.ml":2629:21
       │ │ └─(ERROR: 1 i= 0)
-      │ └─Error fun:test_expect_test:2628
-      │   └─"test/test_expect_test.ml":2628:11
+      │ └─Error fun:test_expect_test:2632
+      │   └─"test/test_expect_test.ml":2632:11
       ├─Error <while loop>
-      │ ├─"test/test_expect_test.ml":2625:6
-      │ ├─Error then:test_expect_test:2625
-      │ │ ├─"test/test_expect_test.ml":2625:21
+      │ ├─"test/test_expect_test.ml":2629:6
+      │ ├─Error then:test_expect_test:2629
+      │ │ ├─"test/test_expect_test.ml":2629:21
       │ │ └─(ERROR: 1 i= 1)
-      │ └─Error fun:test_expect_test:2628
-      │   └─"test/test_expect_test.ml":2628:11
+      │ └─Error fun:test_expect_test:2632
+      │   └─"test/test_expect_test.ml":2632:11
       ├─Error <while loop>
-      │ ├─"test/test_expect_test.ml":2625:6
-      │ ├─Error else:test_expect_test:2625
-      │ │ └─"test/test_expect_test.ml":2625:64
-      │ └─Error fun:test_expect_test:2628
-      │   └─"test/test_expect_test.ml":2628:11
+      │ ├─"test/test_expect_test.ml":2629:6
+      │ ├─Error else:test_expect_test:2629
+      │ │ └─"test/test_expect_test.ml":2629:64
+      │ └─Error fun:test_expect_test:2632
+      │   └─"test/test_expect_test.ml":2632:11
       ├─Error <while loop>
-      │ ├─"test/test_expect_test.ml":2625:6
-      │ ├─Error else:test_expect_test:2625
-      │ │ └─"test/test_expect_test.ml":2625:64
-      │ └─Error fun:test_expect_test:2628
-      │   └─"test/test_expect_test.ml":2628:11
+      │ ├─"test/test_expect_test.ml":2629:6
+      │ ├─Error else:test_expect_test:2629
+      │ │ └─"test/test_expect_test.ml":2629:64
+      │ └─Error fun:test_expect_test:2632
+      │   └─"test/test_expect_test.ml":2632:11
       ├─Error <while loop>
-      │ ├─"test/test_expect_test.ml":2625:6
-      │ ├─Error else:test_expect_test:2625
-      │ │ └─"test/test_expect_test.ml":2625:64
-      │ └─Error fun:test_expect_test:2628
-      │   └─"test/test_expect_test.ml":2628:11
+      │ ├─"test/test_expect_test.ml":2629:6
+      │ ├─Error else:test_expect_test:2629
+      │ │ └─"test/test_expect_test.ml":2629:64
+      │ └─Error fun:test_expect_test:2632
+      │   └─"test/test_expect_test.ml":2632:11
       └─Error <while loop>
-        ├─"test/test_expect_test.ml":2625:6
-        ├─Error else:test_expect_test:2625
-        │ └─"test/test_expect_test.ml":2625:64
-        └─Error fun:test_expect_test:2628
-          └─"test/test_expect_test.ml":2628:11
+        ├─"test/test_expect_test.ml":2629:6
+        ├─Error else:test_expect_test:2629
+        │ └─"test/test_expect_test.ml":2629:64
+        └─Error fun:test_expect_test:2632
+          └─"test/test_expect_test.ml":2632:11
     21
 
     BEGIN DEBUG SESSION Warning
     result = 21
-    ├─"test/test_expect_test.ml":2620:27
-    └─Warning while:test_expect_test:2623
-      ├─"test/test_expect_test.ml":2623:4
+    ├─"test/test_expect_test.ml":2624:27
+    └─Warning while:test_expect_test:2627
+      ├─"test/test_expect_test.ml":2627:4
       ├─Warning <while loop>
-      │ ├─"test/test_expect_test.ml":2625:6
-      │ ├─Warning then:test_expect_test:2625
-      │ │ ├─"test/test_expect_test.ml":2625:21
+      │ ├─"test/test_expect_test.ml":2629:6
+      │ ├─Warning then:test_expect_test:2629
+      │ │ ├─"test/test_expect_test.ml":2629:21
       │ │ └─(ERROR: 1 i= 0)
       │ ├─(WARNING: 2 i= 1)
-      │ └─Warning fun:test_expect_test:2628
-      │   └─"test/test_expect_test.ml":2628:11
+      │ └─Warning fun:test_expect_test:2632
+      │   └─"test/test_expect_test.ml":2632:11
       ├─Warning <while loop>
-      │ ├─"test/test_expect_test.ml":2625:6
-      │ ├─Warning then:test_expect_test:2625
-      │ │ ├─"test/test_expect_test.ml":2625:21
+      │ ├─"test/test_expect_test.ml":2629:6
+      │ ├─Warning then:test_expect_test:2629
+      │ │ ├─"test/test_expect_test.ml":2629:21
       │ │ └─(ERROR: 1 i= 1)
       │ ├─(WARNING: 2 i= 2)
-      │ └─Warning fun:test_expect_test:2628
-      │   └─"test/test_expect_test.ml":2628:11
+      │ └─Warning fun:test_expect_test:2632
+      │   └─"test/test_expect_test.ml":2632:11
       ├─Warning <while loop>
-      │ ├─"test/test_expect_test.ml":2625:6
-      │ ├─Warning else:test_expect_test:2625
-      │ │ └─"test/test_expect_test.ml":2625:64
+      │ ├─"test/test_expect_test.ml":2629:6
+      │ ├─Warning else:test_expect_test:2629
+      │ │ └─"test/test_expect_test.ml":2629:64
       │ ├─(WARNING: 2 i= 3)
-      │ └─Warning fun:test_expect_test:2628
-      │   └─"test/test_expect_test.ml":2628:11
+      │ └─Warning fun:test_expect_test:2632
+      │   └─"test/test_expect_test.ml":2632:11
       ├─Warning <while loop>
-      │ ├─"test/test_expect_test.ml":2625:6
-      │ ├─Warning else:test_expect_test:2625
-      │ │ └─"test/test_expect_test.ml":2625:64
+      │ ├─"test/test_expect_test.ml":2629:6
+      │ ├─Warning else:test_expect_test:2629
+      │ │ └─"test/test_expect_test.ml":2629:64
       │ ├─(WARNING: 2 i= 4)
-      │ └─Warning fun:test_expect_test:2628
-      │   └─"test/test_expect_test.ml":2628:11
+      │ └─Warning fun:test_expect_test:2632
+      │   └─"test/test_expect_test.ml":2632:11
       ├─Warning <while loop>
-      │ ├─"test/test_expect_test.ml":2625:6
-      │ ├─Warning else:test_expect_test:2625
-      │ │ └─"test/test_expect_test.ml":2625:64
+      │ ├─"test/test_expect_test.ml":2629:6
+      │ ├─Warning else:test_expect_test:2629
+      │ │ └─"test/test_expect_test.ml":2629:64
       │ ├─(WARNING: 2 i= 5)
-      │ └─Warning fun:test_expect_test:2628
-      │   └─"test/test_expect_test.ml":2628:11
+      │ └─Warning fun:test_expect_test:2632
+      │   └─"test/test_expect_test.ml":2632:11
       └─Warning <while loop>
-        ├─"test/test_expect_test.ml":2625:6
-        ├─Warning else:test_expect_test:2625
-        │ └─"test/test_expect_test.ml":2625:64
+        ├─"test/test_expect_test.ml":2629:6
+        ├─Warning else:test_expect_test:2629
+        │ └─"test/test_expect_test.ml":2629:64
         ├─(WARNING: 2 i= 6)
-        └─Warning fun:test_expect_test:2628
-          └─"test/test_expect_test.ml":2628:11
+        └─Warning fun:test_expect_test:2632
+          └─"test/test_expect_test.ml":2632:11
     21
     |}]
 
@@ -2851,86 +2856,86 @@ let%expect_test "%log compile time log levels while-loop" =
     {|
     BEGIN DEBUG SESSION
     everything = 21
-    ├─"test/test_expect_test.ml":2799:28
-    └─while:test_expect_test:2804
-      ├─"test/test_expect_test.ml":2804:6
+    ├─"test/test_expect_test.ml":2804:28
+    └─while:test_expect_test:2809
+      ├─"test/test_expect_test.ml":2809:6
       ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2806:8
-      │ ├─then:test_expect_test:2806
-      │ │ ├─"test/test_expect_test.ml":2806:23
+      │ ├─"test/test_expect_test.ml":2811:8
+      │ ├─then:test_expect_test:2811
+      │ │ ├─"test/test_expect_test.ml":2811:23
       │ │ └─(ERROR: 1 i= 0)
       │ ├─(WARNING: 2 i= 1)
-      │ ├─fun:test_expect_test:2809
-      │ │ └─"test/test_expect_test.ml":2809:13
+      │ ├─fun:test_expect_test:2814
+      │ │ └─"test/test_expect_test.ml":2814:13
       │ └─(INFO: 3 j= 1)
       ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2806:8
-      │ ├─then:test_expect_test:2806
-      │ │ ├─"test/test_expect_test.ml":2806:23
+      │ ├─"test/test_expect_test.ml":2811:8
+      │ ├─then:test_expect_test:2811
+      │ │ ├─"test/test_expect_test.ml":2811:23
       │ │ └─(ERROR: 1 i= 1)
       │ ├─(WARNING: 2 i= 2)
-      │ ├─fun:test_expect_test:2809
-      │ │ └─"test/test_expect_test.ml":2809:13
+      │ ├─fun:test_expect_test:2814
+      │ │ └─"test/test_expect_test.ml":2814:13
       │ └─(INFO: 3 j= 3)
       ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2806:8
-      │ ├─else:test_expect_test:2806
-      │ │ └─"test/test_expect_test.ml":2806:66
+      │ ├─"test/test_expect_test.ml":2811:8
+      │ ├─else:test_expect_test:2811
+      │ │ └─"test/test_expect_test.ml":2811:66
       │ ├─(WARNING: 2 i= 3)
-      │ ├─fun:test_expect_test:2809
-      │ │ └─"test/test_expect_test.ml":2809:13
+      │ ├─fun:test_expect_test:2814
+      │ │ └─"test/test_expect_test.ml":2814:13
       │ └─(INFO: 3 j= 6)
       ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2806:8
-      │ ├─else:test_expect_test:2806
-      │ │ └─"test/test_expect_test.ml":2806:66
+      │ ├─"test/test_expect_test.ml":2811:8
+      │ ├─else:test_expect_test:2811
+      │ │ └─"test/test_expect_test.ml":2811:66
       │ ├─(WARNING: 2 i= 4)
-      │ ├─fun:test_expect_test:2809
-      │ │ └─"test/test_expect_test.ml":2809:13
+      │ ├─fun:test_expect_test:2814
+      │ │ └─"test/test_expect_test.ml":2814:13
       │ └─(INFO: 3 j= 10)
       ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2806:8
-      │ ├─else:test_expect_test:2806
-      │ │ └─"test/test_expect_test.ml":2806:66
+      │ ├─"test/test_expect_test.ml":2811:8
+      │ ├─else:test_expect_test:2811
+      │ │ └─"test/test_expect_test.ml":2811:66
       │ ├─(WARNING: 2 i= 5)
-      │ ├─fun:test_expect_test:2809
-      │ │ └─"test/test_expect_test.ml":2809:13
+      │ ├─fun:test_expect_test:2814
+      │ │ └─"test/test_expect_test.ml":2814:13
       │ └─(INFO: 3 j= 15)
       └─<while loop>
-        ├─"test/test_expect_test.ml":2806:8
-        ├─else:test_expect_test:2806
-        │ └─"test/test_expect_test.ml":2806:66
+        ├─"test/test_expect_test.ml":2811:8
+        ├─else:test_expect_test:2811
+        │ └─"test/test_expect_test.ml":2811:66
         ├─(WARNING: 2 i= 6)
-        ├─fun:test_expect_test:2809
-        │ └─"test/test_expect_test.ml":2809:13
+        ├─fun:test_expect_test:2814
+        │ └─"test/test_expect_test.ml":2814:13
         └─(INFO: 3 j= 21)
     21
     nothing = 21
-    └─"test/test_expect_test.ml":2814:25
+    └─"test/test_expect_test.ml":2819:25
     21
     warning = 21
-    ├─"test/test_expect_test.ml":2830:25
-    └─while:test_expect_test:2835
-      ├─"test/test_expect_test.ml":2835:6
+    ├─"test/test_expect_test.ml":2835:25
+    └─while:test_expect_test:2840
+      ├─"test/test_expect_test.ml":2840:6
       ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2837:8
+      │ ├─"test/test_expect_test.ml":2842:8
       │ ├─(ERROR: 1 i= 0)
       │ └─(WARNING: 2 i= 1)
       ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2837:8
+      │ ├─"test/test_expect_test.ml":2842:8
       │ ├─(ERROR: 1 i= 1)
       │ └─(WARNING: 2 i= 2)
       ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2837:8
+      │ ├─"test/test_expect_test.ml":2842:8
       │ └─(WARNING: 2 i= 3)
       ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2837:8
+      │ ├─"test/test_expect_test.ml":2842:8
       │ └─(WARNING: 2 i= 4)
       ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2837:8
+      │ ├─"test/test_expect_test.ml":2842:8
       │ └─(WARNING: 2 i= 5)
       └─<while loop>
-        ├─"test/test_expect_test.ml":2837:8
+        ├─"test/test_expect_test.ml":2842:8
         └─(WARNING: 2 i= 6)
     21
     |}]
@@ -2992,24 +2997,24 @@ let%expect_test "%log compile time log levels runtime-passing while-loop" =
 
     BEGIN DEBUG SESSION warning
     warning = 21
-    ├─"test/test_expect_test.ml":2966:32
-    └─warning while:test_expect_test:2969
-      ├─"test/test_expect_test.ml":2969:8
+    ├─"test/test_expect_test.ml":2971:32
+    └─warning while:test_expect_test:2974
+      ├─"test/test_expect_test.ml":2974:8
       ├─warning <while loop>
-      │ └─"test/test_expect_test.ml":2971:10
+      │ └─"test/test_expect_test.ml":2976:10
       ├─warning <while loop>
-      │ └─"test/test_expect_test.ml":2971:10
+      │ └─"test/test_expect_test.ml":2976:10
       ├─warning <while loop>
-      │ └─"test/test_expect_test.ml":2971:10
+      │ └─"test/test_expect_test.ml":2976:10
       ├─warning <while loop>
-      │ └─"test/test_expect_test.ml":2971:10
+      │ └─"test/test_expect_test.ml":2976:10
       ├─warning <while loop>
-      │ └─"test/test_expect_test.ml":2971:10
+      │ └─"test/test_expect_test.ml":2976:10
       └─warning <while loop>
-        └─"test/test_expect_test.ml":2971:10
+        └─"test/test_expect_test.ml":2976:10
     21
     TOPLEVEL ()
-    ├─"test/test_expect_test.ml":2944:17
+    ├─"test/test_expect_test.ml":2949:17
     ├─(ERROR: 1 i= 0)
     ├─(WARNING: 2 i= 1)
     ├─(ERROR: 1 i= 1)
@@ -3040,36 +3045,36 @@ let%expect_test "%log track while-loop result" =
     {|
     BEGIN DEBUG SESSION
     21
-    ├─"test/test_expect_test.ml":3025:17
-    └─while:test_expect_test:3028
-      ├─"test/test_expect_test.ml":3028:4
+    ├─"test/test_expect_test.ml":3030:17
+    └─while:test_expect_test:3033
+      ├─"test/test_expect_test.ml":3033:4
       ├─(3 j= 1)
-      │ ├─"test/test_expect_test.ml":3029:6
+      │ ├─"test/test_expect_test.ml":3034:6
       │ ├─<while loop>
       │ ├─(1 i= 0)
       │ └─(2 i= 1)
       ├─(3 j= 3)
-      │ ├─"test/test_expect_test.ml":3029:6
+      │ ├─"test/test_expect_test.ml":3034:6
       │ ├─<while loop>
       │ ├─(1 i= 1)
       │ └─(2 i= 2)
       ├─(3 j= 6)
-      │ ├─"test/test_expect_test.ml":3029:6
+      │ ├─"test/test_expect_test.ml":3034:6
       │ ├─<while loop>
       │ ├─(1 i= 2)
       │ └─(2 i= 3)
       ├─(3 j= 10)
-      │ ├─"test/test_expect_test.ml":3029:6
+      │ ├─"test/test_expect_test.ml":3034:6
       │ ├─<while loop>
       │ ├─(1 i= 3)
       │ └─(2 i= 4)
       ├─(3 j= 15)
-      │ ├─"test/test_expect_test.ml":3029:6
+      │ ├─"test/test_expect_test.ml":3034:6
       │ ├─<while loop>
       │ ├─(1 i= 4)
       │ └─(2 i= 5)
       └─(3 j= 21)
-        ├─"test/test_expect_test.ml":3029:6
+        ├─"test/test_expect_test.ml":3034:6
         ├─<while loop>
         ├─(1 i= 5)
         └─(2 i= 6)
@@ -3100,7 +3105,7 @@ let%expect_test "%log without scope" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":3090:17: _bar {#1}
+    "test/test_expect_test.ml":3095:17: _bar {#1}
     └─_bar = ()
     {orphaned from #1}
     └─("This is like", 3, "or", 3.14, "above")
@@ -3136,7 +3141,7 @@ let%expect_test "%log without scope values_first_mode" =
     {|
     BEGIN DEBUG SESSION
     _bar = ()
-    └─"test/test_expect_test.ml":3125:17 {#1}
+    └─"test/test_expect_test.ml":3130:17 {#1}
     ("This is like", 3, "or", 3.14, "above")
     └─{orphaned from #1}
     ("tau =", 6.28)
@@ -3150,6 +3155,7 @@ let%expect_test "%log without scope values_first_mode" =
     |}]
 
 let%expect_test "%log with print_entry_ids, mixed up scopes" =
+  (* $MDX part-begin=log_with_print_entry_ids_mixed_up_scopes *)
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime ~print_entry_ids:true ()
   in
@@ -3184,13 +3190,13 @@ let%expect_test "%log with print_entry_ids, mixed up scopes" =
     {|
     BEGIN DEBUG SESSION
     bar = ()
-    └─"test/test_expect_test.ml":3162:21 {#1}
+    └─"test/test_expect_test.ml":3168:21 {#1}
     baz = ()
-    └─"test/test_expect_test.ml":3169:21 {#2}
+    └─"test/test_expect_test.ml":3175:21 {#2}
     bar = ()
-    └─"test/test_expect_test.ml":3162:21 {#3}
+    └─"test/test_expect_test.ml":3168:21 {#3}
     _foobar = ()
-    ├─"test/test_expect_test.ml":3181:17 {#4}
+    ├─"test/test_expect_test.ml":3187:17 {#4}
     ├─("This is like", 3, "or", 3.14, "above")
     ├─("tau =", 6.28)
     ├─[3; 1; 2; 3]
@@ -3206,6 +3212,7 @@ let%expect_test "%log with print_entry_ids, mixed up scopes" =
     ("tau =", 6.28)
     └─{orphaned from #1}
     |}]
+(* $MDX part-end *)
 
 let%expect_test "%log with print_entry_ids, verbose_entry_ids in HTML, values_first_mode"
     =
@@ -3243,13 +3250,13 @@ let%expect_test "%log with print_entry_ids, verbose_entry_ids in HTML, values_fi
   [%expect
     {|
     BEGIN DEBUG SESSION
-    <div><div><table class="non-framed"><tr><td><a id="1"></a></td><td><pre style="font-family: monospace">{#1} bar = ()</pre></td></tr></table><ul><li><table class="non-framed"><tr><td><div>&quot;test/test_expect_test.ml&quot;:3222:21</div></td><td><div><a href="#1"><div>{#1}</div></a></div></td></tr></table></li></ul></div></div>
+    <div><div><table class="non-framed"><tr><td><a id="1"></a></td><td><pre style="font-family: monospace">{#1} bar = ()</pre></td></tr></table><ul><li><table class="non-framed"><tr><td><div>&quot;test/test_expect_test.ml&quot;:3229:21</div></td><td><div><a href="#1"><div>{#1}</div></a></div></td></tr></table></li></ul></div></div>
 
-    <div><div><table class="non-framed"><tr><td><a id="2"></a></td><td><pre style="font-family: monospace">{#2} baz = ()</pre></td></tr></table><ul><li><table class="non-framed"><tr><td><div>&quot;test/test_expect_test.ml&quot;:3229:21</div></td><td><div><a href="#2"><div>{#2}</div></a></div></td></tr></table></li></ul></div></div>
+    <div><div><table class="non-framed"><tr><td><a id="2"></a></td><td><pre style="font-family: monospace">{#2} baz = ()</pre></td></tr></table><ul><li><table class="non-framed"><tr><td><div>&quot;test/test_expect_test.ml&quot;:3236:21</div></td><td><div><a href="#2"><div>{#2}</div></a></div></td></tr></table></li></ul></div></div>
 
-    <div><div><table class="non-framed"><tr><td><a id="3"></a></td><td><pre style="font-family: monospace">{#3} bar = ()</pre></td></tr></table><ul><li><table class="non-framed"><tr><td><div>&quot;test/test_expect_test.ml&quot;:3222:21</div></td><td><div><a href="#3"><div>{#3}</div></a></div></td></tr></table></li></ul></div></div>
+    <div><div><table class="non-framed"><tr><td><a id="3"></a></td><td><pre style="font-family: monospace">{#3} bar = ()</pre></td></tr></table><ul><li><table class="non-framed"><tr><td><div>&quot;test/test_expect_test.ml&quot;:3229:21</div></td><td><div><a href="#3"><div>{#3}</div></a></div></td></tr></table></li></ul></div></div>
 
-    <div><div><table class="non-framed"><tr><td><a id="4"></a></td><td><pre style="font-family: monospace">{#4} _foobar = ()</pre></td></tr></table><ul><li><table class="non-framed"><tr><td><div>&quot;test/test_expect_test.ml&quot;:3241:17</div></td><td><div><a href="#4"><div>{#4}</div></a></div></td></tr></table></li><li><pre style="font-family: monospace">{#3} (&quot;This is like&quot;, 3, &quot;or&quot;, 3.14, &quot;above&quot;)</pre></li><li><pre style="font-family: monospace">{#3} (&quot;tau =&quot;, 6.28)</pre></li><li><pre style="font-family: monospace">{#2} [3; 1; 2; 3]</pre></li><li><pre style="font-family: monospace">{#2} [3; 1; 2; 3]</pre></li><li><pre style="font-family: monospace">{#1} (&quot;This is like&quot;, 3, &quot;or&quot;, 3.14, &quot;above&quot;)</pre></li><li><pre style="font-family: monospace">{#1} (&quot;tau =&quot;, 6.28)</pre></li></ul></div></div>
+    <div><div><table class="non-framed"><tr><td><a id="4"></a></td><td><pre style="font-family: monospace">{#4} _foobar = ()</pre></td></tr></table><ul><li><table class="non-framed"><tr><td><div>&quot;test/test_expect_test.ml&quot;:3248:17</div></td><td><div><a href="#4"><div>{#4}</div></a></div></td></tr></table></li><li><pre style="font-family: monospace">{#3} (&quot;This is like&quot;, 3, &quot;or&quot;, 3.14, &quot;above&quot;)</pre></li><li><pre style="font-family: monospace">{#3} (&quot;tau =&quot;, 6.28)</pre></li><li><pre style="font-family: monospace">{#2} [3; 1; 2; 3]</pre></li><li><pre style="font-family: monospace">{#2} [3; 1; 2; 3]</pre></li><li><pre style="font-family: monospace">{#1} (&quot;This is like&quot;, 3, &quot;or&quot;, 3.14, &quot;above&quot;)</pre></li><li><pre style="font-family: monospace">{#1} (&quot;tau =&quot;, 6.28)</pre></li></ul></div></div>
 
     <div><div><table class="non-framed"><tr><td><div></div></td><td><pre style="font-family: monospace">{#2} [3; 1; 2; 3]</pre></td></tr></table><ul><li><div>{orphaned from #2}</div></li></ul></div></div>
 
@@ -3284,12 +3291,13 @@ let%expect_test "%diagn_show ignores type annots" =
     336
     109
     toplevel
-    ├─"test/test_expect_test.ml":3265:17
+    ├─"test/test_expect_test.ml":3272:17
     ├─("for bar, b-3", 42)
     └─("for baz, f squared", 64)
     |}]
 
 let%expect_test "%diagn_show ignores non-empty bindings" =
+  (* $MDX part-begin=diagn_show_ignores_bindings *)
   let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%diagn_show bar { first : int; second : int } : int =
     let { first : int = a; second : int = b } = { first; second = second + 3 } in
@@ -3310,14 +3318,15 @@ let%expect_test "%diagn_show ignores non-empty bindings" =
     {|
     BEGIN DEBUG SESSION
     bar
-    ├─"test/test_expect_test.ml":3294:21
+    ├─"test/test_expect_test.ml":3302:21
     └─("for bar, b-3", 42)
     336
     baz
-    ├─"test/test_expect_test.ml":3301:21
+    ├─"test/test_expect_test.ml":3309:21
     └─("foo baz, f squared", 49)
     91
     |}]
+(* $MDX part-end *)
 
 let%expect_test "%diagn_show no logs" =
   let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
@@ -3355,8 +3364,6 @@ let%expect_test "%debug_show log level compile time" =
         [%log1 "for bar, b-3", (b - 3 : int)];
         (b - 3) * y
       in
-      (* FIXME: _ is broken, once we get rid of it swap the order of baz and bar to
-         verify. *)
       let%debug2_show baz { first : int; second : int } : int =
         let { first : int; second : int } = { first = first + 1; second = second + 3 } in
         [%log "for baz, f squared", (first * first : int)];
@@ -3373,14 +3380,14 @@ let%expect_test "%debug_show log level compile time" =
     336
     109
     ()
-    ├─"test/test_expect_test.ml":3343:18
+    ├─"test/test_expect_test.ml":3352:18
     ├─("for bar, b-3", 42)
     └─baz = 109
-      ├─"test/test_expect_test.ml":3360:26
+      ├─"test/test_expect_test.ml":3367:26
       ├─first = 7
       ├─second = 42
       ├─{first; second}
-      │ ├─"test/test_expect_test.ml":3361:12
+      │ ├─"test/test_expect_test.ml":3368:12
       │ └─<values>
       │   ├─first = 8
       │   └─second = 45
@@ -3388,6 +3395,7 @@ let%expect_test "%debug_show log level compile time" =
     |}]
 
 let%expect_test "%debug_show log level runtime" =
+  (* $MDX part-begin=debug_show_log_level_runtime *)
   let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime ~log_level:2 () in
   let%debug3_show () =
     let foo { first : int; second : int } : int =
@@ -3402,8 +3410,6 @@ let%expect_test "%debug_show log level runtime" =
       [%log1 "for bar, b-3", (b - 3 : int)];
       (b - 3) * y
     in
-    (* FIXME: _ is broken, once we get rid of it swap the order of baz and bar to
-       verify. *)
     let%debug2_show baz { first : int; second : int } : int =
       let { first : int; second : int } = { first = first + 1; second = second + 3 } in
       [%log "for baz, f squared", (first * first : int)];
@@ -3421,17 +3427,18 @@ let%expect_test "%debug_show log level runtime" =
     └─{orphaned from #5}
     336
     baz = 109
-    ├─"test/test_expect_test.ml":3407:24
+    ├─"test/test_expect_test.ml":3413:24
     ├─first = 7
     ├─second = 42
     ├─{first; second}
-    │ ├─"test/test_expect_test.ml":3408:10
+    │ ├─"test/test_expect_test.ml":3414:10
     │ └─<values>
     │   ├─first = 8
     │   └─second = 45
     └─("for baz, f squared", 64)
     109
     |}]
+(* $MDX part-end *)
 
 let%expect_test "%debug_show PrintBox snapshot" =
   let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
@@ -3445,75 +3452,75 @@ let%expect_test "%debug_show PrintBox snapshot" =
     {|
     BEGIN DEBUG SESSION
     loop_highlight
-    ├─"test/test_expect_test.ml":3438:36
+    ├─"test/test_expect_test.ml":3445:36
     ├─x = 7
     └─z = 3
-      └─"test/test_expect_test.ml":3439:8
+      └─"test/test_expect_test.ml":3446:8
     [2J[1;1Hloop_highlight
-    ├─"test/test_expect_test.ml":3438:36
+    ├─"test/test_expect_test.ml":3445:36
     ├─x = 7
     ├─z = 3
-    │ └─"test/test_expect_test.ml":3439:8
+    │ └─"test/test_expect_test.ml":3446:8
     └─loop_highlight
-      ├─"test/test_expect_test.ml":3438:36
+      ├─"test/test_expect_test.ml":3445:36
       ├─x = 6
       ├─z = 2
-      │ └─"test/test_expect_test.ml":3439:8
+      │ └─"test/test_expect_test.ml":3446:8
       └─loop_highlight
-        ├─"test/test_expect_test.ml":3438:36
+        ├─"test/test_expect_test.ml":3445:36
         ├─x = 5
         ├─z = 2
-        │ └─"test/test_expect_test.ml":3439:8
+        │ └─"test/test_expect_test.ml":3446:8
         └─loop_highlight
-          ├─"test/test_expect_test.ml":3438:36
+          ├─"test/test_expect_test.ml":3445:36
           ├─x = 4
           ├─z = 1
-          │ └─"test/test_expect_test.ml":3439:8
+          │ └─"test/test_expect_test.ml":3446:8
           └─loop_highlight
-            ├─"test/test_expect_test.ml":3438:36
+            ├─"test/test_expect_test.ml":3445:36
             ├─x = 3
             └─z = 1
-              └─"test/test_expect_test.ml":3439:8
+              └─"test/test_expect_test.ml":3446:8
     [2J[1;1Hloop_highlight = 9
-    ├─"test/test_expect_test.ml":3438:36
+    ├─"test/test_expect_test.ml":3445:36
     ├─x = 7
     ├─z = 3
-    │ └─"test/test_expect_test.ml":3439:8
+    │ └─"test/test_expect_test.ml":3446:8
     └─loop_highlight = 6
-      ├─"test/test_expect_test.ml":3438:36
+      ├─"test/test_expect_test.ml":3445:36
       ├─x = 6
       ├─z = 2
-      │ └─"test/test_expect_test.ml":3439:8
+      │ └─"test/test_expect_test.ml":3446:8
       └─loop_highlight = 4
-        ├─"test/test_expect_test.ml":3438:36
+        ├─"test/test_expect_test.ml":3445:36
         ├─x = 5
         ├─z = 2
-        │ └─"test/test_expect_test.ml":3439:8
+        │ └─"test/test_expect_test.ml":3446:8
         └─loop_highlight = 2
-          ├─"test/test_expect_test.ml":3438:36
+          ├─"test/test_expect_test.ml":3445:36
           ├─x = 4
           ├─z = 1
-          │ └─"test/test_expect_test.ml":3439:8
+          │ └─"test/test_expect_test.ml":3446:8
           └─loop_highlight = 1
-            ├─"test/test_expect_test.ml":3438:36
+            ├─"test/test_expect_test.ml":3445:36
             ├─x = 3
             ├─z = 1
-            │ └─"test/test_expect_test.ml":3439:8
+            │ └─"test/test_expect_test.ml":3446:8
             └─loop_highlight = 0
-              ├─"test/test_expect_test.ml":3438:36
+              ├─"test/test_expect_test.ml":3445:36
               ├─x = 2
               ├─z = 0
-              │ └─"test/test_expect_test.ml":3439:8
+              │ └─"test/test_expect_test.ml":3446:8
               └─loop_highlight = 0
-                ├─"test/test_expect_test.ml":3438:36
+                ├─"test/test_expect_test.ml":3445:36
                 ├─x = 1
                 ├─z = 0
-                │ └─"test/test_expect_test.ml":3439:8
+                │ └─"test/test_expect_test.ml":3446:8
                 └─loop_highlight = 0
-                  ├─"test/test_expect_test.ml":3438:36
+                  ├─"test/test_expect_test.ml":3445:36
                   ├─x = 0
                   └─z = 0
-                    └─"test/test_expect_test.ml":3439:8
+                    └─"test/test_expect_test.ml":3446:8
     9
     |}]
 
@@ -3532,6 +3539,7 @@ let%expect_test "%track_show don't show unannotated non-function bindings" =
         BEGIN DEBUG SESSION |}]
 
 let%expect_test "%log_printbox" =
+  (* $MDX part-begin=log_printbox *)
   let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%debug_show foo () : unit =
     [%log_printbox
@@ -3553,7 +3561,7 @@ let%expect_test "%log_printbox" =
     {|
     BEGIN DEBUG SESSION
     foo = ()
-    ├─"test/test_expect_test.ml":3536:21
+    ├─"test/test_expect_test.ml":3544:21
     ├─0/0│0/1│0/2│0/3│0/4
     │ ───┼───┼───┼───┼───
     │ 1/0│1/1│1/2│1/3│1/4
@@ -3592,6 +3600,7 @@ let%expect_test "%log_printbox" =
       │4/0│4/1│4/2│4/3│4/4│
       └───┴───┴───┴───┴───┘
     |}]
+(* $MDX part-end *)
 
 let%expect_test "%log_printbox flushing" =
   let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime_flushing () in
@@ -3618,7 +3627,7 @@ let%expect_test "%log_printbox flushing" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    foo begin "test/test_expect_test.ml":3598:21:
+    foo begin "test/test_expect_test.ml":3607:21:
      0/0│0/1│0/2│0/3│0/4
      ───┼───┼───┼───┼───
      1/0│1/1│1/2│1/3│1/4
@@ -3643,7 +3652,7 @@ let%expect_test "%log_printbox flushing" =
 
 
       4/0  4/1  4/2  4/3  4/4
-     bar begin "test/test_expect_test.ml":3607:12:
+     bar begin "test/test_expect_test.ml":3616:12:
       "Now with a frame:"
       ┌───┬───┬───┬───┬───┐
       │0/0│0/1│0/2│0/3│0/4│
@@ -3663,6 +3672,7 @@ let%expect_test "%log_printbox flushing" =
     |}]
 
 let%expect_test "%log_entry" =
+  (* $MDX part-begin=log_entry *)
   let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
   in
@@ -3705,7 +3715,7 @@ let%expect_test "%log_entry" =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":3669:17: _logging_logic
+    "test/test_expect_test.ml":3679:17: _logging_logic
     ├─"preamble"
     ├─header 1
     │ ├─"log 1"
@@ -3716,6 +3726,7 @@ let%expect_test "%log_entry" =
     │ └─"log 4"
     └─"postscript"
     |}]
+(* $MDX part-end *)
 
 let%expect_test "flame graph" =
   let _get_local_debug_runtime =
@@ -3745,36 +3756,36 @@ let%expect_test "flame graph" =
   print_endline output;
   [%expect
     {|
-                    <div style="position: relative; height: 0px;"><div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a3b8d2;"><div><div><a href="./test_expect_test_flame_graph.html#1"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+                    <div style="position: relative; height: 0px;"><div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a3b8d2;"><div><div><a href="./test_expect_test_flame_graph.html#1"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a7a1eb;"><div><div><a href="./test_expect_test_flame_graph.html#2"><div>&quot;test/test_expect_test.ml&quot;:3731:10: y</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a7a1eb;"><div><div><a href="./test_expect_test_flame_graph.html#2"><div>&quot;test/test_expect_test.ml&quot;:3742:10: y</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #b88f91;"><div><div><a href="./test_expect_test_flame_graph.html#3"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #b88f91;"><div><div><a href="./test_expect_test_flame_graph.html#3"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bfadb3;"><div><div><a href="./test_expect_test_flame_graph.html#4"><div>&quot;test/test_expect_test.ml&quot;:3731:10: y</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bfadb3;"><div><div><a href="./test_expect_test_flame_graph.html#4"><div>&quot;test/test_expect_test.ml&quot;:3742:10: y</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #c5c7ed;"><div><div><a href="./test_expect_test_flame_graph.html#5"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #c5c7ed;"><div><div><a href="./test_expect_test_flame_graph.html#5"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #ebdf9d;"><div><div><a href="./test_expect_test_flame_graph.html#6"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #ebdf9d;"><div><div><a href="./test_expect_test_flame_graph.html#6"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bfbbe7;"><div><div><a href="./test_expect_test_flame_graph.html#7"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bfbbe7;"><div><div><a href="./test_expect_test_flame_graph.html#7"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #ebebd3;"><div><div><a href="./test_expect_test_flame_graph.html#8"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #ebebd3;"><div><div><a href="./test_expect_test_flame_graph.html#8"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div></div>
            </div></div>
            </div></div>
            </div></div>
            </div></div>
            <div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9994b2;"><div><div><a href="./test_expect_test_flame_graph.html#9"><div>&quot;test/test_expect_test.ml&quot;:3732:10: z</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9994b2;"><div><div><a href="./test_expect_test_flame_graph.html#9"><div>&quot;test/test_expect_test.ml&quot;:3743:10: z</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #c4efdd;"><div><div><a href="./test_expect_test_flame_graph.html#10"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #c4efdd;"><div><div><a href="./test_expect_test_flame_graph.html#10"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d8eeca;"><div><div><a href="./test_expect_test_flame_graph.html#11"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d8eeca;"><div><div><a href="./test_expect_test_flame_graph.html#11"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bea2e0;"><div><div><a href="./test_expect_test_flame_graph.html#12"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bea2e0;"><div><div><a href="./test_expect_test_flame_graph.html#12"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9192c4;"><div><div><a href="./test_expect_test_flame_graph.html#13"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9192c4;"><div><div><a href="./test_expect_test_flame_graph.html#13"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div></div>
            </div></div>
            </div></div>
@@ -3783,34 +3794,34 @@ let%expect_test "flame graph" =
            </div></div>
            </div></div>
            <div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bb8f91;"><div><div><a href="./test_expect_test_flame_graph.html#14"><div>&quot;test/test_expect_test.ml&quot;:3732:10: z</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bb8f91;"><div><div><a href="./test_expect_test_flame_graph.html#14"><div>&quot;test/test_expect_test.ml&quot;:3743:10: z</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bd8fef;"><div><div><a href="./test_expect_test_flame_graph.html#15"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bd8fef;"><div><div><a href="./test_expect_test_flame_graph.html#15"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d7decc;"><div><div><a href="./test_expect_test_flame_graph.html#16"><div>&quot;test/test_expect_test.ml&quot;:3731:10: y</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d7decc;"><div><div><a href="./test_expect_test_flame_graph.html#16"><div>&quot;test/test_expect_test.ml&quot;:3742:10: y</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9fbbbd;"><div><div><a href="./test_expect_test_flame_graph.html#17"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9fbbbd;"><div><div><a href="./test_expect_test_flame_graph.html#17"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #e2e7d3;"><div><div><a href="./test_expect_test_flame_graph.html#18"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #e2e7d3;"><div><div><a href="./test_expect_test_flame_graph.html#18"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a0b0f0;"><div><div><a href="./test_expect_test_flame_graph.html#19"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a0b0f0;"><div><div><a href="./test_expect_test_flame_graph.html#19"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a39abc;"><div><div><a href="./test_expect_test_flame_graph.html#20"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a39abc;"><div><div><a href="./test_expect_test_flame_graph.html#20"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div></div>
            </div></div>
            </div></div>
            </div></div>
            </div></div>
            <div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #b1a1b5;"><div><div><a href="./test_expect_test_flame_graph.html#21"><div>&quot;test/test_expect_test.ml&quot;:3732:10: z</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #b1a1b5;"><div><div><a href="./test_expect_test_flame_graph.html#21"><div>&quot;test/test_expect_test.ml&quot;:3743:10: z</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d7efa5;"><div><div><a href="./test_expect_test_flame_graph.html#22"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d7efa5;"><div><div><a href="./test_expect_test_flame_graph.html#22"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #f1e7a3;"><div><div><a href="./test_expect_test_flame_graph.html#23"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #f1e7a3;"><div><div><a href="./test_expect_test_flame_graph.html#23"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9295dd;"><div><div><a href="./test_expect_test_flame_graph.html#24"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9295dd;"><div><div><a href="./test_expect_test_flame_graph.html#24"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d6dcaa;"><div><div><a href="./test_expect_test_flame_graph.html#25"><div>&quot;test/test_expect_test.ml&quot;:3727:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d6dcaa;"><div><div><a href="./test_expect_test_flame_graph.html#25"><div>&quot;test/test_expect_test.ml&quot;:3738:26: loop</div></a></div></div>
     </div></div>
            </div></div>
            </div></div>
@@ -3850,31 +3861,31 @@ let%expect_test "flame graph reduced ToC" =
   print_endline output;
   [%expect
     {|
-                    <div style="position: relative; height: 0px;"><div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d7efa5;"><div><div><a href="./test_expect_test_flame_graph.html#1"><div>&quot;test/test_expect_test.ml&quot;:3832:26: loop</div></a></div></div>
+                    <div style="position: relative; height: 0px;"><div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d7efa5;"><div><div><a href="./test_expect_test_flame_graph.html#1"><div>&quot;test/test_expect_test.ml&quot;:3843:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9994b2;"><div><div><a href="./test_expect_test_flame_graph.html#2"><div>&quot;test/test_expect_test.ml&quot;:3836:10: y</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9994b2;"><div><div><a href="./test_expect_test_flame_graph.html#2"><div>&quot;test/test_expect_test.ml&quot;:3847:10: y</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #c4efdd;"><div><div><a href="./test_expect_test_flame_graph.html#3"><div>&quot;test/test_expect_test.ml&quot;:3832:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #c4efdd;"><div><div><a href="./test_expect_test_flame_graph.html#3"><div>&quot;test/test_expect_test.ml&quot;:3843:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #c5c7ed;"><div><div><a href="./test_expect_test_flame_graph.html#4"><div>&quot;test/test_expect_test.ml&quot;:3836:10: y</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #c5c7ed;"><div><div><a href="./test_expect_test_flame_graph.html#4"><div>&quot;test/test_expect_test.ml&quot;:3847:10: y</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #ebdf9d;"><div><div><a href="./test_expect_test_flame_graph.html#5"><div>&quot;test/test_expect_test.ml&quot;:3832:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #ebdf9d;"><div><div><a href="./test_expect_test_flame_graph.html#5"><div>&quot;test/test_expect_test.ml&quot;:3843:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bfbbe7;"><div><div><a href="./test_expect_test_flame_graph.html#6"><div>&quot;test/test_expect_test.ml&quot;:3832:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bfbbe7;"><div><div><a href="./test_expect_test_flame_graph.html#6"><div>&quot;test/test_expect_test.ml&quot;:3843:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #ebebd3;"><div><div><a href="./test_expect_test_flame_graph.html#7"><div>&quot;test/test_expect_test.ml&quot;:3832:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #ebebd3;"><div><div><a href="./test_expect_test_flame_graph.html#7"><div>&quot;test/test_expect_test.ml&quot;:3843:26: loop</div></a></div></div>
     </div></div>
            </div></div>
            </div></div>
            </div></div>
            <div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d8eeca;"><div><div><a href="./test_expect_test_flame_graph.html#9"><div>&quot;test/test_expect_test.ml&quot;:3837:10: z</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d8eeca;"><div><div><a href="./test_expect_test_flame_graph.html#9"><div>&quot;test/test_expect_test.ml&quot;:3848:10: z</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bea2e0;"><div><div><a href="./test_expect_test_flame_graph.html#10"><div>&quot;test/test_expect_test.ml&quot;:3832:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bea2e0;"><div><div><a href="./test_expect_test_flame_graph.html#10"><div>&quot;test/test_expect_test.ml&quot;:3843:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9192c4;"><div><div><a href="./test_expect_test_flame_graph.html#11"><div>&quot;test/test_expect_test.ml&quot;:3832:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9192c4;"><div><div><a href="./test_expect_test_flame_graph.html#11"><div>&quot;test/test_expect_test.ml&quot;:3843:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bfadb3;"><div><div><a href="./test_expect_test_flame_graph.html#12"><div>&quot;test/test_expect_test.ml&quot;:3832:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #bfadb3;"><div><div><a href="./test_expect_test_flame_graph.html#12"><div>&quot;test/test_expect_test.ml&quot;:3843:26: loop</div></a></div></div>
     </div></div>
            </div></div>
            </div></div>
@@ -3882,29 +3893,29 @@ let%expect_test "flame graph reduced ToC" =
            </div></div>
            </div></div>
            <div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #f1e7a3;"><div><div><a href="./test_expect_test_flame_graph.html#14"><div>&quot;test/test_expect_test.ml&quot;:3837:10: z</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #f1e7a3;"><div><div><a href="./test_expect_test_flame_graph.html#14"><div>&quot;test/test_expect_test.ml&quot;:3848:10: z</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9295dd;"><div><div><a href="./test_expect_test_flame_graph.html#15"><div>&quot;test/test_expect_test.ml&quot;:3832:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9295dd;"><div><div><a href="./test_expect_test_flame_graph.html#15"><div>&quot;test/test_expect_test.ml&quot;:3843:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a0b0f0;"><div><div><a href="./test_expect_test_flame_graph.html#16"><div>&quot;test/test_expect_test.ml&quot;:3836:10: y</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a0b0f0;"><div><div><a href="./test_expect_test_flame_graph.html#16"><div>&quot;test/test_expect_test.ml&quot;:3847:10: y</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a39abc;"><div><div><a href="./test_expect_test_flame_graph.html#17"><div>&quot;test/test_expect_test.ml&quot;:3832:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a39abc;"><div><div><a href="./test_expect_test_flame_graph.html#17"><div>&quot;test/test_expect_test.ml&quot;:3843:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a7a1eb;"><div><div><a href="./test_expect_test_flame_graph.html#18"><div>&quot;test/test_expect_test.ml&quot;:3832:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #a7a1eb;"><div><div><a href="./test_expect_test_flame_graph.html#18"><div>&quot;test/test_expect_test.ml&quot;:3843:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #b88f91;"><div><div><a href="./test_expect_test_flame_graph.html#19"><div>&quot;test/test_expect_test.ml&quot;:3832:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #b88f91;"><div><div><a href="./test_expect_test_flame_graph.html#19"><div>&quot;test/test_expect_test.ml&quot;:3843:26: loop</div></a></div></div>
     </div></div>
            </div></div>
            </div></div>
            </div></div>
            <div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d6dcaa;"><div><div><a href="./test_expect_test_flame_graph.html#21"><div>&quot;test/test_expect_test.ml&quot;:3837:10: z</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d6dcaa;"><div><div><a href="./test_expect_test_flame_graph.html#21"><div>&quot;test/test_expect_test.ml&quot;:3848:10: z</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d7decc;"><div><div><a href="./test_expect_test_flame_graph.html#22"><div>&quot;test/test_expect_test.ml&quot;:3832:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #d7decc;"><div><div><a href="./test_expect_test_flame_graph.html#22"><div>&quot;test/test_expect_test.ml&quot;:3843:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9fbbbd;"><div><div><a href="./test_expect_test_flame_graph.html#23"><div>&quot;test/test_expect_test.ml&quot;:3832:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0%; width: 100%; height: 100%;"><div style="position: relative; top: 0px; left: 0px; width: 100%; background: #9fbbbd;"><div><div><a href="./test_expect_test_flame_graph.html#23"><div>&quot;test/test_expect_test.ml&quot;:3843:26: loop</div></a></div></div>
     </div><div style="position: relative; top:10%; height: 90%; left:N.NNNN%; width:N.NNNN%;">
-           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #e2e7d3;"><div><div><a href="./test_expect_test_flame_graph.html#24"><div>&quot;test/test_expect_test.ml&quot;:3832:26: loop</div></a></div></div>
+           <div style="position: relative; top: 0px; left: 0px; width: 100%; background: #e2e7d3;"><div><div><a href="./test_expect_test_flame_graph.html#24"><div>&quot;test/test_expect_test.ml&quot;:3843:26: loop</div></a></div></div>
     </div></div>
            </div></div>
            </div></div>
@@ -3932,14 +3943,15 @@ let%expect_test "%debug_show skip module bindings" =
     {|
     BEGIN DEBUG SESSION
     bar = 15
-    ├─"test/test_expect_test.ml":3920:23
+    ├─"test/test_expect_test.ml":3931:23
     ├─x = 7
     └─y = 8
-      └─"test/test_expect_test.ml":3922:8
+      └─"test/test_expect_test.ml":3933:8
     15
     |}]
 
-let%expect_test "%track_show procedure runtime passing" =
+let%expect_test "%track_show procedure runtime prefixes" =
+  (* $MDX part-begin=track_show_procedure_runtime_prefixes *)
   let i = ref 0 in
   let _get_local_debug_runtime () =
     Minidebug_runtime.debug_flushing ~global_prefix:("foo-" ^ string_of_int !i) ()
@@ -3953,7 +3965,7 @@ let%expect_test "%track_show procedure runtime passing" =
         let () = () in
         [%log "inside bar"]
   in
-  while !i < 5 do
+  while !i < 3 do
     incr i;
     foo ();
     bar ()
@@ -3961,55 +3973,36 @@ let%expect_test "%track_show procedure runtime passing" =
   [%expect
     {|
     BEGIN DEBUG SESSION foo-1
-    foo-1 foo begin "test/test_expect_test.ml":3947:21:
+    foo-1 foo begin "test/test_expect_test.ml":3959:21:
      "inside foo"
     foo-1 foo end
 
     BEGIN DEBUG SESSION foo-1
-    foo-1 <function -- branch 0> () begin "test/test_expect_test.ml":3953:8:
+    foo-1 <function -- branch 0> () begin "test/test_expect_test.ml":3965:8:
      "inside bar"
     foo-1 <function -- branch 0> () end
 
     BEGIN DEBUG SESSION foo-2
-    foo-2 foo begin "test/test_expect_test.ml":3947:21:
+    foo-2 foo begin "test/test_expect_test.ml":3959:21:
      "inside foo"
     foo-2 foo end
 
     BEGIN DEBUG SESSION foo-2
-    foo-2 <function -- branch 0> () begin "test/test_expect_test.ml":3953:8:
+    foo-2 <function -- branch 0> () begin "test/test_expect_test.ml":3965:8:
      "inside bar"
     foo-2 <function -- branch 0> () end
 
     BEGIN DEBUG SESSION foo-3
-    foo-3 foo begin "test/test_expect_test.ml":3947:21:
+    foo-3 foo begin "test/test_expect_test.ml":3959:21:
      "inside foo"
     foo-3 foo end
 
     BEGIN DEBUG SESSION foo-3
-    foo-3 <function -- branch 0> () begin "test/test_expect_test.ml":3953:8:
+    foo-3 <function -- branch 0> () begin "test/test_expect_test.ml":3965:8:
      "inside bar"
     foo-3 <function -- branch 0> () end
-
-    BEGIN DEBUG SESSION foo-4
-    foo-4 foo begin "test/test_expect_test.ml":3947:21:
-     "inside foo"
-    foo-4 foo end
-
-    BEGIN DEBUG SESSION foo-4
-    foo-4 <function -- branch 0> () begin "test/test_expect_test.ml":3953:8:
-     "inside bar"
-    foo-4 <function -- branch 0> () end
-
-    BEGIN DEBUG SESSION foo-5
-    foo-5 foo begin "test/test_expect_test.ml":3947:21:
-     "inside foo"
-    foo-5 foo end
-
-    BEGIN DEBUG SESSION foo-5
-    foo-5 <function -- branch 0> () begin "test/test_expect_test.ml":3953:8:
-     "inside bar"
-    foo-5 <function -- branch 0> () end
     |}]
+(* $MDX part-end *)
 
 let%expect_test "%track_rt_show expression runtime passing" =
   [%track_rt_show
@@ -4065,18 +4058,18 @@ let%expect_test "%debug_show tuples values_first_mode highlighted" =
     ┌─────────┐
     │bar = 336│
     ├─────────┘
-    ├─"test/test_expect_test.ml":4049:21
+    ├─"test/test_expect_test.ml":4042:21
     ├─first = 7
     ├─second = 42
     └─┬─────┐
       │y = 8│
       ├─────┘
-      └─"test/test_expect_test.ml":4050:8
+      └─"test/test_expect_test.ml":4043:8
     336
     ┌────────┐
     │(r1, r2)│
     ├────────┘
-    ├─"test/test_expect_test.ml":4059:17
+    ├─"test/test_expect_test.ml":4052:17
     ├─┬─────────┐
     │ │<returns>│
     │ ├─────────┘
@@ -4087,13 +4080,13 @@ let%expect_test "%debug_show tuples values_first_mode highlighted" =
     └─┬────────────────┐
       │baz = (339, 109)│
       ├────────────────┘
-      ├─"test/test_expect_test.ml":4054:21
+      ├─"test/test_expect_test.ml":4047:21
       ├─first = 7
       ├─second = 42
       ├─┬──────┐
       │ │(y, z)│
       │ ├──────┘
-      │ ├─"test/test_expect_test.ml":4055:8
+      │ ├─"test/test_expect_test.ml":4048:8
       │ └─┬────────┐
       │   │<values>│
       │   ├────────┘
@@ -4104,7 +4097,7 @@ let%expect_test "%debug_show tuples values_first_mode highlighted" =
       └─┬──────┐
         │(a, b)│
         ├──────┘
-        ├─"test/test_expect_test.ml":4056:8
+        ├─"test/test_expect_test.ml":4049:8
         └─┬────────┐
           │<values>│
           ├────────┘
@@ -4117,6 +4110,7 @@ let%expect_test "%debug_show tuples values_first_mode highlighted" =
     |}]
 
 let%expect_test "%logN_block runtime log levels" =
+  (* $MDX part-begin=logN_block *)
   let%track_rt_sexp result ~for_log_level : int =
     let i = ref 0 in
     let j = ref 0 in
@@ -4131,6 +4125,7 @@ let%expect_test "%logN_block runtime log levels" =
     done;
     !j
   in
+  (* $MDX part-end *)
   print_endline
   @@ Int.to_string
        (result
@@ -4173,45 +4168,45 @@ let%expect_test "%logN_block runtime log levels" =
   [%expect
     {|
     BEGIN DEBUG SESSION for=2,with=default
-    "test/test_expect_test.ml":4120:27: for=2,with=default result
-    ├─"test/test_expect_test.ml":4123:4: for=2,with=default while:test_expect_test:4123
-    │ ├─"test/test_expect_test.ml":4124:6: for=2,with=default <while loop>
+    "test/test_expect_test.ml":4114:27: for=2,with=default result
+    ├─"test/test_expect_test.ml":4117:4: for=2,with=default while:test_expect_test:4117
+    │ ├─"test/test_expect_test.ml":4118:6: for=2,with=default <while loop>
     │ │ └─for=2,with=default i=1
-    │ │   ├─"test/test_expect_test.ml":4127:23: for=2,with=default then:test_expect_test:4127
+    │ │   ├─"test/test_expect_test.ml":4121:23: for=2,with=default then:test_expect_test:4121
     │ │   │ └─(ERROR: 1 i= 1)
     │ │   ├─(WARNING: 2 i= 1)
-    │ │   ├─"test/test_expect_test.ml":4129:13: for=2,with=default fun:test_expect_test:4129
+    │ │   ├─"test/test_expect_test.ml":4123:13: for=2,with=default fun:test_expect_test:4123
     │ │   └─(INFO: 3 j= 1)
-    │ ├─"test/test_expect_test.ml":4124:6: for=2,with=default <while loop>
+    │ ├─"test/test_expect_test.ml":4118:6: for=2,with=default <while loop>
     │ │ └─for=2,with=default i=2
-    │ │   ├─"test/test_expect_test.ml":4127:23: for=2,with=default then:test_expect_test:4127
+    │ │   ├─"test/test_expect_test.ml":4121:23: for=2,with=default then:test_expect_test:4121
     │ │   │ └─(ERROR: 1 i= 2)
     │ │   ├─(WARNING: 2 i= 2)
-    │ │   ├─"test/test_expect_test.ml":4129:13: for=2,with=default fun:test_expect_test:4129
+    │ │   ├─"test/test_expect_test.ml":4123:13: for=2,with=default fun:test_expect_test:4123
     │ │   └─(INFO: 3 j= 3)
-    │ ├─"test/test_expect_test.ml":4124:6: for=2,with=default <while loop>
+    │ ├─"test/test_expect_test.ml":4118:6: for=2,with=default <while loop>
     │ │ └─for=2,with=default i=3
-    │ │   ├─"test/test_expect_test.ml":4127:65: for=2,with=default else:test_expect_test:4127
+    │ │   ├─"test/test_expect_test.ml":4121:65: for=2,with=default else:test_expect_test:4121
     │ │   ├─(WARNING: 2 i= 3)
-    │ │   ├─"test/test_expect_test.ml":4129:13: for=2,with=default fun:test_expect_test:4129
+    │ │   ├─"test/test_expect_test.ml":4123:13: for=2,with=default fun:test_expect_test:4123
     │ │   └─(INFO: 3 j= 6)
-    │ ├─"test/test_expect_test.ml":4124:6: for=2,with=default <while loop>
+    │ ├─"test/test_expect_test.ml":4118:6: for=2,with=default <while loop>
     │ │ └─for=2,with=default i=4
-    │ │   ├─"test/test_expect_test.ml":4127:65: for=2,with=default else:test_expect_test:4127
+    │ │   ├─"test/test_expect_test.ml":4121:65: for=2,with=default else:test_expect_test:4121
     │ │   ├─(WARNING: 2 i= 4)
-    │ │   ├─"test/test_expect_test.ml":4129:13: for=2,with=default fun:test_expect_test:4129
+    │ │   ├─"test/test_expect_test.ml":4123:13: for=2,with=default fun:test_expect_test:4123
     │ │   └─(INFO: 3 j= 10)
-    │ ├─"test/test_expect_test.ml":4124:6: for=2,with=default <while loop>
+    │ ├─"test/test_expect_test.ml":4118:6: for=2,with=default <while loop>
     │ │ └─for=2,with=default i=5
-    │ │   ├─"test/test_expect_test.ml":4127:65: for=2,with=default else:test_expect_test:4127
+    │ │   ├─"test/test_expect_test.ml":4121:65: for=2,with=default else:test_expect_test:4121
     │ │   ├─(WARNING: 2 i= 5)
-    │ │   ├─"test/test_expect_test.ml":4129:13: for=2,with=default fun:test_expect_test:4129
+    │ │   ├─"test/test_expect_test.ml":4123:13: for=2,with=default fun:test_expect_test:4123
     │ │   └─(INFO: 3 j= 15)
-    │ └─"test/test_expect_test.ml":4124:6: for=2,with=default <while loop>
+    │ └─"test/test_expect_test.ml":4118:6: for=2,with=default <while loop>
     │   └─for=2,with=default i=6
-    │     ├─"test/test_expect_test.ml":4127:65: for=2,with=default else:test_expect_test:4127
+    │     ├─"test/test_expect_test.ml":4121:65: for=2,with=default else:test_expect_test:4121
     │     ├─(WARNING: 2 i= 6)
-    │     ├─"test/test_expect_test.ml":4129:13: for=2,with=default fun:test_expect_test:4129
+    │     ├─"test/test_expect_test.ml":4123:13: for=2,with=default fun:test_expect_test:4123
     │     └─(INFO: 3 j= 21)
     └─result = 21
     21
@@ -4219,164 +4214,164 @@ let%expect_test "%logN_block runtime log levels" =
 
     BEGIN DEBUG SESSION for=2,with=1
     result = 0
-    ├─"test/test_expect_test.ml":4120:27
+    ├─"test/test_expect_test.ml":4114:27
     ├─for=2,with=1 result
-    └─for=2,with=1 while:test_expect_test:4123
-      ├─"test/test_expect_test.ml":4123:4
+    └─for=2,with=1 while:test_expect_test:4117
+      ├─"test/test_expect_test.ml":4117:4
       ├─for=2,with=1 <while loop>
-      │ └─"test/test_expect_test.ml":4124:6
+      │ └─"test/test_expect_test.ml":4118:6
       ├─for=2,with=1 <while loop>
-      │ └─"test/test_expect_test.ml":4124:6
+      │ └─"test/test_expect_test.ml":4118:6
       ├─for=2,with=1 <while loop>
-      │ └─"test/test_expect_test.ml":4124:6
+      │ └─"test/test_expect_test.ml":4118:6
       ├─for=2,with=1 <while loop>
-      │ └─"test/test_expect_test.ml":4124:6
+      │ └─"test/test_expect_test.ml":4118:6
       ├─for=2,with=1 <while loop>
-      │ └─"test/test_expect_test.ml":4124:6
+      │ └─"test/test_expect_test.ml":4118:6
       └─for=2,with=1 <while loop>
-        └─"test/test_expect_test.ml":4124:6
+        └─"test/test_expect_test.ml":4118:6
     0
 
     BEGIN DEBUG SESSION for=1,with=2
     result = 21
-    ├─"test/test_expect_test.ml":4120:27
+    ├─"test/test_expect_test.ml":4114:27
     ├─for=1,with=2 result
-    └─for=1,with=2 while:test_expect_test:4123
-      ├─"test/test_expect_test.ml":4123:4
+    └─for=1,with=2 while:test_expect_test:4117
+      ├─"test/test_expect_test.ml":4117:4
       ├─for=1,with=2 <while loop>
-      │ ├─"test/test_expect_test.ml":4124:6
+      │ ├─"test/test_expect_test.ml":4118:6
       │ └─for=1,with=2 i=1
-      │   ├─for=1,with=2 then:test_expect_test:4127
-      │   │ ├─"test/test_expect_test.ml":4127:23
+      │   ├─for=1,with=2 then:test_expect_test:4121
+      │   │ ├─"test/test_expect_test.ml":4121:23
       │   │ └─(ERROR: 1 i= 1)
       │   ├─(WARNING: 2 i= 1)
-      │   └─for=1,with=2 fun:test_expect_test:4129
-      │     └─"test/test_expect_test.ml":4129:13
+      │   └─for=1,with=2 fun:test_expect_test:4123
+      │     └─"test/test_expect_test.ml":4123:13
       ├─for=1,with=2 <while loop>
-      │ ├─"test/test_expect_test.ml":4124:6
+      │ ├─"test/test_expect_test.ml":4118:6
       │ └─for=1,with=2 i=2
-      │   ├─for=1,with=2 then:test_expect_test:4127
-      │   │ ├─"test/test_expect_test.ml":4127:23
+      │   ├─for=1,with=2 then:test_expect_test:4121
+      │   │ ├─"test/test_expect_test.ml":4121:23
       │   │ └─(ERROR: 1 i= 2)
       │   ├─(WARNING: 2 i= 2)
-      │   └─for=1,with=2 fun:test_expect_test:4129
-      │     └─"test/test_expect_test.ml":4129:13
+      │   └─for=1,with=2 fun:test_expect_test:4123
+      │     └─"test/test_expect_test.ml":4123:13
       ├─for=1,with=2 <while loop>
-      │ ├─"test/test_expect_test.ml":4124:6
+      │ ├─"test/test_expect_test.ml":4118:6
       │ └─for=1,with=2 i=3
-      │   ├─for=1,with=2 else:test_expect_test:4127
-      │   │ └─"test/test_expect_test.ml":4127:65
+      │   ├─for=1,with=2 else:test_expect_test:4121
+      │   │ └─"test/test_expect_test.ml":4121:65
       │   ├─(WARNING: 2 i= 3)
-      │   └─for=1,with=2 fun:test_expect_test:4129
-      │     └─"test/test_expect_test.ml":4129:13
+      │   └─for=1,with=2 fun:test_expect_test:4123
+      │     └─"test/test_expect_test.ml":4123:13
       ├─for=1,with=2 <while loop>
-      │ ├─"test/test_expect_test.ml":4124:6
+      │ ├─"test/test_expect_test.ml":4118:6
       │ └─for=1,with=2 i=4
-      │   ├─for=1,with=2 else:test_expect_test:4127
-      │   │ └─"test/test_expect_test.ml":4127:65
+      │   ├─for=1,with=2 else:test_expect_test:4121
+      │   │ └─"test/test_expect_test.ml":4121:65
       │   ├─(WARNING: 2 i= 4)
-      │   └─for=1,with=2 fun:test_expect_test:4129
-      │     └─"test/test_expect_test.ml":4129:13
+      │   └─for=1,with=2 fun:test_expect_test:4123
+      │     └─"test/test_expect_test.ml":4123:13
       ├─for=1,with=2 <while loop>
-      │ ├─"test/test_expect_test.ml":4124:6
+      │ ├─"test/test_expect_test.ml":4118:6
       │ └─for=1,with=2 i=5
-      │   ├─for=1,with=2 else:test_expect_test:4127
-      │   │ └─"test/test_expect_test.ml":4127:65
+      │   ├─for=1,with=2 else:test_expect_test:4121
+      │   │ └─"test/test_expect_test.ml":4121:65
       │   ├─(WARNING: 2 i= 5)
-      │   └─for=1,with=2 fun:test_expect_test:4129
-      │     └─"test/test_expect_test.ml":4129:13
+      │   └─for=1,with=2 fun:test_expect_test:4123
+      │     └─"test/test_expect_test.ml":4123:13
       └─for=1,with=2 <while loop>
-        ├─"test/test_expect_test.ml":4124:6
+        ├─"test/test_expect_test.ml":4118:6
         └─for=1,with=2 i=6
-          ├─for=1,with=2 else:test_expect_test:4127
-          │ └─"test/test_expect_test.ml":4127:65
+          ├─for=1,with=2 else:test_expect_test:4121
+          │ └─"test/test_expect_test.ml":4121:65
           ├─(WARNING: 2 i= 6)
-          └─for=1,with=2 fun:test_expect_test:4129
-            └─"test/test_expect_test.ml":4129:13
+          └─for=1,with=2 fun:test_expect_test:4123
+            └─"test/test_expect_test.ml":4123:13
     21
 
     BEGIN DEBUG SESSION for=3,with=3
     result = 21
-    ├─"test/test_expect_test.ml":4120:27
+    ├─"test/test_expect_test.ml":4114:27
     ├─for=3,with=3 result
-    └─for=3,with=3 while:test_expect_test:4123
-      ├─"test/test_expect_test.ml":4123:4
+    └─for=3,with=3 while:test_expect_test:4117
+      ├─"test/test_expect_test.ml":4117:4
       ├─for=3,with=3 <while loop>
-      │ ├─"test/test_expect_test.ml":4124:6
+      │ ├─"test/test_expect_test.ml":4118:6
       │ └─for=3,with=3 i=1
-      │   ├─for=3,with=3 then:test_expect_test:4127
-      │   │ ├─"test/test_expect_test.ml":4127:23
+      │   ├─for=3,with=3 then:test_expect_test:4121
+      │   │ ├─"test/test_expect_test.ml":4121:23
       │   │ └─(ERROR: 1 i= 1)
       │   ├─(WARNING: 2 i= 1)
-      │   ├─for=3,with=3 fun:test_expect_test:4129
-      │   │ └─"test/test_expect_test.ml":4129:13
+      │   ├─for=3,with=3 fun:test_expect_test:4123
+      │   │ └─"test/test_expect_test.ml":4123:13
       │   └─(INFO: 3 j= 1)
       ├─for=3,with=3 <while loop>
-      │ ├─"test/test_expect_test.ml":4124:6
+      │ ├─"test/test_expect_test.ml":4118:6
       │ └─for=3,with=3 i=2
-      │   ├─for=3,with=3 then:test_expect_test:4127
-      │   │ ├─"test/test_expect_test.ml":4127:23
+      │   ├─for=3,with=3 then:test_expect_test:4121
+      │   │ ├─"test/test_expect_test.ml":4121:23
       │   │ └─(ERROR: 1 i= 2)
       │   ├─(WARNING: 2 i= 2)
-      │   ├─for=3,with=3 fun:test_expect_test:4129
-      │   │ └─"test/test_expect_test.ml":4129:13
+      │   ├─for=3,with=3 fun:test_expect_test:4123
+      │   │ └─"test/test_expect_test.ml":4123:13
       │   └─(INFO: 3 j= 3)
       ├─for=3,with=3 <while loop>
-      │ ├─"test/test_expect_test.ml":4124:6
+      │ ├─"test/test_expect_test.ml":4118:6
       │ └─for=3,with=3 i=3
-      │   ├─for=3,with=3 else:test_expect_test:4127
-      │   │ └─"test/test_expect_test.ml":4127:65
+      │   ├─for=3,with=3 else:test_expect_test:4121
+      │   │ └─"test/test_expect_test.ml":4121:65
       │   ├─(WARNING: 2 i= 3)
-      │   ├─for=3,with=3 fun:test_expect_test:4129
-      │   │ └─"test/test_expect_test.ml":4129:13
+      │   ├─for=3,with=3 fun:test_expect_test:4123
+      │   │ └─"test/test_expect_test.ml":4123:13
       │   └─(INFO: 3 j= 6)
       ├─for=3,with=3 <while loop>
-      │ ├─"test/test_expect_test.ml":4124:6
+      │ ├─"test/test_expect_test.ml":4118:6
       │ └─for=3,with=3 i=4
-      │   ├─for=3,with=3 else:test_expect_test:4127
-      │   │ └─"test/test_expect_test.ml":4127:65
+      │   ├─for=3,with=3 else:test_expect_test:4121
+      │   │ └─"test/test_expect_test.ml":4121:65
       │   ├─(WARNING: 2 i= 4)
-      │   ├─for=3,with=3 fun:test_expect_test:4129
-      │   │ └─"test/test_expect_test.ml":4129:13
+      │   ├─for=3,with=3 fun:test_expect_test:4123
+      │   │ └─"test/test_expect_test.ml":4123:13
       │   └─(INFO: 3 j= 10)
       ├─for=3,with=3 <while loop>
-      │ ├─"test/test_expect_test.ml":4124:6
+      │ ├─"test/test_expect_test.ml":4118:6
       │ └─for=3,with=3 i=5
-      │   ├─for=3,with=3 else:test_expect_test:4127
-      │   │ └─"test/test_expect_test.ml":4127:65
+      │   ├─for=3,with=3 else:test_expect_test:4121
+      │   │ └─"test/test_expect_test.ml":4121:65
       │   ├─(WARNING: 2 i= 5)
-      │   ├─for=3,with=3 fun:test_expect_test:4129
-      │   │ └─"test/test_expect_test.ml":4129:13
+      │   ├─for=3,with=3 fun:test_expect_test:4123
+      │   │ └─"test/test_expect_test.ml":4123:13
       │   └─(INFO: 3 j= 15)
       └─for=3,with=3 <while loop>
-        ├─"test/test_expect_test.ml":4124:6
+        ├─"test/test_expect_test.ml":4118:6
         └─for=3,with=3 i=6
-          ├─for=3,with=3 else:test_expect_test:4127
-          │ └─"test/test_expect_test.ml":4127:65
+          ├─for=3,with=3 else:test_expect_test:4121
+          │ └─"test/test_expect_test.ml":4121:65
           ├─(WARNING: 2 i= 6)
-          ├─for=3,with=3 fun:test_expect_test:4129
-          │ └─"test/test_expect_test.ml":4129:13
+          ├─for=3,with=3 fun:test_expect_test:4123
+          │ └─"test/test_expect_test.ml":4123:13
           └─(INFO: 3 j= 21)
     21
 
     BEGIN DEBUG SESSION for=4,with=3
     result = 0
-    ├─"test/test_expect_test.ml":4120:27
+    ├─"test/test_expect_test.ml":4114:27
     ├─for=4,with=3 result
-    └─for=4,with=3 while:test_expect_test:4123
-      ├─"test/test_expect_test.ml":4123:4
+    └─for=4,with=3 while:test_expect_test:4117
+      ├─"test/test_expect_test.ml":4117:4
       ├─for=4,with=3 <while loop>
-      │ └─"test/test_expect_test.ml":4124:6
+      │ └─"test/test_expect_test.ml":4118:6
       ├─for=4,with=3 <while loop>
-      │ └─"test/test_expect_test.ml":4124:6
+      │ └─"test/test_expect_test.ml":4118:6
       ├─for=4,with=3 <while loop>
-      │ └─"test/test_expect_test.ml":4124:6
+      │ └─"test/test_expect_test.ml":4118:6
       ├─for=4,with=3 <while loop>
-      │ └─"test/test_expect_test.ml":4124:6
+      │ └─"test/test_expect_test.ml":4118:6
       ├─for=4,with=3 <while loop>
-      │ └─"test/test_expect_test.ml":4124:6
+      │ └─"test/test_expect_test.ml":4118:6
       └─for=4,with=3 <while loop>
-        └─"test/test_expect_test.ml":4124:6
+        └─"test/test_expect_test.ml":4118:6
     0
     |}]
 
@@ -4514,115 +4509,115 @@ let%expect_test "%log compile time log levels while-loop dynamic scope" =
     {|
     BEGIN DEBUG SESSION
     everything = 21
-    ├─"test/test_expect_test.ml":4494:28
+    ├─"test/test_expect_test.ml":4489:28
     └─loop
-      ├─"test/test_expect_test.ml":4481:22
-      └─while:test_expect_test:4484
-        ├─"test/test_expect_test.ml":4484:4
+      ├─"test/test_expect_test.ml":4476:22
+      └─while:test_expect_test:4479
+        ├─"test/test_expect_test.ml":4479:4
         ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4486:6
-        │ ├─then:test_expect_test:4486
-        │ │ ├─"test/test_expect_test.ml":4486:21
+        │ ├─"test/test_expect_test.ml":4481:6
+        │ ├─then:test_expect_test:4481
+        │ │ ├─"test/test_expect_test.ml":4481:21
         │ │ └─(ERROR: 1 i= 0)
         │ ├─(WARNING: 2 i= 1)
-        │ ├─fun:test_expect_test:4489
-        │ │ └─"test/test_expect_test.ml":4489:11
+        │ ├─fun:test_expect_test:4484
+        │ │ └─"test/test_expect_test.ml":4484:11
         │ └─(INFO: 3 j= 1)
         ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4486:6
-        │ ├─then:test_expect_test:4486
-        │ │ ├─"test/test_expect_test.ml":4486:21
+        │ ├─"test/test_expect_test.ml":4481:6
+        │ ├─then:test_expect_test:4481
+        │ │ ├─"test/test_expect_test.ml":4481:21
         │ │ └─(ERROR: 1 i= 1)
         │ ├─(WARNING: 2 i= 2)
-        │ ├─fun:test_expect_test:4489
-        │ │ └─"test/test_expect_test.ml":4489:11
+        │ ├─fun:test_expect_test:4484
+        │ │ └─"test/test_expect_test.ml":4484:11
         │ └─(INFO: 3 j= 3)
         ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4486:6
-        │ ├─else:test_expect_test:4486
-        │ │ └─"test/test_expect_test.ml":4486:64
+        │ ├─"test/test_expect_test.ml":4481:6
+        │ ├─else:test_expect_test:4481
+        │ │ └─"test/test_expect_test.ml":4481:64
         │ ├─(WARNING: 2 i= 3)
-        │ ├─fun:test_expect_test:4489
-        │ │ └─"test/test_expect_test.ml":4489:11
+        │ ├─fun:test_expect_test:4484
+        │ │ └─"test/test_expect_test.ml":4484:11
         │ └─(INFO: 3 j= 6)
         ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4486:6
-        │ ├─else:test_expect_test:4486
-        │ │ └─"test/test_expect_test.ml":4486:64
+        │ ├─"test/test_expect_test.ml":4481:6
+        │ ├─else:test_expect_test:4481
+        │ │ └─"test/test_expect_test.ml":4481:64
         │ ├─(WARNING: 2 i= 4)
-        │ ├─fun:test_expect_test:4489
-        │ │ └─"test/test_expect_test.ml":4489:11
+        │ ├─fun:test_expect_test:4484
+        │ │ └─"test/test_expect_test.ml":4484:11
         │ └─(INFO: 3 j= 10)
         ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4486:6
-        │ ├─else:test_expect_test:4486
-        │ │ └─"test/test_expect_test.ml":4486:64
+        │ ├─"test/test_expect_test.ml":4481:6
+        │ ├─else:test_expect_test:4481
+        │ │ └─"test/test_expect_test.ml":4481:64
         │ ├─(WARNING: 2 i= 5)
-        │ ├─fun:test_expect_test:4489
-        │ │ └─"test/test_expect_test.ml":4489:11
+        │ ├─fun:test_expect_test:4484
+        │ │ └─"test/test_expect_test.ml":4484:11
         │ └─(INFO: 3 j= 15)
         └─<while loop>
-          ├─"test/test_expect_test.ml":4486:6
-          ├─else:test_expect_test:4486
-          │ └─"test/test_expect_test.ml":4486:64
+          ├─"test/test_expect_test.ml":4481:6
+          ├─else:test_expect_test:4481
+          │ └─"test/test_expect_test.ml":4481:64
           ├─(WARNING: 2 i= 6)
-          ├─fun:test_expect_test:4489
-          │ └─"test/test_expect_test.ml":4489:11
+          ├─fun:test_expect_test:4484
+          │ └─"test/test_expect_test.ml":4484:11
           └─(INFO: 3 j= 21)
     21
     nothing = 21
-    └─"test/test_expect_test.ml":4499:25
+    └─"test/test_expect_test.ml":4494:25
     21
     warning = 21
-    ├─"test/test_expect_test.ml":4505:25
+    ├─"test/test_expect_test.ml":4500:25
     └─loop
-      ├─"test/test_expect_test.ml":4481:22
-      └─while:test_expect_test:4484
-        ├─"test/test_expect_test.ml":4484:4
+      ├─"test/test_expect_test.ml":4476:22
+      └─while:test_expect_test:4479
+        ├─"test/test_expect_test.ml":4479:4
         ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4486:6
-        │ ├─then:test_expect_test:4486
-        │ │ ├─"test/test_expect_test.ml":4486:21
+        │ ├─"test/test_expect_test.ml":4481:6
+        │ ├─then:test_expect_test:4481
+        │ │ ├─"test/test_expect_test.ml":4481:21
         │ │ └─(ERROR: 1 i= 0)
         │ ├─(WARNING: 2 i= 1)
-        │ └─fun:test_expect_test:4489
-        │   └─"test/test_expect_test.ml":4489:11
+        │ └─fun:test_expect_test:4484
+        │   └─"test/test_expect_test.ml":4484:11
         ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4486:6
-        │ ├─then:test_expect_test:4486
-        │ │ ├─"test/test_expect_test.ml":4486:21
+        │ ├─"test/test_expect_test.ml":4481:6
+        │ ├─then:test_expect_test:4481
+        │ │ ├─"test/test_expect_test.ml":4481:21
         │ │ └─(ERROR: 1 i= 1)
         │ ├─(WARNING: 2 i= 2)
-        │ └─fun:test_expect_test:4489
-        │   └─"test/test_expect_test.ml":4489:11
+        │ └─fun:test_expect_test:4484
+        │   └─"test/test_expect_test.ml":4484:11
         ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4486:6
-        │ ├─else:test_expect_test:4486
-        │ │ └─"test/test_expect_test.ml":4486:64
+        │ ├─"test/test_expect_test.ml":4481:6
+        │ ├─else:test_expect_test:4481
+        │ │ └─"test/test_expect_test.ml":4481:64
         │ ├─(WARNING: 2 i= 3)
-        │ └─fun:test_expect_test:4489
-        │   └─"test/test_expect_test.ml":4489:11
+        │ └─fun:test_expect_test:4484
+        │   └─"test/test_expect_test.ml":4484:11
         ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4486:6
-        │ ├─else:test_expect_test:4486
-        │ │ └─"test/test_expect_test.ml":4486:64
+        │ ├─"test/test_expect_test.ml":4481:6
+        │ ├─else:test_expect_test:4481
+        │ │ └─"test/test_expect_test.ml":4481:64
         │ ├─(WARNING: 2 i= 4)
-        │ └─fun:test_expect_test:4489
-        │   └─"test/test_expect_test.ml":4489:11
+        │ └─fun:test_expect_test:4484
+        │   └─"test/test_expect_test.ml":4484:11
         ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4486:6
-        │ ├─else:test_expect_test:4486
-        │ │ └─"test/test_expect_test.ml":4486:64
+        │ ├─"test/test_expect_test.ml":4481:6
+        │ ├─else:test_expect_test:4481
+        │ │ └─"test/test_expect_test.ml":4481:64
         │ ├─(WARNING: 2 i= 5)
-        │ └─fun:test_expect_test:4489
-        │   └─"test/test_expect_test.ml":4489:11
+        │ └─fun:test_expect_test:4484
+        │   └─"test/test_expect_test.ml":4484:11
         └─<while loop>
-          ├─"test/test_expect_test.ml":4486:6
-          ├─else:test_expect_test:4486
-          │ └─"test/test_expect_test.ml":4486:64
+          ├─"test/test_expect_test.ml":4481:6
+          ├─else:test_expect_test:4481
+          │ └─"test/test_expect_test.ml":4481:64
           ├─(WARNING: 2 i= 6)
-          └─fun:test_expect_test:4489
-            └─"test/test_expect_test.ml":4489:11
+          └─fun:test_expect_test:4484
+            └─"test/test_expect_test.ml":4484:11
     21
     |}]
 
@@ -4674,27 +4669,27 @@ let%expect_test "%debug_show comparing differences across runs" =
     92
 
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":4637:21: foo
+    "test/test_expect_test.ml":4632:21: foo
     ├─x = { Test_expect_test.first = 7; second = 42 }
-    ├─"test/test_expect_test.ml":4638:8: y
+    ├─"test/test_expect_test.ml":4633:8: y
     │ └─y = 8
-    ├─"test/test_expect_test.ml":4639:8: z
+    ├─"test/test_expect_test.ml":4634:8: z
     │ └─z = 84
     └─foo = 92
     93
 
     BEGIN DEBUG SESSION
     ┌───────────────────────────────────────┐Changed from: y = 8
-    │"test/test_expect_test.ml":4660:21: foo│
+    │"test/test_expect_test.ml":4655:21: foo│
     ├───────────────────────────────────────┘
     ├─x = { Test_expect_test.first = 7; second = 42 }
     ├─┬────────────────────────────────────┐Changed from: y = 8
-    │ │"test/test_expect_test.ml":4661:8: y│
+    │ │"test/test_expect_test.ml":4656:8: y│
     │ ├────────────────────────────────────┘
     │ └─┬─────┐Changed from: y = 8
     │   │y = 9│
     │   └─────┘
-    ├─"test/test_expect_test.ml":4663:8: z
+    ├─"test/test_expect_test.ml":4658:8: z
     │ └─z = 84
     └─┬────────┐Changed from: foo = 92
       │foo = 93│
@@ -4729,11 +4724,11 @@ let%expect_test "%debug_show comparing differences with normalized patterns" =
     39
 
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":4712:33: process_message
+    "test/test_expect_test.ml":4707:33: process_message
     ├─msg = "hello"
-    ├─"test/test_expect_test.ml":4713:8: timestamp
+    ├─"test/test_expect_test.ml":4708:8: timestamp
     │ └─timestamp = "[2024-03-21 10:00:00] "
-    ├─"test/test_expect_test.ml":4714:8: processed
+    ├─"test/test_expect_test.ml":4709:8: processed
     │ └─processed = "[2024-03-21 10:00:00] Processing: hello"
     └─process_message = 39
     |}];
@@ -4760,11 +4755,11 @@ let%expect_test "%debug_show comparing differences with normalized patterns" =
     39
 
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":4748:33: process_message
+    "test/test_expect_test.ml":4743:33: process_message
     ├─msg = "hello"
-    ├─"test/test_expect_test.ml":4749:8: timestamp
+    ├─"test/test_expect_test.ml":4744:8: timestamp
     │ └─timestamp = "[2024-03-22 15:30:45] "
-    ├─"test/test_expect_test.ml":4751:8: processed
+    ├─"test/test_expect_test.ml":4746:8: processed
     │ └─processed = "[2024-03-22 15:30:45] Processing: hello"
     └─process_message = 39
     |}];
@@ -4791,18 +4786,18 @@ let%expect_test "%debug_show comparing differences with normalized patterns" =
 
     BEGIN DEBUG SESSION
     ┌───────────────────────────────────────────────────┐Inserted in current run
-    │"test/test_expect_test.ml":4778:33: process_message│
+    │"test/test_expect_test.ml":4773:33: process_message│
     ├───────────────────────────────────────────────────┘
     ├─msg = "hello"
-    ├─"test/test_expect_test.ml":4779:8: timestamp
+    ├─"test/test_expect_test.ml":4774:8: timestamp
     │ └─timestamp = "[2024-03-22 15:30:45] "
     ├─┬─────────────────────────────────────────────┐Inserted in current run
-    │ │"test/test_expect_test.ml":4780:8: processing│
+    │ │"test/test_expect_test.ml":4775:8: processing│
     │ ├─────────────────────────────────────────────┘
     │ └─┬────────────────────────────────┐Inserted in current run
     │   │processing = "Processing: hello"│
     │   └────────────────────────────────┘
-    ├─"test/test_expect_test.ml":4781:8: processed
+    ├─"test/test_expect_test.ml":4776:8: processed
     │ └─processed = "[2024-03-22 15:30:45] Processing: hello"
     └─process_message = 39
     |}]
@@ -4956,7 +4951,7 @@ let%expect_test "comparing differences with entry_id_pairs" =
     === Previous Run ===
 
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":4819:17: _run1 {#1}
+    "test/test_expect_test.ml":4814:17: _run1 {#1}
     ├─logs {#2}
     │ ├─Entry one {#3}
     │ │ └─"This is the first entry"
@@ -4980,7 +4975,7 @@ let%expect_test "comparing differences with entry_id_pairs" =
 
     BEGIN DEBUG SESSION
     ┌─────────────────────────────────────────┐┌─┐┌────┐Inserted in current run
-    │"test/test_expect_test.ml":4887:17: _run2││ ││{#1}│
+    │"test/test_expect_test.ml":4882:17: _run2││ ││{#1}│
     ├─────────────────────────────────────────┘└─┘└────┘
     ├─┬────┐┌─┐┌────┐Inserted in current run
     │ │logs││ ││{#2}│

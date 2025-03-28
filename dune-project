@@ -1,4 +1,4 @@
-(lang dune 3.7)
+(lang dune 3.10)
 
 (name ppx_minidebug)
 
@@ -16,6 +16,8 @@
 (documentation https://lukstafi.github.io/ppx_minidebug/ppx_minidebug)
 
 (version 2.2.0)
+
+(using mdx 0.4)
 
 (package
  (name ppx_minidebug)
@@ -49,6 +51,8 @@
     (>= v0.9.0)))
   (odoc :with-doc)
   (thread-local-storage
-   (>= 0.2)))
+   (>= 0.2))
+  (mdx
+   (>= 2.5.0)))
  (tags
   (logger debugger "printf debugging")))

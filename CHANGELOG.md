@@ -1,14 +1,16 @@
-## [2.2.0] -- 2025-03-27
+## [2.2.0] -- 2025-03-28
 
 ### Added
 
 - Added some missing configurations for runtime providers `debug`, `debug_flushing`.
 - New runtime providers that can directly be used for `_get_local_debug_runtime`: `local_runtime`, `local_runtime_flushing`, `prefixed_runtime`, `prefixed_runtime_flushing`.
 - Added `PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL` environment variable to avoid forcing everyone to use `[%%global_debug_log_level_from_env_var "..."]` in every file.
+- Ability to prefix individual logs. For `prefixed_` runtimes, we prefix all logs, not only headers.
 
 ### Changed
 
 - Major, breaking change: the `_l_` variant entry points become default, and the default variants become `_o_`, e.g. `%debug_l_sexp` becomes `%debug_sexp`, `%debug_sexp` becomes `%debug_o_sexp`.
+- Overhaul of `README.md` / `index.mld` to use MDX: all code samples are automatically lifted from tests (or `sync_to_md.ml`) thus guaranteed correct.
 
 ## [2.1.0] -- 2025-03-19
 

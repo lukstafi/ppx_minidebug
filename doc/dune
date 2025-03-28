@@ -1,2 +1,22 @@
+(include_subdirs unqualified)
+
 (documentation
  (mld_files index))
+
+(executable
+ (name sync_to_md)
+ (modules sync_to_md)
+ (libraries ppx_minidebug.runtime)
+ (preprocess
+  (pps ppx_minidebug ppx_deriving.show ppx_sexp_conv)))
+
+(rule
+ (targets
+  sync_to_md-introduction.log
+  sync_to_md-introduction.raw
+  sync_to_md-simple_html.html
+  sync_to_md-highlight_diffs.log)
+ (mode
+  (promote (until-clean)))
+ (action
+  (run %{dep:sync_to_md.exe})))

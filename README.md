@@ -37,77 +37,59 @@ We can introduce `ppx_minidebug` runtimes in a project in multiple ways, but the
 
 <!-- $MDX file=doc/sync_to_md.ml,part=introduction -->
 ```ocaml
+let _get_local_debug_runtime = Minidebug_runtime.local_runtime "sync_to_md-introduction"
+let%debug_sexp rec foo : int list -> int = function [] -> 0 | x :: xs -> x + foo xs
+let (_ : int) = foo [ 1; 2; 3 ]
+```
+
+The logged traces will be pretty-printed as trees using the `printbox` package. This produces:
+
+<!-- $MDX file=doc/sync_to_md-introduction.log -->
+```
+BEGIN DEBUG SESSION 
+foo = 6
+├─"doc/sync_to_md.ml":5:73
+├─<function -- branch 1> :: (x, xs)
+├─x = 1
+├─xs = (2 3)
+└─foo = 5
+  ├─"doc/sync_to_md.ml":5:73
+  ├─<function -- branch 1> :: (x, xs)
+  ├─x = 2
+  ├─xs = 3
+  └─foo = 3
+    ├─"doc/sync_to_md.ml":5:73
+    ├─<function -- branch 1> :: (x, xs)
+    ├─x = 3
+    ├─xs
+    └─foo = 0
+      ├─"doc/sync_to_md.ml":5:58
+      └─<function -- branch 0> []
+```
+
+### Traces in HTML or Markdown as collapsible trees
+
+The `PrintBox` runtime can be configured to output logs using HTML or Markdown. The logs then become collapsible trees, so that you can expose only the relevant information when debugging. Example:
+
+<!-- $MDX file=doc/sync_to_md.ml,part=simple_html -->
+```ocaml
 let _get_local_debug_runtime =
-  Minidebug_runtime.local_runtime "path/to/debugger_printbox.log"
+  Minidebug_runtime.local_runtime ~backend:(`Html Minidebug_runtime.default_html_config)
+    "sync_to_md-simple_html"
 
 let%debug_sexp rec foo : int list -> int = function [] -> 0 | x :: xs -> x + foo xs
 let (_ : int) = foo [ 1; 2; 3 ]
 ```
 
-The logged traces will be pretty-printed as trees using the `printbox` package. Truncated example from the test-suite (using `%debug_sexp`):
+This produces:
 
-```shell
-BEGIN DEBUG SESSION
-"test/test_debug_sexp.ml":7:19-9:17: foo
-├─x = 7
-├─"test/test_debug_sexp.ml":8:6: y
-│ └─y = 8
-└─foo = (7 8 16)
-"test/test_debug_sexp.ml":15:19-17:14: bar
-├─x = ((first 7) (second 42))
-├─"test/test_debug_sexp.ml":16:6: y
-│ └─y = 8
-└─bar = 336
-"test/test_debug_sexp.ml":21:19-24:28: baz
-├─x = ((first 7) (second 42))
-├─"test/test_debug_sexp.ml":22:17: _yz
-│ └─_yz = (8 3)
-├─"test/test_debug_sexp.ml":23:17: _uw
-│ └─_uw = (7 13)
-└─baz = 359
-"test/test_debug_sexp.ml":28:19-30:17: lab
-├─x = 7
-├─"test/test_debug_sexp.ml":29:6: y
-│ └─y = 8
-└─lab = (7 8 16)
-"test/test_debug_sexp.ml":34:24-40:9: loop
-├─depth = 0
-├─x = ((first 7) (second 42))
-├─"test/test_debug_sexp.ml":38:8: y
-│ ├─"test/test_debug_sexp.ml":34:24-40:9: loop
-│ │ ├─depth = 1
-│ │ ├─x = ((first 41) (second 9))
-│ │ ├─"test/test_debug_sexp.ml":38:8: y
-│ │ │ ├─"test/test_debug_sexp.ml":34:24-40:9: loop
-│ │ │ │ ├─depth = 2
-│ │ │ │ ├─x = ((first 8) (second 43))
-│ │ │ │ ├─"test/test_debug_sexp.ml":34:24-40:9: loop
-│ │ │ │ │ ├─depth = 3
-│ │ │ │ │ ├─x = ((first 44) (second 4))
-│ │ │ │ │ ├─"test/test_debug_sexp.ml":34:24-40:9: loop
-│ │ │ │ │ │ ├─depth = 4
-│ │ │ │ │ │ ├─x = ((first 5) (second 22))
-│ │ │ │ │ │ ├─"test/test_debug_sexp.ml":34:24-40:9: loop
-│ │ │ │ │ │ │ ├─depth = 5
-│ │ │ │ │ │ │ ├─x = ((first 23) (second 2))
-│ │ │ │ │ │ │ └─loop = 25
+<!-- $MDX file=doc/sync_to_md-simple_html.html -->
+```
+BEGIN DEBUG SESSION 
+<div><details><summary><span><span><span><a id="1"></a></span>&nbsp;<span><span style="font-family: monospace">foo = 6</span></span></span></span></summary><ul><li><div>&quot;doc/sync_to_md.ml&quot;:14:73</div></li><li><table class="non-framed"><tr><td><a id="1"></a></td><td><div>&lt;function -- branch 1&gt; :: (x, xs)</div></td></tr></table></li><li><pre style="font-family: monospace">x = 1</pre></li><li><pre style="font-family: monospace">xs = (2 3)</pre></li><li><details><summary><span><span><span><a id="2"></a></span>&nbsp;<span><span style="font-family: monospace">foo = 5</span></span></span></span></summary><ul><li><div>&quot;doc/sync_to_md.ml&quot;:14:73</div></li><li><table class="non-framed"><tr><td><a id="2"></a></td><td><div>&lt;function -- branch 1&gt; :: (x, xs)</div></td></tr></table></li><li><pre style="font-family: monospace">x = 2</pre></li><li><pre style="font-family: monospace">xs = 3</pre></li><li><details><summary><span><span><span><a id="3"></a></span>&nbsp;<span><span style="font-family: monospace">foo = 3</span></span></span></span></summary><ul><li><div>&quot;doc/sync_to_md.ml&quot;:14:73</div></li><li><table class="non-framed"><tr><td><a id="3"></a></td><td><div>&lt;function -- branch 1&gt; :: (x, xs)</div></td></tr></table></li><li><pre style="font-family: monospace">x = 3</pre></li><li><div>xs</div></li><li><details><summary><span><span><span><a id="4"></a></span>&nbsp;<span><span style="font-family: monospace">foo = 0</span></span></span></span></summary><ul><li><div>&quot;doc/sync_to_md.ml&quot;:14:58</div></li><li><table class="non-framed"><tr><td><a id="4"></a></td><td><div>&lt;function -- branch 0&gt; []</div></td></tr></table></li></ul></details></li></ul></details></li></ul></details></li></ul></details></div>
 ```
 
-### Traces in HTML or Markdown as collapsible trees
-
-The `PrintBox` runtime can be configured to output logs using HTML or Markdown. The logs then become collapsible trees, so that you can expose only the relevant information when debugging. Example configuration:
-
-```ocaml
-module Debug_runtime =
-  Minidebug_runtime.PrintBox ((val Minidebug_runtime.shared_config "debug.html"))
-let () =
-  let c = Debug_runtime.config in
-  c.backend <- `Html Minidebug_runtime.default_html_config;
-  c.boxify_sexp_from_size <- 50;
-  c.values_first_mode <- false
-```
-
-Here we also convert the logged `sexp` values (with at least 50 atoms) to trees. Example result:
+The backend will also convert the logged `sexp` values (with at least [boxify_sexp_from_size] atoms, default is 50) to trees. Example result:
 ![PrintBox runtime with collapsible/foldable trees](docs/ppx_minidebug-foldable_trees.png)
 
 ### Highlighting search terms
@@ -124,20 +106,94 @@ you can set `prune_upto` to a level greater than 0, which only outputs highlight
 
 The `PrintBox` runtime can highlight differences between the current run and a previous run's logs. This is useful for understanding how program behavior changes between executions. To enable this feature, provide the `prev_run_file` argument when creating the runtime. It should be the "raw" messages file of the previous run, including the `.raw` suffix:
 
+<!-- $MDX file=doc/sync_to_md.ml,part=highlight_diffs -->
 ```ocaml
-module Debug_runtime =
-  (val Minidebug_runtime.debug_file ~prev_run_file:"previous_run.raw" "current_run")
+let _get_local_debug_runtime =
+  Minidebug_runtime.local_runtime ~prev_run_file:"sync_to_md-introduction.raw"
+    "sync_to_md-highlight_diffs"
+
+let%debug_sexp rec foo : int list -> int = function [] -> 0 | x :: xs -> x + foo xs
+let (_ : int) = foo [ 1; 5; 3; 4 ]
+```
+
+This produces:
+
+<!-- $MDX file=doc/sync_to_md-highlight_diffs.log -->
+```
+BEGIN DEBUG SESSION 
+┌───────────────────────────────┐Changed from: xs = (2 3)
+│┌────────┐Changed from: foo = 6│
+││foo = 13│                     │
+│└────────┘                     │
+├───────────────────────────────┘
+├─"doc/sync_to_md.ml":23:73
+├─┬─────────────────────────────────┐Changed from: xs = (2 3)
+│ │<function -- branch 1> :: (x, xs)│
+│ └─────────────────────────────────┘
+├─x = 1
+├─┬────────────┐Changed from: xs = (2 3)
+│ │xs = (5 3 4)│
+│ └────────────┘
+└─┬─────────────────────────────────┐Changed from: x = 2
+  │┌────────┐Inserted in current run│
+  ││foo = 12│                       │
+  │└────────┘                       │
+  ├─────────────────────────────────┘
+  ├─"doc/sync_to_md.ml":23:73
+  ├─┬─────────────────────────────────┐Changed from: x = 2
+  │ │<function -- branch 1> :: (x, xs)│
+  │ └─────────────────────────────────┘
+  ├─┬─────┐Changed from: x = 2
+  │ │x = 5│
+  │ └─────┘
+  ├─┬──────────┐Changed from: xs = 3
+  │ │xs = (3 4)│
+  │ └──────────┘
+  └─┬──────────────────────────────┐Inserted in current run
+    │┌───────┐Changed from: foo = 5│
+    ││foo = 7│                     │
+    │└───────┘                     │
+    ├──────────────────────────────┘
+    ├─"doc/sync_to_md.ml":23:73
+    ├─┬─────────────────────────────────┐Inserted in current run
+    │ │<function -- branch 1> :: (x, xs)│
+    │ └─────────────────────────────────┘
+    ├─x = 3
+    ├─┬──────┐Inserted in current run
+    │ │xs = 4│
+    │ └──────┘
+    └─┬──────────────────────────────┐Inserted in current run
+      │┌───────┐Changed from: foo = 3│
+      ││foo = 4│                     │
+      │└───────┘                     │
+      ├──────────────────────────────┘
+      ├─"doc/sync_to_md.ml":23:73
+      ├─┬─────────────────────────────────┐Inserted in current run
+      │ │<function -- branch 1> :: (x, xs)│
+      │ └─────────────────────────────────┘
+      ├─┬─────┐Inserted in current run
+      │ │x = 4│
+      │ └─────┘
+      ├─xs
+      └─foo = 0
+        ├─"doc/sync_to_md.ml":23:58
+        └─<function -- branch 0> []
 ```
 
 The highlighting of differences works independently from (and can be combined with) search term highlighting. The runtime will highlight entries that do not have a corresponding entry in the previous run: currently, deletions (previous run entries missing in the current run) do not affect the highlighting. Highlights comming from diffing runs are annotated with the diff reason (change or insertion). For a block-level highlight, the attached reason comes from the first diff encountered in the block. The ignore patterns are erased in the reason strings.
 
 Note that the comparison is performed at the chunk level, where each chunk is a complete toplevel log tree. The log trees must match exactly: insertions and deletions of toplevel log trees are not supported. This limitation helps keep the comparison efficient but means you might have to coarsen the granularity of the log trees to get useful differences.
 
-The `diff_ignore_pattern` setting can be used to ignore certain patterns in the logs. For example, to ignore message-level timestamps:
+The `diff_ignore_pattern` setting can be used to ignore certain patterns in the logs. For example in the test suite, ignoring message-level timestamps:
 
+<!-- $MDX file=test/test_debug_timestamps.ml,part=ignore_timestamps_setup -->
 ```ocaml
-module Debug_runtime =
-  (val Minidebug_runtime.debug_file ~prev_run_file:"previous_run.raw" ~diff_ignore_pattern:(Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|}) "current_run")
+  let _get_local_debug_runtime =
+    Minidebug_runtime.local_runtime ~values_first_mode:false ~backend:`Text
+      ~prev_run_file:"debugger_timestamps_run1.raw"
+      ~diff_ignore_pattern:(Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|})
+      "debugger_timestamps_run2"
+  in
 ```
 
 Note that the timestamps of the log entries are not treated as messages, so are necessarily ignored.
@@ -146,37 +202,33 @@ For efficiency, the minimal edit distance search is limited, roughly speaking, t
 
 You can force aligning certain entry IDs via the setting `entry_id_pairs`. The previous run's entry IDs come first in the pairs. See the example [test/debug_diffs_align.ml](test/debug_diffs_align.ml):
 
+<!-- $MDX file=test/debug_diffs_align.ml,part=align_entry_ids -->
 ```ocaml
-  let module Debug_runtime =
-    (val Minidebug_runtime.debug_file ~values_first_mode:false ~print_entry_ids:true
-           ~backend:`Text ~prev_run_file:(prev_run ^ ".raw")
-           ~entry_id_pairs:[ (2, 4); (8, 6) ]
-             (* Force mappings: - Entry 2 (early prev) to Entry 4 (middle curr) - Entry 8
-                (late prev) to Entry 6 (in the shorter curr) *)
-           curr_run)
+  let _get_local_debug_runtime =
+    Minidebug_runtime.local_runtime ~values_first_mode:false ~print_entry_ids:true
+      ~backend:`Text ~prev_run_file:(prev_run ^ ".raw")
+      ~entry_id_pairs:[ (2, 4); (8, 6) ]
+        (* Force mappings: - Entry 2 (early prev) to Entry 4 (middle curr) - Entry 8 (late
+           prev) to Entry 6 (in the shorter curr) *)
+      curr_run
   in
 ```
 
-### `PrintBox` creating helpers with defaults: `debug` and `debug_file`
+### Overview of runtime creating helpers
 
-The configuration for the above example is more concisely just:
-
-```ocaml
-module Debug_runtime = (val Minidebug_runtime.debug_file ~highlight_terms:(Re.str "169") "debug")
-```
-
-Similarly, `debug` returns a `PrintBox` module, which by default logs to `stdout`:
-
-```ocaml
-module Debug_runtime = (val Minidebug_runtime.debug ())
-```
+Binding `_get_local_debug_runtime` to a result of the `_runtime` functions is the suggested way of providing debug runtimes, since it is aware of multithreaded contexts. The `local_` functions log to different files from different threads, while the `prefixed_` functions log to the single channel `debug_ch`, and by default to standard output. The `_flushing` functions have limited functionality (don't use PrintBox) but output messages immediately.
 
 ### Hyperlinks to source locations
 
 The HTML and Markdown outputs support emitting file locations as hyperlinks. For example:
 
+<!-- $MDX file=test/test_debug_html.ml,part=hyperlinks -->
 ```ocaml
-module Debug_runtime = (val Minidebug_runtime.debug_file ~hyperlink:"" "debug")
+let _get_local_debug_runtime =
+  Minidebug_runtime.local_runtime ~hyperlink:"../" ~toc_specific_hyperlink:"./"
+    ~with_toc_listing:true
+    ~backend:(`Html PrintBox_html.Config.(tree_summary true default))
+    "debugger_sexp_html"
 ```
 
 where `~hyperlink` is the prefix to let you tune the file path and select a browsing option. For illustration,
@@ -189,43 +241,32 @@ the prefixes for Markdown / HTML outputs I might use at the time of writing:
 
 ### `values_first_mode`
 
-This setting, by default `true`, puts the result of the computation as the header of a computation subtree, rather than the source code location of the computation. I recommend using this setting as it reduces noise and makes the important information easier to find and visible with less unfolding. Another important benefit is that it makes hyperlinks usable, by pushing them from the summary line to under the fold. It is the default setting, but can be disabled by passing `~values_first_mode:false` to runtime builders, because it can be confusing: the logs are no longer ordered by computation time. It is not available in the `Flushing` runtime.
+This setting, by default `true`, puts the result of the computation as the header of a computation subtree, rather than the source code location of the computation. I recommend using this setting as it reduces noise and makes the important information easier to find and visible with less unfolding. Another important benefit is that it makes hyperlinks usable, by pushing them from the summary line to under the fold. It is the default setting, but can be disabled by passing `~values_first_mode:false` to runtime builders, because it can be confusing: the logs are no longer ordered by computation time. It is not available in the `_flushing` runtimes.
 
-For example:
+For example, the diffs example we saw before:
 
+<!-- $MDX file=test/test_debug_timestamps.ml,part=ignore_timestamps_setup -->
 ```ocaml
-module Debug_runtime =
-  (val Minidebug_runtime.debug ~highlight_terms:(Re.str "3") ())
-let%debug_show rec loop_highlight (x : int) : int =
-  let z : int = (x - 1) / 2 in
-  if x <= 0 then 0 else z + loop_highlight (z + (x / 2))
-let () = print_endline @@ Int.to_string @@ loop_highlight 7
+  let _get_local_debug_runtime =
+    Minidebug_runtime.local_runtime ~values_first_mode:false ~backend:`Text
+      ~prev_run_file:"debugger_timestamps_run1.raw"
+      ~diff_ignore_pattern:(Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|})
+      "debugger_timestamps_run2"
+  in
 ```
 
-Truncated results:
+leads to:
 
-```shell
-BEGIN DEBUG SESSION
-┌──────────────────┐
-│loop_highlight = 9│
-├──────────────────┘
-├─"test/test_expect_test.ml":1042:41-1044:58
-├─x = 7
-├─┬─────┐
-│ │z = 3│
-│ ├─────┘
-│ └─"test/test_expect_test.ml":1043:8
-└─┬──────────────────┐
-  │loop_highlight = 6│
-  ├──────────────────┘
-  ├─"test/test_expect_test.ml":1042:41-1044:58
-  ├─x = 6
-  ├─z = 2
-  │ └─"test/test_expect_test.ml":1043:8
-  └─┬──────────────────┐
-    │loop_highlight = 4│
-    ├──────────────────┘
-    ├─"test/test_expect_test.ml":1042:41-1044:58
+<!-- $MDX file=test/debugger_timestamps_run2.expected.log -->
+```
+BEGIN DEBUG SESSION 
+"test/test_debug_timestamps.ml":23:33: process_message
+├─msg = "hello"
+├─"test/test_debug_timestamps.ml":24:8: timestamp
+│ └─timestamp = "[2024-03-22 15:30:45] "
+├─"test/test_debug_timestamps.ml":25:8: processed
+│ └─processed = "[2024-03-22 15:30:45] Processing: hello"
+└─process_message = 39
 ```
 
 When logging uses sexps and boxification, and the result is decomposed into a subtree, only the header of the result subtree is put in the header line, and the rest of the result subtree is just underneath it with a `<returns>` or a `<values>` header. Example showcasing the `printbox-html` backend:
@@ -265,97 +306,155 @@ To ensure that log files are properly closed, you can use `Minidebug_runtime.fin
 
 `ppx_minidebug` can be installed using `opam`. `ppx_minidebug.runtime` depends on `printbox`, `ptime`, `mtime`, `sexplib0`.
 
-### Breaking infinite recursion with `max_nesting_depth` and looping with `max_num_children`; `Flushing`-based traces
+### Breaking infinite recursion with `max_nesting_depth` and looping with `max_num_children`; flushing-based traces
 
-The `PrintBox` backend only produces any output when a top-level log entry gets closed. This makes it harder to debug infinite loops and especially infinite recursion. The setting `max_nesting_depth` terminates a computation when the given log nesting is exceeded. For example:
+PrintBox-based runtimes only produces any output when a top-level log entry gets closed. This makes it harder to debug infinite loops and especially infinite recursion. The setting `max_nesting_depth` terminates a computation when the given log nesting is exceeded. For example:
 
+<!-- $MDX file=test/test_expect_test.ml,part=debug_interrupts -->
 ```ocaml
-module Debug_runtime = (val Minidebug_runtime.debug ())
-
-let%debug_show rec loop_exceeded (x : int) : int =
-  [%debug_interrupts
-    { max_nesting_depth = 5; max_num_children = 1000 };
-    let z : int = (x - 1) / 2 in
-    if x <= 0 then 0 else z + loop_exceeded (z + (x / 2))]
-
-let () =
-  try print_endline @@ Int.to_string @@ loop_exceeded 17
-  with _ -> print_endline "Raised exception."
+  let _get_local_debug_runtime =
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
+  in
+  let%debug_show rec loop_exceeded (x : int) : int =
+    [%debug_interrupts
+      { max_nesting_depth = 5; max_num_children = 1000 };
+      let z : int = (x - 1) / 2 in
+      if x <= 0 then 0 else z + loop_exceeded (z + (x / 2))]
+  in
+  let () =
+    try print_endline @@ Int.to_string @@ loop_exceeded 7
+    with _ -> print_endline "Raised exception."
+  in
+  [%expect
+    {|
+    BEGIN DEBUG SESSION
+    "test/test_expect_test.ml":332:35: loop_exceeded
+    ├─x = 7
+    ├─"test/test_expect_test.ml":335:10: z
+    │ └─z = 3
+    └─"test/test_expect_test.ml":332:35: loop_exceeded
+      ├─x = 6
+      ├─"test/test_expect_test.ml":335:10: z
+      │ └─z = 2
+      └─"test/test_expect_test.ml":332:35: loop_exceeded
+        ├─x = 5
+        ├─"test/test_expect_test.ml":335:10: z
+        │ └─z = 2
+        └─"test/test_expect_test.ml":332:35: loop_exceeded
+          ├─x = 4
+          ├─"test/test_expect_test.ml":335:10: z
+          │ └─z = 1
+          └─"test/test_expect_test.ml":332:35: loop_exceeded
+            ├─x = 3
+            └─"test/test_expect_test.ml":335:10: z
+              └─z = <max_nesting_depth exceeded>
+    Raised exception.
+    |}]
 ```
 
 Similarly, `max_num_children` raises a failure when the given number of logs with the same parent is exceeded. For example:
 
+<!-- $MDX file=test/test_expect_test.ml,part=debug_limit_children -->
 ```ocaml
-module Debug_runtime = (val Minidebug_runtime.debug ())
-
-let%debug_show _bar : unit =
-  [%debug_interrupts
-    { max_nesting_depth = 1000; max_num_children = 10 };
-    for i = 0 to 100 do
-      let _baz : int = i * 2 in
+    let module Debug_runtime = (val _get_local_debug_runtime ()) in
+    try
+      let%debug_o_show _bar : unit =
+        [%debug_interrupts
+          { max_nesting_depth = 1000; max_num_children = 10 };
+          for i = 0 to 100 do
+            let _baz : int = i * 2 in
+            ()
+          done]
+      in
       ()
-    done]
+    with Failure s -> print_endline @@ "Raised exception: " ^ s
+  in
+  [%expect
+    {|
+    BEGIN DEBUG SESSION
+    "test/test_expect_test.ml":377:23: _bar
+    ├─"test/test_expect_test.ml":381:16: _baz
+    │ └─_baz = 0
+    ├─"test/test_expect_test.ml":381:16: _baz
+    │ └─_baz = 2
+    ├─"test/test_expect_test.ml":381:16: _baz
+    │ └─_baz = 4
+    ├─"test/test_expect_test.ml":381:16: _baz
+    │ └─_baz = 6
+    ├─"test/test_expect_test.ml":381:16: _baz
+    │ └─_baz = 8
+    ├─"test/test_expect_test.ml":381:16: _baz
+    │ └─_baz = 10
+    ├─"test/test_expect_test.ml":381:16: _baz
+    │ └─_baz = 12
+    ├─"test/test_expect_test.ml":381:16: _baz
+    │ └─_baz = 14
+    ├─"test/test_expect_test.ml":381:16: _baz
+    │ └─_baz = 16
+    ├─"test/test_expect_test.ml":381:16: _baz
+    │ └─_baz = 18
+    ├─"test/test_expect_test.ml":381:16: _baz
+    │ └─_baz = 20
+    └─_baz = <max_num_children exceeded>
+    Raised exception: ppx_minidebug: max_num_children exceeded
+    |}]
 ```
 
 The `%debug_interrupts` extension point emits the interrupt checks in a lexically delimited scope. For convenience, we offer the extension point `%global_debug_interrupts` which triggers emitting the interrupt checks in the remainder of the source preprocessed in the same process (its scope is therefore less well defined). For example:
 
+<!-- $MDX file=test/test_debug_interrupts.ml,part=global_debug_interrupts -->
 ```ocaml
-module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:false ())
+module Debug_runtime =
+  (val Minidebug_runtime.debug_flushing ~filename:"debugger_show_interrupts" ())
 
 [%%global_debug_interrupts { max_nesting_depth = 5; max_num_children = 10 }]
+[%%global_debug_type_info true]
 
-let%debug_show rec loop_exceeded (x : int) : int =
+let%debug_o_show rec loop_exceeded (x : int) : int =
   let z : int = (x - 1) / 2 in
   if x <= 0 then 0 else z + loop_exceeded (z + (x / 2))
-
-let () =
-  try print_endline @@ Int.to_string @@ loop_exceeded 17
-  with _ -> print_endline "Raised exception."
-
-let%track_show bar () : unit =
-  for i = 0 to 100 do
-    let _baz : int = i * 2 in
-    ()
-  done
-
-let () = try bar () with _ -> print_endline "Raised exception."
 ```
 
-If that is insufficient, you can define a `Debug_runtime` using the `debug_flushing` builder.
-E.g. `module Debug_runtime = (val Minidebug_runtime.debug_flushing ())`, or `module Debug_runtime = (val Minidebug_runtime.debug_flushing ~filename:"path/to/debugger_flushing" ())` (an extension `.log` will be added to the file name).
+If that is insufficient, you can define `_get_local_debug_runtime` using a `_flushing` builder. The logged traces are still indented, but if the values to print are multi-line, their formatting might be messy. The benefit of "flushing" traces is that the output is flushed line-at-a-time, so no output should be lost if the traced program crashes. But in recent versions of `ppx_minidebug`, uncaught exceptions no longer break logging. The indentation is also smaller (half of the PrintBox runtimes). Example:
 
-The logged traces are still indented, but if the values to print are multi-line, their formatting might be messy. The benefit of `Flushing` traces is that the output is flushed line-at-a-time, so no output should be lost if the traced program crashes. But in recent versions of `ppx_minidebug`, uncaught exceptions no longer break logging in the `PrintBox` runtime. The indentation is also smaller (half of `PrintBox`). Truncated example (using `%debug_show`):
-
-```shell
-BEGIN DEBUG SESSION at time 2023-03-02 23:19:40.763950 +01:00
-2023-03-02 23:19:40.763980 +01:00 - foo begin "test/test_debug_show.ml":3:19-5:15
- x = 7
- foo = [7; 8; 16]
-2023-03-02 23:19:40.764000 +01:00 - foo end
-2023-03-02 23:19:40.764011 +01:00 - bar begin "test/test_debug_show.ml":10:19-10:73
- x = { Test_debug_show.first = 7; second = 42 }
- bar = 336
-2023-03-02 23:19:40.764028 +01:00 - bar end
-2023-03-02 23:19:40.764034 +01:00 - baz begin "test/test_debug_show.ml":13:19-14:67
- x = { Test_debug_show.first = 7; second = 42 }
- baz = 339
-2023-03-02 23:19:40.764048 +01:00 - baz end
-2023-03-02 23:19:40.764054 +01:00 - loop begin "test/test_debug_show.ml":17:24-23:9
- depth = 0
- x = { Test_debug_show.first = 7; second = 42 }
-  "test/test_debug_show.ml":21:8: 
-  2023-03-02 23:19:40.764073 +01:00 - loop begin "test/test_debug_show.ml":17:24-23:9
-   depth = 1
-   x = { Test_debug_show.first = 41; second = 9 }
-    "test/test_debug_show.ml":21:8: 
-    2023-03-02 23:19:40.764094 +01:00 - loop begin "test/test_debug_show.ml":17:24-23:9
-     depth = 2
-     x = { Test_debug_show.first = 8; second = 43 }
-      "test/test_debug_show.ml":21:8: 
-      2023-03-02 23:19:40.764109 +01:00 - loop begin "test/test_debug_show.ml":17:24-23:9
-       depth = 3
-       x = { Test_debug_show.first = 42; second = 10 }
-        "test/test_debug_show.ml":21:8: 
+<!-- $MDX file=test/test_expect_test.ml,part=simple_flushing -->
+```ocaml
+  let _get_local_debug_runtime =
+    Minidebug_runtime.prefixed_runtime_flushing ~time_tagged:Not_tagged
+      ~global_prefix:"test-51" ()
+  in
+  let%debug_show bar (x : t) : int =
+    let y : int = x.first + 1 in
+    x.second * y
+  in
+  let () = print_endline @@ Int.to_string @@ bar { first = 7; second = 42 } in
+  let%debug_show baz (x : t) : int =
+    let ((y, z) as _yz) : int * int = (x.first + 1, 3) in
+    (x.second * y) + z
+  in
+  let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
+  let output = [%expect.output] in
+  print_endline output;
+  [%expect
+    {|
+    BEGIN DEBUG SESSION test-51
+    test-51 bar begin "test/test_expect_test.ml":157:21:
+     x = { Test_expect_test.first = 7; second = 42 }
+     test-51 y begin "test/test_expect_test.ml":158:8:
+      y = 8
+     test-51 y end
+     bar = 336
+    test-51 bar end
+    336
+    test-51 baz begin "test/test_expect_test.ml":162:21:
+     x = { Test_expect_test.first = 7; second = 42 }
+     test-51 _yz begin "test/test_expect_test.ml":163:19:
+      _yz = (8, 3)
+     test-51 _yz end
+     baz = 339
+    test-51 baz end
+    339
+    |}]
 ```
 
 ### Tracking: control flow branches, anonymous and insufficiently annotated functions
@@ -364,9 +463,14 @@ Using the `%track_`-prefix rather than `%debug_`-prefix to start a debug scope, 
 
 If you get fewer logs than you expected, try converting `%debug_` to `%track_`.
 
-For example:
+Example that also illustrates disabling tracing:
 
+
+<!-- $MDX file=test/test_expect_test.ml,part=track_notrace_example -->
 ```ocaml
+  let _get_local_debug_runtime =
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
+  in
   let%track_show track_branches (x : int) : int =
     if x < 6 then
       match%debug_notrace x with
@@ -382,66 +486,71 @@ For example:
       | _ ->
           let result : int = if x < 10 then x else ~-x in
           result
-
+  in
   let () =
-    print_endline @@ Int.to_string @@ track_branches 8;
-    print_endline @@ Int.to_string @@ track_branches 3
+    try
+      print_endline @@ Int.to_string @@ track_branches 8;
+      print_endline @@ Int.to_string @@ track_branches 3
+    with _ -> print_endline "Raised exception."
+  in
+  [%expect
+    {|
+    BEGIN DEBUG SESSION
+    "test/test_expect_test.ml":1037:32: track_branches
+    ├─x = 8
+    ├─"test/test_expect_test.ml":1046:6: else:test_expect_test:1046
+    │ └─"test/test_expect_test.ml":1050:10: <match -- branch 2>
+    │   └─"test/test_expect_test.ml":1050:14: result
+    │     ├─"test/test_expect_test.ml":1050:44: then:test_expect_test:1050
+    │     └─result = 8
+    └─track_branches = 8
+    8
+    "test/test_expect_test.ml":1037:32: track_branches
+    ├─x = 3
+    ├─"test/test_expect_test.ml":1039:6: then:test_expect_test:1039
+    │ └─"test/test_expect_test.ml":1043:14: result
+    │   └─result = 3
+    └─track_branches = 3
+    3
+    |}]
 ```
 
-gives (assuming `~values_first_mode:false`):
+Another example:
 
-```shell
-BEGIN DEBUG SESSION
-"test/test_expect_test.ml":415:37-429:16: track_branches
-├─x = 8
-├─"test/test_expect_test.ml":424:6: <if -- else branch>
-│ └─"test/test_expect_test.ml":427:8: <match -- branch 2>
-│   └─"test/test_expect_test.ml":428:14: result
-│     ├─"test/test_expect_test.ml":428:44: <if -- then branch>
-│     └─result = 8
-└─track_branches = 8
-8
-"test/test_expect_test.ml":415:37-429:16: track_branches
-├─x = 3
-├─"test/test_expect_test.ml":417:6: <if -- then branch>
-│ └─"test/test_expect_test.ml":421:14: result
-│   └─result = 3
-└─track_branches = 3
-3
-```
-
-and
-
+<!-- $MDX file=test/test_expect_test.ml,part=track_anonymous_example -->
 ```ocaml
   let%track_show anonymous (x : int) =
     Array.fold_left ( + ) 0 @@ Array.init (x + 1) (fun (i : int) -> i)
   in
-  print_endline @@ Int.to_string @@ anonymous 3
-```
-
-gives:
-
-```shell
-BEGIN DEBUG SESSION
-"test/test_expect_test.ml":516:32-517:70: anonymous
-├─x = 3
-├─"test/test_expect_test.ml":517:50-517:70: __fun
-│ └─i = 0
-├─"test/test_expect_test.ml":517:50-517:70: __fun
-│ └─i = 1
-├─"test/test_expect_test.ml":517:50-517:70: __fun
-│ └─i = 2
-└─"test/test_expect_test.ml":517:50-517:70: __fun
-  └─i = 3
-6
+  let () =
+    try print_endline @@ Int.to_string @@ anonymous 3
+    with Failure s -> print_endline @@ "Raised exception: " ^ s
+  in
+  [%expect
+    {|
+    "test/test_expect_test.ml":1231:27: anonymous
+    ├─x = 3
+    ├─"test/test_expect_test.ml":1232:50: fun:test_expect_test:1232
+    │ └─i = 0
+    ├─"test/test_expect_test.ml":1232:50: fun:test_expect_test:1232
+    │ └─i = 1
+    ├─"test/test_expect_test.ml":1232:50: fun:test_expect_test:1232
+    │ └─i = 2
+    └─"test/test_expect_test.ml":1232:50: fun:test_expect_test:1232
+      └─i = 3
+    6
+    |}]
 ```
 
 To disable, rather than enhance, debugging for a piece of code, you can use the `%diagn_` extension points.
 
 Explicit logging statements also help with tracking the execution, since they can be placed anywhere within a debug scope. Example from the test suite:
 
+<!-- $MDX file=test/test_expect_test.ml,part=track_while_loop_example -->
 ```ocaml
-  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:false ()) in
+  let _get_local_debug_runtime =
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
+  in
   let%track_sexp result =
     let i = ref 0 in
     let j = ref 0 in
@@ -458,33 +567,34 @@ Explicit logging statements also help with tracking the execution, since they ca
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":2271:4: <while loop>
-    ├─"test/test_expect_test.ml":2272:6: <while loop>
-    │ ├─(1 i= 0)
-    │ ├─(2 i= 1)
-    │ └─(3 j= 1)
-    ├─"test/test_expect_test.ml":2272:6: <while loop>
-    │ ├─(1 i= 1)
-    │ ├─(2 i= 2)
-    │ └─(3 j= 3)
-    ├─"test/test_expect_test.ml":2272:6: <while loop>
-    │ ├─(1 i= 2)
-    │ ├─(2 i= 3)
-    │ └─(3 j= 6)
-    ├─"test/test_expect_test.ml":2272:6: <while loop>
-    │ ├─(1 i= 3)
-    │ ├─(2 i= 4)
-    │ └─(3 j= 10)
-    ├─"test/test_expect_test.ml":2272:6: <while loop>
-    │ ├─(1 i= 4)
-    │ ├─(2 i= 5)
-    │ └─(3 j= 15)
-    └─"test/test_expect_test.ml":2272:6: <while loop>
-      ├─(1 i= 5)
-      ├─(2 i= 6)
-      └─(3 j= 21)
+    "test/test_expect_test.ml":2576:17: result
+    └─"test/test_expect_test.ml":2579:4: while:test_expect_test:2579
+      ├─"test/test_expect_test.ml":2580:6: <while loop>
+      │ ├─(1 i= 0)
+      │ ├─(2 i= 1)
+      │ └─(3 j= 1)
+      ├─"test/test_expect_test.ml":2580:6: <while loop>
+      │ ├─(1 i= 1)
+      │ ├─(2 i= 2)
+      │ └─(3 j= 3)
+      ├─"test/test_expect_test.ml":2580:6: <while loop>
+      │ ├─(1 i= 2)
+      │ ├─(2 i= 3)
+      │ └─(3 j= 6)
+      ├─"test/test_expect_test.ml":2580:6: <while loop>
+      │ ├─(1 i= 3)
+      │ ├─(2 i= 4)
+      │ └─(3 j= 10)
+      ├─"test/test_expect_test.ml":2580:6: <while loop>
+      │ ├─(1 i= 4)
+      │ ├─(2 i= 5)
+      │ └─(3 j= 15)
+      └─"test/test_expect_test.ml":2580:6: <while loop>
+        ├─(1 i= 5)
+        ├─(2 i= 6)
+        └─(3 j= 21)
     21
-        |}]
+    |}]
 ```
 
 ### Using as a logging framework
@@ -499,8 +609,9 @@ The log levels are integers intended to be within the range 0-9, where 0 means n
 
 The `%diagn_` extension points further restrict logging to explicit logs only. Example from the test suite:
 
+<!-- $MDX file=test/test_expect_test.ml,part=diagn_show_ignores_bindings -->
 ```ocaml
-  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%diagn_show bar { first : int; second : int } : int =
     let { first : int = a; second : int = b } = { first; second = second + 3 } in
     let y : int = a + 1 in
@@ -509,27 +620,30 @@ The `%diagn_` extension points further restrict logging to explicit logs only. E
   in
   let () = print_endline @@ Int.to_string @@ bar { first = 7; second = 42 } in
   let%diagn_show baz { first : int; second : int } : int =
-    let { first : int; second : int } = { first = first + 1; second = second + 3 } in
-    [%log "for baz, f squared", (first * first : int)];
-    (first * first) + second
+    let foo { first : int; second : int } : int =
+      [%log "foo baz, f squared", (first * first : int)];
+      (first * first) + second
+    in
+    foo { first; second }
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
   [%expect
     {|
-      BEGIN DEBUG SESSION
-      bar
-      ├─"test/test_expect_test.ml":2972:21-2976:15
-      └─("for bar, b-3", 42)
-      336
-      baz
-      ├─"test/test_expect_test.ml":2979:10-2982:28
-      └─("for baz, f squared", 64)
-      109 |}]
-
+    BEGIN DEBUG SESSION
+    bar
+    ├─"test/test_expect_test.ml":3302:21
+    └─("for bar, b-3", 42)
+    336
+    baz
+    ├─"test/test_expect_test.ml":3309:21
+    └─("foo baz, f squared", 49)
+    91
+    |}]
 ```
 
-At runtime, the level can be set via `Minidebug_runtime.debug ~log_level` or `Minidebug_runtime.debug_file ~log_level` at runtime creation, or via `Debug_runtime.log_level := ...` later on, also for the flushing backend. Check out the test suite [test_expect_test.ml:"%log runtime log levels while-loop"](test/test_expect_test.ml#L2536) for examples:
+At runtime creation, the level can be set via the `~log_level` parameter, or via `Debug_runtime.log_level := ...` later on, also for the flushing backend. The following example also illustrates the `_rt_` runtime-passing entry points:
 
+<!-- $MDX file=test/test_expect_test.ml,part=log_runtime_log_levels_while_loop_example -->
 ```ocaml
   let%track_rt_sexp result () : int =
     let i = ref 0 in
@@ -544,36 +658,46 @@ At runtime, the level can be set via `Minidebug_runtime.debug ~log_level` or `Mi
     done;
     !j
   in
-  ...
   print_endline
   @@ Int.to_string
        (result
           Minidebug_runtime.(
-            forget_printbox @@ debug ~log_level:2 ~global_prefix:"Warning" ())
+            forget_printbox
+            @@ debug ~values_first_mode:false ~global_prefix:"Everything" ())
           ());
-  ...
+  print_endline
+  @@ Int.to_string
+       (result
+          Minidebug_runtime.(
+            forget_printbox
+            @@ debug ~values_first_mode:false ~log_level:0 ~global_prefix:"Nothing" ())
+          ());
+  print_endline
+  @@ Int.to_string
+       (result
+          Minidebug_runtime.(
+            forget_printbox @@ debug ~log_level:1 ~global_prefix:"Error" ())
+          ());
 ```
 
-At compile time, the level can be set for a scope with `%log_level`, or globally with `%global_debug_log_level`, or silently via the environment variable `PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL` (unsafe).
-(`%log_level` is not registered to minimize incompatibility with other logging frameworks.) For example:
+But there is a more convenient approach. Both at compile time (constant) and at runtime (integer expression), the level can be set for a scope with `%log_level`, or globally with `%global_debug_log_level`. (`%log_level` is not registered to minimize incompatibility with other logging frameworks.) The (default) compile-time level can also be set silently via the environment variable `PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL` (unsafe). The extensions `%global_debug_log_level`, `%log_level` set the compile time log level only when used with an integer literal, otherwise they are limited to setting the runtime log level.
 
+For example:
+
+<!-- $MDX file=test/test_debug_log_prefixed.ml,part=global_debug_log_level -->
 ```ocaml
-[%%global_log_level 2]
+let _get_local_debug_runtime =
+  Minidebug_runtime.local_runtime_flushing "debugger_show_log_prefixed"
 
-let%track_sexp warning () : int =
-  let i = ref 0 in
-  let j = ref 0 in
-  while !i < 6 do
-    (* Intentional empty but not omitted else-branch. *)
-    if !i < 2 then [%log1 "ERROR:", 1, "i=", (!i : int)] else ();
-    incr i;
-    [%log2 "WARNING:", 2, "i=", (!i : int)];
-    j := (fun { contents } -> !j + contents) i;
-    [%log3 "INFO:", 3, "j=", (!j : int)]
-  done;
-  !j
+[%%global_debug_log_level 2]
 
-let () = print_endline @@ Int.to_string @@ warning ()
+let%diagn_show rec loop_exceeded (x : int) : int =
+  let z : int =
+    [%log2 "inside loop", (x : int)];
+    [%log3 "this is detail"];
+    (x - 1) / 2
+  in
+  if x <= 0 then 0 else z + loop_exceeded (z + (x / 2))
 ```
 
 This will not emit logging code that is above the stated log level. Note that the compile-time pruning of logging happens independently of the runtime log level! This gives more flexibility but can lead to confusing situations.
@@ -588,10 +712,9 @@ With `[%%global_debug_log_level_from_env_var "environment_variable_name"]`, the 
 
 Another example from the test suite, notice how the log level of `%log1` overrides the parent log level of `%debug3_show`:
 
+<!-- $MDX file=test/test_expect_test.ml,part=debug_show_log_level_runtime -->
 ```ocaml
-  let module Debug_runtime =
-    (val Minidebug_runtime.debug ~log_level:2 ())
-  in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime ~log_level:2 () in
   let%debug3_show () =
     let foo { first : int; second : int } : int =
       let { first : int = a; second : int = b } = { first; second = second + 3 } in
@@ -622,11 +745,11 @@ Another example from the test suite, notice how the log level of `%log1` overrid
     └─{orphaned from #5}
     336
     baz = 109
-    ├─"test/test_expect_test.ml":3343:29
+    ├─"test/test_expect_test.ml":3413:24
     ├─first = 7
     ├─second = 42
     ├─{first; second}
-    │ ├─"test/test_expect_test.ml":3344:10
+    │ ├─"test/test_expect_test.ml":3414:10
     │ └─<values>
     │   ├─first = 8
     │   └─second = 45
@@ -639,8 +762,9 @@ The extension point `%log_result` lets you benefit from the `values_first_mode` 
 
 The extension point `%log_printbox` lets you embed a `PrintBox.t` in the logs directly. Example from the test suite:
 
+<!-- $MDX file=test/test_expect_test.ml,part=log_printbox -->
 ```ocaml
-  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   let%debug_show foo () : unit =
     [%log_printbox
       PrintBox.init_grid ~line:5 ~col:5 (fun ~line ~col ->
@@ -659,106 +783,105 @@ The extension point `%log_printbox` lets you embed a `PrintBox.t` in the logs di
   let () = foo () in
   [%expect
     {|
-      BEGIN DEBUG SESSION
-      foo = ()
-      ├─"test/test_expect_test.ml":3324:21-3337:91
-      ├─0/0│0/1│0/2│0/3│0/4
-      │ ───┼───┼───┼───┼───
-      │ 1/0│1/1│1/2│1/3│1/4
-      │ ───┼───┼───┼───┼───
-      │ 2/0│2/1│2/2│2/3│2/4
-      │ ───┼───┼───┼───┼───
-      │ 3/0│3/1│3/2│3/3│3/4
-      │ ───┼───┼───┼───┼───
-      │ 4/0│4/1│4/2│4/3│4/4
-      ├─"No bars but pad:"
-      ├─
-      │  0/0  0/1  0/2  0/3  0/4
-      │
-      │
-      │  1/0  1/1  1/2  1/3  1/4
-      │
-      │
-      │  2/0  2/1  2/2  2/3  2/4
-      │
-      │
-      │  3/0  3/1  3/2  3/3  3/4
-      │
-      │
-      │  4/0  4/1  4/2  4/3  4/4
-      │
-      ├─"Now with a frame:"
-      └─┬───┬───┬───┬───┬───┐
-        │0/0│0/1│0/2│0/3│0/4│
-        ├───┼───┼───┼───┼───┤
-        │1/0│1/1│1/2│1/3│1/4│
-        ├───┼───┼───┼───┼───┤
-        │2/0│2/1│2/2│2/3│2/4│
-        ├───┼───┼───┼───┼───┤
-        │3/0│3/1│3/2│3/3│3/4│
-        ├───┼───┼───┼───┼───┤
-        │4/0│4/1│4/2│4/3│4/4│
-        └───┴───┴───┴───┴───┘ |}
+    BEGIN DEBUG SESSION
+    foo = ()
+    ├─"test/test_expect_test.ml":3544:21
+    ├─0/0│0/1│0/2│0/3│0/4
+    │ ───┼───┼───┼───┼───
+    │ 1/0│1/1│1/2│1/3│1/4
+    │ ───┼───┼───┼───┼───
+    │ 2/0│2/1│2/2│2/3│2/4
+    │ ───┼───┼───┼───┼───
+    │ 3/0│3/1│3/2│3/3│3/4
+    │ ───┼───┼───┼───┼───
+    │ 4/0│4/1│4/2│4/3│4/4
+    ├─"No bars but pad:"
+    ├─
+    │  0/0  0/1  0/2  0/3  0/4
+    │
+    │
+    │  1/0  1/1  1/2  1/3  1/4
+    │
+    │
+    │  2/0  2/1  2/2  2/3  2/4
+    │
+    │
+    │  3/0  3/1  3/2  3/3  3/4
+    │
+    │
+    │  4/0  4/1  4/2  4/3  4/4
+    │
+    ├─"Now with a frame:"
+    └─┬───┬───┬───┬───┬───┐
+      │0/0│0/1│0/2│0/3│0/4│
+      ├───┼───┼───┼───┼───┤
+      │1/0│1/1│1/2│1/3│1/4│
+      ├───┼───┼───┼───┼───┤
+      │2/0│2/1│2/2│2/3│2/4│
+      ├───┼───┼───┼───┼───┤
+      │3/0│3/1│3/2│3/3│3/4│
+      ├───┼───┼───┼───┼───┤
+      │4/0│4/1│4/2│4/3│4/4│
+      └───┴───┴───┴───┴───┘
+    |}]
 ```
 
 The extension point `%log_entry` lets you shape arbitrary log tree structures. The similar extension point `%log_block` ensures that its body doesn't get executed (resp. generated) when the current runtime (resp. compile-time) log level is inadequate. Example:
 
+<!-- $MDX file=test/test_expect_test.ml,part=log_entry -->
 ```ocaml
-  let module Debug_runtime = (val Minidebug_runtime.debug ~values_first_mode:false ()) in
+  let _get_local_debug_runtime =
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
+  in
   let%diagn_show _logging_logic : unit =
-    let logify _logs =
-      [%log_block
-        "logs";
-        let rec loop logs =
-          match logs with
-          | "start" :: header :: tl ->
-              let more =
-                [%log_entry
-                  header;
-                  loop tl]
-              in
-              loop more
-          | "end" :: tl -> tl
-          | msg :: tl ->
-              [%log msg];
-              loop tl
-          | [] -> []
-        in
-        ignore (loop _logs)]
+    let rec loop logs =
+      match logs with
+      | "start" :: header :: tl ->
+          let more =
+            [%log_entry
+              header;
+              loop tl]
+          in
+          loop more
+      | "end" :: tl -> tl
+      | msg :: tl ->
+          [%log msg];
+          loop tl
+      | [] -> []
     in
-    logify
-      [
-        "preamble";
-        "start";
-        "header 1";
-        "log 1";
-        "start";
-        "nested header";
-        "log 2";
-        "end";
-        "log 3";
-        "end";
-        "start";
-        "header 2";
-        "log 4";
-        "end";
-        "postscript";
-      ]
+    ignore
+    @@ loop
+         [
+           "preamble";
+           "start";
+           "header 1";
+           "log 1";
+           "start";
+           "nested header";
+           "log 2";
+           "end";
+           "log 3";
+           "end";
+           "start";
+           "header 2";
+           "log 4";
+           "end";
+           "postscript";
+         ]
   in
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":3605:17: _logging_logic
-    └─logs
-      ├─"preamble"
-      ├─header 1
-      │ ├─"log 1"
-      │ ├─nested header
-      │ │ └─"log 2"
-      │ └─"log 3"
-      ├─header 2
-      │ └─"log 4"
-      └─"postscript"
+    "test/test_expect_test.ml":3679:17: _logging_logic
+    ├─"preamble"
+    ├─header 1
+    │ ├─"log 1"
+    │ ├─nested header
+    │ │ └─"log 2"
+    │ └─"log 3"
+    ├─header 2
+    │ └─"log 4"
+    └─"postscript"
     |}]
 ```
 
@@ -770,10 +893,42 @@ The unregistered extension point `[%at_log_level for_log_level; <body>]` sets th
 
 To express the runtime-known levels to log at more concisely, we have extension points `%logN`, `%logN_result`, `%logN_printbox`, `%logN_block` (but not other extension points), by analogy to compile time levels where instead of the letter `N` there is a digit 1-9. With the letter `N`, the extension expressions take an extra argument that is the level to log at. For example, `[%logN for_log_level; "message"]` will log `"message"` when at runtime, `for_log_level`'s value is at or below the current log level.
 
-In particular, `[%logN_block for_log_level "header"; <body>]` is roughly equivalent to:
+In particular, `[%logN_block for_log_level "header"; Printf.printf "level %d" for_log_level]` is roughly equivalent to:
 
+<!-- $MDX file=doc/sync_to_md.ml,part=at_log_level -->
 ```ocaml
- if !Debug_runtime.log_level >= for_log_level then [%at_log_level for_log_level; [%log_entry "header"; <body>]]
+let _get_local_debug_runtime = Minidebug_runtime.local_runtime "sync_to_md-at_log_level"
+
+let%debug_sexp test_at_log_level for_log_level : unit =
+  if !Debug_runtime.log_level >= for_log_level then
+    [%at_log_level
+      for_log_level;
+      [%log_entry
+        "header";
+        Printf.printf "level %d" for_log_level]]
+
+let%debug_sexp _test_at_log_level_2 : unit = test_at_log_level 2
+let%debug_sexp _test_at_log_level_3 : unit = test_at_log_level 3
+```
+
+Take a look at the test `"%logN_block runtime log levels"` in [test_expect_test.ml](test/test_expect_test.ml):
+
+<!-- $MDX file=test/test_expect_test.ml,part=logN_block -->
+```ocaml
+  let%track_rt_sexp result ~for_log_level : int =
+    let i = ref 0 in
+    let j = ref 0 in
+    while !i < 6 do
+      incr i;
+      [%logN_block
+        for_log_level ("i=" ^ string_of_int !i);
+        if !i < 3 then [%log "ERROR:", 1, "i=", (!i : int)] else ();
+        [%log "WARNING:", 2, "i=", (!i : int)];
+        j := (fun { contents } -> !j + contents) i;
+        [%log3 "INFO:", 3, "j=", (!j : int)]]
+    done;
+    !j
+  in
 ```
 
 ### Lexical scopes vs. dynamic scopes
@@ -786,9 +941,10 @@ expose the (lexical) entry id of an individual log, except when the log "wandere
 scopes, or you passed `~verbose_entry_ids:true` when creating a runtime. To be able to locate where such log originates from, pass `~print_entry_ids:true` when creating
 the runtime, and look for the path line with the log's entry id. When the backend is HTML or Markdown, the entry id is a hyperlink to the anchor of the entry. Example from the test suite:
 
+<!-- $MDX file=test/test_expect_test.ml,part=log_with_print_entry_ids_mixed_up_scopes -->
 ```ocaml
-  let module Debug_runtime =
-    (val Minidebug_runtime.debug ~print_entry_ids:true ())
+  let _get_local_debug_runtime =
+    Minidebug_runtime.prefixed_runtime ~print_entry_ids:true ()
   in
   let i = 3 in
   let pi = 3.14 in
@@ -815,24 +971,34 @@ the runtime, and look for the path line with the log's entry id. When the backen
     baz !foo1;
     bar !foo2
   in
+  let%debug_show _foobar : unit = !foo1 () in
   let () = !foo2 () in
   [%expect
     {|
-          BEGIN DEBUG SESSION
-          bar = ()
-          └─"test/test_expect_test.ml":2923:21-2928:19: {#1}
-          baz = ()
-          └─"test/test_expect_test.ml":2930:21-2935:19: {#2}
-          bar = ()
-          └─"test/test_expect_test.ml":2923:21-2928:19: {#3}
-          [3; 1; 2; 3]
-          └─{orphaned from #2}
-          [3; 1; 2; 3]
-          └─{orphaned from #2}
-          ("This is like", 3, "or", 3.14, "above")
-          └─{orphaned from #1}
-          ("tau =", 6.28)
-          └─{orphaned from #1} |}]
+    BEGIN DEBUG SESSION
+    bar = ()
+    └─"test/test_expect_test.ml":3168:21 {#1}
+    baz = ()
+    └─"test/test_expect_test.ml":3175:21 {#2}
+    bar = ()
+    └─"test/test_expect_test.ml":3168:21 {#3}
+    _foobar = ()
+    ├─"test/test_expect_test.ml":3187:17 {#4}
+    ├─("This is like", 3, "or", 3.14, "above")
+    ├─("tau =", 6.28)
+    ├─[3; 1; 2; 3]
+    ├─[3; 1; 2; 3]
+    ├─("This is like", 3, "or", 3.14, "above")
+    └─("tau =", 6.28)
+    [3; 1; 2; 3]
+    └─{orphaned from #2}
+    [3; 1; 2; 3]
+    └─{orphaned from #2}
+    ("This is like", 3, "or", 3.14, "above")
+    └─{orphaned from #1}
+    ("tau =", 6.28)
+    └─{orphaned from #1}
+    |}]
 ```
 
 `~verbose_entry_ids:true` tags all logs with entry ids, it shouldn't be needed in regular use.
@@ -853,80 +1019,85 @@ The log levels discussed in the previous section certainly reduce the amount gen
 In the PrintBox backend, you can disable the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space.
 The test suite example:
 
+<!-- $MDX file=test/test_expect_test.ml,part=loop_changes -->
 ```ocaml
-  let%debug_show rec fixpoint_changes (x: int): int =
-    let z: int = (x - 1) / 2 in
-    (* The call [x = 2] is not printed because it is a descendant of
-       the no-debug call [x = 4]. *)
+  let%debug_show rec loop_changes (x : int) : int =
+    let z : int = (x - 1) / 2 in
+    (* The call [x = 2] is not printed because it is a descendant of the no-debug call [x
+       = 4]. *)
     Debug_runtime.no_debug_if (x <> 6 && x <> 2 && (z + 1) * 2 = x);
-    if x <= 0 then 0 else z + fixpoint_changes (z + x / 2) in
-  print_endline @@ Int.to_string @@ fixpoint_changes 7
-```
-
-leads to (assuming `~values_first_mode:false`):
-
-```shell
-  "test/test_expect_test.ml":96:43-100:58: fixpoint_changes
-  ├─x = 7
-  ├─"test/test_expect_test.ml":97:8: z
-  │ └─z = 3
-  ├─"test/test_expect_test.ml":96:43-100:58: fixpoint_changes
-  │ ├─x = 6
-  │ ├─"test/test_expect_test.ml":97:8: z
-  │ │ └─z = 2
-  │ ├─"test/test_expect_test.ml":96:43-100:58: fixpoint_changes
-  │ │ ├─x = 5
-  │ │ ├─"test/test_expect_test.ml":97:8: z
-  │ │ │ └─z = 2
-  │ │ └─fixpoint_changes = 4
-  │ └─fixpoint_changes = 6
-  └─fixpoint_changes = 9
-  9
+    if x <= 0 then 0 else z + loop_changes (z + (x / 2))
+  in
+  let () = print_endline @@ Int.to_string @@ loop_changes 7 in
+  [%expect
+    {|
+    "test/test_expect_test.ml":247:34: loop_changes
+    ├─x = 7
+    ├─"test/test_expect_test.ml":248:8: z
+    │ └─z = 3
+    ├─"test/test_expect_test.ml":247:34: loop_changes
+    │ ├─x = 6
+    │ ├─"test/test_expect_test.ml":248:8: z
+    │ │ └─z = 2
+    │ ├─"test/test_expect_test.ml":247:34: loop_changes
+    │ │ ├─x = 5
+    │ │ ├─"test/test_expect_test.ml":248:8: z
+    │ │ │ └─z = 2
+    │ │ └─loop_changes = 4
+    │ └─loop_changes = 6
+    └─loop_changes = 9
+    9
+    |}]
 ```
 
 The `no_debug_if` mechanism requires modifying the logged sources, and since it's limited to cutting out subtrees of the logs, it can be tricky to select and preserve the context one wants. The highlighting mechanism with the `prune_upto` setting avoids these problems. You provide a search term without modifying the debugged sources. You can tune the pruning level to keep the context around the place the search term was found.
 
 Setting the option `truncate_children` will only log the given number of children at each node, prioritizing the most recent ones. An example from the test suite:
 
+<!-- $MDX file=test/test_expect_test.ml,part=track_for_loop_truncated_children -->
 ```ocaml
-  let module Debug_runtime =
-    (val Minidebug_runtime.debug ~truncate_children:10 ~values_first_mode:false ()) in
+  let _get_local_debug_runtime =
+    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ~truncate_children:10 ()
+  in
   let () =
-    let%track_show _bar : unit =
-      for i = 0 to 30 do
-        let _baz : int = i * 2 in
-        ()
-      done
-    in
-    ()
+    try
+      let%track_show _bar : unit =
+        for i = 0 to 30 do
+          let _baz : int = i * 2 in
+          ()
+        done
+      in
+      ()
+    with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":350:26: _bar
-    ├─"test/test_expect_test.ml":351:8: <for loop>
+    "test/test_expect_test.ml":515:21: _bar
+    ├─"test/test_expect_test.ml":516:8: for:test_expect_test:516
     │ ├─<earlier entries truncated>
     │ ├─i = 26
-    │ ├─"test/test_expect_test.ml":351:12: <for i>
-    │ │ └─"test/test_expect_test.ml":352:14: _baz
+    │ ├─"test/test_expect_test.ml":516:12: <for i>
+    │ │ └─"test/test_expect_test.ml":517:14: _baz
     │ │   └─_baz = 52
     │ ├─i = 27
-    │ ├─"test/test_expect_test.ml":351:12: <for i>
-    │ │ └─"test/test_expect_test.ml":352:14: _baz
+    │ ├─"test/test_expect_test.ml":516:12: <for i>
+    │ │ └─"test/test_expect_test.ml":517:14: _baz
     │ │   └─_baz = 54
     │ ├─i = 28
-    │ ├─"test/test_expect_test.ml":351:12: <for i>
-    │ │ └─"test/test_expect_test.ml":352:14: _baz
+    │ ├─"test/test_expect_test.ml":516:12: <for i>
+    │ │ └─"test/test_expect_test.ml":517:14: _baz
     │ │   └─_baz = 56
     │ ├─i = 29
-    │ ├─"test/test_expect_test.ml":351:12: <for i>
-    │ │ └─"test/test_expect_test.ml":352:14: _baz
+    │ ├─"test/test_expect_test.ml":516:12: <for i>
+    │ │ └─"test/test_expect_test.ml":517:14: _baz
     │ │   └─_baz = 58
     │ ├─i = 30
-    │ └─"test/test_expect_test.ml":351:12: <for i>
-    │   └─"test/test_expect_test.ml":352:14: _baz
+    │ └─"test/test_expect_test.ml":516:12: <for i>
+    │   └─"test/test_expect_test.ml":517:14: _baz
     │     └─_baz = 60
-    └─_bar = () |}]
+    └─_bar = ()
+    |}]
 ```
 
 If you provide the `split_files_after` setting, the logging will transition to a new file after the current file exceeds the given number of characters. However, the splits only happen at the "toplevel", to not interrupt laying out the log trees. If required, you can remove logging indicators from your high-level functions, to bring the deeper logic log trees to the toplevel. This matters when you prefer Markdown output over HTML output -- in my experience, Markdown renderers (VS Code Markdown Preview, GitHub Preview) fail for files larger than 2MB, while browsers easily handle HTML files of over 200MB (including via VS Code Live Preview).
@@ -951,11 +1122,12 @@ If you collaborate with someone or take notes, you can pass `~print_entry_ids:tr
 
 Example demonstrating foldable trees in Markdown:
 
+<!-- $MDX file=test/test_debug_time_spans.ml -->
 ```ocaml
-module Debug_runtime =
-  (val Minidebug_runtime.debug_file ~elapsed_times:Microseconds ~hyperlink:"./"
-         ~backend:(`Markdown Minidebug_runtime.default_md_config)
-         ~truncate_children:4 "debugger_sexp_time_spans")
+let _get_local_debug_runtime =
+  Minidebug_runtime.local_runtime ~elapsed_times:Microseconds ~hyperlink:"./"
+    ~backend:(`Markdown Minidebug_runtime.default_md_config) ~truncate_children:4
+    "debugger_sexp_time_spans"
 
 let sexp_of_int i = Sexplib0.Sexp.Atom (string_of_int i)
 
@@ -1314,8 +1486,9 @@ Here is a probably incomplete list of the restrictions:
 
 As a help in debugging whether the right type information got propagated, we offer the extension `%debug_type_info` (and `%global_debug_type_info`). (The display strips module qualifiers from types.) `%debug_type_info` is not an entry extension point (`%global_debug_type_info` is). Example [from the test suite](test/test_expect_test.ml):
 
+<!-- $MDX file=test/test_expect_test.ml,part=debug_type_info -->
 ```ocaml
-  let module Debug_runtime = (val Minidebug_runtime.debug ()) in
+  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
   [%debug_show
     [%debug_type_info
       let f : 'a. 'a -> int -> int = fun _a b -> b + 1 in
@@ -1324,15 +1497,18 @@ As a help in debugging whether the right type information got propagated, we off
       print_endline @@ Int.to_string @@ g 'a' 6 'b' 'c']];
   [%expect
     {|
-      BEGIN DEBUG SESSION
-      f : int = 7
-      ├─"test/test_expect_test.ml":1446:37-1446:54
-      └─b : int = 6
-      7
-      g : int = 12
-      ├─"test/test_expect_test.ml":1447:49-1447:72
-      └─b : int = 6
-      12 |}]
+    BEGIN DEBUG SESSION
+    f : int = 7
+    ├─"test/test_expect_test.ml":2242:37
+    ├─f : int
+    └─b : int = 6
+    7
+    g : int = 12
+    ├─"test/test_expect_test.ml":2243:49
+    ├─g : int
+    └─b : int = 6
+    12
+    |}]
 ```
 
 You can also use at the module level: `[%%global_debug_type_info true]`, prior to the code of interest.
@@ -1341,50 +1517,67 @@ Explicit logging with `%log` (and `%log_result`) has different but related restr
 
 ### Dealing with concurrent execution
 
-For programs with threads or domains running concurrently, you need to ensure that each thread uses its own instance of a debug runtime, writing to its own log file. Currently, `ppx_minidebug` doesn't do any checks to prevent abuse: using the same debug runtime instance from multiple threads or opening the same file by multiple debug runtime instances.
+With version 2.2.0, the default safety of using ppx_minidebug in a multithreaded context improved significantly. That's because the most convenient runtime builders (`local_runtime` etc.) use thread-local storage to provide local debug runtimes. They either log to different files, or use prefixes on logs. When using one of the lower-level debug runtime builders, or when using fibers or other non-system multithreading solutions, you need to be careful.
 
-We offer three helpers for dealing with multiple debug runtimes. There is an optional runtime instance-level setting `global_prefix`, which adds the given information to all log headers coming from the instance.
+We offer three helpers for dealing with multiple debug runtimes. 
 
-There are extension points `%debug_l_sexp`, `%track_l_sexp`, etc. They call a function `_get_local_debug_runtime ()` and unpack the argument as `module Debug_runtime` (in a function body). The feature helps using a runtime instance dedicated to a thread or domain, since for example `_get_local_debug_runtime` can retrieve the runtime using `Domain.DLS`. To avoid surprises, in case of directly annotated functions, this feature unpacks a `Debug_runtime` inside the function body, so that we get the appropriate runtime for the dynamic local scope.
+The default extension points `%debug_sexp`, `%track_sexp`, etc. call a function `_get_local_debug_runtime ()` and unpack the argument as `module Debug_runtime` (in a function body). The feature helps using a runtime instance dedicated to a thread or domain, since for example `_get_local_debug_runtime` can retrieve the runtime using `Domain.DLS`. (The runtime builders `local_runtime` and `local_runtime_flushing` use [`Thread_local_storage`](https://ocaml.org/p/thread-local-storage/latest).) To avoid surprises, in case of directly annotated functions, this feature unpacks a `Debug_runtime` inside the function body, so that we get the appropriate runtime for the dynamic local scope.
 
-NOTE: it's important to annotate functions that might be called from threads (spawned domains) using the `_l_` variants of extension points, e.g. `%debug_l_sexp` (not `%debug_sexp`!). For clearest output, should configure `_get_local_debug_runtime ()` to return the same runtime as the `Debug_runtime` module that is in a file-wide scope, when called from the main thread / main domain.
+There is an optional runtime instance-level setting `global_prefix`, which adds the given information to all log headers (and all logs with `prefix_all_logs`) coming from the instance. The runtime builders `prefixed_runtime` and `prefixed_runtime_flushing` use `Thread.id (Thread.self ())` in the prefixes.
 
 Example from the test suite:
 
+<!-- $MDX file=test/test_expect_test.ml,part=track_show_procedure_runtime_prefixes -->
 ```ocaml
   let i = ref 0 in
   let _get_local_debug_runtime () =
     Minidebug_runtime.debug_flushing ~global_prefix:("foo-" ^ string_of_int !i) ()
   in
-  let%track_l_show foo () =
+  let%track_show foo () =
     let () = () in
-    ()
+    [%log "inside foo"]
   in
-  while !i < 5 do
+  let%track_show bar = function
+    | () ->
+        let () = () in
+        [%log "inside bar"]
+  in
+  while !i < 3 do
     incr i;
-    foo ()
+    foo ();
+    bar ()
   done;
   [%expect
     {|
     BEGIN DEBUG SESSION foo-1
-    foo-1 foo begin "test/test_expect_test.ml":3783:28:
+    foo-1 foo begin "test/test_expect_test.ml":3959:21:
+     "inside foo"
     foo-1 foo end
 
+    BEGIN DEBUG SESSION foo-1
+    foo-1 <function -- branch 0> () begin "test/test_expect_test.ml":3965:8:
+     "inside bar"
+    foo-1 <function -- branch 0> () end
+
     BEGIN DEBUG SESSION foo-2
-    foo-2 foo begin "test/test_expect_test.ml":3783:28:
+    foo-2 foo begin "test/test_expect_test.ml":3959:21:
+     "inside foo"
     foo-2 foo end
 
+    BEGIN DEBUG SESSION foo-2
+    foo-2 <function -- branch 0> () begin "test/test_expect_test.ml":3965:8:
+     "inside bar"
+    foo-2 <function -- branch 0> () end
+
     BEGIN DEBUG SESSION foo-3
-    foo-3 foo begin "test/test_expect_test.ml":3783:28:
+    foo-3 foo begin "test/test_expect_test.ml":3959:21:
+     "inside foo"
     foo-3 foo end
 
-    BEGIN DEBUG SESSION foo-4
-    foo-4 foo begin "test/test_expect_test.ml":3783:28:
-    foo-4 foo end
-
-    BEGIN DEBUG SESSION foo-5
-    foo-5 foo begin "test/test_expect_test.ml":3783:28:
-    foo-5 foo end
+    BEGIN DEBUG SESSION foo-3
+    foo-3 <function -- branch 0> () begin "test/test_expect_test.ml":3965:8:
+     "inside bar"
+    foo-3 <function -- branch 0> () end
     |}]
 ```
 
@@ -1392,15 +1585,12 @@ Another similar feature is the extension points `%debug_rt_sexp`, `%track_rt_sex
 
 Example from the test suite:
 
+<!-- $MDX file=test/test_expect_test.ml,part=track_rt_show_list_runtime_passing -->
 ```ocaml
-  let%track_rt_show foo l : int =
-    match (l : int list) with [] -> 7 | y :: _ -> y * 2
-  in
+  let%track_rt_show foo l : int = match (l : int list) with [] -> 7 | y :: _ -> y * 2 in
   let () =
     print_endline @@ Int.to_string
-    @@ foo
-         (Minidebug_runtime.debug ~global_prefix:"foo-1" ())
-         [ 7 ]
+    @@ foo Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"foo-1" ()) [ 7 ]
   in
   let%track_rt_show baz : int list -> int = function
     | [] -> 7
@@ -1410,9 +1600,7 @@ Example from the test suite:
   in
   let () =
     print_endline @@ Int.to_string
-    @@ baz
-         Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"baz-1" ())
-         [ 4 ]
+    @@ baz Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"baz-1" ()) [ 4 ]
   in
   let () =
     print_endline @@ Int.to_string
@@ -1422,26 +1610,27 @@ Example from the test suite:
   in
   [%expect
     {|
-      BEGIN DEBUG SESSION foo-1
-      foo = 14
-      ├─"test/test_expect_test.ml":2029:25-2030:55
-      └─foo-1 <match -- branch 1> :: (y, _)
-        ├─"test/test_expect_test.ml":2030:50-2030:55
-        └─y = 7
-      14
+    BEGIN DEBUG SESSION foo-1
+    foo = 14
+    ├─"test/test_expect_test.ml":2358:24
+    └─foo-1 <match -- branch 1> :: (y, _)
+      ├─"test/test_expect_test.ml":2358:80
+      └─y = 7
+    14
 
-      BEGIN DEBUG SESSION baz-1
-      baz = 8
-      ├─"test/test_expect_test.ml":2040:15-2040:20
-      ├─baz-1 <function -- branch 1> :: (y, [])
-      └─y = 4
-      8
+    BEGIN DEBUG SESSION baz-1
+    baz = 8
+    ├─"test/test_expect_test.ml":2365:15
+    ├─baz-1 <function -- branch 1> :: (y, [])
+    └─y = 4
+    8
 
-      BEGIN DEBUG SESSION baz-2
-      baz = 10
-      ├─"test/test_expect_test.ml":2042:21-2042:30
-      ├─baz-2 <function -- branch 3> :: (y, :: (z, _))
-      ├─y = 4
-      └─z = 5
-      10 |}]
+    BEGIN DEBUG SESSION baz-2
+    baz = 10
+    ├─"test/test_expect_test.ml":2367:21
+    ├─baz-2 <function -- branch 3> :: (y, :: (z, _))
+    ├─y = 4
+    └─z = 5
+    10
+    |}]
 ```

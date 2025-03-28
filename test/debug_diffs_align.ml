@@ -66,6 +66,7 @@ let () =
   D.finish_and_cleanup ());
 
   (* Second run with different structure *)
+  (* $MDX part-begin=align_entry_ids *)
   let _get_local_debug_runtime =
     Minidebug_runtime.local_runtime ~values_first_mode:false ~print_entry_ids:true
       ~backend:`Text ~prev_run_file:(prev_run ^ ".raw")
@@ -74,6 +75,7 @@ let () =
            prev) to Entry 6 (in the shorter curr) *)
       curr_run
   in
+  (* $MDX part-end *)
   (* Second run with different structure to test diffing *)
   let%debug_show _run2 : unit =
     let logify logs =

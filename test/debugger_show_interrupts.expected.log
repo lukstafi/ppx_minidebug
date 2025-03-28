@@ -1,28 +1,28 @@
 
 BEGIN DEBUG SESSION 
-loop_exceeded : int begin "test/test_debug_interrupts.ml":7:35:
+loop_exceeded : int begin "test/test_debug_interrupts.ml":8:35:
  x : int = 17
- z begin "test/test_debug_interrupts.ml":8:6:
+ z begin "test/test_debug_interrupts.ml":9:6:
   z : int = 8
  z end
- loop_exceeded : int begin "test/test_debug_interrupts.ml":7:35:
+ loop_exceeded : int begin "test/test_debug_interrupts.ml":8:35:
   x : int = 16
-  z begin "test/test_debug_interrupts.ml":8:6:
+  z begin "test/test_debug_interrupts.ml":9:6:
    z : int = 7
   z end
-  loop_exceeded : int begin "test/test_debug_interrupts.ml":7:35:
+  loop_exceeded : int begin "test/test_debug_interrupts.ml":8:35:
    x : int = 15
-   z begin "test/test_debug_interrupts.ml":8:6:
+   z begin "test/test_debug_interrupts.ml":9:6:
     z : int = 7
    z end
-   loop_exceeded : int begin "test/test_debug_interrupts.ml":7:35:
+   loop_exceeded : int begin "test/test_debug_interrupts.ml":8:35:
     x : int = 14
-    z begin "test/test_debug_interrupts.ml":8:6:
+    z begin "test/test_debug_interrupts.ml":9:6:
      z : int = 6
     z end
-    loop_exceeded : int begin "test/test_debug_interrupts.ml":7:35:
+    loop_exceeded : int begin "test/test_debug_interrupts.ml":8:35:
      x : int = 13
-     z begin "test/test_debug_interrupts.ml":8:6:
+     z begin "test/test_debug_interrupts.ml":9:6:
       z = <max_nesting_depth exceeded>
      z end
     loop_exceeded : int end
@@ -30,69 +30,69 @@ loop_exceeded : int begin "test/test_debug_interrupts.ml":7:35:
   loop_exceeded : int end
  loop_exceeded : int end
 loop_exceeded : int end
-bar : unit begin "test/test_debug_interrupts.ml":15:21:
- for:test_debug_interrupts:16 begin "test/test_debug_interrupts.ml":16:2:
+bar : unit begin "test/test_debug_interrupts.ml":17:21:
+ for:test_debug_interrupts:18 begin "test/test_debug_interrupts.ml":18:2:
   i : int = 0
-  <for i> begin "test/test_debug_interrupts.ml":16:6:
-   _baz begin "test/test_debug_interrupts.ml":17:8:
+  <for i> begin "test/test_debug_interrupts.ml":18:6:
+   _baz begin "test/test_debug_interrupts.ml":19:8:
     _baz : int = 0
    _baz end
   <for i> end
   i : int = 1
-  <for i> begin "test/test_debug_interrupts.ml":16:6:
-   _baz begin "test/test_debug_interrupts.ml":17:8:
+  <for i> begin "test/test_debug_interrupts.ml":18:6:
+   _baz begin "test/test_debug_interrupts.ml":19:8:
     _baz : int = 2
    _baz end
   <for i> end
   i : int = 2
-  <for i> begin "test/test_debug_interrupts.ml":16:6:
-   _baz begin "test/test_debug_interrupts.ml":17:8:
+  <for i> begin "test/test_debug_interrupts.ml":18:6:
+   _baz begin "test/test_debug_interrupts.ml":19:8:
     _baz : int = 4
    _baz end
   <for i> end
   i : int = 3
-  <for i> begin "test/test_debug_interrupts.ml":16:6:
-   _baz begin "test/test_debug_interrupts.ml":17:8:
+  <for i> begin "test/test_debug_interrupts.ml":18:6:
+   _baz begin "test/test_debug_interrupts.ml":19:8:
     _baz : int = 6
    _baz end
   <for i> end
   i : int = 4
-  <for i> begin "test/test_debug_interrupts.ml":16:6:
-   _baz begin "test/test_debug_interrupts.ml":17:8:
+  <for i> begin "test/test_debug_interrupts.ml":18:6:
+   _baz begin "test/test_debug_interrupts.ml":19:8:
     _baz : int = 8
    _baz end
   <for i> end
   i : int = 5
-  <for i> begin "test/test_debug_interrupts.ml":16:6:
-   _baz begin "test/test_debug_interrupts.ml":17:8:
+  <for i> begin "test/test_debug_interrupts.ml":18:6:
+   _baz begin "test/test_debug_interrupts.ml":19:8:
     _baz : int = 10
    _baz end
   <for i> end
   i : int = 6
-  <for i> begin "test/test_debug_interrupts.ml":16:6:
-   _baz begin "test/test_debug_interrupts.ml":17:8:
+  <for i> begin "test/test_debug_interrupts.ml":18:6:
+   _baz begin "test/test_debug_interrupts.ml":19:8:
     _baz : int = 12
    _baz end
   <for i> end
   i : int = 7
-  <for i> begin "test/test_debug_interrupts.ml":16:6:
-   _baz begin "test/test_debug_interrupts.ml":17:8:
+  <for i> begin "test/test_debug_interrupts.ml":18:6:
+   _baz begin "test/test_debug_interrupts.ml":19:8:
     _baz : int = 14
    _baz end
   <for i> end
   i : int = 8
-  <for i> begin "test/test_debug_interrupts.ml":16:6:
-   _baz begin "test/test_debug_interrupts.ml":17:8:
+  <for i> begin "test/test_debug_interrupts.ml":18:6:
+   _baz begin "test/test_debug_interrupts.ml":19:8:
     _baz : int = 16
    _baz end
   <for i> end
   i : int = 9
-  <for i> begin "test/test_debug_interrupts.ml":16:6:
-   _baz begin "test/test_debug_interrupts.ml":17:8:
+  <for i> begin "test/test_debug_interrupts.ml":18:6:
+   _baz begin "test/test_debug_interrupts.ml":19:8:
     _baz : int = 18
    _baz end
   <for i> end
   i : int = 10
   i = <max_num_children exceeded>
- for:test_debug_interrupts:16 end
+ for:test_debug_interrupts:18 end
 bar : unit end

@@ -23,3 +23,7 @@
   sexplib0
   threads
   thread-local-storage))
+
+(mdx
+ (files README.md doc/index.mld)
+ (libraries minidebug_runtime))
