@@ -90,13 +90,13 @@ BEGIN DEBUG SESSION
 ```
 
 The backend will also convert the logged `sexp` values (with at least [boxify_sexp_from_size] atoms, default is 50) to trees. Example result:
-![PrintBox runtime with collapsible/foldable trees](docs/ppx_minidebug-foldable_trees.png)
+![PrintBox runtime with collapsible/foldable trees](doc/foldable_trees.png)
 
 ### Highlighting search terms
 
 The `PrintBox` runtime also supports highlighting paths to logs that match a `highlight_terms`
 regular expression. For example:
-![PrintBox runtime with collapsible/foldable trees](docs/ppx_minidebug-highlight_term_169.png)
+![PrintBox runtime with collapsible/foldable trees](doc/highlight_term_169.png)
 
 To limit the highlight noise, some log entries can be excluded from propagating the highlight status
 using the `exclude_on_path` setting. To trim excessive logging while still providing some context,
@@ -270,10 +270,10 @@ BEGIN DEBUG SESSION
 ```
 
 When logging uses sexps and boxification, and the result is decomposed into a subtree, only the header of the result subtree is put in the header line, and the rest of the result subtree is just underneath it with a `<returns>` or a `<values>` header. Example showcasing the `printbox-html` backend:
-![PrintBox HTML backend -- follow hyperlink](docs/ppx_minidebug-html-hyperlink.png)
+![PrintBox HTML backend -- follow hyperlink](doc/html-hyperlink.png)
 
 Example showcasing the `printbox-md` (Markdown) backend:
-![PrintBox Markdown backend -- follow hyperlink](docs/ppx_minidebug-md-hyperlink.png)
+![PrintBox Markdown backend -- follow hyperlink](doc/md-hyperlink.png)
 
 ## Usage
 
@@ -1113,8 +1113,8 @@ There are a few ways `ppx_minidebug` is helpful with large logs. You can:
 
 The _table of contents_ generation is enabled via `~with_toc_listing:true` or `~toc_flame_graph:true` or both (for file-based runtimes -- via `table_of_contents_ch` for channel-based runtimes). This will create an additional file (name ending in `-toc`), mirroring the main logs in a summarized way. Selected log headers are output there preserving the tree structure, and for `~with_toc_listing:true` they look the same as in the main file except there is no folding. The headers are hyperlinks pointing to the main log file (or files, if file splitting is enabled). For `~toc_flame_graph:true`, the entries are put in boxes, like in the depicted example from the test suite. Presenting two configurations here:
 
-![Flame graph with paths, no time tags](docs/flame_graph_paths_no_time.png)
-![Flame graph with values first mode, elapsed times](docs/flame_graph_values_first_elapsed.png)
+![Flame graph with paths, no time tags](doc/flame_graph_paths_no_time.png)
+![Flame graph with values first mode, elapsed times](doc/flame_graph_values_first_elapsed.png)
 
 Note: if your flame graph trees run into each other, try setting `~flame_graph_separation:50` or higher.
 
