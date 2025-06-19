@@ -64,12 +64,13 @@ let rec typ2str typ =
       last_ident lid.txt ^ "(" ^ String.concat " * " (List.map typ2str typs) ^ ")"
   | Ptyp_object (_, _) -> "<object>"
   | Ptyp_class (_, _) -> "<class>"
-  | Ptyp_alias (typ, x) -> typ2str typ ^ " as '" ^ x
+  | Ptyp_alias (typ, x) -> typ2str typ ^ " as '" ^ x.txt
   | Ptyp_variant (_, _, _) -> "<poly-variant>"
   | Ptyp_poly (vs, typ) ->
       String.concat " " (List.map (fun v -> "'" ^ v.txt) vs) ^ "." ^ typ2str typ
   | Ptyp_package _ -> "<module val>"
   | Ptyp_extension _ -> "<extension>"
+  | Ptyp_open (_, typ) -> typ2str typ
 
 let rec pat2descr ~default pat =
   let loc = pat.ppat_loc in
@@ -309,21 +310,31 @@ let log_string_with_descr ~loc ~message ~log_level s =
       ~is_result:false [%e A.estring ~loc s]]
 
 type fun_arg =
-  | Pexp_fun_arg of
-      arg_label * expression option * pattern * location * location_stack * attributes
+  | Pfunction_param of function_param
   | Pexp_newtype_arg of label loc * location * location_stack * attributes
 
 let rec collect_fun accu = function
   | {
-      pexp_desc = Pexp_fun (arg_label, default, pat, body);
+      pexp_desc = Pexp_function (params, constraint_, body);
       pexp_loc;
       pexp_loc_stack;
       pexp_attributes;
-    } ->
-      collect_fun
-        (Pexp_fun_arg (arg_label, default, pat, pexp_loc, pexp_loc_stack, pexp_attributes)
-        :: accu)
-        body
+    }
+    when params <> [] -> (
+      let params = List.map (fun p -> Pfunction_param p) params in
+      let accu = List.rev_append params accu in
+      match body with
+      | Pfunction_body body_exp -> collect_fun accu body_exp
+      | Pfunction_cases (cases, loc, attrs) ->
+          ( List.rev accu,
+            {
+              pexp_desc =
+                Pexp_function ([], constraint_, Pfunction_cases (cases, loc, attrs));
+              pexp_loc;
+              pexp_loc_stack;
+              pexp_attributes;
+            },
+            None ))
   | {
       pexp_desc = Pexp_newtype (type_label, body);
       pexp_loc;
@@ -338,13 +349,19 @@ let rec collect_fun accu = function
 
 let rec expand_fun body = function
   | [] -> body
-  | Pexp_fun_arg (arg_label, arg, opt_val, pexp_loc, pexp_loc_stack, pexp_attributes)
-    :: args ->
+  | Pfunction_param param :: args ->
+      (* Collect all consecutive function parameters *)
+      let rec collect_params acc = function
+        | Pfunction_param p :: rest -> collect_params (p :: acc) rest
+        | rest -> (List.rev acc, rest)
+      in
+      let params, remaining = collect_params [ param ] args in
+      let body_fun = expand_fun body remaining in
       {
-        pexp_desc = Pexp_fun (arg_label, arg, opt_val, expand_fun body args);
-        pexp_loc;
-        pexp_loc_stack;
-        pexp_attributes;
+        pexp_desc = Pexp_function (params, None, Pfunction_body body_fun);
+        pexp_loc = param.pparam_loc;
+        pexp_loc_stack = [];
+        pexp_attributes = [];
       }
   | Pexp_newtype_arg (type_label, pexp_loc, pexp_loc_stack, pexp_attributes) :: args ->
       {
@@ -591,11 +608,15 @@ let rec collect_fun_typs arg_typs typ =
 
 let pass_runtime ?(always = false) toplevel_opt_arg exp =
   let loc = exp.pexp_loc in
+  let exp' =
+    match exp with
+    | [%expr ([%e? exp] : [%t? _typ])] -> exp
+    | exp -> exp
+  in
   (* Only pass runtime to functions. *)
-  match (always, toplevel_opt_arg, exp) with
+  match (always, toplevel_opt_arg, exp') with
   | true, Runtime_passing, _
-  | _, Runtime_passing, { pexp_desc = Pexp_newtype _ | Pexp_fun _ | Pexp_function _; _ }
-    ->
+  | _, Runtime_passing, { pexp_desc = Pexp_newtype _ | Pexp_function _; _ } ->
       [%expr fun (_debug_runtime : (module Minidebug_runtime.Debug_runtime)) -> [%e exp]]
   | _ -> exp
 
@@ -675,8 +696,12 @@ let debug_fun context callback ?typ ?ret_descr ?ret_typ exp =
       let rec arg_log = function
         | arg_typs, Pexp_newtype_arg _ :: args -> arg_log (arg_typs, args)
         | ( alt_typ :: arg_typs,
-            Pexp_fun_arg
-              (_arg_label, _opt_val, pat, pexp_loc, _pexp_loc_stack, _pexp_attributes)
+            Pfunction_param
+              {
+                pparam_desc = Pparam_val (_arg_label, _opt_val, pat);
+                pparam_loc = pexp_loc;
+                _;
+              }
             :: args ) ->
             let _, bound = bound_patterns ~alt_typ:(Some alt_typ) pat in
             List.map
@@ -686,8 +711,12 @@ let debug_fun context callback ?typ ?ret_descr ?ret_typ exp =
               bound
             @ arg_log (arg_typs, args)
         | ( [],
-            Pexp_fun_arg
-              (_arg_label, _opt_val, pat, pexp_loc, _pexp_loc_stack, _pexp_attributes)
+            Pfunction_param
+              {
+                pparam_desc = Pparam_val (_arg_label, _opt_val, pat);
+                pparam_loc = pexp_loc;
+                _;
+              }
             :: args ) ->
             let _, bound = bound_patterns ~alt_typ:None pat in
             List.map
@@ -696,6 +725,8 @@ let debug_fun context callback ?typ ?ret_descr ?ret_typ exp =
                   ~is_result:false ~log_level:context.entry_log_level (pat2expr pat))
               bound
             @ arg_log ([], args)
+        | _, Pfunction_param { pparam_desc = Pparam_newtype _; _ } :: args ->
+            arg_log (arg_typs, args)
         | _, [] -> []
       in
       let arg_logs = arg_log (arg_typs, args) in
@@ -748,12 +779,18 @@ let debug_function ?unpack_context context callback ~loc ?ret_descr ?ret_typ ?ar
     match unpack_context with None -> context.toplevel_kind | Some ctx -> ctx
   in
   let nested = { context with toplevel_kind = Nested } in
+  let cases =
+    List.mapi
+      (debug_case ~unpack_context nested callback ?ret_descr ?ret_typ ?arg_typ "function")
+      cases
+  in
   let exp =
-    A.pexp_function ~loc
-      (List.mapi
-         (debug_case ~unpack_context nested callback ?ret_descr ?ret_typ ?arg_typ
-            "function")
-         cases)
+    {
+      pexp_desc = Pexp_function ([], None, Pfunction_cases (cases, loc, []));
+      pexp_loc = loc;
+      pexp_loc_stack = [];
+      pexp_attributes = [];
+    }
   in
   match context.toplevel_kind with
   | Nested | Runtime_outer | Runtime_local -> exp
@@ -766,7 +803,7 @@ let debug_function ?unpack_context context callback ~loc ?ret_descr ?ret_typ ?ar
 let debug_binding context callback vb =
   let nested = { context with toplevel_kind = Nested } in
   let pvb_pat =
-    (* FIXME(#18): restoring a modified type constraint breaks typing. *)
+    (* Don't duplicate the type constraint. *)
     match (vb.pvb_pat, context.toplevel_kind) with
     | [%pat? ([%p? pat] : [%t? _typ])], Runtime_passing -> pat
     | _ -> vb.pvb_pat
@@ -789,6 +826,7 @@ let debug_binding context callback vb =
             (pat, Some descr_loc, Some typ)
         | { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat ->
             (pat, Some descr_loc, None)
+        | [%pat? ([%p? pat] : [%t? typ])] -> (pat, None, Some typ)
         | pat -> (pat, None, None)
       in
       let exp, typ2 =
@@ -807,11 +845,11 @@ let debug_binding context callback vb =
       in
       let exp =
         match exp with
-        | { pexp_desc = Pexp_newtype _ | Pexp_fun _; _ } ->
+        | { pexp_desc = Pexp_newtype _ | Pexp_function (_ :: _, _, _); _ } ->
             (* [ret_typ] is not the return type if the function has more arguments. *)
             (* [debug_fun] handles the runtime passing configuration. *)
             debug_fun context callback ?typ ?ret_descr exp
-        | { pexp_desc = Pexp_function cases; _ } ->
+        | { pexp_desc = Pexp_function ([], _, Pfunction_cases (cases, _, _)); _ } ->
             debug_function context callback ~loc:vb.pvb_expr.pexp_loc ?ret_descr ?ret_typ
               ?arg_typ cases
         | _
@@ -847,7 +885,8 @@ let debug_binding context callback vb =
                    ~entry:(callback nested exp) ~result ~log_result ())
       in
       let pvb_expr =
-        match (typ2, context.toplevel_kind) with
+        (* TODO: Does typ work? Originally it was typ2. *)
+        match (typ, context.toplevel_kind) with
         | None, (Nested | Runtime_outer | Runtime_local) -> exp
         | Some typ, (Nested | Runtime_outer | Runtime_local) ->
             [%expr ([%e exp] : [%t typ])]
@@ -1288,7 +1327,7 @@ let traverse_expression =
             @@ Location.error_extensionf ~loc
                  "ppx_minidebug: bad syntax, expacted [%%log_entry <HEADER MESSAGE>; \
                   <BODY>]"
-        | (Pexp_newtype _ | Pexp_fun _)
+        | (Pexp_newtype _ | Pexp_function (_ :: _, _, _))
           when context.toplevel_kind <> Nested || not (context.track_or_explicit = `Diagn)
           ->
             debug_fun context callback ?typ:ret_typ exp
@@ -1309,7 +1348,7 @@ let traverse_expression =
               pexp_desc =
                 Pexp_match (callback context expr, track_cases ?ret_typ "match" cases);
             }
-        | Pexp_function cases
+        | Pexp_function ([], _, Pfunction_cases (cases, _, _))
           when context.track_or_explicit = `Track && (not @@ is_comptime_nothing context)
           ->
             let arg_typ, ret_typ =
@@ -1318,7 +1357,7 @@ let traverse_expression =
               | _ -> (None, None)
             in
             debug_function context callback ~loc:exp.pexp_loc ?arg_typ ?ret_typ cases
-        | Pexp_function cases
+        | Pexp_function ([], _, Pfunction_cases (cases, _, _))
           when is_local_debug_runtime context.toplevel_kind
                && (not @@ is_comptime_nothing context) ->
             let arg_typ, ret_typ =
@@ -1467,18 +1506,11 @@ let traverse_expression =
         match (orig_exp.pexp_desc, context.toplevel_kind) with
         | ( Pexp_let
               ( _,
-                [
-                  {
-                    pvb_expr =
-                      { pexp_desc = Pexp_function _ | Pexp_newtype _ | Pexp_fun _; _ };
-                    _;
-                  };
-                ],
+                [ { pvb_expr = { pexp_desc = Pexp_function _ | Pexp_newtype _; _ }; _ } ],
                 _ ),
             _ )
         | Pexp_function _, _
         | Pexp_newtype _, _
-        | Pexp_fun _, _
         | _, Nested
         | _, Runtime_outer ->
             (false, exp)
