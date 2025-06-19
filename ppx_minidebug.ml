@@ -608,11 +608,7 @@ let rec collect_fun_typs arg_typs typ =
 
 let pass_runtime ?(always = false) toplevel_opt_arg exp =
   let loc = exp.pexp_loc in
-  let exp' =
-    match exp with
-    | [%expr ([%e? exp] : [%t? _typ])] -> exp
-    | exp -> exp
-  in
+  let exp' = match exp with [%expr ([%e? exp] : [%t? _typ])] -> exp | exp -> exp in
   (* Only pass runtime to functions. *)
   match (always, toplevel_opt_arg, exp') with
   | true, Runtime_passing, _
@@ -802,102 +798,136 @@ let debug_function ?unpack_context context callback ~loc ?ret_descr ?ret_typ ?ar
 
 let debug_binding context callback vb =
   let nested = { context with toplevel_kind = Nested } in
-  let pvb_pat =
-    (* Don't duplicate the type constraint. *)
+  let pat, typ_p, pvb_pat =
     match (vb.pvb_pat, context.toplevel_kind) with
-    | [%pat? ([%p? pat] : [%t? _typ])], Runtime_passing -> pat
-    | _ -> vb.pvb_pat
+    | [%pat? ([%p? pat] : [%t? typ])], Runtime_passing ->
+        let loc = vb.pvb_loc in
+        ( pat,
+          Some typ,
+          [%pat? ([%p pat] : (module Minidebug_runtime.Debug_runtime) -> [%t typ])] )
+    | [%pat? ([%p? pat] : [%t? typ])], _ -> (pat, Some typ, vb.pvb_pat)
+    | _ -> (vb.pvb_pat, None, vb.pvb_pat)
   in
-  let result =
-    if is_comptime_nothing context then
-      {
-        vb with
-        pvb_pat;
-        pvb_expr = pass_runtime context.toplevel_kind @@ callback nested vb.pvb_expr;
-      }
-    else
-      let loc = vb.pvb_loc in
-      let pat, ret_descr, typ =
-        match vb.pvb_pat with
-        | [%pat?
-            ([%p?
-               { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat] :
-              [%t? typ])] ->
-            (pat, Some descr_loc, Some typ)
-        | { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } as pat ->
-            (pat, Some descr_loc, None)
-        | [%pat? ([%p? pat] : [%t? typ])] -> (pat, None, Some typ)
-        | pat -> (pat, None, None)
-      in
-      let exp, typ2 =
-        match vb.pvb_expr with
-        | [%expr ([%e? exp] : [%t? typ])] -> (exp, Some typ)
-        | exp -> (exp, None)
-      in
-      let typ =
-        match typ with Some typ -> Some (pick ~typ ?alt_typ:typ2 ()) | None -> typ2
-      in
-      let arg_typ, ret_typ =
-        match typ with
-        | Some { ptyp_desc = Ptyp_arrow (_, arg_typ, ret_typ); _ } ->
-            (Some arg_typ, Some ret_typ)
-        | _ -> (None, None)
-      in
-      let exp =
-        match exp with
-        | { pexp_desc = Pexp_newtype _ | Pexp_function (_ :: _, _, _); _ } ->
-            (* [ret_typ] is not the return type if the function has more arguments. *)
-            (* [debug_fun] handles the runtime passing configuration. *)
-            debug_fun context callback ?typ ?ret_descr exp
-        | { pexp_desc = Pexp_function ([], _, Pfunction_cases (cases, _, _)); _ } ->
-            debug_function context callback ~loc:vb.pvb_expr.pexp_loc ?ret_descr ?ret_typ
-              ?arg_typ cases
-        | _
-          when context.toplevel_kind = Nested
-               && (is_comptime_nothing context || context.track_or_explicit = `Diagn) ->
-            callback nested exp
-        | _ ->
-            let result, bound = bound_patterns ~alt_typ:typ pat in
-            if bound = [] && context.toplevel_kind = Nested then callback nested exp
-            else
-              let log_count_before = !global_log_count in
-              let descr_loc = pat2descr ~default:"__val" pat in
-              let log_result =
-                List.map
-                  (fun (descr_loc, pat, typ) ->
-                    log_value context ~loc:vb.pvb_expr.pexp_loc ~typ ~descr_loc
-                      ~is_explicit:false ~is_result:true
-                      ~log_level:context.entry_log_level (pat2expr pat))
-                  bound
-                |> List.fold_left
-                     (fun e1 e2 ->
-                       [%expr
-                         [%e e1];
-                         [%e e2]])
-                     [%expr ()]
-              in
-              let preamble =
-                open_log ~message:descr_loc.txt ~loc:descr_loc.loc
-                  ~log_level:context.entry_log_level context.track_or_explicit
-              in
-              unpack_runtime context.toplevel_kind
-                (entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
-                   ~entry:(callback nested exp) ~result ~log_result ())
-      in
-      let pvb_expr =
-        (* TODO: Does typ work? Originally it was typ2. *)
-        match (typ, context.toplevel_kind) with
-        | None, (Nested | Runtime_outer | Runtime_local) -> exp
-        | Some typ, (Nested | Runtime_outer | Runtime_local) ->
-            [%expr ([%e exp] : [%t typ])]
-        | Some typ, Runtime_passing ->
-            [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> [%t typ])]
-        | None, Runtime_passing ->
-            [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> _)]
-      in
-      { vb with pvb_expr; pvb_pat }
+  let typ_b, pvb_constraint =
+    let loc = vb.pvb_loc in
+    match (vb.pvb_constraint, context.toplevel_kind) with
+    | Some (Pvc_constraint ct), Runtime_passing ->
+        ( Some ct.typ,
+          Some
+            (Pvc_constraint
+               {
+                 ct with
+                 typ = [%type: (module Minidebug_runtime.Debug_runtime) -> [%t ct.typ]];
+               }) )
+    | Some (Pvc_coercion { ground = Some typ; coercion }), Runtime_passing ->
+        ( Some typ,
+          Some
+            (Pvc_coercion
+               {
+                 ground =
+                   Some [%type: (module Minidebug_runtime.Debug_runtime) -> [%t typ]];
+                 coercion =
+                   [%type: (module Minidebug_runtime.Debug_runtime) -> [%t coercion]];
+               }) )
+    | Some (Pvc_coercion { ground = None; coercion }), Runtime_passing ->
+        ( Some coercion,
+          Some
+            (Pvc_coercion
+               {
+                 ground = None;
+                 coercion =
+                   [%type: (module Minidebug_runtime.Debug_runtime) -> [%t coercion]];
+               }) )
+    | (Some (Pvc_constraint { typ; _ }) as pvc), _ -> (Some typ, pvc)
+    | (Some (Pvc_coercion { ground = Some typ; _ }) as pvc), _ -> (Some typ, pvc)
+    | (Some (Pvc_coercion { ground = None; coercion; _ }) as pvc), _ ->
+        (Some coercion, pvc)
+    | None, _ -> (None, None)
   in
-  result
+  if is_comptime_nothing context then
+    {
+      vb with
+      pvb_pat;
+      pvb_constraint;
+      pvb_expr = pass_runtime context.toplevel_kind @@ callback nested vb.pvb_expr;
+    }
+  else
+    let loc = vb.pvb_loc in
+    let ret_descr =
+      match pat with
+      | { ppat_desc = Ppat_var descr_loc | Ppat_alias (_, descr_loc); _ } ->
+          Some descr_loc
+      | _ -> None
+    in
+    let exp, typ_e =
+      match vb.pvb_expr with
+      | [%expr ([%e? exp] : [%t? typ])] -> (exp, Some typ)
+      | exp -> (exp, None)
+    in
+    let alt_typ =
+      match typ_b with Some typ -> Some (pick ~typ ?alt_typ:typ_e ()) | None -> typ_e
+    in
+    let typ =
+      match typ_p with Some typ -> Some (pick ~typ ?alt_typ ()) | None -> alt_typ
+    in
+    let arg_typ, ret_typ =
+      match typ with
+      | Some { ptyp_desc = Ptyp_arrow (_, arg_typ, ret_typ); _ } ->
+          (Some arg_typ, Some ret_typ)
+      | _ -> (None, None)
+    in
+    let exp =
+      match exp with
+      | { pexp_desc = Pexp_newtype _ | Pexp_function (_ :: _, _, _); _ } ->
+          (* [ret_typ] is not the return type if the function has more arguments. *)
+          (* [debug_fun] handles the runtime passing configuration. *)
+          debug_fun context callback ?typ ?ret_descr exp
+      | { pexp_desc = Pexp_function ([], _, Pfunction_cases (cases, _, _)); _ } ->
+          debug_function context callback ~loc:vb.pvb_expr.pexp_loc ?ret_descr ?ret_typ
+            ?arg_typ cases
+      | _
+        when context.toplevel_kind = Nested
+             && (is_comptime_nothing context || context.track_or_explicit = `Diagn) ->
+          callback nested exp
+      | _ ->
+          let result, bound = bound_patterns ~alt_typ:typ pat in
+          if bound = [] && context.toplevel_kind = Nested then callback nested exp
+          else
+            let log_count_before = !global_log_count in
+            let descr_loc = pat2descr ~default:"__val" pat in
+            let log_result =
+              List.map
+                (fun (descr_loc, pat, typ) ->
+                  log_value context ~loc:vb.pvb_expr.pexp_loc ~typ ~descr_loc
+                    ~is_explicit:false ~is_result:true ~log_level:context.entry_log_level
+                    (pat2expr pat))
+                bound
+              |> List.fold_left
+                   (fun e1 e2 ->
+                     [%expr
+                       [%e e1];
+                       [%e e2]])
+                   [%expr ()]
+            in
+            let preamble =
+              open_log ~message:descr_loc.txt ~loc:descr_loc.loc
+                ~log_level:context.entry_log_level context.track_or_explicit
+            in
+            unpack_runtime context.toplevel_kind
+              (entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
+                 ~entry:(callback nested exp) ~result ~log_result ())
+    in
+    let pvb_expr =
+      match (typ_e, context.toplevel_kind) with
+      | None, (Nested | Runtime_outer | Runtime_local) -> exp
+      | Some typ, (Nested | Runtime_outer | Runtime_local) ->
+          [%expr ([%e exp] : [%t typ])]
+      | Some typ, Runtime_passing ->
+          [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> [%t typ])]
+      | None, Runtime_passing ->
+          [%expr ([%e exp] : (module Minidebug_runtime.Debug_runtime) -> _)]
+    in
+    { vb with pvb_expr; pvb_pat; pvb_constraint }
 
 let extract_type ?default ~alt_typ exp =
   let default =

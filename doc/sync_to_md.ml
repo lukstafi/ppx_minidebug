@@ -1,4 +1,4 @@
-(* open Sexplib0.Sexp_conv *)
+open Sexplib0.Sexp_conv
 
 (* $MDX part-begin=introduction *)
 let _get_local_debug_runtime = Minidebug_runtime.local_runtime "sync_to_md-introduction"
