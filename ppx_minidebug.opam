@@ -45,4 +45,4 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/lukstafi/ppx_minidebug.git"
-x-maintenance-intent: ["(latest)"]
+x-maintenance-intent: ["2.2.(latest)" "(latest)"]

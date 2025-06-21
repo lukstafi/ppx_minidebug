@@ -1565,7 +1565,7 @@ Example from the test suite:
      "inside foo"
     foo-2 foo end
 
-    BEGIN DEBUG SESSION foo-2 
+    BEGIN DEBUG SESSION foo-2
     foo-2 <function -- branch 0> () begin "test/test_expect_test.ml":3975:8:
      "inside bar"
     foo-2 <function -- branch 0> () end
