@@ -31,7 +31,7 @@
    (>= 5.2.0))
   dune
   ppx_deriving
-  ppx_sexp_conv
+  (ppx_sexp_conv (>= v0.17.1))
   (ppxlib
    (>= 0.36.0))
   (printbox
