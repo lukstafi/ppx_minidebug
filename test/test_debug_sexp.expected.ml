@@ -10,7 +10,7 @@ let foo (x : int) =
       ~entry_id:__entry_id ~log_level:1 `Debug;
     Debug_runtime.log_value_sexp ?descr:(Some "x") ~entry_id:__entry_id
       ~log_level:1 ~is_result:false (([%sexp_of : int]) x));
-   (match let y : int =
+   (match let y =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
             Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:10
@@ -54,7 +54,7 @@ let bar (x : t) =
       ~entry_id:__entry_id ~log_level:1 `Debug;
     Debug_runtime.log_value_sexp ?descr:(Some "x") ~entry_id:__entry_id
       ~log_level:1 ~is_result:false (([%sexp_of : t]) x));
-   (match let y : int =
+   (match let y =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
             Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:18
@@ -95,7 +95,7 @@ let baz (x : t) =
       ~entry_id:__entry_id ~log_level:1 `Debug;
     Debug_runtime.log_value_sexp ?descr:(Some "x") ~entry_id:__entry_id
       ~log_level:1 ~is_result:false (([%sexp_of : t]) x));
-   (match let (((y, z) as _yz) : (int * int)) =
+   (match let (y, z) as _yz =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
             Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:24
@@ -114,7 +114,7 @@ let baz (x : t) =
                  (Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
                     ~start_lnum:24 ~entry_id:__entry_id;
                   raise e)) in
-          let (((u, w) as _uw) : (int * int)) =
+          let (u, w) as _uw =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
             Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:25
@@ -147,7 +147,7 @@ let baz (x : t) =
            ~entry_id:__entry_id;
          raise e)) : int)
 let () = ignore @@ (baz { first = 7; second = 42 })
-let lab ~x:(x : int)  =
+let lab ~x:(x : int) =
   (let __entry_id = Debug_runtime.get_entry_id () in
    ();
    (Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:30
@@ -155,7 +155,7 @@ let lab ~x:(x : int)  =
       ~entry_id:__entry_id ~log_level:1 `Debug;
     Debug_runtime.log_value_sexp ?descr:(Some "x") ~entry_id:__entry_id
       ~log_level:1 ~is_result:false (([%sexp_of : int]) x));
-   (match let y : int =
+   (match let y =
             let __entry_id = Debug_runtime.get_entry_id () in
             ();
             Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:31
@@ -206,7 +206,7 @@ let rec loop (depth : int) (x : t) =
               loop (depth + 1)
                 { first = (x.second + 1); second = (x.first / 2) }
             else
-              (let y : int =
+              (let y =
                  let __entry_id = Debug_runtime.get_entry_id () in
                  ();
                  Debug_runtime.open_log ~fname:"test_debug_sexp.ml"
@@ -227,7 +227,7 @@ let rec loop (depth : int) (x : t) =
                       (Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
                          ~start_lnum:40 ~entry_id:__entry_id;
                        raise e)) in
-               let z : int =
+               let z =
                  let __entry_id = Debug_runtime.get_entry_id () in
                  ();
                  Debug_runtime.open_log ~fname:"test_debug_sexp.ml"

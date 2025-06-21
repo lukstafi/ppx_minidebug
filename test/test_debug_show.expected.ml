@@ -9,7 +9,7 @@ let foo (x : int) =
         ~entry_id:__entry_id ~log_level:1 `Debug;
       Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
         ~log_level:1 ~is_result:false (([%show : int]) x));
-     (match let y : int =
+     (match let y =
               let __entry_id = Debug_runtime.get_entry_id () in
               ();
               Debug_runtime.open_log ~fname:"test_debug_show.ml"
@@ -54,7 +54,7 @@ let bar (x : t) =
         ~entry_id:__entry_id ~log_level:1 `Debug;
       Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
         ~log_level:1 ~is_result:false (([%show : t]) x));
-     (match let y : int =
+     (match let y =
               let __entry_id = Debug_runtime.get_entry_id () in
               ();
               Debug_runtime.open_log ~fname:"test_debug_show.ml"
@@ -96,7 +96,7 @@ let baz (x : t) =
         ~entry_id:__entry_id ~log_level:1 `Debug;
       Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
         ~log_level:1 ~is_result:false (([%show : t]) x));
-     (match let (((y, z) as _yz) : (int * int)) =
+     (match let (y, z) as _yz =
               let __entry_id = Debug_runtime.get_entry_id () in
               ();
               Debug_runtime.open_log ~fname:"test_debug_show.ml"
@@ -149,7 +149,7 @@ let rec loop (depth : int) (x : t) =
                 loop (depth + 1)
                   { first = (x.second + 1); second = (x.first / 2) }
               else
-                (let y : int =
+                (let y =
                    let __entry_id = Debug_runtime.get_entry_id () in
                    ();
                    Debug_runtime.open_log ~fname:"test_debug_show.ml"
@@ -172,7 +172,7 @@ let rec loop (depth : int) (x : t) =
                         (Debug_runtime.close_log ~fname:"test_debug_show.ml"
                            ~start_lnum:28 ~entry_id:__entry_id;
                          raise e)) in
-                 let z : int =
+                 let z =
                    let __entry_id = Debug_runtime.get_entry_id () in
                    ();
                    Debug_runtime.open_log ~fname:"test_debug_show.ml"

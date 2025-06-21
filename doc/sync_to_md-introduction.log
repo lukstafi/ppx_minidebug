@@ -1,2 +1,20 @@
 
 BEGIN DEBUG SESSION 
+foo = 6
+├─"doc/sync_to_md.ml":5:73
+├─<function -- branch 1> :: (x, xs)
+├─x = 1
+├─xs = (2 3)
+└─foo = 5
+  ├─"doc/sync_to_md.ml":5:73
+  ├─<function -- branch 1> :: (x, xs)
+  ├─x = 2
+  ├─xs = 3
+  └─foo = 3
+    ├─"doc/sync_to_md.ml":5:73
+    ├─<function -- branch 1> :: (x, xs)
+    ├─x = 3
+    ├─xs
+    └─foo = 0
+      ├─"doc/sync_to_md.ml":5:58
+      └─<function -- branch 0> []

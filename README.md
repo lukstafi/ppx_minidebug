@@ -328,25 +328,25 @@ PrintBox-based runtimes only produces any output when a top-level log entry gets
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":332:35: loop_exceeded
+    "test/test_expect_test.ml":342:35: loop_exceeded
     ├─x = 7
-    ├─"test/test_expect_test.ml":335:10: z
+    ├─"test/test_expect_test.ml":345:10: z
     │ └─z = 3
-    └─"test/test_expect_test.ml":332:35: loop_exceeded
+    └─"test/test_expect_test.ml":342:35: loop_exceeded
       ├─x = 6
-      ├─"test/test_expect_test.ml":335:10: z
+      ├─"test/test_expect_test.ml":345:10: z
       │ └─z = 2
-      └─"test/test_expect_test.ml":332:35: loop_exceeded
+      └─"test/test_expect_test.ml":342:35: loop_exceeded
         ├─x = 5
-        ├─"test/test_expect_test.ml":335:10: z
+        ├─"test/test_expect_test.ml":345:10: z
         │ └─z = 2
-        └─"test/test_expect_test.ml":332:35: loop_exceeded
+        └─"test/test_expect_test.ml":342:35: loop_exceeded
           ├─x = 4
-          ├─"test/test_expect_test.ml":335:10: z
+          ├─"test/test_expect_test.ml":345:10: z
           │ └─z = 1
-          └─"test/test_expect_test.ml":332:35: loop_exceeded
+          └─"test/test_expect_test.ml":342:35: loop_exceeded
             ├─x = 3
-            └─"test/test_expect_test.ml":335:10: z
+            └─"test/test_expect_test.ml":345:10: z
               └─z = <max_nesting_depth exceeded>
     Raised exception.
     |}]
@@ -372,28 +372,28 @@ Similarly, `max_num_children` raises a failure when the given number of logs wit
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":377:23: _bar
-    ├─"test/test_expect_test.ml":381:16: _baz
+    "test/test_expect_test.ml":387:23: _bar
+    ├─"test/test_expect_test.ml":391:16: _baz
     │ └─_baz = 0
-    ├─"test/test_expect_test.ml":381:16: _baz
+    ├─"test/test_expect_test.ml":391:16: _baz
     │ └─_baz = 2
-    ├─"test/test_expect_test.ml":381:16: _baz
+    ├─"test/test_expect_test.ml":391:16: _baz
     │ └─_baz = 4
-    ├─"test/test_expect_test.ml":381:16: _baz
+    ├─"test/test_expect_test.ml":391:16: _baz
     │ └─_baz = 6
-    ├─"test/test_expect_test.ml":381:16: _baz
+    ├─"test/test_expect_test.ml":391:16: _baz
     │ └─_baz = 8
-    ├─"test/test_expect_test.ml":381:16: _baz
+    ├─"test/test_expect_test.ml":391:16: _baz
     │ └─_baz = 10
-    ├─"test/test_expect_test.ml":381:16: _baz
+    ├─"test/test_expect_test.ml":391:16: _baz
     │ └─_baz = 12
-    ├─"test/test_expect_test.ml":381:16: _baz
+    ├─"test/test_expect_test.ml":391:16: _baz
     │ └─_baz = 14
-    ├─"test/test_expect_test.ml":381:16: _baz
+    ├─"test/test_expect_test.ml":391:16: _baz
     │ └─_baz = 16
-    ├─"test/test_expect_test.ml":381:16: _baz
+    ├─"test/test_expect_test.ml":391:16: _baz
     │ └─_baz = 18
-    ├─"test/test_expect_test.ml":381:16: _baz
+    ├─"test/test_expect_test.ml":391:16: _baz
     │ └─_baz = 20
     └─_baz = <max_num_children exceeded>
     Raised exception: ppx_minidebug: max_num_children exceeded
@@ -438,17 +438,17 @@ If that is insufficient, you can define `_get_local_debug_runtime` using a `_flu
   [%expect
     {|
     BEGIN DEBUG SESSION test-51
-    test-51 bar begin "test/test_expect_test.ml":157:21:
+    test-51 bar begin "test/test_expect_test.ml":167:21:
      test-51 x = { Test_expect_test.first = 7; second = 42 }
-     test-51 y begin "test/test_expect_test.ml":158:8:
+     test-51 y begin "test/test_expect_test.ml":168:8:
       test-51 y = 8
      test-51 y end
      test-51 bar = 336
     test-51 bar end
     336
-    test-51 baz begin "test/test_expect_test.ml":162:21:
+    test-51 baz begin "test/test_expect_test.ml":172:21:
      test-51 x = { Test_expect_test.first = 7; second = 42 }
-     test-51 _yz begin "test/test_expect_test.ml":163:19:
+     test-51 _yz begin "test/test_expect_test.ml":173:19:
       test-51 _yz = (8, 3)
      test-51 _yz end
      test-51 baz = 339
@@ -496,19 +496,19 @@ Example that also illustrates disabling tracing:
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1037:32: track_branches
+    "test/test_expect_test.ml":1047:32: track_branches
     ├─x = 8
-    ├─"test/test_expect_test.ml":1046:6: else:test_expect_test:1046
-    │ └─"test/test_expect_test.ml":1050:10: <match -- branch 2>
-    │   └─"test/test_expect_test.ml":1050:14: result
-    │     ├─"test/test_expect_test.ml":1050:44: then:test_expect_test:1050
+    ├─"test/test_expect_test.ml":1056:6: else:test_expect_test:1056
+    │ └─"test/test_expect_test.ml":1060:10: <match -- branch 2>
+    │   └─"test/test_expect_test.ml":1060:14: result
+    │     ├─"test/test_expect_test.ml":1060:44: then:test_expect_test:1060
     │     └─result = 8
     └─track_branches = 8
     8
-    "test/test_expect_test.ml":1037:32: track_branches
+    "test/test_expect_test.ml":1047:32: track_branches
     ├─x = 3
-    ├─"test/test_expect_test.ml":1039:6: then:test_expect_test:1039
-    │ └─"test/test_expect_test.ml":1043:14: result
+    ├─"test/test_expect_test.ml":1049:6: then:test_expect_test:1049
+    │ └─"test/test_expect_test.ml":1053:14: result
     │   └─result = 3
     └─track_branches = 3
     3
@@ -528,15 +528,15 @@ Another example:
   in
   [%expect
     {|
-    "test/test_expect_test.ml":1231:27: anonymous
+    "test/test_expect_test.ml":1241:27: anonymous
     ├─x = 3
-    ├─"test/test_expect_test.ml":1232:50: fun:test_expect_test:1232
+    ├─"test/test_expect_test.ml":1242:50: fun:test_expect_test:1242
     │ └─i = 0
-    ├─"test/test_expect_test.ml":1232:50: fun:test_expect_test:1232
+    ├─"test/test_expect_test.ml":1242:50: fun:test_expect_test:1242
     │ └─i = 1
-    ├─"test/test_expect_test.ml":1232:50: fun:test_expect_test:1232
+    ├─"test/test_expect_test.ml":1242:50: fun:test_expect_test:1242
     │ └─i = 2
-    └─"test/test_expect_test.ml":1232:50: fun:test_expect_test:1232
+    └─"test/test_expect_test.ml":1242:50: fun:test_expect_test:1242
       └─i = 3
     6
     |}]
@@ -567,29 +567,29 @@ Explicit logging statements also help with tracking the execution, since they ca
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":2576:17: result
-    └─"test/test_expect_test.ml":2579:4: while:test_expect_test:2579
-      ├─"test/test_expect_test.ml":2580:6: <while loop>
+    "test/test_expect_test.ml":2586:17: result
+    └─"test/test_expect_test.ml":2589:4: while:test_expect_test:2589
+      ├─"test/test_expect_test.ml":2590:6: <while loop>
       │ ├─(1 i= 0)
       │ ├─(2 i= 1)
       │ └─(3 j= 1)
-      ├─"test/test_expect_test.ml":2580:6: <while loop>
+      ├─"test/test_expect_test.ml":2590:6: <while loop>
       │ ├─(1 i= 1)
       │ ├─(2 i= 2)
       │ └─(3 j= 3)
-      ├─"test/test_expect_test.ml":2580:6: <while loop>
+      ├─"test/test_expect_test.ml":2590:6: <while loop>
       │ ├─(1 i= 2)
       │ ├─(2 i= 3)
       │ └─(3 j= 6)
-      ├─"test/test_expect_test.ml":2580:6: <while loop>
+      ├─"test/test_expect_test.ml":2590:6: <while loop>
       │ ├─(1 i= 3)
       │ ├─(2 i= 4)
       │ └─(3 j= 10)
-      ├─"test/test_expect_test.ml":2580:6: <while loop>
+      ├─"test/test_expect_test.ml":2590:6: <while loop>
       │ ├─(1 i= 4)
       │ ├─(2 i= 5)
       │ └─(3 j= 15)
-      └─"test/test_expect_test.ml":2580:6: <while loop>
+      └─"test/test_expect_test.ml":2590:6: <while loop>
         ├─(1 i= 5)
         ├─(2 i= 6)
         └─(3 j= 21)
@@ -631,11 +631,11 @@ The `%diagn_` extension points further restrict logging to explicit logs only. E
     {|
     BEGIN DEBUG SESSION
     bar
-    ├─"test/test_expect_test.ml":3302:21
+    ├─"test/test_expect_test.ml":3312:21
     └─("for bar, b-3", 42)
     336
     baz
-    ├─"test/test_expect_test.ml":3309:21
+    ├─"test/test_expect_test.ml":3319:21
     └─("foo baz, f squared", 49)
     91
     |}]
@@ -745,11 +745,11 @@ Another example from the test suite, notice how the log level of `%log1` overrid
     └─{orphaned from #5}
     336
     baz = 109
-    ├─"test/test_expect_test.ml":3413:24
+    ├─"test/test_expect_test.ml":3423:24
     ├─first = 7
     ├─second = 42
     ├─{first; second}
-    │ ├─"test/test_expect_test.ml":3414:10
+    │ ├─"test/test_expect_test.ml":3424:10
     │ └─<values>
     │   ├─first = 8
     │   └─second = 45
@@ -785,7 +785,7 @@ The extension point `%log_printbox` lets you embed a `PrintBox.t` in the logs di
     {|
     BEGIN DEBUG SESSION
     foo = ()
-    ├─"test/test_expect_test.ml":3544:21
+    ├─"test/test_expect_test.ml":3554:21
     ├─0/0│0/1│0/2│0/3│0/4
     │ ───┼───┼───┼───┼───
     │ 1/0│1/1│1/2│1/3│1/4
@@ -872,7 +872,7 @@ The extension point `%log_entry` lets you shape arbitrary log tree structures. T
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":3679:17: _logging_logic
+    "test/test_expect_test.ml":3689:17: _logging_logic
     ├─"preamble"
     ├─header 1
     │ ├─"log 1"
@@ -977,13 +977,13 @@ the runtime, and look for the path line with the log's entry id. When the backen
     {|
     BEGIN DEBUG SESSION
     bar = ()
-    └─"test/test_expect_test.ml":3168:21 {#1}
+    └─"test/test_expect_test.ml":3178:21 {#1}
     baz = ()
-    └─"test/test_expect_test.ml":3175:21 {#2}
+    └─"test/test_expect_test.ml":3185:21 {#2}
     bar = ()
-    └─"test/test_expect_test.ml":3168:21 {#3}
+    └─"test/test_expect_test.ml":3178:21 {#3}
     _foobar = ()
-    ├─"test/test_expect_test.ml":3187:17 {#4}
+    ├─"test/test_expect_test.ml":3197:17 {#4}
     ├─("This is like", 3, "or", 3.14, "above")
     ├─("tau =", 6.28)
     ├─[3; 1; 2; 3]
@@ -1031,17 +1031,17 @@ The test suite example:
   let () = print_endline @@ Int.to_string @@ loop_changes 7 in
   [%expect
     {|
-    "test/test_expect_test.ml":247:34: loop_changes
+    "test/test_expect_test.ml":257:34: loop_changes
     ├─x = 7
-    ├─"test/test_expect_test.ml":248:8: z
+    ├─"test/test_expect_test.ml":258:8: z
     │ └─z = 3
-    ├─"test/test_expect_test.ml":247:34: loop_changes
+    ├─"test/test_expect_test.ml":257:34: loop_changes
     │ ├─x = 6
-    │ ├─"test/test_expect_test.ml":248:8: z
+    │ ├─"test/test_expect_test.ml":258:8: z
     │ │ └─z = 2
-    │ ├─"test/test_expect_test.ml":247:34: loop_changes
+    │ ├─"test/test_expect_test.ml":257:34: loop_changes
     │ │ ├─x = 5
-    │ │ ├─"test/test_expect_test.ml":248:8: z
+    │ │ ├─"test/test_expect_test.ml":258:8: z
     │ │ │ └─z = 2
     │ │ └─loop_changes = 4
     │ └─loop_changes = 6
@@ -1073,28 +1073,28 @@ Setting the option `truncate_children` will only log the given number of childre
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":515:21: _bar
-    ├─"test/test_expect_test.ml":516:8: for:test_expect_test:516
+    "test/test_expect_test.ml":525:21: _bar
+    ├─"test/test_expect_test.ml":526:8: for:test_expect_test:526
     │ ├─<earlier entries truncated>
     │ ├─i = 26
-    │ ├─"test/test_expect_test.ml":516:12: <for i>
-    │ │ └─"test/test_expect_test.ml":517:14: _baz
+    │ ├─"test/test_expect_test.ml":526:12: <for i>
+    │ │ └─"test/test_expect_test.ml":527:14: _baz
     │ │   └─_baz = 52
     │ ├─i = 27
-    │ ├─"test/test_expect_test.ml":516:12: <for i>
-    │ │ └─"test/test_expect_test.ml":517:14: _baz
+    │ ├─"test/test_expect_test.ml":526:12: <for i>
+    │ │ └─"test/test_expect_test.ml":527:14: _baz
     │ │   └─_baz = 54
     │ ├─i = 28
-    │ ├─"test/test_expect_test.ml":516:12: <for i>
-    │ │ └─"test/test_expect_test.ml":517:14: _baz
+    │ ├─"test/test_expect_test.ml":526:12: <for i>
+    │ │ └─"test/test_expect_test.ml":527:14: _baz
     │ │   └─_baz = 56
     │ ├─i = 29
-    │ ├─"test/test_expect_test.ml":516:12: <for i>
-    │ │ └─"test/test_expect_test.ml":517:14: _baz
+    │ ├─"test/test_expect_test.ml":526:12: <for i>
+    │ │ └─"test/test_expect_test.ml":527:14: _baz
     │ │   └─_baz = 58
     │ ├─i = 30
-    │ └─"test/test_expect_test.ml":516:12: <for i>
-    │   └─"test/test_expect_test.ml":517:14: _baz
+    │ └─"test/test_expect_test.ml":526:12: <for i>
+    │   └─"test/test_expect_test.ml":527:14: _baz
     │     └─_baz = 60
     └─_bar = ()
     |}]
@@ -1499,12 +1499,12 @@ As a help in debugging whether the right type information got propagated, we off
     {|
     BEGIN DEBUG SESSION
     f : int = 7
-    ├─"test/test_expect_test.ml":2242:37
+    ├─"test/test_expect_test.ml":2252:37
     ├─f : int
     └─b : int = 6
     7
     g : int = 12
-    ├─"test/test_expect_test.ml":2243:49
+    ├─"test/test_expect_test.ml":2253:49
     ├─g : int
     └─b : int = 6
     12
@@ -1550,32 +1550,32 @@ Example from the test suite:
   [%expect
     {|
     BEGIN DEBUG SESSION foo-1
-    foo-1 foo begin "test/test_expect_test.ml":3959:21:
+    foo-1 foo begin "test/test_expect_test.ml":3969:21:
      "inside foo"
     foo-1 foo end
 
     BEGIN DEBUG SESSION foo-1
-    foo-1 <function -- branch 0> () begin "test/test_expect_test.ml":3965:8:
+    foo-1 <function -- branch 0> () begin "test/test_expect_test.ml":3975:8:
      "inside bar"
     foo-1 <function -- branch 0> () end
 
     BEGIN DEBUG SESSION foo-2
-    foo-2 foo begin "test/test_expect_test.ml":3959:21:
+    foo-2 foo begin "test/test_expect_test.ml":3969:21:
      "inside foo"
     foo-2 foo end
 
     BEGIN DEBUG SESSION foo-2
-    foo-2 <function -- branch 0> () begin "test/test_expect_test.ml":3965:8:
+    foo-2 <function -- branch 0> () begin "test/test_expect_test.ml":3975:8:
      "inside bar"
     foo-2 <function -- branch 0> () end
 
     BEGIN DEBUG SESSION foo-3
-    foo-3 foo begin "test/test_expect_test.ml":3959:21:
+    foo-3 foo begin "test/test_expect_test.ml":3969:21:
      "inside foo"
     foo-3 foo end
 
     BEGIN DEBUG SESSION foo-3
-    foo-3 <function -- branch 0> () begin "test/test_expect_test.ml":3965:8:
+    foo-3 <function -- branch 0> () begin "test/test_expect_test.ml":3975:8:
      "inside bar"
     foo-3 <function -- branch 0> () end
     |}]
@@ -1612,22 +1612,22 @@ Example from the test suite:
     {|
     BEGIN DEBUG SESSION foo-1
     foo = 14
-    ├─"test/test_expect_test.ml":2358:24
+    ├─"test/test_expect_test.ml":2368:24
     └─foo-1 <match -- branch 1> :: (y, _)
-      ├─"test/test_expect_test.ml":2358:80
+      ├─"test/test_expect_test.ml":2368:80
       └─y = 7
     14
 
     BEGIN DEBUG SESSION baz-1
     baz = 8
-    ├─"test/test_expect_test.ml":2365:15
+    ├─"test/test_expect_test.ml":2375:15
     ├─baz-1 <function -- branch 1> :: (y, [])
     └─y = 4
     8
 
     BEGIN DEBUG SESSION baz-2
     baz = 10
-    ├─"test/test_expect_test.ml":2367:21
+    ├─"test/test_expect_test.ml":2377:21
     ├─baz-2 <function -- branch 3> :: (y, :: (z, _))
     ├─y = 4
     └─z = 5

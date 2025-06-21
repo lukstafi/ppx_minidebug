@@ -313,6 +313,64 @@ type fun_arg =
   | Pfunction_param of function_param
   | Pexp_newtype_arg of label loc * location * location_stack * attributes
 
+let rec collect_fun_typs ?to_drop arg_typs typ =
+  match (typ.ptyp_desc, to_drop) with
+  | Ptyp_alias (typ, _), _ | Ptyp_poly (_, typ), _ -> collect_fun_typs arg_typs typ
+  | Ptyp_arrow (_, arg_typ, typ), None -> collect_fun_typs (arg_typ :: arg_typs) typ
+  | Ptyp_arrow (_, arg_typ, typ), Some (_ :: rest) ->
+      collect_fun_typs ~to_drop:rest (arg_typ :: arg_typs) typ
+  | _ -> (List.rev arg_typs, typ)
+
+let rec pick ~typ ?alt_typ () =
+  let rec deref typ =
+    match typ.ptyp_desc with
+    | Ptyp_alias (typ, _) | Ptyp_poly (_, typ) -> deref typ
+    | _ -> typ
+  in
+  let typ = deref typ
+  and alt_typ = match alt_typ with None -> None | Some t -> Some (deref t) in
+  match alt_typ with
+  | None -> typ
+  | Some alt_typ -> (
+      let loc = typ.ptyp_loc in
+      match typ.ptyp_desc with
+      | Ptyp_any -> alt_typ
+      | Ptyp_var _ -> alt_typ
+      | Ptyp_extension _ -> alt_typ
+      | Ptyp_arrow (_, arg, ret) -> (
+          match alt_typ with
+          | { ptyp_desc = Ptyp_arrow (_, arg2, ret2); _ } ->
+              let arg = pick ~typ:arg ~alt_typ:arg2 () in
+              let ret = pick ~typ:ret ~alt_typ:ret2 () in
+              A.ptyp_arrow ~loc Nolabel arg ret
+          | _ -> typ)
+      | Ptyp_tuple args -> (
+          match alt_typ with
+          | { ptyp_desc = Ptyp_tuple args2; _ } when List.length args = List.length args2
+            ->
+              let args =
+                List.map2 (fun typ alt_typ -> pick ~typ ~alt_typ ()) args args2
+              in
+              A.ptyp_tuple ~loc args
+          | _ -> typ)
+      | Ptyp_constr (c, args) -> (
+          match alt_typ with
+          | { ptyp_desc = Ptyp_constr (c2, args2); _ }
+            when String.equal (last_ident c.txt) (last_ident c2.txt)
+                 && List.length args = List.length args2 ->
+              let args =
+                List.map2 (fun typ alt_typ -> pick ~typ ~alt_typ ()) args args2
+              in
+              A.ptyp_constr ~loc c args
+          | _ -> typ)
+      | _ -> typ)
+
+let typ_of_constraint constr =
+  match constr with
+  | Some (Pconstraint typ) -> Some (pick ~typ ())
+  | Some (Pcoerce (alt_typ, typ)) -> Some (pick ~typ ?alt_typ ())
+  | None -> None
+
 let rec collect_fun accu = function
   | {
       pexp_desc = Pexp_function (params, constraint_, body);
@@ -323,8 +381,18 @@ let rec collect_fun accu = function
     when params <> [] -> (
       let params = List.map (fun p -> Pfunction_param p) params in
       let accu = List.rev_append params accu in
+      let alt_typ = typ_of_constraint constraint_ in
       match body with
-      | Pfunction_body body_exp -> collect_fun accu body_exp
+      | Pfunction_body body_exp -> (
+          let args, body, ret_typ = collect_fun accu body_exp in
+          let alt_typ =
+            Option.map (fun typ -> snd @@ collect_fun_typs ~to_drop:args [] typ) alt_typ
+          in
+          ( args,
+            body,
+            match ret_typ with
+            | Some ret_typ -> Some (pick ~typ:ret_typ ?alt_typ ())
+            | None -> alt_typ ))
       | Pfunction_cases (cases, loc, attrs) ->
           ( List.rev accu,
             {
@@ -334,7 +402,8 @@ let rec collect_fun accu = function
               pexp_loc_stack;
               pexp_attributes;
             },
-            None ))
+            (* Note: this is not the return type of the pexp_desc function above. *)
+            alt_typ ))
   | {
       pexp_desc = Pexp_newtype (type_label, body);
       pexp_loc;
@@ -370,44 +439,6 @@ let rec expand_fun body = function
         pexp_loc_stack;
         pexp_attributes;
       }
-
-let rec pick ~typ ?alt_typ () =
-  let rec deref typ =
-    match typ.ptyp_desc with
-    | Ptyp_alias (typ, _) | Ptyp_poly (_, typ) -> deref typ
-    | _ -> typ
-  in
-  let typ = deref typ
-  and alt_typ = match alt_typ with None -> None | Some t -> Some (deref t) in
-  let alt_or_typ = match alt_typ with None -> typ | Some t -> t in
-  let loc = typ.ptyp_loc in
-  match typ.ptyp_desc with
-  | Ptyp_any -> alt_or_typ
-  | Ptyp_var _ -> alt_or_typ
-  | Ptyp_extension _ -> alt_or_typ
-  | Ptyp_arrow (_, arg, ret) -> (
-      match alt_typ with
-      | Some { ptyp_desc = Ptyp_arrow (_, arg2, ret2); _ } ->
-          let arg = pick ~typ:arg ~alt_typ:arg2 () in
-          let ret = pick ~typ:ret ~alt_typ:ret2 () in
-          A.ptyp_arrow ~loc Nolabel arg ret
-      | _ -> typ)
-  | Ptyp_tuple args -> (
-      match alt_typ with
-      | Some { ptyp_desc = Ptyp_tuple args2; _ } when List.length args = List.length args2
-        ->
-          let args = List.map2 (fun typ alt_typ -> pick ~typ ~alt_typ ()) args args2 in
-          A.ptyp_tuple ~loc args
-      | _ -> typ)
-  | Ptyp_constr (c, args) -> (
-      match alt_typ with
-      | Some { ptyp_desc = Ptyp_constr (c2, args2); _ }
-        when String.equal (last_ident c.txt) (last_ident c2.txt)
-             && List.length args = List.length args2 ->
-          let args = List.map2 (fun typ alt_typ -> pick ~typ ~alt_typ ()) args args2 in
-          A.ptyp_constr ~loc c args
-      | _ -> typ)
-  | _ -> typ
 
 let rec has_unprintable_type typ =
   match typ.ptyp_desc with
@@ -600,12 +631,6 @@ let debug_body context callback ~loc ~message ~descr_loc ~log_count_before ~arg_
   entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
     ~entry:(callback context body) ~result ~log_result ()
 
-let rec collect_fun_typs arg_typs typ =
-  match typ.ptyp_desc with
-  | Ptyp_alias (typ, _) | Ptyp_poly (_, typ) -> collect_fun_typs arg_typs typ
-  | Ptyp_arrow (_, arg_typ, typ) -> collect_fun_typs (arg_typ :: arg_typs) typ
-  | _ -> (List.rev arg_typs, typ)
-
 let pass_runtime ?(always = false) toplevel_opt_arg exp =
   let loc = exp.pexp_loc in
   let exp' = match exp with [%expr ([%e? exp] : [%t? _typ])] -> exp | exp -> exp in
@@ -769,8 +794,8 @@ let debug_case ?(unpack_context = Nested) context callback ?ret_descr ?ret_typ ?
   in
   { pc_lhs; pc_guard; pc_rhs }
 
-let debug_function ?unpack_context context callback ~loc ?ret_descr ?ret_typ ?arg_typ
-    cases =
+let debug_function ?unpack_context context callback ~loc ?constr ?ret_descr ?ret_typ
+    ?arg_typ cases =
   let unpack_context =
     match unpack_context with None -> context.toplevel_kind | Some ctx -> ctx
   in
@@ -782,7 +807,7 @@ let debug_function ?unpack_context context callback ~loc ?ret_descr ?ret_typ ?ar
   in
   let exp =
     {
-      pexp_desc = Pexp_function ([], None, Pfunction_cases (cases, loc, []));
+      pexp_desc = Pexp_function ([], constr, Pfunction_cases (cases, loc, []));
       pexp_loc = loc;
       pexp_loc_stack = [];
       pexp_attributes = [];
@@ -803,7 +828,7 @@ let debug_binding context callback vb =
     | [%pat? ([%p? pat] : [%t? typ])], Runtime_passing ->
         let loc = vb.pvb_loc in
         ( pat,
-          Some typ,
+          Some (pick ~typ ()),
           [%pat? ([%p pat] : (module Minidebug_runtime.Debug_runtime) -> [%t typ])] )
     | [%pat? ([%p? pat] : [%t? typ])], _ -> (pat, Some typ, vb.pvb_pat)
     | _ -> (vb.pvb_pat, None, vb.pvb_pat)
@@ -812,7 +837,7 @@ let debug_binding context callback vb =
     let loc = vb.pvb_loc in
     match (vb.pvb_constraint, context.toplevel_kind) with
     | Some (Pvc_constraint ct), Runtime_passing ->
-        ( Some ct.typ,
+        ( Some (pick ~typ:ct.typ ()),
           Some
             (Pvc_constraint
                {
@@ -820,7 +845,7 @@ let debug_binding context callback vb =
                  typ = [%type: (module Minidebug_runtime.Debug_runtime) -> [%t ct.typ]];
                }) )
     | Some (Pvc_coercion { ground = Some typ; coercion }), Runtime_passing ->
-        ( Some typ,
+        ( Some (pick ~typ ()),
           Some
             (Pvc_coercion
                {
@@ -830,7 +855,7 @@ let debug_binding context callback vb =
                    [%type: (module Minidebug_runtime.Debug_runtime) -> [%t coercion]];
                }) )
     | Some (Pvc_coercion { ground = None; coercion }), Runtime_passing ->
-        ( Some coercion,
+        ( Some (pick ~typ:coercion ()),
           Some
             (Pvc_coercion
                {
@@ -861,14 +886,14 @@ let debug_binding context callback vb =
     in
     let exp, typ_e =
       match vb.pvb_expr with
-      | [%expr ([%e? exp] : [%t? typ])] -> (exp, Some typ)
+      | [%expr ([%e? exp] : [%t? typ])] -> (exp, Some (pick ~typ ()))
       | exp -> (exp, None)
     in
-    let alt_typ =
-      match typ_b with Some typ -> Some (pick ~typ ?alt_typ:typ_e ()) | None -> typ_e
+    let typ =
+      match typ_p with Some typ -> Some (pick ~typ ?alt_typ:typ_e ()) | None -> typ_e
     in
     let typ =
-      match typ_p with Some typ -> Some (pick ~typ ?alt_typ ()) | None -> alt_typ
+      match typ with Some typ -> Some (pick ~typ ?alt_typ:typ_b ()) | None -> typ_b
     in
     let arg_typ, ret_typ =
       match typ with
@@ -878,19 +903,30 @@ let debug_binding context callback vb =
     in
     let exp =
       match exp with
-      | { pexp_desc = Pexp_newtype _ | Pexp_function (_ :: _, _, _); _ } ->
-          (* [ret_typ] is not the return type if the function has more arguments. *)
+      | { pexp_desc = Pexp_newtype _; _ } ->
           (* [debug_fun] handles the runtime passing configuration. *)
-          debug_fun context callback ?typ ?ret_descr exp
-      | { pexp_desc = Pexp_function ([], _, Pfunction_cases (cases, _, _)); _ } ->
-          debug_function context callback ~loc:vb.pvb_expr.pexp_loc ?ret_descr ?ret_typ
-            ?arg_typ cases
+          debug_fun context callback ?typ  ?ret_descr exp
+      | { pexp_desc = Pexp_function (_ :: _, constr, _); _ } ->
+          (* [ret_typ] is not the return type if the function has more arguments. *)
+          let ret_typ = typ_of_constraint constr in
+          debug_fun context callback ?typ ?ret_descr ?ret_typ exp
+      | { pexp_desc = Pexp_function ([], constr, Pfunction_cases (cases, _, _)); _ } ->
+          let ret_typ =
+            match ret_typ with
+            | Some ret_typ ->
+                Some (pick ~typ:ret_typ ?alt_typ:(typ_of_constraint constr) ())
+            | None -> typ_of_constraint constr
+          in
+          debug_function context callback ~loc:vb.pvb_expr.pexp_loc ?constr ?ret_descr
+            ?ret_typ ?arg_typ cases
+      | { pexp_desc = Pexp_function ([], _, _); _ } -> assert false
       | _
         when context.toplevel_kind = Nested
              && (is_comptime_nothing context || context.track_or_explicit = `Diagn) ->
           callback nested exp
       | _ ->
-          let result, bound = bound_patterns ~alt_typ:typ pat in
+          let alt_typ = Option.map (fun typ -> pick ~typ ?alt_typ:typ_b ()) typ in
+          let result, bound = bound_patterns ~alt_typ pat in
           if bound = [] && context.toplevel_kind = Nested then callback nested exp
           else
             let log_count_before = !global_log_count in
@@ -1378,24 +1414,29 @@ let traverse_expression =
               pexp_desc =
                 Pexp_match (callback context expr, track_cases ?ret_typ "match" cases);
             }
-        | Pexp_function ([], _, Pfunction_cases (cases, _, _))
+        | Pexp_function ([], constr, Pfunction_cases (cases, _, _))
           when context.track_or_explicit = `Track && (not @@ is_comptime_nothing context)
           ->
             let arg_typ, ret_typ =
               match ret_typ with
-              | Some { ptyp_desc = Ptyp_arrow (_, arg, ret); _ } -> (Some arg, Some ret)
-              | _ -> (None, None)
+              | Some { ptyp_desc = Ptyp_arrow (_, arg, ret); _ } ->
+                  (Some arg, Some (pick ~typ:ret ?alt_typ:(typ_of_constraint constr) ()))
+              | _ -> (None, typ_of_constraint constr)
             in
-            debug_function context callback ~loc:exp.pexp_loc ?arg_typ ?ret_typ cases
-        | Pexp_function ([], _, Pfunction_cases (cases, _, _))
+            debug_function context callback ~loc:exp.pexp_loc ?constr ?arg_typ ?ret_typ
+              cases
+        | Pexp_function ([], constr, Pfunction_cases (cases, _, _))
+        (* We need this case to unpack the runtime. *)
           when is_local_debug_runtime context.toplevel_kind
                && (not @@ is_comptime_nothing context) ->
             let arg_typ, ret_typ =
               match ret_typ with
-              | Some { ptyp_desc = Ptyp_arrow (_, arg, ret); _ } -> (Some arg, Some ret)
-              | _ -> (None, None)
+              | Some { ptyp_desc = Ptyp_arrow (_, arg, ret); _ } ->
+                  (Some arg, Some (pick ~typ:ret ?alt_typ:(typ_of_constraint constr) ()))
+              | _ -> (None, typ_of_constraint constr)
             in
-            debug_function context callback ~loc:exp.pexp_loc ?arg_typ ?ret_typ cases
+            debug_function context callback ~loc:exp.pexp_loc ?constr ?arg_typ ?ret_typ
+              cases
         | Pexp_ifthenelse (if_, then_, else_)
           when context.track_or_explicit = `Track && (not @@ is_comptime_nothing context)
           ->
