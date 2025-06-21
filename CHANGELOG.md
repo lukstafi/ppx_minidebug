@@ -4,6 +4,10 @@
 
 - Switched over to the new OCaml AST and ppxlib 0.36.
 
+### Fixed
+
+- Fixed stale README.md mentions of the retired `_l_` infix.
+
 ## [2.2.0] -- 2025-03-28
 
 ### Added

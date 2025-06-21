@@ -11,7 +11,7 @@
     - [Hyperlinks to source locations](#hyperlinks-to-source-locations)
     - [values_first_mode](#values_first_mode)
   - [Usage](#usage)
-    - [Breaking infinite recursion with max_nesting_depth and looping with max_num_children; Flushing-based traces](#breaking-infinite-recursion-with-max_nesting_depth-and-looping-with-max_num_children-flushing-based-traces)
+    - [Breaking infinite recursion with max_nesting_depth and looping with max_num_children; flushing-based traces](#breaking-infinite-recursion-with-max_nesting_depth-and-looping-with-max_num_children-flushing-based-traces)
     - [Tracking: control flow branches, anonymous and insufficiently annotated functions](#tracking-control-flow-branches-anonymous-and-insufficiently-annotated-functions)
     - [Using as a logging framework](#using-as-a-logging-framework)
       - [Specifying the level to log at via a runtime expression](#specifying-the-level-to-log-at-via-a-runtime-expression)
@@ -285,10 +285,11 @@ The entry extension points vary along three axes:
   - The prefix `%debug_` means logging fewer things: only let-bound values and functions are logged, and functions only when either: directly in a `%debug_`-annotated let binding, or their return type is annotated.
   - `%track_` also logs: which `if`, `match`, `function` branch is taken, `for` and `while` loops, and all functions, including anonymous ones.
   - The prefix `%diagn_` means only generating logs for explicitly logged values, i.e. introduced by `[%log ...]`, `[%log_result ...]`, `[%log_printbox ...]` statements.
-- Optional infixes `_rt_` and `_l_`:
+- Optional infixes `_rt_` and `_o_`, and the default "no-infix" behavior:
   - `_rt_` adds a first-class module argument to a function, and unpacks it as `module Debug_runtime` for the scope of the function.
-  - `_l_` calls `_get_local_debug_runtime`, and unpacks it for the scope of the function: `let module Debug_runtime = (val _get_local_debug_runtime ()) in ...`.
-  - This functionality is "one use only": it applies only to the function the extension point is attached to.
+  - `_o_` uses an existing `Debug_runtime` module from the scope instead of calling `_get_local_debug_runtime`
+  - without any infix, the runtime is unpacked within the scope of each function: `let module Debug_runtime = (val _get_local_debug_runtime ()) in ...`.
+  - Both the `_rt_` and the default (no-infix) functionality is "one use only": it applies only to the function the extension point is attached to.
 - Representation and printing mechanism: `_pp`, `_show`, recommended: `_sexp`
   - `_pp` is currently most restrictive as it requires the type of a value to be an identifier. The identifier is converted to a `pp_` printing function, e.g. `pp_int`.
   - `_show` converts values to strings via the `%show` extension provided by `deriving.show`: e.g. `[%show: int list]`.
@@ -300,7 +301,7 @@ See examples in [the test directory](test/), and especially [the inline tests](t
 
 Only type-annotated let-bindings, function arguments, function results can be implicitly logged. However, the bindings and function arguments can be nested patterns with only parts of them type-annotated! The explicit loggers `%log` and `%log_result` take a value and reconstruct its type from partial type annotations (deconstructing the expression), sometimes assuming unknown types are strings. The `%log_printbox` logger takes a `PrintBox.t` value. The `%log_entry` and `%log_block` loggers takes a string value for the header of the log subtree.
 
-To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.debug_file thread_name in ...` Extension points with the `_l_` or `_rt_` infixes are a great help for that, e.g. `%debug_l_sexp`; see: [Dealing with concurrent execution](#dealing-with-concurrent-execution).
+To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can manually bind `Debug_runtime` locally: `let module Debug_runtime = Minidebug_runtime.debug_file thread_name in ...` and use extension points `_o_` infixed. To facilitate that, the default (non-infix) behavior is to open locally a runtime returned by `_get_local_debug_runtime`, but note that this only happens inside the functions annotated by ppx_minidebug entry points (not in nested un-annotated functions). Extension points with the `_rt_` infixes can help where more fine-grained or declarative control is needed, e.g. with fibers for cooperative multithreading. See [Dealing with concurrent execution](#dealing-with-concurrent-execution) for more.
 
 To ensure that log files are properly closed, you can use `Minidebug_runtime.finish_and_cleanup` at the end. This is typically not needed (and is more helpful on Windows, where a log file might remain locked after a process exits without closing it).
 
@@ -1564,7 +1565,7 @@ Example from the test suite:
      "inside foo"
     foo-2 foo end
 
-    BEGIN DEBUG SESSION foo-2
+    BEGIN DEBUG SESSION foo-2 
     foo-2 <function -- branch 0> () begin "test/test_expect_test.ml":3975:8:
      "inside bar"
     foo-2 <function -- branch 0> () end
