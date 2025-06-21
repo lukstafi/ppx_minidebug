@@ -15,7 +15,7 @@
 
 (documentation https://lukstafi.github.io/ppx_minidebug/ppx_minidebug)
 
-(version 2.2.0)
+(version 2.3.0)
 
 (using mdx 0.4)
 
@@ -31,7 +31,7 @@
   ppx_deriving
   ppx_sexp_conv
   (ppxlib
-   (>= 0.26.0))
+   (>= 0.36.0))
   (printbox
    (>= 0.12))
   (printbox-text
