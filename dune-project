@@ -25,8 +25,10 @@
  (description
   "Formatted logs of let-bound values, function arguments and results; `if` and `match` branches taken. Optionally, as collapsible HTML trees with highlights.")
  (depends
+  ; With the release of 2.3.0, our dependencies (ppx_sexp_conv v0.17.1 due to ppxlib 0.36)
+  ; force us to depend on OCaml >= 5.1.0, so it's a good opportunity to bump the minimum.
   (ocaml
-   (>= 4.13))
+   (>= 5.2.0))
   dune
   ppx_deriving
   ppx_sexp_conv
