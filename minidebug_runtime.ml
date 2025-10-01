@@ -201,7 +201,7 @@ module type Debug_runtime = sig
     entry_id:int ->
     log_level:int ->
     is_result:bool ->
-    Sexplib0.Sexp.t ->
+    Sexplib0.Sexp.t Lazy.t ->
     unit
 
   val log_value_pp :
@@ -210,11 +210,16 @@ module type Debug_runtime = sig
     log_level:int ->
     pp:(Format.formatter -> 'a -> unit) ->
     is_result:bool ->
-    'a ->
+    'a Lazy.t ->
     unit
 
   val log_value_show :
-    ?descr:string -> entry_id:int -> log_level:int -> is_result:bool -> string -> unit
+    ?descr:string ->
+    entry_id:int ->
+    log_level:int ->
+    is_result:bool ->
+    string Lazy.t ->
+    unit
 
   val log_value_printbox : entry_id:int -> log_level:int -> PrintBox.t -> unit
   val exceeds_max_nesting : unit -> bool
@@ -396,18 +401,20 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         ""
     | [] -> "{orphaned from #" ^ Int.to_string entry_id ^ "} "
 
-  let log_value_sexp ?descr ~entry_id ~log_level ~is_result:_ sexp =
+  let log_value_sexp ?descr ~entry_id ~log_level ~is_result:_ lazy_sexp =
     if check_log_level log_level then
       let orphaned = bump_stack_entry entry_id in
       let descr = match descr with None -> "" | Some d -> d ^ " = " in
+      let sexp = Lazy.force lazy_sexp in
       Printf.fprintf (debug_ch ()) "%s%s%s%s%s\n%!" (indent ()) opt_global_prefix orphaned
         descr
         (Sexplib0.Sexp.to_string_hum sexp)
 
-  let log_value_pp ?descr ~entry_id ~log_level ~pp ~is_result:_ v =
+  let log_value_pp ?descr ~entry_id ~log_level ~pp ~is_result:_ lazy_v =
     if check_log_level log_level then (
       let orphaned = bump_stack_entry entry_id in
       let descr = match descr with None -> "" | Some d -> d ^ " = " in
+      let v = Lazy.force lazy_v in
       let buf = Buffer.create 512 in
       let formatter = CFormat.formatter_of_buffer buf in
       pp formatter v;
@@ -416,10 +423,11 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
       Printf.fprintf (debug_ch ()) "%s%s%s%s%s\n%!" (indent ()) opt_global_prefix orphaned
         descr v_str)
 
-  let log_value_show ?descr ~entry_id ~log_level ~is_result:_ v =
+  let log_value_show ?descr ~entry_id ~log_level ~is_result:_ lazy_v =
     if check_log_level log_level then
       let orphaned = bump_stack_entry entry_id in
       let descr = match descr with None -> "" | Some d -> d ^ " = " in
+      let v = Lazy.force lazy_v in
       Printf.fprintf (debug_ch ()) "%s%s%s%s%s\n%!" (indent ()) opt_global_prefix orphaned
         descr v
 
@@ -1979,8 +1987,9 @@ module PrintBox (Log_to : Shared_config) = struct
 
   let num_children () = match !stack with [] -> 0 | { body; _ } :: _ -> List.length body
 
-  let log_value_sexp ?descr ~entry_id ~log_level ~is_result sexp =
+  let log_value_sexp ?descr ~entry_id ~log_level ~is_result lazy_sexp =
     if check_log_level log_level then (
+      let sexp = Lazy.force lazy_sexp in
       (if config.boxify_sexp_from_size >= 0 then
          stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
          @@ boxify ~descr ~depth:(List.length !stack) ~entry_id:None sexp
@@ -1993,8 +2002,9 @@ module PrintBox (Log_to : Shared_config) = struct
          | Some d -> B.asprintf_with_style B.Style.preformatted "%s = %a" d pp_sexp sexp);
       opt_auto_snapshot ())
 
-  let log_value_pp ?descr ~entry_id ~log_level ~pp ~is_result v =
+  let log_value_pp ?descr ~entry_id ~log_level ~pp ~is_result lazy_v =
     if check_log_level log_level then (
+      let v = Lazy.force lazy_v in
       (stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
       @@ highlight_box ~depth:(List.length !stack) ~entry_id:None
       @@
@@ -2003,8 +2013,9 @@ module PrintBox (Log_to : Shared_config) = struct
       | Some d -> B.asprintf_with_style B.Style.preformatted "%s = %a" d pp v);
       opt_auto_snapshot ())
 
-  let log_value_show ?descr ~entry_id ~log_level ~is_result v =
+  let log_value_show ?descr ~entry_id ~log_level ~is_result lazy_v =
     if check_log_level log_level then (
+      let v = Lazy.force lazy_v in
       (stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
       @@ highlight_box ~depth:(List.length !stack) ~entry_id:None
       @@

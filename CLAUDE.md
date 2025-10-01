@@ -1,11 +1,18 @@
 # PPX_MINIDEBUG Development Guide
 
+## Project Overview
+ppx_minidebug is an OCaml PPX extension for debug logging. It has two main components:
+- **ppx_minidebug.ml**: The preprocessor that transforms annotated code (e.g., `let%debug_sexp foo`) into instrumented versions with logging calls
+- **minidebug_runtime.ml**: The runtime library providing two backends (Flushing and PrintBox) with `log_value_*` functions
+
+The preprocessor generates calls to `Debug_runtime.log_value_{sexp,pp,show}` which are provided by functors in the runtime.
+
 ## Build & Test Commands
 - Build project: `dune build`
 - Install development version: `opam install .`
 - Run all tests: `dune runtest`
-- Run specific test: `dune runtest test/test_debug_sexp.ml`
-- Run expect test: `dune runtest test/test_expect_test.ml`
+- Promote new test expectations: `dune promote`
+- Run a specific test executable: `dune exec test/test_debug_sexp.exe`
 
 ## Coding Conventions
 - **Formatting**: Use OCamlformat with profile=default, margin=90

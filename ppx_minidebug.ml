@@ -213,7 +213,7 @@ let log_value_sexp context ~loc ~typ ?descr_loc ~is_explicit ~is_result ~log_lev
           ~entry_id:__entry_id
           ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
           ~is_result:[%e A.ebool ~loc is_result]
-          ([%sexp_of: [%t typ]] [%e exp])]
+          (lazy ([%sexp_of: [%t typ]] [%e exp]))]
 
 (* *** The deriving.show pp-based variant. *** *)
 let rec splice_lident ~id_prefix ident =
@@ -244,7 +244,7 @@ let log_value_pp context ~loc ~typ ?descr_loc ~is_explicit ~is_result ~log_level
           ?descr:[%e to_descr context ~loc ~descr_loc typ]
           ~entry_id:__entry_id
           ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
-          ~pp:[%e converter] ~is_result:[%e A.ebool ~loc is_result] [%e exp]]
+          ~pp:[%e converter] ~is_result:[%e A.ebool ~loc is_result] (lazy [%e exp])]
   | _ ->
       A.pexp_extension ~loc
       @@ Location.error_extensionf ~loc
@@ -272,7 +272,7 @@ let log_value_show context ~loc ~typ ?descr_loc ~is_explicit ~is_result ~log_lev
           ~entry_id:__entry_id
           ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
           ~is_result:[%e A.ebool ~loc is_result]
-          ([%show: [%t typ]] [%e exp])]
+          (lazy ([%show: [%t typ]] [%e exp]))]
 
 let log_value context =
   match context.log_value with
@@ -301,13 +301,13 @@ let log_string ~loc ~descr_loc ~log_level s =
         ~descr:[%e A.estring ~loc:descr_loc.loc descr_loc.txt]
         ~entry_id:__entry_id
         ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
-        ~is_result:false [%e A.estring ~loc s]]
+        ~is_result:false (lazy [%e A.estring ~loc s])]
 
 let log_string_with_descr ~loc ~message ~log_level s =
   [%expr
     Debug_runtime.log_value_show ~descr:[%e message] ~entry_id:__entry_id
       ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
-      ~is_result:false [%e A.estring ~loc s]]
+      ~is_result:false (lazy [%e A.estring ~loc s])]
 
 type fun_arg =
   | Pfunction_param of function_param

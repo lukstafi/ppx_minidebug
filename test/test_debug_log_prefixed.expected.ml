@@ -12,7 +12,7 @@ let rec loop_exceeded (x : int) =
      (match let z =
               Debug_runtime.log_value_show ?descr:None ~entry_id:__entry_id
                 ~log_level:2 ~is_result:false
-                (([%show : (string * int)]) ("inside loop", (x : int)));
+                (lazy (([%show : (string * int)]) ("inside loop", (x : int))));
               ();
               (x - 1) / 2 in
             if x <= 0 then 0 else z + (loop_exceeded (z + (x / 2)))
@@ -45,7 +45,7 @@ let bar () =
                      let __entry_id = Debug_runtime.get_entry_id () in
                      Debug_runtime.log_value_show ?descr:(Some "i")
                        ~entry_id:__entry_id ~log_level:1 ~is_result:false
-                       (([%show : int]) i);
+                       (lazy (([%show : int]) i));
                      Debug_runtime.open_log
                        ~fname:"test_debug_log_prefixed.ml" ~start_lnum:21
                        ~start_colnum:6 ~end_lnum:21 ~end_colnum:7
@@ -65,7 +65,8 @@ let bar () =
                                      Debug_runtime.log_value_show
                                        ?descr:(Some "_baz")
                                        ~entry_id:__entry_id ~log_level:1
-                                       ~is_result:true (([%show : int]) _baz));
+                                       ~is_result:true
+                                       (lazy (([%show : int]) _baz)));
                                     Debug_runtime.close_log
                                       ~fname:"test_debug_log_prefixed.ml"
                                       ~start_lnum:22 ~entry_id:__entry_id;
@@ -78,9 +79,10 @@ let bar () =
                             Debug_runtime.log_value_show ?descr:None
                               ~entry_id:__entry_id ~log_level:2
                               ~is_result:false
-                              (([%show : (string * int * string * int)])
-                                 ("loop step", (i : int), "value",
-                                   (_baz : int)));
+                              (lazy
+                                 (([%show : (string * int * string * int)])
+                                    ("loop step", (i : int), "value",
+                                      (_baz : int))));
                             ()
                       with
                       | () ->
@@ -107,7 +109,7 @@ let bar () =
       | __res ->
           (Debug_runtime.log_value_show ?descr:(Some "bar")
              ~entry_id:__entry_id ~log_level:1 ~is_result:true
-             (([%show : unit]) __res);
+             (lazy (([%show : unit]) __res));
            Debug_runtime.close_log ~fname:"test_debug_log_prefixed.ml"
              ~start_lnum:20 ~entry_id:__entry_id;
            __res)

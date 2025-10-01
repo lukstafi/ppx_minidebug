@@ -121,7 +121,7 @@ module type Debug_runtime = sig
     entry_id:int ->
     log_level:int ->
     is_result:bool ->
-    Sexplib0.Sexp.t ->
+    Sexplib0.Sexp.t Lazy.t ->
     unit
 
   val log_value_pp :
@@ -130,11 +130,16 @@ module type Debug_runtime = sig
     log_level:int ->
     pp:(Format.formatter -> 'a -> unit) ->
     is_result:bool ->
-    'a ->
+    'a Lazy.t ->
     unit
 
   val log_value_show :
-    ?descr:string -> entry_id:int -> log_level:int -> is_result:bool -> string -> unit
+    ?descr:string ->
+    entry_id:int ->
+    log_level:int ->
+    is_result:bool ->
+    string Lazy.t ->
+    unit
 
   val log_value_printbox : entry_id:int -> log_level:int -> PrintBox.t -> unit
   val exceeds_max_nesting : unit -> bool
