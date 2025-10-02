@@ -506,3 +506,20 @@ loop begin "test/test_debug_show.ml":24:24:
  z end
  loop = 56
 loop end
+simple_thunk begin "test/test_debug_show.ml":37:28:
+ x = "hello"
+ simple_thunk = ()
+simple_thunk end
+nested_fun begin "test/test_debug_show.ml":42:26:
+ x = 5
+ nested_fun = ()
+nested_fun end
+cascade begin "test/test_debug_show.ml":47:23:
+ x = 1
+ cascade = 6
+cascade end
+parallel_update begin "test/test_debug_show.ml":52:31:
+ x = 10
+ y = 20
+ parallel_update = <fun>
+parallel_update end

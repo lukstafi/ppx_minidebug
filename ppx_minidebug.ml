@@ -388,8 +388,18 @@ let rec collect_fun accu = function
       match body with
       | Pfunction_body body_exp -> (
           let args, body, ret_typ = collect_fun accu body_exp in
+          (* The constraint_ on this Pexp_function node represents the return type
+             after applying all params in this node. We should only drop arrows for
+             params collected from inner nodes (i.e., args that are not in params). *)
+          let inner_args =
+            let num_params = List.length params in
+            let num_args = List.length args in
+            if num_args > num_params then
+              List.filteri (fun i _ -> i < num_args - num_params) args
+            else []
+          in
           let alt_typ =
-            Option.map (fun typ -> snd @@ collect_fun_typs ~to_drop:args [] typ) alt_typ
+            Option.map (fun typ -> snd @@ collect_fun_typs ~to_drop:inner_args [] typ) alt_typ
           in
           ( args,
             body,

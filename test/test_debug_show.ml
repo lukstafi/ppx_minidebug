@@ -30,3 +30,34 @@ let%debug_show rec loop (depth : int) (x : t) : int =
     z + 7
 
 let () = ignore @@ loop 0 { first = 7; second = 42 }
+
+(* Test cases for issue #62: cascading function abstractions with type constraints *)
+
+(* Simple case: function returning unit -> unit *)
+let%debug_show simple_thunk (x : string) : unit -> unit = fun () -> print_endline x
+
+let () = simple_thunk "hello" ()
+
+(* More complex case: nested function abstraction *)
+let%debug_show nested_fun (x : int) : int -> unit = fun y -> ignore (x + y)
+
+let () = nested_fun 5 10
+
+(* Case with multiple cascading abstractions *)
+let%debug_show cascade (x : int) : int -> int -> int = fun y -> fun z -> x + y + z
+
+let () = ignore @@ cascade 1 2 3
+
+(* Real-world-like case similar to the bug report *)
+let%debug_show parallel_update (x : int) (y : int) : unit -> unit =
+  let result = x + y in
+  fun () -> print_int result
+
+let () = parallel_update 10 20 ()
+
+(* More complex case closer to the real bug report *)
+let%debug_show complex_case (type buffer_ptr) (x : int) (y : buffer_ptr -> int) : unit -> unit =
+  let compute = x + y (Obj.magic 0) in
+  fun () -> print_int compute
+
+let () = complex_case 5 (fun _ -> 10) ()
