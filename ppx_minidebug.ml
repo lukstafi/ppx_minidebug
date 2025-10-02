@@ -244,7 +244,8 @@ let log_value_pp context ~loc ~typ ?descr_loc ~is_explicit ~is_result ~log_level
           ?descr:[%e to_descr context ~loc ~descr_loc typ]
           ~entry_id:__entry_id
           ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
-          ~pp:[%e converter] ~is_result:[%e A.ebool ~loc is_result] (lazy [%e exp])]
+          ~pp:[%e converter] ~is_result:[%e A.ebool ~loc is_result]
+          (lazy [%e exp])]
   | _ ->
       A.pexp_extension ~loc
       @@ Location.error_extensionf ~loc
@@ -301,13 +302,15 @@ let log_string ~loc ~descr_loc ~log_level s =
         ~descr:[%e A.estring ~loc:descr_loc.loc descr_loc.txt]
         ~entry_id:__entry_id
         ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
-        ~is_result:false (lazy [%e A.estring ~loc s])]
+        ~is_result:false
+        (lazy [%e A.estring ~loc s])]
 
 let log_string_with_descr ~loc ~message ~log_level s =
   [%expr
     Debug_runtime.log_value_show ~descr:[%e message] ~entry_id:__entry_id
       ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
-      ~is_result:false (lazy [%e A.estring ~loc s])]
+      ~is_result:false
+      (lazy [%e A.estring ~loc s])]
 
 type fun_arg =
   | Pfunction_param of function_param
@@ -557,42 +560,53 @@ let entry_with_interrupts context ~loc ?descr_loc ?message ~log_count_before ?he
   then entry
   else
     let header = match header with Some h -> h | None -> [%expr ()] in
-    if context.interrupts then
-      [%expr
-        let __entry_id = Debug_runtime.get_entry_id () in
-        [%e header];
-        if Debug_runtime.exceeds_max_children () then (
-          [%e log_string ~log_level:context.entry_log_level "<max_num_children exceeded>"];
-          failwith "ppx_minidebug: max_num_children exceeded")
-        else (
-          [%e preamble];
-          if Debug_runtime.exceeds_max_nesting () then (
+    let log_close = close_log ~loc in
+    let ghost_loc = { loc with loc_ghost = true } in
+    let body =
+      if context.interrupts then
+        [%expr
+          [%e header];
+          if Debug_runtime.exceeds_max_children () then (
             [%e
-              log_string ~log_level:context.entry_log_level "<max_nesting_depth exceeded>"];
-            [%e close_log ~loc];
-            failwith "ppx_minidebug: max_nesting_depth exceeded")
-          else
-            match [%e entry] with
-            | [%p result] ->
-                [%e log_result];
-                [%e close_log ~loc];
-                [%e pat2expr result]
-            | exception e ->
-                [%e close_log ~loc];
-                raise e)]
-    else
-      [%expr
-        let __entry_id = Debug_runtime.get_entry_id () in
-        [%e header];
-        [%e preamble];
-        match [%e entry] with
-        | [%p result] ->
-            [%e log_result];
-            [%e close_log ~loc];
-            [%e pat2expr result]
-        | exception e ->
-            [%e close_log ~loc];
-            raise e]
+              log_string ~log_level:context.entry_log_level "<max_num_children exceeded>"];
+            failwith "ppx_minidebug: max_num_children exceeded")
+          else (
+            [%e preamble];
+            if Debug_runtime.exceeds_max_nesting () then (
+              [%e
+                log_string ~log_level:context.entry_log_level
+                  "<max_nesting_depth exceeded>"];
+              [%e log_close];
+              failwith "ppx_minidebug: max_nesting_depth exceeded")
+            else
+              match [%e entry] with
+              | [%p result] ->
+                  [%e log_result];
+                  [%e log_close];
+                  [%e pat2expr result]
+              | exception e ->
+                  [%e log_close];
+                  raise e)]
+      else
+        [%expr
+          [%e header];
+          [%e preamble];
+          match [%e entry] with
+          | [%p result] ->
+              [%e log_result];
+              [%e log_close];
+              [%e pat2expr result]
+          | exception e ->
+              [%e log_close];
+              raise e]
+    in
+    let expr =
+      let loc = ghost_loc in
+      [%expr Debug_runtime.get_entry_id ()]
+    in
+    A.pexp_let ~loc Nonrecursive
+      [ A.value_binding ~loc:ghost_loc ~pat:(A.pvar ~loc:ghost_loc "__entry_id") ~expr ]
+      body
 
 let debug_body context callback ~loc ~message ~descr_loc ~log_count_before ~arg_logs typ
     body =
@@ -905,7 +919,7 @@ let debug_binding context callback vb =
       match exp with
       | { pexp_desc = Pexp_newtype _; _ } ->
           (* [debug_fun] handles the runtime passing configuration. *)
-          debug_fun context callback ?typ  ?ret_descr exp
+          debug_fun context callback ?typ ?ret_descr exp
       | { pexp_desc = Pexp_function (_ :: _, constr, _); _ } ->
           (* [ret_typ] is not the return type if the function has more arguments. *)
           let ret_typ = typ_of_constraint constr in
@@ -1175,6 +1189,8 @@ let traverse_expression =
         | _ -> (orig_exp, None)
       in
       let loc = orig_exp.pexp_loc in
+      let ghost_loc = { loc with loc_ghost = true } in
+      let log_close = close_log ~loc in
       let exp = orig_exp in
       let log_block_impl ~entry_log_level ~message ~entry =
         check_comptime_log_level context ~is_explicit:true ~is_result:false
@@ -1187,16 +1203,28 @@ let traverse_expression =
         let context = { context with entry_log_level } in
         let entry = callback { context with toplevel_kind = Nested } entry in
         let result =
-          [%expr
-            let __entry_id = Debug_runtime.get_entry_id () in
-            [%e preamble];
-            try
-              let __val = [%e entry] in
-              [%e close_log ~loc];
-              __val
-            with e ->
-              [%e close_log ~loc];
-              raise e]
+          let body =
+            [%expr
+              [%e preamble];
+              try
+                let __val = [%e entry] in
+                [%e log_close];
+                __val
+              with e ->
+                [%e log_close];
+                raise e]
+          in
+          let expr =
+            let loc = ghost_loc in
+            [%expr Debug_runtime.get_entry_id ()]
+          in
+          A.pexp_let ~loc Nonrecursive
+            [
+              A.value_binding ~loc:ghost_loc
+                ~pat:(A.pvar ~loc:ghost_loc "__entry_id")
+                ~expr;
+            ]
+            body
         in
         [%expr
           if !Debug_runtime.log_level >= [%e ll_to_expr ~digit_loc:loc entry_log_level]
@@ -1446,18 +1474,34 @@ let traverse_expression =
               let message = "then:" ^ loc_to_name loc in
               let then_ = callback context then_ in
               let then_' =
-                [%expr
-                  let __entry_id = Debug_runtime.get_entry_id () in
-                  [%e
-                    open_log ~message ~loc ~log_level:context.entry_log_level
-                      context.track_or_explicit];
-                  match [%e then_] with
-                  | if_then__result ->
-                      [%e close_log ~loc];
-                      if_then__result
-                  | exception e ->
-                      [%e close_log ~loc];
-                      raise e]
+                let log_open =
+                  open_log ~message ~loc ~log_level:context.entry_log_level
+                    context.track_or_explicit
+                in
+                let log_close = close_log ~loc in
+                let ghost_loc = { loc with loc_ghost = true } in
+                let body =
+                  [%expr
+                    [%e log_open];
+                    match [%e then_] with
+                    | if_then__result ->
+                        [%e log_close];
+                        if_then__result
+                    | exception e ->
+                        [%e log_close];
+                        raise e]
+                in
+                let expr =
+                  let loc = ghost_loc in
+                  [%expr Debug_runtime.get_entry_id ()]
+                in
+                A.pexp_let ~loc Nonrecursive
+                  [
+                    A.value_binding ~loc:ghost_loc
+                      ~pat:(A.pvar ~loc:ghost_loc "__entry_id")
+                      ~expr;
+                  ]
+                  body
               in
               if
                 context.track_or_explicit = `Diagn && log_count_before = !global_log_count
@@ -1472,18 +1516,34 @@ let traverse_expression =
                   (fun else_ ->
                     let loc = else_.pexp_loc in
                     let message = "else:" ^ loc_to_name loc in
-                    [%expr
-                      let __entry_id = Debug_runtime.get_entry_id () in
-                      [%e
-                        open_log ~message ~loc ~log_level:context.entry_log_level
-                          context.track_or_explicit];
-                      match [%e else_] with
-                      | if_else__result ->
-                          [%e close_log ~loc];
-                          if_else__result
-                      | exception e ->
-                          [%e close_log ~loc];
-                          raise e])
+                    let log_open =
+                      open_log ~message ~loc ~log_level:context.entry_log_level
+                        context.track_or_explicit
+                    in
+                    let log_close = close_log ~loc in
+                    let ghost_loc = { loc with loc_ghost = true } in
+                    let body =
+                      [%expr
+                        [%e log_open];
+                        match [%e else_] with
+                        | if_else__result ->
+                            [%e log_close];
+                            if_else__result
+                        | exception e ->
+                            [%e log_close];
+                            raise e]
+                    in
+                    let expr =
+                      let loc = ghost_loc in
+                      [%expr Debug_runtime.get_entry_id ()]
+                    in
+                    A.pexp_let ~loc Nonrecursive
+                      [
+                        A.value_binding ~loc:ghost_loc
+                          ~pat:(A.pvar ~loc:ghost_loc "__entry_id")
+                          ~expr;
+                      ]
+                      body)
                   else_
               in
               if
@@ -1523,16 +1583,32 @@ let traverse_expression =
             let pexp_desc = Pexp_for (pat, from, to_, dir, body) in
             let message = "for:" ^ loc_to_name loc in
             let transformed =
-              [%expr
-                let __entry_id = Debug_runtime.get_entry_id () in
-                [%e
-                  open_log ~message ~loc ~log_level:context.entry_log_level
-                    context.track_or_explicit];
-                match [%e { exp with pexp_desc }] with
-                | () -> [%e close_log ~loc]
-                | exception e ->
-                    [%e close_log ~loc];
-                    raise e]
+              let log_open =
+                open_log ~message ~loc ~log_level:context.entry_log_level
+                  context.track_or_explicit
+              in
+              let log_close = close_log ~loc in
+              let ghost_loc = { loc with loc_ghost = true } in
+              let body =
+                [%expr
+                  [%e log_open];
+                  match [%e { exp with pexp_desc }] with
+                  | () -> [%e log_close]
+                  | exception e ->
+                      [%e log_close];
+                      raise e]
+              in
+              let expr =
+                let loc = ghost_loc in
+                [%expr Debug_runtime.get_entry_id ()]
+              in
+              A.pexp_let ~loc Nonrecursive
+                [
+                  A.value_binding ~loc:ghost_loc
+                    ~pat:(A.pvar ~loc:ghost_loc "__entry_id")
+                    ~expr;
+                ]
+                body
             in
             if context.track_or_explicit = `Diagn && log_count_before = !global_log_count
             then { exp with pexp_desc }
@@ -1557,16 +1633,32 @@ let traverse_expression =
             let loc = exp.pexp_loc in
             let pexp_desc = Pexp_while (cond, body) in
             let transformed =
-              [%expr
-                let __entry_id = Debug_runtime.get_entry_id () in
-                [%e
-                  open_log ~message ~loc ~log_level:context.entry_log_level
-                    context.track_or_explicit];
-                match [%e { exp with pexp_desc }] with
-                | () -> [%e close_log ~loc]
-                | exception e ->
-                    [%e close_log ~loc];
-                    raise e]
+              let log_open =
+                open_log ~message ~loc ~log_level:context.entry_log_level
+                  context.track_or_explicit
+              in
+              let log_close = close_log ~loc in
+              let ghost_loc = { loc with loc_ghost = true } in
+              let body =
+                [%expr
+                  [%e log_open];
+                  match [%e { exp with pexp_desc }] with
+                  | () -> [%e log_close]
+                  | exception e ->
+                      [%e log_close];
+                      raise e]
+              in
+              let expr =
+                let loc = ghost_loc in
+                [%expr Debug_runtime.get_entry_id ()]
+              in
+              A.pexp_let ~loc Nonrecursive
+                [
+                  A.value_binding ~loc:ghost_loc
+                    ~pat:(A.pvar ~loc:ghost_loc "__entry_id")
+                    ~expr;
+                ]
+                body
             in
             if context.track_or_explicit = `Diagn && log_count_before = !global_log_count
             then { exp with pexp_desc }
