@@ -645,14 +645,65 @@ let%debug_sexp _test_at_log_level_3 : unit = test_at_log_level 3</code></pre><p>
     └─{orphaned from #1}
     (&quot;tau =&quot;, 6.28)
     └─{orphaned from #1}
-    |}]</code></pre><p><code>~verbose_entry_ids:true</code> tags all logs with entry ids, it shouldn't be needed in regular use.</p><h3 id="reducing-the-size-of-generated-logs"><a href="#reducing-the-size-of-generated-logs" class="anchor"></a>Reducing the size of generated logs</h3><p>Summary of possibilities:</p><ul><li>log levels</li><li><code>path_filter</code> - filter by file path and/or function/binding name</li><li><code>no_debug_if</code></li><li><code>prune_upto</code></li><li><code>truncate_children</code></li><li><code>split_files_after</code></li><li>HTML browsers can handle really large files (less luck with Markdown).</li></ul><p>The log levels discussed in the previous section certainly reduce the amount generated, but they either help too little or they remove logs too indiscriminately for use in a debugging context. Dynamically controlling the runtime log level is one option, but there are some other options.</p><h4 id="path-filtering"><a href="#path-filtering" class="anchor"></a>Path filtering</h4><p>You can filter logs at runtime based on source file paths and function/binding names using the <code>path_filter</code> parameter. The filter is applied to the string <code>&quot;fname/message&quot;</code> where <code>fname</code> is the source file path and <code>message</code> is the function or binding name.</p><p>Examples:</p><pre class="language-ocaml"><code>(* Only log entries from a specific file *)
-~path_filter:(`Whitelist (Re.compile (Re.str &quot;my_module.ml&quot;)))
+    |}]</code></pre><p><code>~verbose_entry_ids:true</code> tags all logs with entry ids, it shouldn't be needed in regular use.</p><h3 id="reducing-the-size-of-generated-logs"><a href="#reducing-the-size-of-generated-logs" class="anchor"></a>Reducing the size of generated logs</h3><p>Summary of possibilities:</p><ul><li>log levels</li><li><code>path_filter</code> - filter by file path and/or function/binding name</li><li><code>no_debug_if</code></li><li><code>prune_upto</code></li><li><code>truncate_children</code></li><li><code>split_files_after</code></li><li>HTML browsers can handle really large files (less luck with Markdown).</li></ul><p>The log levels discussed in the previous section certainly reduce the amount generated, but they either help too little or they remove logs too indiscriminately for use in a debugging context. Dynamically controlling the runtime log level is one option, but there are some other options.</p><h4 id="path-filtering"><a href="#path-filtering" class="anchor"></a>Path filtering</h4><p>You can filter logs at runtime based on source file paths and function/binding names using the <code>path_filter</code> parameter. The filter is applied to the string <code>&quot;fname/message&quot;</code> where <code>fname</code> is the source file path and <code>message</code> is the function or binding name.</p><p>Examples:</p><pre class="language-ocaml"><code>  (* Test 1: Whitelist by file - only logs from files matching &quot;test_path_filter.ml&quot; *)
+  let _get_local_debug_runtime =
+    let rt =
+      Minidebug_runtime.debug
+        ~path_filter:(`Whitelist (Re.compile (Re.str &quot;test_path_filter.ml&quot;)))
+        ()
+    in
+    fun () -&gt; rt
+  in
+  let%debug_show compute_value (x : int) : int =
+    let y = x + 10 in
+    y * 2
+  in
+  Printf.printf &quot;=== Test 1: Whitelist by file (logs from test_path_filter.ml) ===\n%!&quot;;
+  let result = compute_value 5 in
+  Printf.printf &quot;Result: %d\n%!&quot; result;</code></pre><p>and:</p><pre class="language-ocaml"><code>  (* Test 2: Whitelist by function - only logs functions starting with &quot;compute_&quot; *)
+  Printf.printf &quot;\n=== Test 2: Whitelist by function (only compute_* functions) ===\n%!&quot;;
+  let _get_local_debug_runtime =
+    let rt =
+      Minidebug_runtime.debug
+        ~path_filter:(`Whitelist (Re.compile (Re.str &quot;/compute_&quot;)))
+        ()
+    in
+    fun () -&gt; rt
+  in
+  let%debug_show compute_sum (x : int) : int =
+    let y = x + 10 in
+    y * 2
+  in
+  let%debug_show helper_function (x : int) : int = x + 1 in
+  let result1 = compute_sum 5 in
+  let result2 = helper_function 5 in
+  Printf.printf &quot;Results: %d, %d\n%!&quot; result1 result2;</code></pre><p>The overall test produces:</p><pre class="language-include"><code>BEGIN DEBUG SESSION 
+=== Test 1: Whitelist by file (logs from test_path_filter.ml) ===
+compute_value = 30
+├─&quot;test/test_path_filter.ml&quot;:14:31
+└─x = 5
+Result: 30
 
-(* Only log functions starting with &quot;compute_&quot; *)
-~path_filter:(`Whitelist (Re.compile (Re.str &quot;/compute_&quot;)))
+=== Test 2: Whitelist by function (only compute_* functions) ===
 
-(* Suppress all test files and test functions *)
-~path_filter:(`Blacklist (Re.compile (Re.str &quot;test_&quot;)))</code></pre><p>This is useful for focusing on specific parts of your codebase during debugging, or for excluding noisy test utilities from production debug logs.</p><h4 id="dynamic-subtree-filtering"><a href="#dynamic-subtree-filtering" class="anchor"></a>Dynamic subtree filtering</h4><p>In the PrintBox backend, you can disable the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space. The test suite example:</p><pre class="language-ocaml"><code>  let%debug_show rec loop_changes (x : int) : int =
+BEGIN DEBUG SESSION 
+compute_sum = 30
+├─&quot;test/test_path_filter.ml&quot;:35:29
+└─x = 5
+Results: 30, 6
+
+=== Test 3: Blacklist (blocks test_path_filter.ml) ===
+
+BEGIN DEBUG SESSION 
+Result: 30
+
+=== Test 4: No filter (shows all logs) ===
+
+BEGIN DEBUG SESSION 
+compute_nofilter = 30
+├─&quot;test/test_path_filter.ml&quot;:69:34
+└─x = 5
+Result: 30</code></pre><p>This is useful for focusing on specific parts of your codebase during debugging, or for excluding noisy test utilities from production debug logs.</p><h4 id="dynamic-subtree-filtering"><a href="#dynamic-subtree-filtering" class="anchor"></a>Dynamic subtree filtering</h4><p>In the PrintBox backend, you can disable the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space. The test suite example:</p><pre class="language-ocaml"><code>  let%debug_show rec loop_changes (x : int) : int =
     let z : int = (x - 1) / 2 in
     (* The call [x = 2] is not printed because it is a descendant of the no-debug call [x
        = 4]. *)
