@@ -1,0 +1,28 @@
+
+BEGIN DEBUG SESSION 
+=== Test 1: Whitelist by file (logs from test_path_filter.ml) ===
+compute_value = 30
+├─"test/test_path_filter.ml":12:29
+└─x = 5
+Result: 30
+
+=== Test 2: Whitelist by function (only compute_* functions) ===
+
+BEGIN DEBUG SESSION 
+compute_sum = 30
+├─"test/test_path_filter.ml":33:29
+└─x = 5
+Results: 30, 6
+
+=== Test 3: Blacklist (blocks test_path_filter.ml) ===
+
+BEGIN DEBUG SESSION 
+Result: 30
+
+=== Test 4: No filter (shows all logs) ===
+
+BEGIN DEBUG SESSION 
+compute_nofilter = 30
+├─"test/test_path_filter.ml":71:34
+└─x = 5
+Result: 30

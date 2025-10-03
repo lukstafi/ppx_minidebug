@@ -501,3 +501,10 @@
   (diff
    debugger_multithread_stdout.expected.log
    debugger_multithread_stdout.log)))
+
+(test
+ (name test_path_filter)
+ (modules test_path_filter)
+ (libraries sexplib0 minidebug_runtime re)
+ (preprocess
+  (pps ppx_minidebug ppx_deriving.show)))

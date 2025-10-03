@@ -632,11 +632,11 @@ The `%diagn_` extension points further restrict logging to explicit logs only. E
     {|
     BEGIN DEBUG SESSION
     bar
-    ├─"test/test_expect_test.ml":3312:21
+    ├─"test/test_expect_test.ml":3330:21
     └─("for bar, b-3", 42)
     336
     baz
-    ├─"test/test_expect_test.ml":3319:21
+    ├─"test/test_expect_test.ml":3337:21
     └─("foo baz, f squared", 49)
     91
     |}]
@@ -742,15 +742,13 @@ Another example from the test suite, notice how the log level of `%log1` overrid
     {|
     BEGIN DEBUG SESSION
     336
-    ("for bar, b-3", 42)
-    └─{orphaned from #5}
     336
     baz = 109
-    ├─"test/test_expect_test.ml":3423:24
+    ├─"test/test_expect_test.ml":3440:24
     ├─first = 7
     ├─second = 42
     ├─{first; second}
-    │ ├─"test/test_expect_test.ml":3424:10
+    │ ├─"test/test_expect_test.ml":3441:10
     │ └─<values>
     │   ├─first = 8
     │   └─second = 45
@@ -786,7 +784,7 @@ The extension point `%log_printbox` lets you embed a `PrintBox.t` in the logs di
     {|
     BEGIN DEBUG SESSION
     foo = ()
-    ├─"test/test_expect_test.ml":3554:21
+    ├─"test/test_expect_test.ml":3569:21
     ├─0/0│0/1│0/2│0/3│0/4
     │ ───┼───┼───┼───┼───
     │ 1/0│1/1│1/2│1/3│1/4
@@ -873,7 +871,7 @@ The extension point `%log_entry` lets you shape arbitrary log tree structures. T
   [%expect
     {|
     BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":3689:17: _logging_logic
+    "test/test_expect_test.ml":3704:17: _logging_logic
     ├─"preamble"
     ├─header 1
     │ ├─"log 1"
@@ -978,13 +976,13 @@ the runtime, and look for the path line with the log's entry id. When the backen
     {|
     BEGIN DEBUG SESSION
     bar = ()
-    └─"test/test_expect_test.ml":3178:21 {#1}
+    └─"test/test_expect_test.ml":3196:21 {#1}
     baz = ()
-    └─"test/test_expect_test.ml":3185:21 {#2}
+    └─"test/test_expect_test.ml":3203:21 {#2}
     bar = ()
-    └─"test/test_expect_test.ml":3178:21 {#3}
+    └─"test/test_expect_test.ml":3196:21 {#3}
     _foobar = ()
-    ├─"test/test_expect_test.ml":3197:17 {#4}
+    ├─"test/test_expect_test.ml":3215:17 {#4}
     ├─("This is like", 3, "or", 3.14, "above")
     ├─("tau =", 6.28)
     ├─[3; 1; 2; 3]
@@ -1009,6 +1007,7 @@ the runtime, and look for the path line with the log's entry id. When the backen
 Summary of possibilities:
 
 - log levels
+- `path_filter` - filter by file path and/or function/binding name
 - `no_debug_if`
 - `prune_upto`
 - `truncate_children`
@@ -1016,6 +1015,30 @@ Summary of possibilities:
 - HTML browsers can handle really large files (less luck with Markdown).
 
 The log levels discussed in the previous section certainly reduce the amount generated, but they either help too little or they remove logs too indiscriminately for use in a debugging context. Dynamically controlling the runtime log level is one option, but there are some other options.
+
+#### Path filtering
+
+You can filter logs at runtime based on source file paths and function/binding names using the `path_filter` parameter. The filter is applied to the string `"fname/message"` where `fname` is the source file path and `message` is the function or binding name.
+
+Examples:
+```ocaml
+(* Only log entries from a specific file *)
+~path_filter:(`Whitelist (Re.compile (Re.str "my_module.ml")))
+
+(* Only log functions starting with "compute_" *)
+~path_filter:(`Whitelist (Re.compile (Re.str "/compute_")))
+
+(* Suppress all test files and test functions *)
+~path_filter:(`Blacklist (Re.compile (Re.str "test_")))
+```
+```mdx-error
+Line 2, characters 3-16:
+Error: Syntax error
+```
+
+This is useful for focusing on specific parts of your codebase during debugging, or for excluding noisy test utilities from production debug logs.
+
+#### Dynamic subtree filtering
 
 In the PrintBox backend, you can disable the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space.
 The test suite example:
@@ -1551,32 +1574,32 @@ Example from the test suite:
   [%expect
     {|
     BEGIN DEBUG SESSION foo-1
-    foo-1 foo begin "test/test_expect_test.ml":3969:21:
+    foo-1 foo begin "test/test_expect_test.ml":3984:21:
      "inside foo"
     foo-1 foo end
 
     BEGIN DEBUG SESSION foo-1
-    foo-1 <function -- branch 0> () begin "test/test_expect_test.ml":3975:8:
+    foo-1 <function -- branch 0> () begin "test/test_expect_test.ml":3990:8:
      "inside bar"
     foo-1 <function -- branch 0> () end
 
     BEGIN DEBUG SESSION foo-2
-    foo-2 foo begin "test/test_expect_test.ml":3969:21:
+    foo-2 foo begin "test/test_expect_test.ml":3984:21:
      "inside foo"
     foo-2 foo end
 
     BEGIN DEBUG SESSION foo-2
-    foo-2 <function -- branch 0> () begin "test/test_expect_test.ml":3975:8:
+    foo-2 <function -- branch 0> () begin "test/test_expect_test.ml":3990:8:
      "inside bar"
     foo-2 <function -- branch 0> () end
 
     BEGIN DEBUG SESSION foo-3
-    foo-3 foo begin "test/test_expect_test.ml":3969:21:
+    foo-3 foo begin "test/test_expect_test.ml":3984:21:
      "inside foo"
     foo-3 foo end
 
     BEGIN DEBUG SESSION foo-3
-    foo-3 <function -- branch 0> () begin "test/test_expect_test.ml":3975:8:
+    foo-3 <function -- branch 0> () begin "test/test_expect_test.ml":3990:8:
      "inside bar"
     foo-3 <function -- branch 0> () end
     |}]

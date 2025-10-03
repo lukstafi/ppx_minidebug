@@ -298,3 +298,30 @@ let parallel_update (x : int) (y : int) =
              ~entry_id:__entry_id;
            raise e)) : unit -> unit)
 let () = parallel_update 10 20 ()
+let complex_case (type buffer_ptr) (x : int) (y : buffer_ptr -> int) =
+  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+    (let __entry_id = Debug_runtime.get_entry_id () in
+     ();
+     ((Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:59
+         ~start_colnum:28 ~end_lnum:61 ~end_colnum:29 ~message:"complex_case"
+         ~entry_id:__entry_id ~log_level:1 `Debug;
+       Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
+         ~log_level:1 ~is_result:false (lazy (([%show : int]) x)));
+      Debug_runtime.log_value_show ?descr:(Some "y") ~entry_id:__entry_id
+        ~log_level:1 ~is_result:false
+        (lazy (([%show : buffer_ptr -> int]) y)));
+     (match let compute = x + (y (Obj.magic 0)) in
+            fun () -> print_int compute
+      with
+      | __res ->
+          (Debug_runtime.log_value_show ?descr:(Some "complex_case")
+             ~entry_id:__entry_id ~log_level:1 ~is_result:true
+             (lazy (([%show : unit -> unit]) __res));
+           Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:59
+             ~entry_id:__entry_id;
+           __res)
+      | exception e ->
+          (Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:59
+             ~entry_id:__entry_id;
+           raise e)) : unit -> unit)
+let () = complex_case 5 (fun _ -> 10) ()

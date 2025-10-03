@@ -523,3 +523,8 @@ parallel_update begin "test/test_debug_show.ml":52:31:
  y = 20
  parallel_update = <fun>
 parallel_update end
+complex_case begin "test/test_debug_show.ml":59:28:
+ x = 5
+ y = <fun>
+ complex_case = <fun>
+complex_case end

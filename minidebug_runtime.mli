@@ -37,6 +37,7 @@ module type Shared_config = sig
   val split_files_after : int option
   val toc_entry : toc_entry_criteria
   val init_log_level : int
+  val path_filter : [ `Whitelist of Re.re | `Blacklist of Re.re ] option
 end
 
 val shared_config :
@@ -52,6 +53,7 @@ val shared_config :
   ?toc_entry:toc_entry_criteria ->
   ?for_append:bool ->
   ?log_level:int ->
+  ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->
   string ->
   (module Shared_config)
 (** Sets up a file with the given path, or if [split_files_after] is given, creates a
@@ -88,7 +90,19 @@ val shared_config :
 
     [log_level], by default 9, specifies {!Shared_config.init_log_level}. This is the
     initial log level. In particular, the header "BEGIN DEBUG SESSION" is only printed if
-    (initial) [log_level > 0]. *)
+    (initial) [log_level > 0].
+
+    [path_filter] allows filtering logs based on source file paths and entry names at
+    runtime. The filter is applied to the string ["fname/message"] where [fname] is the
+    source file path and [message] is the function or binding name. If [`Whitelist re] is
+    provided, only logs matching the regular expression will be output. If [`Blacklist re]
+    is provided, logs matching the regular expression will be suppressed. By default, no
+    filtering is applied.
+
+    Examples:
+    - [`Whitelist (Re.str "my_module.ml")] - only log entries from my_module.ml
+    - [`Whitelist (Re.str "/compute_")] - only log functions starting with compute_
+    - [`Blacklist (Re.str "test_")] - suppress all test files and test functions *)
 
 (** When using the
     {{:http://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html}
@@ -255,6 +269,10 @@ type printbox_config = {
   mutable prev_run_file : string option;
       (** If provided, enables highlighting differences between the current run and the
           previous run loaded from this file. *)
+  mutable path_filter : [ `Whitelist of Re.re | `Blacklist of Re.re ] option;
+      (** If provided, filters logs based on source file paths and entry names at runtime.
+          The filter is applied to ["fname/message"]. [`Whitelist re] only outputs logs
+          matching the regex; [`Blacklist re] suppresses logs matching the regex. *)
 }
 
 module type PrintBox_runtime = sig
@@ -297,6 +315,7 @@ val debug_file :
   ?diff_ignore_pattern:Re.t ->
   ?max_distance_factor:int ->
   ?entry_id_pairs:(int * int) list ->
+  ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->
   string ->
   (module PrintBox_runtime)
 (** Creates a PrintBox-based debug runtime configured to output html or markdown to a file
@@ -349,6 +368,7 @@ val debug :
   ?values_first_mode:bool ->
   ?log_level:int ->
   ?snapshot_every_sec:float ->
+  ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->
   unit ->
   (module PrintBox_runtime)
 (** Same as {!debug_file}, but by default it will log to [stdout] and will not be time
@@ -373,6 +393,7 @@ val debug_flushing :
   ?toc_entry:toc_entry_criteria ->
   ?for_append:bool ->
   ?log_level:int ->
+  ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->
   unit ->
   (module Debug_runtime)
 (** Creates a flushing-based debug runtime. By default it will log to [stdout] and will
@@ -418,6 +439,7 @@ val local_runtime :
   ?max_distance_factor:int ->
   ?entry_id_pairs:(int * int) list ->
   ?update_config:(printbox_config -> unit) ->
+  ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->
   string ->
   unit ->
   (module Debug_runtime)
@@ -439,6 +461,7 @@ val local_runtime_flushing :
   ?toc_entry:toc_entry_criteria ->
   ?for_append:bool ->
   ?log_level:int ->
+  ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->
   string ->
   unit ->
   (module Debug_runtime)
@@ -469,6 +492,7 @@ val prefixed_runtime :
   ?log_level:int ->
   ?snapshot_every_sec:float ->
   ?update_config:(printbox_config -> unit) ->
+  ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->
   unit ->
   unit ->
   (module Debug_runtime)
@@ -495,6 +519,7 @@ val prefixed_runtime_flushing :
   ?toc_entry:toc_entry_criteria ->
   ?for_append:bool ->
   ?log_level:int ->
+  ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->
   unit ->
   unit ->
   (module Debug_runtime)
