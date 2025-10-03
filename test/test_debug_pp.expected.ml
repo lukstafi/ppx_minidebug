@@ -13,7 +13,7 @@ let bar (x : t) =
         ~entry_id:__entry_id ~log_level:1 `Debug;
       Debug_runtime.log_value_pp ?descr:(Some "x") ~entry_id:__entry_id
         ~log_level:1 ~pp ~is_result:false (lazy x));
-     (match let y =
+     (match let y : num =
               let __entry_id = Debug_runtime.get_entry_id () in
               ();
               Debug_runtime.open_log ~fname:"test_debug_pp.ml" ~start_lnum:8
@@ -55,7 +55,7 @@ let baz (x : t) =
         ~entry_id:__entry_id ~log_level:1 `Debug;
       Debug_runtime.log_value_pp ?descr:(Some "x") ~entry_id:__entry_id
         ~log_level:1 ~pp ~is_result:false (lazy x));
-     (match let { first = y; second = z } as _yz =
+     (match let ({ first = y; second = z } as _yz) : t =
               let __entry_id = Debug_runtime.get_entry_id () in
               ();
               Debug_runtime.open_log ~fname:"test_debug_pp.ml" ~start_lnum:14
@@ -107,7 +107,7 @@ let rec loop (depth : num) (x : t) =
                 loop (depth + 1)
                   { first = (x.second + 1); second = (x.first / 2) }
               else
-                (let y =
+                (let y : num =
                    let __entry_id = Debug_runtime.get_entry_id () in
                    ();
                    Debug_runtime.open_log ~fname:"test_debug_pp.ml"
@@ -130,7 +130,7 @@ let rec loop (depth : num) (x : t) =
                         (Debug_runtime.close_log ~fname:"test_debug_pp.ml"
                            ~start_lnum:23 ~entry_id:__entry_id;
                          raise e)) in
-                 let z =
+                 let z : num =
                    let __entry_id = Debug_runtime.get_entry_id () in
                    ();
                    Debug_runtime.open_log ~fname:"test_debug_pp.ml"

@@ -29,7 +29,7 @@ let rec loop_exceeded (x : int) =
            ~start_lnum:8 ~entry_id:__entry_id;
          failwith "ppx_minidebug: max_nesting_depth exceeded")
       else
-        (match let z =
+        (match let z : int =
                  let __entry_id = Debug_runtime.get_entry_id () in
                  ();
                  if Debug_runtime.exceeds_max_children ()
@@ -141,7 +141,7 @@ let bar () =
                               failwith
                                 "ppx_minidebug: max_nesting_depth exceeded")
                            else
-                             (match let _baz =
+                             (match let _baz : int =
                                       let __entry_id =
                                         Debug_runtime.get_entry_id () in
                                       ();
