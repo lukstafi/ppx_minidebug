@@ -1021,19 +1021,82 @@ The log levels discussed in the previous section certainly reduce the amount gen
 You can filter logs at runtime based on source file paths and function/binding names using the `path_filter` parameter. The filter is applied to the string `"fname/message"` where `fname` is the source file path and `message` is the function or binding name.
 
 Examples:
+
+<!-- $MDX file=test/test_path_filter.ml,part=whitelist-fname -->
 ```ocaml
-(* Only log entries from a specific file *)
-~path_filter:(`Whitelist (Re.compile (Re.str "my_module.ml")))
-
-(* Only log functions starting with "compute_" *)
-~path_filter:(`Whitelist (Re.compile (Re.str "/compute_")))
-
-(* Suppress all test files and test functions *)
-~path_filter:(`Blacklist (Re.compile (Re.str "test_")))
+  (* Test 1: Whitelist by file - only logs from files matching "test_path_filter.ml" *)
+  let _get_local_debug_runtime =
+    let rt =
+      Minidebug_runtime.debug
+        ~path_filter:(`Whitelist (Re.compile (Re.str "test_path_filter.ml")))
+        ()
+    in
+    fun () -> rt
+  in
+  let%debug_show compute_value (x : int) : int =
+    let y = x + 10 in
+    y * 2
+  in
+  Printf.printf "=== Test 1: Whitelist by file (logs from test_path_filter.ml) ===\n%!";
+  let result = compute_value 5 in
+  Printf.printf "Result: %d\n%!" result;
 ```
-```mdx-error
-Line 2, characters 3-16:
-Error: Syntax error
+
+and:
+
+<!-- $MDX file=test/test_path_filter.ml,part=whitelist-function -->
+```ocaml
+  (* Test 2: Whitelist by function - only logs functions starting with "compute_" *)
+  Printf.printf "\n=== Test 2: Whitelist by function (only compute_* functions) ===\n%!";
+  let _get_local_debug_runtime =
+    let rt =
+      Minidebug_runtime.debug
+        ~path_filter:(`Whitelist (Re.compile (Re.str "/compute_")))
+        ()
+    in
+    fun () -> rt
+  in
+  let%debug_show compute_sum (x : int) : int =
+    let y = x + 10 in
+    y * 2
+  in
+  let%debug_show helper_function (x : int) : int = x + 1 in
+  let result1 = compute_sum 5 in
+  let result2 = helper_function 5 in
+  Printf.printf "Results: %d, %d\n%!" result1 result2;
+```
+
+The overall test produces:
+
+<!-- $MDX file=test/test_path_filter.expected -->
+```
+BEGIN DEBUG SESSION 
+=== Test 1: Whitelist by file (logs from test_path_filter.ml) ===
+compute_value = 30
+├─"test/test_path_filter.ml":14:31
+└─x = 5
+Result: 30
+
+=== Test 2: Whitelist by function (only compute_* functions) ===
+
+BEGIN DEBUG SESSION 
+compute_sum = 30
+├─"test/test_path_filter.ml":35:29
+└─x = 5
+Results: 30, 6
+
+=== Test 3: Blacklist (blocks test_path_filter.ml) ===
+
+BEGIN DEBUG SESSION 
+Result: 30
+
+=== Test 4: No filter (shows all logs) ===
+
+BEGIN DEBUG SESSION 
+compute_nofilter = 30
+├─"test/test_path_filter.ml":69:34
+└─x = 5
+Result: 30
 ```
 
 This is useful for focusing on specific parts of your codebase during debugging, or for excluding noisy test utilities from production debug logs.

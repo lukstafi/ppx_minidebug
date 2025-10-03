@@ -2,7 +2,7 @@
 BEGIN DEBUG SESSION 
 === Test 1: Whitelist by file (logs from test_path_filter.ml) ===
 compute_value = 30
-├─"test/test_path_filter.ml":12:29
+├─"test/test_path_filter.ml":14:31
 └─x = 5
 Result: 30
 
@@ -10,7 +10,7 @@ Result: 30
 
 BEGIN DEBUG SESSION 
 compute_sum = 30
-├─"test/test_path_filter.ml":33:29
+├─"test/test_path_filter.ml":35:29
 └─x = 5
 Results: 30, 6
 
@@ -23,6 +23,6 @@ Result: 30
 
 BEGIN DEBUG SESSION 
 compute_nofilter = 30
-├─"test/test_path_filter.ml":71:34
+├─"test/test_path_filter.ml":69:34
 └─x = 5
 Result: 30
