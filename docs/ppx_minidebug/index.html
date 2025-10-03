@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml"><head><title>index (ppx_minidebug.index)</title><meta charset="utf-8"/><link rel="stylesheet" href="../odoc.support/odoc.css"/><meta name="generator" content="odoc 3.1.0"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../odoc.support/highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body class="odoc"><nav class="odoc-nav"><a href="../index.html">Up</a> – <a href="../index.html">Index</a> &#x00BB; ppx_minidebug</nav><header class="odoc-preamble"><h1 id="ppx_minidebug"><a href="#ppx_minidebug" class="anchor"></a>ppx_minidebug</h1><ul><li><p><a href="#ppx_minidebug">ppx_minidebug</a></p><ul><li><p><a href="#ppx_minidebug-debug-logs-for-selected-functions-and-let-bindings">ppx_minidebug: Debug logs for selected functions and let-bindings</a></p><ul><li><a href="#traces-in-html-or-markdown-as-collapsible-trees">Traces in HTML or Markdown as collapsible trees</a></li><li><a href="#highlighting-search-terms">Highlighting search terms</a></li><li><a href="#highlighting-differences-between-runs">Highlighting differences between runs</a></li><li><a href="#overview-of-runtime-creating-helpers">Overview of runtime creating helpers</a></li><li><a href="#hyperlinks-to-source-locations">Hyperlinks to source locations</a></li><li><a href="#values_first_mode">values_first_mode</a></li></ul></li><li><p><a href="#usage">Usage</a></p><ul><li><a href="#breaking-infinite-recursion-with-max_nesting_depth-and-looping-with-max_num_children-flushing-based-traces">Breaking infinite recursion with max_nesting_depth and looping with max_num_children; Flushing-based traces</a></li><li><a href="#tracking-control-flow-branches-anonymous-and-insufficiently-annotated-functions">Tracking: control flow branches, anonymous and insufficiently annotated functions</a></li><li><p><a href="#using-as-a-logging-framework">Using as a logging framework</a></p><ul><li><a href="#specifying-the-level-to-log-at-via-a-runtime-expression">Specifying the level to log at via a runtime expression</a></li></ul></li><li><a href="#lexical-scopes-vs-dynamic-scopes">Lexical scopes vs. dynamic scopes</a></li><li><a href="#reducing-the-size-of-generated-logs">Reducing the size of generated logs</a></li><li><a href="#navigating-large-logs">Navigating large logs</a></li><li><a href="#providing-the-necessary-type-information">Providing the necessary type information</a></li><li><a href="#dealing-with-concurrent-execution">Dealing with concurrent execution</a></li></ul></li></ul></li></ul></header><div class="odoc-tocs"><nav class="odoc-toc odoc-local-toc"><ul><li><a href="#ppx_minidebug:-debug-logs-for-selected-functions-and-let-bindings"><code>ppx_minidebug</code>: Debug logs for selected functions and let-bindings</a><ul><li><a href="#traces-in-html-or-markdown-as-collapsible-trees">Traces in HTML or Markdown as collapsible trees</a></li><li><a href="#highlighting-search-terms">Highlighting search terms</a></li><li><a href="#highlighting-differences-between-runs">Highlighting differences between runs</a></li><li><a href="#overview-of-runtime-creating-helpers">Overview of runtime creating helpers</a></li><li><a href="#hyperlinks-to-source-locations">Hyperlinks to source locations</a></li><li><a href="#values_first_mode"><code>values_first_mode</code></a></li></ul></li><li><a href="#usage">Usage</a><ul><li><a href="#breaking-infinite-recursion-with-max_nesting_depth-and-looping-with-max_num_children;-flushing-based-traces">Breaking infinite recursion with <code>max_nesting_depth</code> and looping with <code>max_num_children</code>; flushing-based traces</a></li><li><a href="#tracking:-control-flow-branches,-anonymous-and-insufficiently-annotated-functions">Tracking: control flow branches, anonymous and insufficiently annotated functions</a></li><li><a href="#using-as-a-logging-framework">Using as a logging framework</a><ul><li><a href="#specifying-the-level-to-log-at-via-a-runtime-expression">Specifying the level to log at via a runtime expression</a></li></ul></li><li><a href="#lexical-scopes-vs.-dynamic-scopes">Lexical scopes vs. dynamic scopes</a></li><li><a href="#reducing-the-size-of-generated-logs">Reducing the size of generated logs</a></li><li><a href="#navigating-large-logs">Navigating large logs</a></li><li><a href="#providing-the-necessary-type-information">Providing the necessary type information</a></li><li><a href="#dealing-with-concurrent-execution">Dealing with concurrent execution</a></li></ul></li></ul></nav></div><div class="odoc-content"><h2 id="ppx_minidebug:-debug-logs-for-selected-functions-and-let-bindings"><a href="#ppx_minidebug:-debug-logs-for-selected-functions-and-let-bindings" class="anchor"></a><code>ppx_minidebug</code>: Debug logs for selected functions and let-bindings</h2><p><code>ppx_minidebug</code> traces let bindings and functions within a selected scope if they have type annotations. <code>ppx_minidebug</code> offers three ways of instrumenting the code: <code>%debug_pp</code> and <code>%debug_show</code> (also <code>%track_pp</code>, <code>%diagn_pp</code> and <code>%track_show</code>, <code>%diagn_show</code>), based on <code>deriving.show</code>, and <code>%debug_sexp</code> (also <code>%track_sexp</code>, <code>%diagn_sexp</code>) based on <code>sexplib0</code> and <code>ppx_sexp_conv</code>. Explicit logs can be added with <code>%log</code> within a debug scope (<code>%log</code> is not a registered extension point to avoid conflicts with other logging frameworks). The syntax extension expects a function <code>_get_local_debug_runtime</code> in the scope (or a module <code>Debug_runtime</code> for extension points <code>_o_</code> e.g. <code>%debug_o_sexp</code>). The <code>ppx_minidebug.runtime</code> library (part of the <code>ppx_minidebug</code> package) offers multiple ways of logging the traces, as helper functions generating <code>Debug_runtime</code> modules. See <a href="https://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html">the generated documentation for <code>Minidebug_runtime</code></a>.</p><p>Take a look at <a href="https://github.com/dariusf/ppx_debug"><code>ppx_debug</code></a> which has complementary strengths!</p><p>Try <code>opam install ppx_minidebug</code> to install from the opam repository. To install the development version of <code>ppx_minidebug</code>, download it with e.g. <code>gh repo clone lukstafi/ppx_minidebug; cd ppx_minidebug</code> and then <code>dune build; opam install .</code>.</p><p>To use <code>ppx_minidebug</code> in a Dune project, add/modify these stanzas: <code>(preprocess (pps ... ppx_minidebug))</code>, and <code>(libraries ... ppx_minidebug.runtime)</code>.</p><p>We can introduce <code>ppx_minidebug</code> runtimes in a project in multiple ways, but the most convenient is via the functions <code>local_runtime</code>, <code>local_runtime_flushing</code>, <code>prefixed_runtime</code>, <code>prefixed_runtime_flushing</code>. &lt;!-- $MDX --&gt;</p><pre class="language-ocaml"><code>let _get_local_debug_runtime = Minidebug_runtime.local_runtime &quot;sync_to_md-introduction&quot;
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>index (ppx_minidebug.index)</title><meta charset="utf-8"/><link rel="stylesheet" href="../odoc.support/odoc.css"/><meta name="generator" content="odoc 3.1.0"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../odoc.support/highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body class="odoc"><nav class="odoc-nav"><a href="../index.html">Up</a> – <a href="../index.html">Index</a> &#x00BB; ppx_minidebug</nav><header class="odoc-preamble"><h1 id="ppx_minidebug"><a href="#ppx_minidebug" class="anchor"></a>ppx_minidebug</h1><ul><li><p><a href="#ppx_minidebug">ppx_minidebug</a></p><ul><li><p><a href="#ppx_minidebug-debug-logs-for-selected-functions-and-let-bindings">ppx_minidebug: Debug logs for selected functions and let-bindings</a></p><ul><li><a href="#traces-in-html-or-markdown-as-collapsible-trees">Traces in HTML or Markdown as collapsible trees</a></li><li><a href="#highlighting-search-terms">Highlighting search terms</a></li><li><a href="#highlighting-differences-between-runs">Highlighting differences between runs</a></li><li><a href="#overview-of-runtime-creating-helpers">Overview of runtime creating helpers</a></li><li><a href="#hyperlinks-to-source-locations">Hyperlinks to source locations</a></li><li><a href="#values_first_mode">values_first_mode</a></li></ul></li><li><p><a href="#usage">Usage</a></p><ul><li><a href="#breaking-infinite-recursion-with-max_nesting_depth-and-looping-with-max_num_children-flushing-based-traces">Breaking infinite recursion with max_nesting_depth and looping with max_num_children; Flushing-based traces</a></li><li><a href="#tracking-control-flow-branches-anonymous-and-insufficiently-annotated-functions">Tracking: control flow branches, anonymous and insufficiently annotated functions</a></li><li><p><a href="#using-as-a-logging-framework">Using as a logging framework</a></p><ul><li><a href="#specifying-the-level-to-log-at-via-a-runtime-expression">Specifying the level to log at via a runtime expression</a></li></ul></li><li><a href="#lexical-scopes-vs-dynamic-scopes">Lexical scopes vs. dynamic scopes</a></li><li><a href="#reducing-the-size-of-generated-logs">Reducing the size of generated logs</a></li><li><a href="#navigating-large-logs">Navigating large logs</a></li><li><a href="#providing-the-necessary-type-information">Providing the necessary type information</a></li><li><a href="#dealing-with-concurrent-execution">Dealing with concurrent execution</a></li></ul></li></ul></li></ul></header><div class="odoc-tocs"><nav class="odoc-toc odoc-local-toc"><ul><li><a href="#ppx_minidebug:-debug-logs-for-selected-functions-and-let-bindings"><code>ppx_minidebug</code>: Debug logs for selected functions and let-bindings</a><ul><li><a href="#traces-in-html-or-markdown-as-collapsible-trees">Traces in HTML or Markdown as collapsible trees</a></li><li><a href="#highlighting-search-terms">Highlighting search terms</a></li><li><a href="#highlighting-differences-between-runs">Highlighting differences between runs</a></li><li><a href="#overview-of-runtime-creating-helpers">Overview of runtime creating helpers</a></li><li><a href="#hyperlinks-to-source-locations">Hyperlinks to source locations</a></li><li><a href="#values_first_mode"><code>values_first_mode</code></a></li></ul></li><li><a href="#usage">Usage</a><ul><li><a href="#breaking-infinite-recursion-with-max_nesting_depth-and-looping-with-max_num_children;-flushing-based-traces">Breaking infinite recursion with <code>max_nesting_depth</code> and looping with <code>max_num_children</code>; flushing-based traces</a></li><li><a href="#tracking:-control-flow-branches,-anonymous-and-insufficiently-annotated-functions">Tracking: control flow branches, anonymous and insufficiently annotated functions</a></li><li><a href="#using-as-a-logging-framework">Using as a logging framework</a><ul><li><a href="#specifying-the-level-to-log-at-via-a-runtime-expression">Specifying the level to log at via a runtime expression</a></li></ul></li><li><a href="#lexical-scopes-vs.-dynamic-scopes">Lexical scopes vs. dynamic scopes</a></li><li><a href="#reducing-the-size-of-generated-logs">Reducing the size of generated logs</a><ul><li><a href="#path-filtering">Path filtering</a></li><li><a href="#dynamic-subtree-filtering">Dynamic subtree filtering</a></li></ul></li><li><a href="#navigating-large-logs">Navigating large logs</a></li><li><a href="#providing-the-necessary-type-information">Providing the necessary type information</a></li><li><a href="#dealing-with-concurrent-execution">Dealing with concurrent execution</a></li></ul></li></ul></nav></div><div class="odoc-content"><h2 id="ppx_minidebug:-debug-logs-for-selected-functions-and-let-bindings"><a href="#ppx_minidebug:-debug-logs-for-selected-functions-and-let-bindings" class="anchor"></a><code>ppx_minidebug</code>: Debug logs for selected functions and let-bindings</h2><p><code>ppx_minidebug</code> traces let bindings and functions within a selected scope if they have type annotations. <code>ppx_minidebug</code> offers three ways of instrumenting the code: <code>%debug_pp</code> and <code>%debug_show</code> (also <code>%track_pp</code>, <code>%diagn_pp</code> and <code>%track_show</code>, <code>%diagn_show</code>), based on <code>deriving.show</code>, and <code>%debug_sexp</code> (also <code>%track_sexp</code>, <code>%diagn_sexp</code>) based on <code>sexplib0</code> and <code>ppx_sexp_conv</code>. Explicit logs can be added with <code>%log</code> within a debug scope (<code>%log</code> is not a registered extension point to avoid conflicts with other logging frameworks). The syntax extension expects a function <code>_get_local_debug_runtime</code> in the scope (or a module <code>Debug_runtime</code> for extension points <code>_o_</code> e.g. <code>%debug_o_sexp</code>). The <code>ppx_minidebug.runtime</code> library (part of the <code>ppx_minidebug</code> package) offers multiple ways of logging the traces, as helper functions generating <code>Debug_runtime</code> modules. See <a href="https://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html">the generated documentation for <code>Minidebug_runtime</code></a>.</p><p>Take a look at <a href="https://github.com/dariusf/ppx_debug"><code>ppx_debug</code></a> which has complementary strengths!</p><p>Try <code>opam install ppx_minidebug</code> to install from the opam repository. To install the development version of <code>ppx_minidebug</code>, download it with e.g. <code>gh repo clone lukstafi/ppx_minidebug; cd ppx_minidebug</code> and then <code>dune build; opam install .</code>.</p><p>To use <code>ppx_minidebug</code> in a Dune project, add/modify these stanzas: <code>(preprocess (pps ... ppx_minidebug))</code>, and <code>(libraries ... ppx_minidebug.runtime)</code>.</p><p>We can introduce <code>ppx_minidebug</code> runtimes in a project in multiple ways, but the most convenient is via the functions <code>local_runtime</code>, <code>local_runtime_flushing</code>, <code>prefixed_runtime</code>, <code>prefixed_runtime_flushing</code>. &lt;!-- $MDX --&gt;</p><pre class="language-ocaml"><code>let _get_local_debug_runtime = Minidebug_runtime.local_runtime &quot;sync_to_md-introduction&quot;
 let%debug_sexp rec foo : int list -&gt; int = function [] -&gt; 0 | x :: xs -&gt; x + foo xs
 let (_ : int) = foo [ 1; 2; 3 ]</code></pre><p>The logged traces will be pretty-printed as trees using the <code>printbox</code> package. This produces:</p><pre class="language-include"><code>BEGIN DEBUG SESSION 
 foo = 6
@@ -366,11 +366,11 @@ let%debug_o_show rec loop_exceeded (x : int) : int =
     {|
     BEGIN DEBUG SESSION
     bar
-    ├─&quot;test/test_expect_test.ml&quot;:3312:21
+    ├─&quot;test/test_expect_test.ml&quot;:3330:21
     └─(&quot;for bar, b-3&quot;, 42)
     336
     baz
-    ├─&quot;test/test_expect_test.ml&quot;:3319:21
+    ├─&quot;test/test_expect_test.ml&quot;:3337:21
     └─(&quot;foo baz, f squared&quot;, 49)
     91
     |}]</code></pre><p>At runtime creation, the level can be set via the <code>~log_level</code> parameter, or via <code>Debug_runtime.log_level := ...</code> later on, also for the flushing backend. The following example also illustrates the <code>_rt_</code> runtime-passing entry points:</p><pre class="language-ocaml"><code>  let%track_rt_sexp result () : int =
@@ -443,15 +443,13 @@ let%diagn_show rec loop_exceeded (x : int) : int =
     {|
     BEGIN DEBUG SESSION
     336
-    (&quot;for bar, b-3&quot;, 42)
-    └─{orphaned from #5}
     336
     baz = 109
-    ├─&quot;test/test_expect_test.ml&quot;:3423:24
+    ├─&quot;test/test_expect_test.ml&quot;:3440:24
     ├─first = 7
     ├─second = 42
     ├─{first; second}
-    │ ├─&quot;test/test_expect_test.ml&quot;:3424:10
+    │ ├─&quot;test/test_expect_test.ml&quot;:3441:10
     │ └─&lt;values&gt;
     │   ├─first = 8
     │   └─second = 45
@@ -478,7 +476,7 @@ let%diagn_show rec loop_exceeded (x : int) : int =
     {|
     BEGIN DEBUG SESSION
     foo = ()
-    ├─&quot;test/test_expect_test.ml&quot;:3554:21
+    ├─&quot;test/test_expect_test.ml&quot;:3569:21
     ├─0/0│0/1│0/2│0/3│0/4
     │ ───┼───┼───┼───┼───
     │ 1/0│1/1│1/2│1/3│1/4
@@ -558,7 +556,7 @@ let%diagn_show rec loop_exceeded (x : int) : int =
   [%expect
     {|
     BEGIN DEBUG SESSION
-    &quot;test/test_expect_test.ml&quot;:3689:17: _logging_logic
+    &quot;test/test_expect_test.ml&quot;:3704:17: _logging_logic
     ├─&quot;preamble&quot;
     ├─header 1
     │ ├─&quot;log 1&quot;
@@ -626,13 +624,13 @@ let%debug_sexp _test_at_log_level_3 : unit = test_at_log_level 3</code></pre><p>
     {|
     BEGIN DEBUG SESSION
     bar = ()
-    └─&quot;test/test_expect_test.ml&quot;:3178:21 {#1}
+    └─&quot;test/test_expect_test.ml&quot;:3196:21 {#1}
     baz = ()
-    └─&quot;test/test_expect_test.ml&quot;:3185:21 {#2}
+    └─&quot;test/test_expect_test.ml&quot;:3203:21 {#2}
     bar = ()
-    └─&quot;test/test_expect_test.ml&quot;:3178:21 {#3}
+    └─&quot;test/test_expect_test.ml&quot;:3196:21 {#3}
     _foobar = ()
-    ├─&quot;test/test_expect_test.ml&quot;:3197:17 {#4}
+    ├─&quot;test/test_expect_test.ml&quot;:3215:17 {#4}
     ├─(&quot;This is like&quot;, 3, &quot;or&quot;, 3.14, &quot;above&quot;)
     ├─(&quot;tau =&quot;, 6.28)
     ├─[3; 1; 2; 3]
@@ -647,7 +645,14 @@ let%debug_sexp _test_at_log_level_3 : unit = test_at_log_level 3</code></pre><p>
     └─{orphaned from #1}
     (&quot;tau =&quot;, 6.28)
     └─{orphaned from #1}
-    |}]</code></pre><p><code>~verbose_entry_ids:true</code> tags all logs with entry ids, it shouldn't be needed in regular use.</p><h3 id="reducing-the-size-of-generated-logs"><a href="#reducing-the-size-of-generated-logs" class="anchor"></a>Reducing the size of generated logs</h3><p>Summary of possibilities:</p><ul><li>log levels</li><li><code>no_debug_if</code></li><li><code>prune_upto</code></li><li><code>truncate_children</code></li><li><code>split_files_after</code></li><li>HTML browsers can handle really large files (less luck with Markdown).</li></ul><p>The log levels discussed in the previous section certainly reduce the amount generated, but they either help too little or they remove logs too indiscriminately for use in a debugging context. Dynamically controlling the runtime log level is one option, but there are some other options.</p><p>In the PrintBox backend, you can disable the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space. The test suite example:</p><pre class="language-ocaml"><code>  let%debug_show rec loop_changes (x : int) : int =
+    |}]</code></pre><p><code>~verbose_entry_ids:true</code> tags all logs with entry ids, it shouldn't be needed in regular use.</p><h3 id="reducing-the-size-of-generated-logs"><a href="#reducing-the-size-of-generated-logs" class="anchor"></a>Reducing the size of generated logs</h3><p>Summary of possibilities:</p><ul><li>log levels</li><li><code>path_filter</code> - filter by file path and/or function/binding name</li><li><code>no_debug_if</code></li><li><code>prune_upto</code></li><li><code>truncate_children</code></li><li><code>split_files_after</code></li><li>HTML browsers can handle really large files (less luck with Markdown).</li></ul><p>The log levels discussed in the previous section certainly reduce the amount generated, but they either help too little or they remove logs too indiscriminately for use in a debugging context. Dynamically controlling the runtime log level is one option, but there are some other options.</p><h4 id="path-filtering"><a href="#path-filtering" class="anchor"></a>Path filtering</h4><p>You can filter logs at runtime based on source file paths and function/binding names using the <code>path_filter</code> parameter. The filter is applied to the string <code>&quot;fname/message&quot;</code> where <code>fname</code> is the source file path and <code>message</code> is the function or binding name.</p><p>Examples:</p><pre class="language-ocaml"><code>(* Only log entries from a specific file *)
+~path_filter:(`Whitelist (Re.compile (Re.str &quot;my_module.ml&quot;)))
+
+(* Only log functions starting with &quot;compute_&quot; *)
+~path_filter:(`Whitelist (Re.compile (Re.str &quot;/compute_&quot;)))
+
+(* Suppress all test files and test functions *)
+~path_filter:(`Blacklist (Re.compile (Re.str &quot;test_&quot;)))</code></pre><p>This is useful for focusing on specific parts of your codebase during debugging, or for excluding noisy test utilities from production debug logs.</p><h4 id="dynamic-subtree-filtering"><a href="#dynamic-subtree-filtering" class="anchor"></a>Dynamic subtree filtering</h4><p>In the PrintBox backend, you can disable the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space. The test suite example:</p><pre class="language-ocaml"><code>  let%debug_show rec loop_changes (x : int) : int =
     let z : int = (x - 1) / 2 in
     (* The call [x = 2] is not printed because it is a descendant of the no-debug call [x
        = 4]. *)
@@ -773,32 +778,32 @@ let () =
   [%expect
     {|
     BEGIN DEBUG SESSION foo-1
-    foo-1 foo begin &quot;test/test_expect_test.ml&quot;:3969:21:
+    foo-1 foo begin &quot;test/test_expect_test.ml&quot;:3984:21:
      &quot;inside foo&quot;
     foo-1 foo end
 
     BEGIN DEBUG SESSION foo-1
-    foo-1 &lt;function -- branch 0&gt; () begin &quot;test/test_expect_test.ml&quot;:3975:8:
+    foo-1 &lt;function -- branch 0&gt; () begin &quot;test/test_expect_test.ml&quot;:3990:8:
      &quot;inside bar&quot;
     foo-1 &lt;function -- branch 0&gt; () end
 
     BEGIN DEBUG SESSION foo-2
-    foo-2 foo begin &quot;test/test_expect_test.ml&quot;:3969:21:
+    foo-2 foo begin &quot;test/test_expect_test.ml&quot;:3984:21:
      &quot;inside foo&quot;
     foo-2 foo end
 
     BEGIN DEBUG SESSION foo-2
-    foo-2 &lt;function -- branch 0&gt; () begin &quot;test/test_expect_test.ml&quot;:3975:8:
+    foo-2 &lt;function -- branch 0&gt; () begin &quot;test/test_expect_test.ml&quot;:3990:8:
      &quot;inside bar&quot;
     foo-2 &lt;function -- branch 0&gt; () end
 
     BEGIN DEBUG SESSION foo-3
-    foo-3 foo begin &quot;test/test_expect_test.ml&quot;:3969:21:
+    foo-3 foo begin &quot;test/test_expect_test.ml&quot;:3984:21:
      &quot;inside foo&quot;
     foo-3 foo end
 
     BEGIN DEBUG SESSION foo-3
-    foo-3 &lt;function -- branch 0&gt; () begin &quot;test/test_expect_test.ml&quot;:3975:8:
+    foo-3 &lt;function -- branch 0&gt; () begin &quot;test/test_expect_test.ml&quot;:3990:8:
      &quot;inside bar&quot;
     foo-3 &lt;function -- branch 0&gt; () end
     |}]</code></pre><p>Another similar feature is the extension points <code>%debug_rt_sexp</code>, <code>%track_rt_sexp</code>, etc. They add a first-class module argument to a function, and unpack the argument as <code>module Debug_runtime</code>. At present, passing of the runtime instance to functions needs to be done manually. Note that only the function attached to the <code>_rt_</code> extension point is modified.</p><p>Example from the test suite:</p><pre class="language-ocaml"><code>  let%track_rt_show foo l : int = match (l : int list) with [] -&gt; 7 | y :: _ -&gt; y * 2 in
