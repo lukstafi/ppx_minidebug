@@ -1,3 +1,19 @@
+## [2.4.0] -- 2025-10-03
+
+### Added
+
+- Runtime path filtering: filter logs by file path and/or function/binding name (#63)
+  - `path_filter` parameter accepts `Whitelist` or `Blacklist` with a regex
+  - Filter applied to `fname/message` pattern for fine-grained control
+  - Examples: filter by file, by function prefix, or exclude test utilities
+  - Zero overhead when filtering is disabled
+
+### Fixed
+
+- Make string and sexp conversions lazy to reduce overhead (#57)
+- Prevent polluting LSP type reports by using ghost locations (#67)
+- Fix runtime argument passing for proper type inference (#62)
+
 ## [2.3.0] -- 2025-06-21
 
 ### Changed

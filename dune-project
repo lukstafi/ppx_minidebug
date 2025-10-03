@@ -15,7 +15,7 @@
 
 (documentation https://lukstafi.github.io/ppx_minidebug/ppx_minidebug)
 
-(version 2.3.0)
+(version 2.4.0)
 
 (using mdx 0.4)
 
