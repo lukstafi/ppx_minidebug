@@ -37,7 +37,7 @@
    (and
     (>= 0.36.0)
     ; TODO: problem with test instability: 0.36.2 outputs more type annotations
-    (< 0.36.2)))
+    (<> 0.36.2)))
   (printbox
    (>= 0.12))
   (printbox-text
