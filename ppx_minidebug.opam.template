@@ -1,4 +1,1 @@
-# NOTE: This is required for test consistency: for some reason
-# opam >= 2.3 results in more type annotations in preprocessor output. 
-opam-version: "2.3"
 x-maintenance-intent: ["2.2.(latest)" "2.4.(latest)" "(latest)"]
