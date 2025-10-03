@@ -33,7 +33,7 @@
   ppx_deriving
   (ppx_sexp_conv (>= v0.17.1))
   (ppxlib
-   (>= 0.36.0))
+   (>= 0.36.2))
   (printbox
    (>= 0.12))
   (printbox-text
