@@ -23,7 +23,7 @@ let foo (x : int) =
         ~message:"foo" ~entry_id:__entry_id ~log_level:1 `Debug;
       Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
         ~log_level:1 ~is_result:false (lazy (([%show : int]) x)));
-     (match let y : int =
+     (match let y =
               let __entry_id = Debug_runtime.get_entry_id () in
               ();
               Debug_runtime.open_log

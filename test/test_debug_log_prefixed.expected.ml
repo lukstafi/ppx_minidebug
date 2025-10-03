@@ -9,7 +9,7 @@ let rec loop_exceeded (x : int) =
         ~start_lnum:7 ~start_colnum:33 ~end_lnum:13 ~end_colnum:55
         ~message:"loop_exceeded" ~entry_id:__entry_id ~log_level:1 `Diagn;
       ());
-     (match let z : int =
+     (match let z =
               Debug_runtime.log_value_show ?descr:None ~entry_id:__entry_id
                 ~log_level:2 ~is_result:false
                 (lazy (([%show : (string * int)]) ("inside loop", (x : int))));
@@ -51,7 +51,7 @@ let bar () =
                        ~start_colnum:6 ~end_lnum:21 ~end_colnum:7
                        ~message:"<for i>" ~entry_id:__entry_id ~log_level:1
                        `Track;
-                     (match let _baz : int =
+                     (match let _baz =
                               let __entry_id = Debug_runtime.get_entry_id () in
                               ();
                               Debug_runtime.open_log
