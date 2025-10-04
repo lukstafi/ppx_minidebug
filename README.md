@@ -969,8 +969,9 @@ Examples:
   (* Test 1: Whitelist by file - only logs from files matching "test_path_filter.ml" *)
   let _get_local_debug_runtime =
     let rt =
-      Minidebug_db.debug_db_file ~path_filter:(`Whitelist (Re.compile (Re.str "test_path_filter.ml")))
-        "test_path_filter_1"
+      Minidebug_db.debug_db_file
+        ~path_filter:(`Whitelist (Re.compile (Re.str "test_path_filter.ml")))
+        "test_path_filter"
     in
     fun () -> rt
   in
@@ -991,8 +992,9 @@ and:
   Printf.printf "\n=== Test 2: Whitelist by function (only compute_* functions) ===\n%!";
   let _get_local_debug_runtime =
     let rt =
-      Minidebug_db.debug_db_file ~path_filter:(`Whitelist (Re.compile (Re.str "/compute_")))
-        "test_path_filter_2"
+      Minidebug_db.debug_db_file
+        ~path_filter:(`Whitelist (Re.compile (Re.str "/compute_")))
+        "test_path_filter"
     in
     fun () -> rt
   in
@@ -1011,28 +1013,21 @@ The overall test produces:
 <!-- $MDX file=test/test_path_filter.expected -->
 ```
 === Test 1: Whitelist by file (logs from test_path_filter.ml) ===
-compute_value = 30
-├─"test/test_path_filter.ml":14:31
-└─x = 5
 Result: 30
+[debug] compute_value @ test/test_path_filter.ml:14:31-16:9
+  x = 5
+  => 30
 
 === Test 2: Whitelist by function (only compute_* functions) ===
-
-BEGIN DEBUG SESSION 
-compute_sum = 30
-├─"test/test_path_filter.ml":35:29
-└─x = 5
 Results: 30, 6
+[debug] compute_sum @ test/test_path_filter.ml:36:29-38:9
+  x = 5
+  => 30
 
 === Test 3: Blacklist (blocks test_path_filter.ml) ===
 Result: 30
 
 === Test 4: No filter (shows all logs) ===
-
-BEGIN DEBUG SESSION 
-compute_nofilter = 30
-├─"test/test_path_filter.ml":69:34
-└─x = 5
 Result: 30
 ```
 

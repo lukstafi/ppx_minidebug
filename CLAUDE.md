@@ -20,6 +20,8 @@ Version 3.0.0 transitions from static file generation (PrintBox/Flushing) to dat
 - Install development version: `opam install .`
 - Run all tests: `dune runtest`
 - Promote new test expectations: `dune promote`
+  - For promotion to work, tests need to run, here this means the diffing rules need to run
+  - So this requires e.g. `dune runtest` before, or can be combined into `dune test --auto-promote`
 - Run a specific test executable: `dune exec test/test_debug_sexp.exe`
 
 ## Key Architecture Insights
