@@ -36,11 +36,13 @@ module Schema = struct
     Sqlite3.exec db "CREATE INDEX IF NOT EXISTS idx_value_hash ON value_atoms(value_hash)"
     |> ignore;
 
-    (* Entries table with foreign keys to value_atoms *)
+    (* Entries table with foreign keys to value_atoms.
+       seq_num discriminates between scope entry (0) and logged values (>0, or -1 for results) *)
     Sqlite3.exec db
       {|CREATE TABLE IF NOT EXISTS entries (
           run_id INTEGER NOT NULL,
           entry_id INTEGER NOT NULL,
+          seq_num INTEGER NOT NULL DEFAULT 0,
           parent_id INTEGER,
           depth INTEGER NOT NULL,
           message_value_id INTEGER REFERENCES value_atoms(value_id),
@@ -52,7 +54,7 @@ module Schema = struct
           is_result BOOLEAN DEFAULT FALSE,
           log_level INTEGER,
           entry_type TEXT,
-          PRIMARY KEY (run_id, entry_id),
+          PRIMARY KEY (run_id, entry_id, seq_num),
           FOREIGN KEY (run_id) REFERENCES runs(run_id)
         )|}
     |> ignore;
@@ -251,11 +253,11 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
       in
       let location_value_id = ValueIntern.intern intern ~value_type:"location" location in
 
-      (* Insert entry *)
+      (* Insert entry with seq_num = 0 for scope entry *)
       let stmt =
         Sqlite3.prepare db
-          "INSERT INTO entries (run_id, entry_id, parent_id, depth, message_value_id, \
-           location_value_id, elapsed_start_ns, log_level, entry_type) VALUES (?, ?, ?, \
+          "INSERT INTO entries (run_id, entry_id, seq_num, parent_id, depth, message_value_id, \
+           location_value_id, elapsed_start_ns, log_level, entry_type) VALUES (?, ?, 0, ?, \
            ?, ?, ?, ?, ?, ?)"
       in
       Sqlite3.bind_int stmt 1 run_id |> ignore;
@@ -308,31 +310,87 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
     open_log ~fname:"" ~start_lnum:0 ~start_colnum:0 ~end_lnum:0 ~end_colnum:0 ~message
       ~entry_id ~log_level log_type
 
-  let log_value_common ~descr:_ ~entry_id ~log_level:_ ~is_result content_str =
+  let log_value_common ~descr ~entry_id ~log_level:_ ~is_result content_str =
     if List.mem entry_id !hidden_entries then ()
     else
       let db = get_db () in
       let run_id = get_run_id () in
       let intern = get_intern () in
 
+      (* Determine seq_num: get next available for this entry_id *)
+      let seq_num =
+        if is_result then -1  (* Use -1 for result values *)
+        else begin
+          (* Get max seq_num for this entry_id to find next available slot *)
+          let count_stmt = Sqlite3.prepare db
+            "SELECT COALESCE(MAX(seq_num), 0) FROM entries WHERE run_id = ? AND entry_id = ? AND seq_num > 0"
+          in
+          Sqlite3.bind_int count_stmt 1 run_id |> ignore;
+          Sqlite3.bind_int count_stmt 2 entry_id |> ignore;
+          let next_seq =
+            match Sqlite3.step count_stmt with
+            | Sqlite3.Rc.ROW ->
+                Sqlite3.Data.to_int_exn (Sqlite3.column count_stmt 0) + 1
+            | _ -> 1
+          in
+          Sqlite3.finalize count_stmt |> ignore;
+          next_seq
+        end
+      in
+
+      (* Get parent entry info for depth *)
+      let depth_stmt = Sqlite3.prepare db
+        "SELECT depth FROM entries WHERE run_id = ? AND entry_id = ? AND seq_num = 0"
+      in
+      Sqlite3.bind_int depth_stmt 1 run_id |> ignore;
+      Sqlite3.bind_int depth_stmt 2 entry_id |> ignore;
+      let depth =
+        match Sqlite3.step depth_stmt with
+        | Sqlite3.Rc.ROW ->
+            Sqlite3.Data.to_int_exn (Sqlite3.column depth_stmt 0) + 1
+        | _ -> List.length !stack  (* Fallback *)
+      in
+      Sqlite3.finalize depth_stmt |> ignore;
+
+      (* Intern the message (parameter/result name) *)
+      let message = match descr with Some d -> d | None -> if is_result then "=>" else "" in
+      let message_value_id = ValueIntern.intern intern ~value_type:"message" message in
+
       (* Intern value content *)
       let value_type = if is_result then "result" else "value" in
       let data_value_id = ValueIntern.intern intern ~value_type content_str in
 
-      (* Update entry with data *)
+      (* Get elapsed time *)
+      let elapsed_start = Mtime_clock.elapsed () in
+      let elapsed_ns =
+        match Int64.unsigned_to_int @@ Mtime.Span.to_uint64_ns elapsed_start with
+        | None -> 0
+        | Some ns -> ns
+      in
+
+      (* Insert value row with same entry_id but different seq_num *)
       let stmt =
         Sqlite3.prepare db
-          "UPDATE entries SET data_value_id = ?, is_result = ? WHERE run_id = ? AND \
-           entry_id = ?"
+          "INSERT INTO entries (run_id, entry_id, seq_num, parent_id, depth, message_value_id, \
+           data_value_id, elapsed_start_ns, elapsed_end_ns, is_result, log_level, entry_type) \
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
       in
-      Sqlite3.bind_int stmt 1 data_value_id |> ignore;
-      Sqlite3.bind_int stmt 2 (if is_result then 1 else 0) |> ignore;
-      Sqlite3.bind_int stmt 3 run_id |> ignore;
-      Sqlite3.bind_int stmt 4 entry_id |> ignore;
+      Sqlite3.bind_int stmt 1 run_id |> ignore;
+      Sqlite3.bind_int stmt 2 entry_id |> ignore;  (* Same entry_id as parent scope *)
+      Sqlite3.bind_int stmt 3 seq_num |> ignore;
+      Sqlite3.bind_int stmt 4 entry_id |> ignore;  (* parent_id same as entry_id *)
+      Sqlite3.bind_int stmt 5 depth |> ignore;
+      Sqlite3.bind_int stmt 6 message_value_id |> ignore;
+      Sqlite3.bind_int stmt 7 data_value_id |> ignore;
+      Sqlite3.bind_int stmt 8 elapsed_ns |> ignore;
+      Sqlite3.bind_int stmt 9 elapsed_ns |> ignore;  (* Same for start and end for value nodes *)
+      Sqlite3.bind_int stmt 10 (if is_result then 1 else 0) |> ignore;
+      Sqlite3.bind_int stmt 11 1 |> ignore;  (* log_level *)
+      Sqlite3.bind_text stmt 12 "value" |> ignore;  (* entry_type *)
 
       (match Sqlite3.step stmt with
       | Sqlite3.Rc.DONE -> ()
-      | _ -> failwith "Failed to update entry with value");
+      | _ -> failwith "Failed to insert value row");
       Sqlite3.finalize stmt |> ignore
 
   let log_value_sexp ?descr ~entry_id ~log_level ~is_result v =
@@ -380,10 +438,10 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
         let db = get_db () in
         let run_id = get_run_id () in
 
-        (* Update entry with end time *)
+        (* Update entry with end time (only for seq_num = 0, the scope entry) *)
         let stmt =
           Sqlite3.prepare db
-            "UPDATE entries SET elapsed_end_ns = ? WHERE run_id = ? AND entry_id = ?"
+            "UPDATE entries SET elapsed_end_ns = ? WHERE run_id = ? AND entry_id = ? AND seq_num = 0"
         in
         let elapsed_ns =
           match Int64.unsigned_to_int @@ Mtime.Span.to_uint64_ns elapsed_end with

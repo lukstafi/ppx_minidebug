@@ -6,6 +6,7 @@ module CFormat = Format
 module Query = struct
   type entry = {
     entry_id : int;
+    seq_num : int;
     parent_id : int option;
     depth : int;
     message : string;
@@ -73,6 +74,7 @@ module Query = struct
     let base_query = {|
       SELECT
         e.entry_id,
+        e.seq_num,
         e.parent_id,
         e.depth,
         m.value_content as message,
@@ -91,10 +93,10 @@ module Query = struct
     |} in
 
     let query = match parent_id, max_depth with
-      | None, None -> base_query ^ " ORDER BY e.entry_id"
-      | Some _, None -> base_query ^ " AND e.parent_id = ? ORDER BY e.entry_id"
-      | None, Some _ -> base_query ^ " AND e.depth <= ? ORDER BY e.entry_id"
-      | Some _, Some _ -> base_query ^ " AND e.parent_id = ? AND e.depth <= ? ORDER BY e.entry_id"
+      | None, None -> base_query ^ " ORDER BY e.entry_id, e.seq_num"
+      | Some _, None -> base_query ^ " AND e.parent_id = ? ORDER BY e.entry_id, e.seq_num"
+      | None, Some _ -> base_query ^ " AND e.depth <= ? ORDER BY e.entry_id, e.seq_num"
+      | Some _, Some _ -> base_query ^ " AND e.parent_id = ? AND e.depth <= ? ORDER BY e.entry_id, e.seq_num"
     in
 
     let stmt = Sqlite3.prepare db query in
@@ -113,24 +115,25 @@ module Query = struct
       | Sqlite3.Rc.ROW ->
           let entry = {
             entry_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
-            parent_id = (match Sqlite3.column stmt 1 with
+            seq_num = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
+            parent_id = (match Sqlite3.column stmt 2 with
               | Sqlite3.Data.INT id -> Some (Int64.to_int id)
               | _ -> None);
-            depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 2);
-            message = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 3);
-            location = (match Sqlite3.column stmt 4 with
+            depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
+            message = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 4);
+            location = (match Sqlite3.column stmt 5 with
               | Sqlite3.Data.TEXT s -> Some s
               | _ -> None);
-            data = (match Sqlite3.column stmt 5 with
+            data = (match Sqlite3.column stmt 6 with
               | Sqlite3.Data.TEXT s -> Some s
               | _ -> None);
-            elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 6);
-            elapsed_end_ns = (match Sqlite3.column stmt 7 with
+            elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
+            elapsed_end_ns = (match Sqlite3.column stmt 8 with
               | Sqlite3.Data.INT ns -> Some (Int64.to_int ns)
               | _ -> None);
-            is_result = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 8) = 1;
-            log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 9);
-            entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 10);
+            is_result = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 9) = 1;
+            log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
+            entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
           } in
           entries := entry :: !entries;
           loop ()
@@ -203,25 +206,38 @@ module Renderer = struct
 
   (** Build tree structure from flat entry list *)
   let build_tree entries =
+    (* Separate scope entries (seq_num = 0) from value entries (seq_num != 0) *)
+    let scope_entries, value_entries = List.partition (fun e -> e.Query.seq_num = 0) entries in
+
     let by_id = Hashtbl.create 100 in
     let roots = ref [] in
 
-    (* Index all entries by ID *)
+    (* Index scope entries by ID *)
     List.iter (fun entry ->
       Hashtbl.add by_id entry.Query.entry_id entry
-    ) entries;
+    ) scope_entries;
 
     (* Build tree structure *)
     let rec build_node entry =
-      let children_entries =
+      (* Get value children (same entry_id, different seq_num) *)
+      let value_children =
+        List.filter (fun v -> v.Query.entry_id = entry.Query.entry_id) value_entries
+        |> List.sort (fun a b -> compare a.Query.seq_num b.Query.seq_num)
+        |> List.map (fun v -> { entry = v; children = [] })
+      in
+
+      (* Get scope children (different entry_id, parent_id matches) *)
+      let scope_children_entries =
         List.filter (fun e ->
           match e.Query.parent_id with
-          | Some pid -> pid = entry.Query.entry_id
+          | Some pid -> pid = entry.Query.entry_id && e.Query.entry_id <> entry.Query.entry_id
           | None -> false
-        ) entries
+        ) scope_entries
       in
-      let children = List.map build_node children_entries in
-      { entry; children }
+      let scope_children = List.map build_node scope_children_entries in
+
+      (* Combine: value children first, then scope children *)
+      { entry; children = value_children @ scope_children }
     in
 
     (* Find roots (entries with no parent or parent not in list) *)
@@ -231,7 +247,7 @@ module Renderer = struct
       | Some pid ->
           if not (Hashtbl.mem by_id pid) then
             roots := entry :: !roots
-    ) entries;
+    ) scope_entries;
 
     List.map build_node (List.rev !roots)
 
@@ -267,7 +283,20 @@ module Renderer = struct
         if show_entry_ids then
           Buffer.add_string buf (Printf.sprintf "{#%d} " entry.entry_id);
 
-        if values_first_mode && entry.is_result then begin
+        (* Check if this is a value node (seq_num != 0) *)
+        if entry.seq_num <> 0 then begin
+          (* Value node: display as "name = value" or "=> value" *)
+          if entry.is_result then
+            Buffer.add_string buf "=> "
+          else
+            Buffer.add_string buf (Printf.sprintf "%s = " entry.message);
+
+          (match entry.data with
+          | Some data -> Buffer.add_string buf data
+          | None -> ());
+
+          Buffer.add_string buf "\n"
+        end else if values_first_mode && entry.is_result then begin
           (* In values_first_mode, result becomes the header *)
           (match entry.data with
           | Some data ->

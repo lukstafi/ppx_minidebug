@@ -4,6 +4,7 @@
 module Query : sig
   type entry = {
     entry_id : int;
+    seq_num : int;
     parent_id : int option;
     depth : int;
     message : string;

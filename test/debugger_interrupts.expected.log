@@ -1,60 +1,71 @@
 Run #1
-Timestamp: 2025-10-04 17:12:30.400725 +02:00
+Timestamp: 2025-10-04 17:48:57.206508 +02:00
 Command: ./test_debug_interrupts.exe
-Elapsed: 7.89ms
+Elapsed: 4.31ms
 
 [debug] loop_exceeded : int @ test/test_debug_interrupts.ml:9:33-11:55
-  17
+  x : int = 17
   [debug] z @ test/test_debug_interrupts.ml:10:6-10:7
     => 8
   [debug] loop_exceeded : int @ test/test_debug_interrupts.ml:9:33-11:55
-    16
+    x : int = 16
     [debug] z @ test/test_debug_interrupts.ml:10:6-10:7
       => 7
     [debug] loop_exceeded : int @ test/test_debug_interrupts.ml:9:33-11:55
-      15
+      x : int = 15
       [debug] z @ test/test_debug_interrupts.ml:10:6-10:7
         => 7
       [debug] loop_exceeded : int @ test/test_debug_interrupts.ml:9:33-11:55
-        14
+        x : int = 14
         [debug] z @ test/test_debug_interrupts.ml:10:6-10:7
           => 6
         [debug] loop_exceeded : int @ test/test_debug_interrupts.ml:9:33-11:55
-          13
+          x : int = 13
           [debug] z @ test/test_debug_interrupts.ml:10:6-10:7
-            <max_nesting_depth exceeded>
+            z = <max_nesting_depth exceeded>
 [track] bar : unit @ test/test_debug_interrupts.ml:18:19-22:6
   [track] for:test_debug_interrupts:19 @ test/test_debug_interrupts.ml:19:2-22:6
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
+      i : int = 0
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
         => 0
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
+      i : int = 1
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
         => 2
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
+      i : int = 2
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
         => 4
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
+      i : int = 3
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
         => 6
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
+      i : int = 4
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
         => 8
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
+      i : int = 5
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
         => 10
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
+      i : int = 6
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
         => 12
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
+      i : int = 7
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
         => 14
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
+      i : int = 8
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
         => 16
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
+      i : int = 9
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
         => 18
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
+      i : int = 10
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
         => 20

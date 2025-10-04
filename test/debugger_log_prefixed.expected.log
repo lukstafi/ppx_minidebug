@@ -1,68 +1,79 @@
 Run #1
-Timestamp: 2025-10-04 17:12:30.539497 +02:00
+Timestamp: 2025-10-04 17:48:56.987703 +02:00
 Command: ./test_debug_log_prefixed.exe
-Elapsed: 4.72ms
+Elapsed: 4.42ms
 
 [diagn] loop_exceeded @ test/test_debug_log_prefixed.ml:8:33-14:55
-  ("inside loop", 7)
+   = ("inside loop", 7)
   [diagn] loop_exceeded @ test/test_debug_log_prefixed.ml:8:33-14:55
-    ("inside loop", 6)
+     = ("inside loop", 6)
     [diagn] loop_exceeded @ test/test_debug_log_prefixed.ml:8:33-14:55
-      ("inside loop", 5)
+       = ("inside loop", 5)
       [diagn] loop_exceeded @ test/test_debug_log_prefixed.ml:8:33-14:55
-        ("inside loop", 4)
+         = ("inside loop", 4)
         [diagn] loop_exceeded @ test/test_debug_log_prefixed.ml:8:33-14:55
-          ("inside loop", 3)
+           = ("inside loop", 3)
           [diagn] loop_exceeded @ test/test_debug_log_prefixed.ml:8:33-14:55
-            ("inside loop", 2)
+             = ("inside loop", 2)
             [diagn] loop_exceeded @ test/test_debug_log_prefixed.ml:8:33-14:55
-              ("inside loop", 1)
+               = ("inside loop", 1)
               [diagn] loop_exceeded @ test/test_debug_log_prefixed.ml:8:33-14:55
-                ("inside loop", 0)
+                 = ("inside loop", 0)
 [track] bar @ test/test_debug_log_prefixed.ml:21:19-26:6
   => ()
   [track] for:test_debug_log_prefixed:22 @ test/test_debug_log_prefixed.ml:22:2-26:6
     [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
-      ("loop step", 0, "value", 0)
+      i = 0
+       = ("loop step", 0, "value", 0)
       [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
         => 0
     [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
-      ("loop step", 1, "value", 2)
+      i = 1
+       = ("loop step", 1, "value", 2)
       [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
         => 2
     [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
-      ("loop step", 2, "value", 4)
+      i = 2
+       = ("loop step", 2, "value", 4)
       [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
         => 4
     [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
-      ("loop step", 3, "value", 6)
+      i = 3
+       = ("loop step", 3, "value", 6)
       [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
         => 6
     [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
-      ("loop step", 4, "value", 8)
+      i = 4
+       = ("loop step", 4, "value", 8)
       [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
         => 8
     [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
-      ("loop step", 5, "value", 10)
+      i = 5
+       = ("loop step", 5, "value", 10)
       [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
         => 10
     [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
-      ("loop step", 6, "value", 12)
+      i = 6
+       = ("loop step", 6, "value", 12)
       [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
         => 12
     [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
-      ("loop step", 7, "value", 14)
+      i = 7
+       = ("loop step", 7, "value", 14)
       [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
         => 14
     [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
-      ("loop step", 8, "value", 16)
+      i = 8
+       = ("loop step", 8, "value", 16)
       [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
         => 16
     [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
-      ("loop step", 9, "value", 18)
+      i = 9
+       = ("loop step", 9, "value", 18)
       [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
         => 18
     [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
-      ("loop step", 10, "value", 20)
+      i = 10
+       = ("loop step", 10, "value", 20)
       [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
         => 20
