@@ -34,9 +34,9 @@ Version 3.0.0 transitions from static file generation (PrintBox/Flushing) to dat
 
 ### Critical Gotchas
 1. **Database creation is lazy**: If `should_log` always returns false (e.g., log_level=0, aggressive filtering), no database file is created
-2. **PPX generates local bindings**: Extension points generate `let module Debug_runtime = (val _get_local_debug_runtime ()) in` at each entry
-3. **User provides `_get_local_debug_runtime` ONLY**: The top-level `module Debug_runtime =` is legacy/unused by PPX
-4. **`_o_` extensions are different**: `debug_o_`, `track_o_`, `diagn_o_` don't need runtime binding - use pre-existing module
+2. **PPX generates local bindings**: Extension points generate `let module Debug_runtime = (val _get_local_debug_runtime ()) in` at each entry (except for `_o_` extensions)
+3. **User provides `_get_local_debug_runtime` ONLY** in typical use cases
+4. **`_o_` extensions are different**: `debug_o_`, `track_o_`, `diagn_o_` use pre-existing module, e.g. a manual `module Debug_runtime =` binding
 5. **Runtime instance reuse**: Pattern `let rt = ... in fun () -> rt` ensures single instance shared across all calls
 
 ### Legacy Runtime Structure (minidebug_runtime.ml - deprecated)
@@ -46,8 +46,7 @@ Version 3.0.0 transitions from static file generation (PrintBox/Flushing) to dat
 
 ### Testing Strategy (3.0+)
 - **Database backend tests**: Use dune rules to generate `.db` files, then pipe through `minidebug_view` to `.log` for comparison
-- **PPX-only tests**: Tests with minimal logging (e.g., `test_debug_unannot_bindings`) remain on old backend or use `_o_` extensions
-- **Compile-time elimination tests**: `[%%global_debug_log_level 0]` tests must use `_o_` extensions (no runtime needed)
+- **PPX-only tests**: only verify code generation, not the backend behavior
 - **Promote workflow**: Run test, generate output via `minidebug_view`, `dune promote` to capture expected output
 
 ## Common Patterns
@@ -101,7 +100,7 @@ let _get_local_debug_runtime =
 
 ## Migration Notes (2.x → 3.0)
 - **Removed features**: PrintBox, Flushing, HTML/MD output, PrevRun diffs, file splitting, multifile output
-- **Deprecated modules**: `Minidebug_runtime.{PrintBox,Flushing,PrevRun}` - will be removed post-3.0.0
+- **Deprecated modules**: `Minidebug_runtime.{PrintBox,Flushing,PrevRun}` - will be removed in the final 3.0 release
 - **Migration path**: Most code needs only runtime change: `Minidebug_runtime.debug_file` → `Minidebug_db.debug_db_file`
 - **Behavioral changes**: No static output files; use `minidebug_view` CLI to inspect databases
 - **Thread safety**: Each thread needs its own runtime instance OR use SQLite's built-in concurrency (to be validated)
