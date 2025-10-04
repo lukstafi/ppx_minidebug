@@ -976,7 +976,7 @@ Examples:
     fun () -> rt
   in
   let%debug_show compute_value (x : int) : int =
-    let y = x + 10 in
+    let y : int = x + 10 in
     y * 2
   in
   Printf.printf "=== Test 1: Whitelist by file (logs from test_path_filter.ml) ===\n%!";
@@ -999,7 +999,7 @@ and:
     fun () -> rt
   in
   let%debug_show compute_sum (x : int) : int =
-    let y = x + 10 in
+    let y : int = x + 10 in
     y * 2
   in
   let%debug_show helper_function (x : int) : int = x + 1 in
@@ -1017,6 +1017,8 @@ Result: 30
 [debug] compute_value @ test/test_path_filter.ml:14:31-16:9
   x = 5
   => 30
+  [debug] y @ test/test_path_filter.ml:15:8-15:9
+    => 15
 
 === Test 2: Whitelist by function (only compute_* functions) ===
 Results: 30, 6
@@ -1029,6 +1031,11 @@ Result: 30
 
 === Test 4: No filter (shows all logs) ===
 Result: 30
+[debug] compute_nofilter @ test/test_path_filter.ml:71:34-73:9
+  x = 5
+  => 30
+  [debug] y @ test/test_path_filter.ml:72:8-72:9
+    => 15
 ```
 
 This is useful for focusing on specific parts of your codebase during debugging, or for excluding noisy test utilities from production debug logs.

@@ -12,7 +12,7 @@ let () =
     fun () -> rt
   in
   let%debug_show compute_value (x : int) : int =
-    let y = x + 10 in
+    let y : int = x + 10 in
     y * 2
   in
   Printf.printf "=== Test 1: Whitelist by file (logs from test_path_filter.ml) ===\n%!";
@@ -34,7 +34,7 @@ let () =
     fun () -> rt
   in
   let%debug_show compute_sum (x : int) : int =
-    let y = x + 10 in
+    let y : int = x + 10 in
     y * 2
   in
   let%debug_show helper_function (x : int) : int = x + 1 in
@@ -55,7 +55,7 @@ let () =
     fun () -> rt
   in
   let%debug_show compute_blacklist (x : int) : int =
-    let y = x + 10 in
+    let y : int = x + 10 in
     y * 2
   in
   let result = compute_blacklist 5 in
@@ -69,9 +69,9 @@ let () =
     fun () -> rt
   in
   let%debug_show compute_nofilter (x : int) : int =
-    let y = x + 10 in
+    let y : int = x + 10 in
     y * 2
   in
   let result = compute_nofilter 5 in
   Printf.printf "Result: %d\n%!" result;
-  Minidebug_client.Client.show_trace db 4
+  Minidebug_client.Client.show_trace db 3
