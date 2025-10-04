@@ -3,9 +3,17 @@
 ## Project Overview
 ppx_minidebug is an OCaml PPX extension for debug logging. It has two main components:
 - **ppx_minidebug.ml**: The preprocessor that transforms annotated code (e.g., `let%debug_sexp foo`) into instrumented versions with logging calls
-- **minidebug_runtime.ml**: The runtime library providing two backends (Flushing and PrintBox) with `log_value_*` functions
+- **minidebug_runtime.ml**: The legacy runtime library providing Flushing and PrintBox backends (deprecated in 3.0.0)
+- **minidebug_db.ml**: The database backend (3.0+ default) using SQLite with content-addressed value storage
 
 The preprocessor generates calls to `Debug_runtime.log_value_{sexp,pp,show}` which are provided by functors in the runtime.
+
+### 3.0.0 Architecture Shift
+Version 3.0.0 transitions from static file generation (PrintBox/Flushing) to database-backed tracing:
+- **Database storage**: SQLite with content-addressed deduplication (hash-based O(1) value lookup)
+- **Query layer**: `minidebug_client.ml` provides in-process queries and tree rendering
+- **CLI tool**: `bin/minidebug_view.exe` for stats, show, search, export operations
+- **No file I/O in production**: With `[%%global_debug_log_level 0]`, PPX generates no runtime calls at all
 
 ## Build & Test Commands
 - Build project: `dune build`
@@ -16,23 +24,69 @@ The preprocessor generates calls to `Debug_runtime.log_value_{sexp,pp,show}` whi
 
 ## Key Architecture Insights
 
-### Runtime Structure
-- **Two backends share code**: Flushing (simple text output) and PrintBox (structured output) both use `Shared_config` module type
-- **open_log gets full context**: The `open_log` function receives both `fname` (file path) and `message` (function/binding name) - useful for filtering/routing
-- **Entry tracking**: Both backends maintain `hidden_entries` list (for log levels) - when adding filtering, use a hashtable for O(1) lookups
-- **Unified filtering**: Combine multiple filter checks (log level, path, etc.) in a single `should_log` function to avoid redundant checks
+### Database Backend Design (3.0+)
+- **Lazy initialization**: Database only created when first log occurs - crucial for production code
+- **Content-addressed storage**: `value_atoms` table uses MD5 hash for O(1) deduplication
+- **Functor architecture**: `DatabaseBackend` is a functor - each instantiation has isolated state (db, run_id, intern refs)
+- **No contamination**: Multiple runtime instances writing to same file are safe (SQLite handles concurrency)
+- **`finish_and_cleanup()` optional**: For short-lived processes, OS cleanup is sufficient; database remains valid
+- **Path filtering**: `should_log` in `open_log` prevents entries from being created (not just hidden)
 
-### Adding Runtime Features
-1. **Add to Shared_config**: New config options go in the module type signature (`.mli` and `.ml`)
-2. **Update shared_config function**: Add the parameter with a sensible default
-3. **Implement in both backends**: Changes to filtering/logging must be done in both Flushing and PrintBox modules
-4. **Track filtered entries**: If filtering affects both `open_log` and `log_value_*`, use a hashtable to prevent orphaned logs
-5. **Update all runtime factories**: `debug`, `debug_file`, `debug_flushing`, `local_runtime`, `prefixed_runtime` all need the new parameter
+### Critical Gotchas
+1. **Database creation is lazy**: If `should_log` always returns false (e.g., log_level=0, aggressive filtering), no database file is created
+2. **PPX generates local bindings**: Extension points generate `let module Debug_runtime = (val _get_local_debug_runtime ()) in` at each entry
+3. **User provides `_get_local_debug_runtime` ONLY**: The top-level `module Debug_runtime =` is legacy/unused by PPX
+4. **`_o_` extensions are different**: `debug_o_`, `track_o_`, `diagn_o_` don't need runtime binding - use pre-existing module
+5. **Runtime instance reuse**: Pattern `let rt = ... in fun () -> rt` ensures single instance shared across all calls
 
-### Testing Strategy
-- **Use the `test` stanza**: New trend - use `(test ...)` with `debug()` logging to stdout, cleaner than `executable` + manual diffing
-- **PPX requires _get_local_debug_runtime**: Define as `let rt = Minidebug_runtime.debug ... in fun () -> rt` at module top-level
-- **Promote workflow**: Create empty `.expected` file, run test, `dune promote` to capture output
+### Legacy Runtime Structure (minidebug_runtime.ml - deprecated)
+- **Two backends share code**: Flushing and PrintBox both use `Shared_config` module type
+- **Entry tracking**: Both backends maintain `hidden_entries` list for log levels
+- **PrevRun diffs**: Removed in 3.0.0 - replaced by database queries
+
+### Testing Strategy (3.0+)
+- **Database backend tests**: Use dune rules to generate `.db` files, then pipe through `minidebug_view` to `.log` for comparison
+- **PPX-only tests**: Tests with minimal logging (e.g., `test_debug_unannot_bindings`) remain on old backend or use `_o_` extensions
+- **Compile-time elimination tests**: `[%%global_debug_log_level 0]` tests must use `_o_` extensions (no runtime needed)
+- **Promote workflow**: Run test, generate output via `minidebug_view`, `dune promote` to capture expected output
+
+## Common Patterns
+
+### Modern Runtime Setup (3.0+)
+```ocaml
+(* Single runtime instance shared across all calls *)
+let _get_local_debug_runtime =
+  let rt = Minidebug_db.debug_db_file "my_debug" in
+  fun () -> rt
+
+(* With options *)
+let _get_local_debug_runtime =
+  let rt = Minidebug_db.debug_db_file
+    ~elapsed_times:Microseconds
+    ~log_level:2
+    ~path_filter:(`Whitelist (Re.compile (Re.str "my_module")))
+    "my_debug"
+  in
+  fun () -> rt
+```
+
+### Testing Pattern
+```ocaml
+(* In test/dune *)
+(executable
+ (name test_my_feature)
+ (libraries minidebug_db)
+ (preprocess (pps ppx_minidebug ppx_deriving.show)))
+
+(rule
+ (targets debugger_my_feature.db debugger_my_feature.log)
+ (deps ../bin/minidebug_view.exe)
+ (action
+  (progn
+   (run %{dep:test_my_feature.exe})
+   (with-stdout-to debugger_my_feature.log
+    (run %{dep:../bin/minidebug_view.exe} debugger_my_feature.db show)))))
+```
 
 ## Coding Conventions
 - **Formatting**: Use OCamlformat with profile=default, margin=90
@@ -44,3 +98,10 @@ The preprocessor generates calls to `Debug_runtime.log_value_{sexp,pp,show}` whi
 - **Error handling**: Use pattern matching or try/with for errors
 - **Imports**: Group related imports together
 - **Documentation**: Include docstrings for public functions
+
+## Migration Notes (2.x → 3.0)
+- **Removed features**: PrintBox, Flushing, HTML/MD output, PrevRun diffs, file splitting, multifile output
+- **Deprecated modules**: `Minidebug_runtime.{PrintBox,Flushing,PrevRun}` - will be removed post-3.0.0
+- **Migration path**: Most code needs only runtime change: `Minidebug_runtime.debug_file` → `Minidebug_db.debug_db_file`
+- **Behavioral changes**: No static output files; use `minidebug_view` CLI to inspect databases
+- **Thread safety**: Each thread needs its own runtime instance OR use SQLite's built-in concurrency (to be validated)
