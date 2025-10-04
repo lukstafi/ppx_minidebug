@@ -6,7 +6,7 @@ let () =
   let _get_local_debug_runtime =
     let rt =
       Minidebug_db.debug_db_file ~path_filter:(`Whitelist (Re.compile (Re.str "test_path_filter.ml")))
-        "test_path_filter_1"
+        "test_path_filter"
     in
     fun () -> rt
   in
@@ -26,7 +26,7 @@ let () =
   let _get_local_debug_runtime =
     let rt =
       Minidebug_db.debug_db_file ~path_filter:(`Whitelist (Re.compile (Re.str "/compute_")))
-        "test_path_filter_2"
+        "test_path_filter"
     in
     fun () -> rt
   in
@@ -46,7 +46,7 @@ let () =
   let _get_local_debug_runtime =
     let rt =
       Minidebug_db.debug_db_file ~path_filter:(`Blacklist (Re.compile (Re.str "test_path_filter.ml")))
-        "test_path_filter_3"
+        "test_path_filter"
     in
     fun () -> rt
   in
@@ -60,7 +60,7 @@ let () =
   (* Test 4: No filter - all logs are output *)
   Printf.printf "\n=== Test 4: No filter (shows all logs) ===\n%!";
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file "test_path_filter_4" in
+    let rt = Minidebug_db.debug_db_file "test_path_filter" in
     fun () -> rt
   in
   let%debug_show compute_nofilter (x : int) : int =
