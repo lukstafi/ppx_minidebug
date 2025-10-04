@@ -1,0 +1,231 @@
+Run #1
+Timestamp: 2025-10-04 12:18:20.330754 +02:00
+Command: ./test_debug_pp.exe
+Elapsed: 6.71ms
+
+[debug] bar @ test/test_debug_pp.ml:10:17-12:14
+  => 336
+  [debug] y @ test/test_debug_pp.ml:11:6-11:7
+    => 8
+[debug] baz @ test/test_debug_pp.ml:16:17-18:20
+  => 339
+  [debug] _yz @ test/test_debug_pp.ml:17:36-17:39
+    => { Test_debug_pp.first = 8; second = 3 }
+[debug] loop @ test/test_debug_pp.ml:22:22-28:9
+  => 56
+  [debug] y @ test/test_debug_pp.ml:26:8-26:9
+    => 42
+    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+      => 42
+      [debug] y @ test/test_debug_pp.ml:26:8-26:9
+        => 36
+        [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+          => 36
+          [debug] y @ test/test_debug_pp.ml:26:8-26:9
+            => 24
+            [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+              => 24
+              [debug] y @ test/test_debug_pp.ml:26:8-26:9
+                => 25
+                [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                  => 25
+                  [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                    => 25
+                    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                      => 25
+                      [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                        => 25
+              [debug] z @ test/test_debug_pp.ml:27:8-27:9
+                => 17
+                [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                  => 17
+                  [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                    => 17
+                    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                      => 17
+                      [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                        => 17
+          [debug] z @ test/test_debug_pp.ml:27:8-27:9
+            => 29
+            [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+              => 29
+              [debug] y @ test/test_debug_pp.ml:26:8-26:9
+                => 30
+                [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                  => 30
+                  [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                    => 30
+                    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                      => 30
+                      [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                        => 30
+              [debug] z @ test/test_debug_pp.ml:27:8-27:9
+                => 22
+                [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                  => 22
+                  [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                    => 22
+                    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                      => 22
+                      [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                        => 22
+      [debug] z @ test/test_debug_pp.ml:27:8-27:9
+        => 35
+        [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+          => 35
+          [debug] y @ test/test_debug_pp.ml:26:8-26:9
+            => 23
+            [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+              => 23
+              [debug] y @ test/test_debug_pp.ml:26:8-26:9
+                => 23
+                [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                  => 23
+                  [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                    => 23
+                    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                      => 23
+                      [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                        => 23
+              [debug] z @ test/test_debug_pp.ml:27:8-27:9
+                => 16
+                [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                  => 16
+                  [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                    => 16
+                    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                      => 16
+                      [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                        => 16
+          [debug] z @ test/test_debug_pp.ml:27:8-27:9
+            => 28
+            [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+              => 28
+              [debug] y @ test/test_debug_pp.ml:26:8-26:9
+                => 27
+                [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                  => 27
+                  [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                    => 27
+                    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                      => 27
+                      [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                        => 27
+              [debug] z @ test/test_debug_pp.ml:27:8-27:9
+                => 21
+                [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                  => 21
+                  [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                    => 21
+                    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                      => 21
+                      [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                        => 21
+  [debug] z @ test/test_debug_pp.ml:27:8-27:9
+    => 49
+    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+      => 49
+      [debug] y @ test/test_debug_pp.ml:26:8-26:9
+        => 42
+        [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+          => 42
+          [debug] y @ test/test_debug_pp.ml:26:8-26:9
+            => 37
+            [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+              => 37
+              [debug] y @ test/test_debug_pp.ml:26:8-26:9
+                => 35
+                [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                  => 35
+                  [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                    => 35
+                    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                      => 35
+                      [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                        => 35
+              [debug] z @ test/test_debug_pp.ml:27:8-27:9
+                => 30
+                [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                  => 30
+                  [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                    => 30
+                    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                      => 30
+                      [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                        => 30
+          [debug] z @ test/test_debug_pp.ml:27:8-27:9
+            => 35
+            [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+              => 35
+              [debug] y @ test/test_debug_pp.ml:26:8-26:9
+                => 34
+                [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                  => 34
+                  [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                    => 34
+                    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                      => 34
+                      [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                        => 34
+              [debug] z @ test/test_debug_pp.ml:27:8-27:9
+                => 28
+                [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                  => 28
+                  [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                    => 28
+                    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                      => 28
+                      [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                        => 28
+      [debug] z @ test/test_debug_pp.ml:27:8-27:9
+        => 42
+        [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+          => 42
+          [debug] y @ test/test_debug_pp.ml:26:8-26:9
+            => 37
+            [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+              => 37
+              [debug] y @ test/test_debug_pp.ml:26:8-26:9
+                => 34
+                [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                  => 34
+                  [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                    => 34
+                    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                      => 34
+                      [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                        => 34
+              [debug] z @ test/test_debug_pp.ml:27:8-27:9
+                => 30
+                [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                  => 30
+                  [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                    => 30
+                    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                      => 30
+                      [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                        => 30
+          [debug] z @ test/test_debug_pp.ml:27:8-27:9
+            => 35
+            [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+              => 35
+              [debug] y @ test/test_debug_pp.ml:26:8-26:9
+                => 33
+                [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                  => 33
+                  [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                    => 33
+                    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                      => 33
+                      [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                        => 33
+              [debug] z @ test/test_debug_pp.ml:27:8-27:9
+                => 28
+                [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                  => 28
+                  [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                    => 28
+                    [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                      => 28
+                      [debug] loop @ test/test_debug_pp.ml:22:22-28:9
+                        => 28

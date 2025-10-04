@@ -1,10 +1,11 @@
 open Sexplib0.Sexp_conv
 
-module Debug_runtime =
-  Minidebug_runtime.PrintBox
-    ((val Minidebug_runtime.shared_config "debugger_sexp_printbox.log"))
+(* Database backend for testing *)
+let _get_local_debug_runtime =
+  let rt = Minidebug_db.debug_db_file "debugger_sexp" in
+  fun () -> rt
 
-let () = Debug_runtime.config.values_first_mode <- false
+module Debug_runtime = (val _get_local_debug_runtime ())
 
 let%debug_o_sexp foo (x : int) : int list =
   let y : int = x + 1 in

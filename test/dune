@@ -120,46 +120,68 @@
 (executable
  (name test_debug_sexp)
  (modules test_debug_sexp)
- (libraries sexplib0 minidebug_runtime)
+ (libraries sexplib0 minidebug_db)
  (modes exe)
  (preprocess
   (pps ppx_minidebug ppx_sexp_conv)))
 
 (rule
- (target debugger_sexp_printbox.log)
+ (targets debugger_sexp.db debugger_sexp.log)
+ (deps ../bin/minidebug_view.exe)
  (action
-  (run %{dep:test_debug_sexp.exe})))
+  (progn
+   (run %{dep:test_debug_sexp.exe})
+   (with-stdout-to debugger_sexp.log
+    (run %{dep:../bin/minidebug_view.exe} debugger_sexp.db show)))))
 
 (rule
  (alias runtest)
  (action
-  (diff debugger_sexp_printbox.expected.log debugger_sexp_printbox.log)))
+  (diff debugger_sexp.expected.log debugger_sexp.log)))
 
 (executable
  (name test_debug_pp)
  (modules test_debug_pp)
- (libraries minidebug_runtime)
+ (libraries minidebug_db)
  (modes exe)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
 
 (rule
- (target debugger_pp_flushing.log)
+ (targets debugger_pp.db debugger_pp.log)
+ (deps ../bin/minidebug_view.exe)
  (action
-  (run %{dep:test_debug_pp.exe})))
+  (progn
+   (run %{dep:test_debug_pp.exe})
+   (with-stdout-to debugger_pp.log
+    (run %{dep:../bin/minidebug_view.exe} debugger_pp.db show)))))
 
 (rule
  (alias runtest)
  (action
-  (diff debugger_pp_flushing.expected.log debugger_pp_flushing.log)))
+  (diff debugger_pp.expected.log debugger_pp.log)))
 
 (executable
  (name test_debug_show)
  (modules test_debug_show)
- (libraries minidebug_runtime)
+ (libraries minidebug_db)
  (modes exe)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
+
+(rule
+ (targets debugger_show.db debugger_show.log)
+ (deps ../bin/minidebug_view.exe)
+ (action
+  (progn
+   (run %{dep:test_debug_show.exe})
+   (with-stdout-to debugger_show.log
+    (run %{dep:../bin/minidebug_view.exe} debugger_show.db show)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_show.expected.log debugger_show.log)))
 
 (executable
  (name test_debug_unannot_bindings)
@@ -172,10 +194,24 @@
 (executable
  (name test_debug_interrupts)
  (modules test_debug_interrupts)
- (libraries minidebug_runtime)
+ (libraries minidebug_db)
  (modes exe)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
+
+(rule
+ (targets debugger_interrupts.db debugger_interrupts.log)
+ (deps ../bin/minidebug_view.exe)
+ (action
+  (progn
+   (run %{dep:test_debug_interrupts.exe})
+   (with-stdout-to debugger_interrupts.log
+    (run %{dep:../bin/minidebug_view.exe} debugger_interrupts.db show)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_interrupts.expected.log debugger_interrupts.log)))
 
 (executable
  (name test_debug_log_nothing)
@@ -201,47 +237,7 @@
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
 
-(rule
- (target debugger_show_flushing.log)
- (action
-  (run %{dep:test_debug_show.exe})))
 
-(rule
- (alias runtest)
- (action
-  (diff debugger_show_flushing.expected.log debugger_show_flushing.log)))
-
-(rule
- (target debugger_show_interrupts.log)
- (action
-  (run %{dep:test_debug_interrupts.exe})))
-
-(rule
- (target debugger_show_log_nothing.log)
- (action
-  (run %{dep:test_debug_log_nothing.exe})))
-
-(rule
- (target debugger_show_log_prefixed.log)
- (action
-  (run %{dep:test_debug_log_prefixed.exe})))
-
-(rule
- (alias runtest)
- (action
-  (diff debugger_show_interrupts.expected.log debugger_show_interrupts.log)))
-
-(rule
- (alias runtest)
- (action
-  (diff debugger_show_log_nothing.expected.log debugger_show_log_nothing.log)))
-
-(rule
- (alias runtest)
- (action
-  (diff
-   debugger_show_log_prefixed.expected.log
-   debugger_show_log_prefixed.log)))
 
 (executable
  (name test_debug_html)

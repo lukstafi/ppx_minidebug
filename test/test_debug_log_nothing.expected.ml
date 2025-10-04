@@ -1,5 +1,3 @@
-module Debug_runtime = (val
-  Minidebug_runtime.debug_flushing ~filename:"debugger_show_log_nothing" ())
 ;;()
 let rec loop_exceeded (x : int) =
   (let z = (); (x - 1) / 2 in

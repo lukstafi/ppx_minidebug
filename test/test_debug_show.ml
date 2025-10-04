@@ -1,5 +1,6 @@
 let _get_local_debug_runtime =
-  Minidebug_runtime.local_runtime_flushing "debugger_show_flushing"
+  let rt = Minidebug_db.debug_db_file "debugger_show" in
+  fun () -> rt
 
 let%debug_show foo (x : int) : int list =
   let y : int = x + 1 in

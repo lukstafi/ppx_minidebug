@@ -1,5 +1,8 @@
 let _get_local_debug_runtime =
-  Minidebug_runtime.local_runtime_flushing "debugger_pp_flushing"
+  let rt = Minidebug_db.debug_db_file "debugger_pp" in
+  fun () -> rt
+
+module Debug_runtime = (val _get_local_debug_runtime ())
 
 type t = { first : int; second : int } [@@deriving show]
 type num = int [@@deriving show]

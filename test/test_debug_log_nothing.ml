@@ -1,6 +1,3 @@
-module Debug_runtime =
-  (val Minidebug_runtime.debug_flushing ~filename:"debugger_show_log_nothing" ())
-
 [%%global_debug_log_level 0]
 
 let%debug_o_show rec loop_exceeded (x : int) : int =
