@@ -3,3 +3,7 @@
  (name minidebug_view)
  (modules minidebug_view)
  (libraries minidebug_client))
+
+(executable
+ (name filter_test_output)
+ (modules filter_test_output))

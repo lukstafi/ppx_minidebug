@@ -1,7 +1,5 @@
 Run #1
-Timestamp: 2025-10-04 17:48:57.206508 +02:00
 Command: ./test_debug_interrupts.exe
-Elapsed: 4.31ms
 
 [debug] loop_exceeded : int @ test/test_debug_interrupts.ml:9:33-11:55
   x : int = 17

@@ -127,12 +127,14 @@
 
 (rule
  (targets debugger_sexp.db debugger_sexp.log)
- (deps ../bin/minidebug_view.exe)
+ (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
  (action
   (progn
    (run %{dep:test_debug_sexp.exe})
    (with-stdout-to debugger_sexp.log
-    (run %{dep:../bin/minidebug_view.exe} debugger_sexp.db show)))))
+    (pipe-stdout
+     (run %{dep:../bin/minidebug_view.exe} debugger_sexp.db show)
+     (run %{dep:../bin/filter_test_output.exe}))))))
 
 (rule
  (alias runtest)
@@ -149,12 +151,14 @@
 
 (rule
  (targets debugger_pp.db debugger_pp.log)
- (deps ../bin/minidebug_view.exe)
+ (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
  (action
   (progn
    (run %{dep:test_debug_pp.exe})
    (with-stdout-to debugger_pp.log
-    (run %{dep:../bin/minidebug_view.exe} debugger_pp.db show)))))
+    (pipe-stdout
+     (run %{dep:../bin/minidebug_view.exe} debugger_pp.db show)
+     (run %{dep:../bin/filter_test_output.exe}))))))
 
 (rule
  (alias runtest)
@@ -171,12 +175,14 @@
 
 (rule
  (targets debugger_show.db debugger_show.log)
- (deps ../bin/minidebug_view.exe)
+ (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
  (action
   (progn
    (run %{dep:test_debug_show.exe})
    (with-stdout-to debugger_show.log
-    (run %{dep:../bin/minidebug_view.exe} debugger_show.db show)))))
+    (pipe-stdout
+     (run %{dep:../bin/minidebug_view.exe} debugger_show.db show)
+     (run %{dep:../bin/filter_test_output.exe}))))))
 
 (rule
  (alias runtest)
@@ -201,12 +207,14 @@
 
 (rule
  (targets debugger_interrupts.db debugger_interrupts.log)
- (deps ../bin/minidebug_view.exe)
+ (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
  (action
   (progn
    (run %{dep:test_debug_interrupts.exe})
    (with-stdout-to debugger_interrupts.log
-    (run %{dep:../bin/minidebug_view.exe} debugger_interrupts.db show)))))
+    (pipe-stdout
+     (run %{dep:../bin/minidebug_view.exe} debugger_interrupts.db show)
+     (run %{dep:../bin/filter_test_output.exe}))))))
 
 (rule
  (alias runtest)
@@ -231,12 +239,14 @@
 
 (rule
  (targets debugger_log_prefixed.db debugger_log_prefixed.log)
- (deps ../bin/minidebug_view.exe)
+ (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
  (action
   (progn
    (run %{dep:test_debug_log_prefixed.exe})
    (with-stdout-to debugger_log_prefixed.log
-    (run %{dep:../bin/minidebug_view.exe} debugger_log_prefixed.db show)))))
+    (pipe-stdout
+     (run %{dep:../bin/minidebug_view.exe} debugger_log_prefixed.db show)
+     (run %{dep:../bin/filter_test_output.exe}))))))
 
 (rule
  (alias runtest)
@@ -255,12 +265,14 @@
 
 (rule
  (targets debugger_time_spans.db debugger_time_spans.log)
- (deps ../bin/minidebug_view.exe)
+ (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
  (action
   (progn
    (run %{dep:test_debug_time_spans.exe})
    (with-stdout-to debugger_time_spans.log
-    (run %{dep:../bin/minidebug_view.exe} debugger_time_spans.db show --times)))))
+    (pipe-stdout
+     (run %{dep:../bin/minidebug_view.exe} debugger_time_spans.db show --times)
+     (run %{dep:../bin/filter_test_output.exe}))))))
 
 (rule
  (alias runtest)

@@ -1,7 +1,5 @@
 Run #1
-Timestamp: 2025-10-04 17:48:56.987703 +02:00
 Command: ./test_debug_log_prefixed.exe
-Elapsed: 4.42ms
 
 [diagn] loop_exceeded @ test/test_debug_log_prefixed.ml:8:33-14:55
    = ("inside loop", 7)

@@ -1,7 +1,5 @@
 Run #1
-Timestamp: 2025-10-04 17:48:23.038228 +02:00
 Command: ./test_debug_show.exe
-Elapsed: 4.27ms
 
 [debug] foo @ test/test_debug_show.ml:5:19-7:17
   => [7; 8; 16]
