@@ -186,15 +186,6 @@ Note that the comparison is performed at the chunk level, where each chunk is a 
 
 The `diff_ignore_pattern` setting can be used to ignore certain patterns in the logs. For example in the test suite, ignoring message-level timestamps:
 
-<!-- $MDX file=test/test_debug_timestamps.ml,part=ignore_timestamps_setup -->
-```ocaml
-  let _get_local_debug_runtime =
-    Minidebug_runtime.local_runtime ~values_first_mode:false ~backend:`Text
-      ~prev_run_file:"debugger_timestamps_run1.raw"
-      ~diff_ignore_pattern:(Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|})
-      "debugger_timestamps_run2"
-  in
-```
 
 Note that the timestamps of the log entries are not treated as messages, so are necessarily ignored.
 
@@ -218,56 +209,6 @@ You can force aligning certain entry IDs via the setting `entry_id_pairs`. The p
 
 Binding `_get_local_debug_runtime` to a result of the `_runtime` functions is the suggested way of providing debug runtimes, since it is aware of multithreaded contexts. The `local_` functions log to different files from different threads, while the `prefixed_` functions log to the single channel `debug_ch`, and by default to standard output. The `_flushing` functions have limited functionality (don't use PrintBox) but output messages immediately.
 
-### Hyperlinks to source locations
-
-The HTML and Markdown outputs support emitting file locations as hyperlinks. For example:
-
-<!-- $MDX file=test/test_debug_html.ml,part=hyperlinks -->
-```ocaml
-let _get_local_debug_runtime =
-  Minidebug_runtime.local_runtime ~hyperlink:"../" ~toc_specific_hyperlink:"./"
-    ~with_toc_listing:true
-    ~backend:(`Html PrintBox_html.Config.(tree_summary true default))
-    "debugger_sexp_html"
-```
-
-where `~hyperlink` is the prefix to let you tune the file path and select a browsing option. For illustration,
-the prefixes for Markdown / HTML outputs I might use at the time of writing:
-
-- `~hyperlink:"./"` or `~hyperlink:"../"` depending on the relative locations of the log file and the binary
-- `~hyperlink:"vscode://file//wsl.localhost/Ubuntu/home/lukstafi/ppx_minidebug/"`
-  - if left-clicking a link from within VS Code Live Preview follows the file in the HTML preview window rather than an editor window, middle-click the link
-- `~hyperlink:"https://github.com/lukstafi/ppx_minidebug/tree/main/"`
-
-### `values_first_mode`
-
-This setting, by default `true`, puts the result of the computation as the header of a computation subtree, rather than the source code location of the computation. I recommend using this setting as it reduces noise and makes the important information easier to find and visible with less unfolding. Another important benefit is that it makes hyperlinks usable, by pushing them from the summary line to under the fold. It is the default setting, but can be disabled by passing `~values_first_mode:false` to runtime builders, because it can be confusing: the logs are no longer ordered by computation time. It is not available in the `_flushing` runtimes.
-
-For example, the diffs example we saw before:
-
-<!-- $MDX file=test/test_debug_timestamps.ml,part=ignore_timestamps_setup -->
-```ocaml
-  let _get_local_debug_runtime =
-    Minidebug_runtime.local_runtime ~values_first_mode:false ~backend:`Text
-      ~prev_run_file:"debugger_timestamps_run1.raw"
-      ~diff_ignore_pattern:(Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|})
-      "debugger_timestamps_run2"
-  in
-```
-
-leads to:
-
-<!-- $MDX file=test/debugger_timestamps_run2.expected.log -->
-```
-BEGIN DEBUG SESSION 
-"test/test_debug_timestamps.ml":23:33: process_message
-├─msg = "hello"
-├─"test/test_debug_timestamps.ml":24:8: timestamp
-│ └─timestamp = "[2024-03-22 15:30:45] "
-├─"test/test_debug_timestamps.ml":25:8: processed
-│ └─processed = "[2024-03-22 15:30:45] Processing: hello"
-└─process_message = 39
-```
 
 When logging uses sexps and boxification, and the result is decomposed into a subtree, only the header of the result subtree is put in the header line, and the rest of the result subtree is just underneath it with a `<returns>` or a `<values>` header. Example showcasing the `printbox-html` backend:
 ![PrintBox HTML backend -- follow hyperlink](doc/html-hyperlink.png)

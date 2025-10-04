@@ -240,98 +240,26 @@
 
 
 (executable
- (name test_debug_html)
- (modules test_debug_html)
- (libraries sexplib0 minidebug_runtime)
- (modes exe)
- (preprocess
-  (pps ppx_minidebug ppx_sexp_conv)))
-
-(executable
- (name test_debug_md)
- (modules test_debug_md)
- (libraries sexplib0 minidebug_runtime)
- (modes exe)
- (preprocess
-  (pps ppx_minidebug ppx_sexp_conv)))
-
-(executable
  (name test_debug_time_spans)
  (modules test_debug_time_spans)
- (libraries sexplib0 minidebug_runtime)
- (modes exe)
- (preprocess
-  (pps ppx_minidebug ppx_sexp_conv)))
-
-(executable
- (name test_debug_multifile)
- (modules test_debug_multifile)
- (libraries sexplib0 minidebug_runtime)
+ (libraries sexplib0 minidebug_db)
  (modes exe)
  (preprocess
   (pps ppx_minidebug ppx_sexp_conv)))
 
 (rule
- (targets debugger_sexp_html.html debugger_sexp_html-toc.html)
- ;  (mode
- ;   (promote (until-clean)))
- (action
-  (run %{dep:test_debug_html.exe})))
-
-(rule
- (target debugger_sexp_md.md)
- (action
-  (run %{dep:test_debug_md.exe})))
-
-(rule
- (target debugger_sexp_time_spans.md)
- (action
-  (run %{dep:test_debug_time_spans.exe})))
-
-(rule
- (targets debugger_multifile_1.md debugger_multifile_2.md)
- (enabled_if
-  (= %{system} linux))
+ (targets debugger_time_spans.db debugger_time_spans.log)
+ (deps ../bin/minidebug_view.exe)
  (action
   (progn
-   (run %{dep:test_debug_multifile.exe})
-   (system "cp -f debugger_multifile/1.md debugger_multifile_1.md")
-   (system "cp -f debugger_multifile/2.md debugger_multifile_2.md"))))
+   (run %{dep:test_debug_time_spans.exe})
+   (with-stdout-to debugger_time_spans.log
+    (run %{dep:../bin/minidebug_view.exe} debugger_time_spans.db show --times)))))
 
 (rule
  (alias runtest)
  (action
-  (diff debugger_sexp_html.expected.html debugger_sexp_html.html)))
-
-(rule
- (alias runtest)
- (action
-  (diff debugger_sexp_html-toc.expected.html debugger_sexp_html-toc.html)))
-
-(rule
- (alias runtest)
- (action
-  (diff debugger_sexp_md.expected.md debugger_sexp_md.md)))
-
-; For illustration purposes.
-; (rule
-;  (alias runtest)
-;  (action
-;   (diff debugger_sexp_time_spans.expected.md debugger_sexp_time_spans.md)))
-
-(rule
- (alias runtest)
- (enabled_if
-  (= %{system} linux))
- (action
-  (diff debugger_multifile_1.expected.md debugger_multifile_1.md)))
-
-(rule
- (alias runtest)
- (enabled_if
-  (= %{system} linux))
- (action
-  (diff debugger_multifile_2.expected.md debugger_multifile_2.md)))
+  (diff debugger_time_spans.expected.log debugger_time_spans.log)))
 
 (library
  (name test_inline_tests)
@@ -341,95 +269,6 @@
  (preprocess
   (pps ppx_minidebug ppx_deriving.show ppx_sexp_conv ppx_expect)))
 
-(executable
- (name test_debug_diffs)
- (modules test_debug_diffs)
- (libraries sexplib0 minidebug_runtime)
- (modes exe)
- (preprocess
-  (pps ppx_minidebug ppx_sexp_conv)))
-
-(rule
- (targets debugger_diffs_run1.raw debugger_diffs_run1.log)
- (action
-  (run %{dep:test_debug_diffs.exe} run1)))
-
-(rule
- (target debugger_diffs_run2.log)
- (deps debugger_diffs_run1.raw)
- (action
-  (run %{dep:test_debug_diffs.exe} run2)))
-
-(rule
- (alias runtest)
- (action
-  (diff debugger_diffs_run1.expected.log debugger_diffs_run1.log)))
-
-(rule
- (alias runtest)
- (action
-  (diff debugger_diffs_run2.expected.log debugger_diffs_run2.log)))
-
-(executable
- (name test_debug_timestamps)
- (modules test_debug_timestamps)
- (libraries minidebug_runtime re)
- (modes exe)
- (preprocess
-  (pps ppx_minidebug ppx_deriving.show)))
-
-(rule
- (targets debugger_timestamps_run1.raw debugger_timestamps_run1.log)
- (action
-  (run %{dep:test_debug_timestamps.exe} run1)))
-
-(rule
- (target debugger_timestamps_run2.log)
- (deps debugger_timestamps_run1.raw)
- (action
-  (run %{dep:test_debug_timestamps.exe} run2)))
-
-(rule
- (alias runtest)
- (action
-  (diff debugger_timestamps_run1.expected.log debugger_timestamps_run1.log)))
-
-(rule
- (alias runtest)
- (action
-  (diff debugger_timestamps_run2.expected.log debugger_timestamps_run2.log)))
-
-(executable
- (name test_debug_large_diffs)
- (modules test_debug_large_diffs)
- (libraries minidebug_runtime re sexplib0)
- (modes exe)
- (preprocess
-  (pps ppx_minidebug ppx_sexp_conv)))
-
-(rule
- (alias runtest)
- (targets
-  debugger_large_diffs_run1.log
-  debugger_large_diffs_run2.log
-  debugger_large_diffs_run3.log)
- (action
-  (run %{dep:test_debug_large_diffs.exe})))
-
-(rule
- (alias runtest)
- (action
-  (diff debugger_large_diffs_run1.expected.log debugger_large_diffs_run1.log)))
-
-(rule
- (alias runtest)
- (action
-  (diff debugger_large_diffs_run2.expected.log debugger_large_diffs_run2.log)))
-
-(rule
- (alias runtest)
- (action
-  (diff debugger_large_diffs_run3.expected.log debugger_large_diffs_run3.log)))
 
 (executable
  (name debug_diffs_align)

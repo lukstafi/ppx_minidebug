@@ -181,14 +181,6 @@ Note that the comparison is performed at the chunk level, where each chunk is a 
 
 The [diff_ignore_pattern] setting can be used to ignore certain patterns in the logs. For example in the test suite, ignoring message-level timestamps:
 
-{@ocaml file=../test/test_debug_timestamps.ml,part=ignore_timestamps_setup[
-  let _get_local_debug_runtime =
-    Minidebug_runtime.local_runtime ~values_first_mode:false ~backend:`Text
-      ~prev_run_file:"debugger_timestamps_run1.raw"
-      ~diff_ignore_pattern:(Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|})
-      "debugger_timestamps_run2"
-  in
-]}
 
 Note that the timestamps of the log entries are not treated as messages, so are necessarily ignored.
 
@@ -215,13 +207,6 @@ Binding [_get_local_debug_runtime] to a result of the [_runtime] functions is th
 
 The HTML and Markdown outputs support emitting file locations as hyperlinks. For example:
 
-{@ocaml file=../test/test_debug_html.ml,part=hyperlinks[
-let _get_local_debug_runtime =
-  Minidebug_runtime.local_runtime ~hyperlink:"../" ~toc_specific_hyperlink:"./"
-    ~with_toc_listing:true
-    ~backend:(`Html PrintBox_html.Config.(tree_summary true default))
-    "debugger_sexp_html"
-]}
 
 where [~hyperlink] is the prefix to let you tune the file path and select a browsing option. For illustration,
 the prefixes for Markdown / HTML outputs I might use at the time of writing:
@@ -238,23 +223,11 @@ This setting, by default [true], puts the result of the computation as the heade
 
 For example, the diffs example we saw before:
 
-{@ocaml file=../test/test_debug_timestamps.ml,part=ignore_timestamps_setup[
-  let _get_local_debug_runtime =
-    Minidebug_runtime.local_runtime ~values_first_mode:false ~backend:`Text
-      ~prev_run_file:"debugger_timestamps_run1.raw"
-      ~diff_ignore_pattern:(Re.Pcre.re {|\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]|})
-      "debugger_timestamps_run2"
-  in
-]}
 
 leads to:
-{@include file=../test/debugger_timestamps_run2.expected.log[
 BEGIN DEBUG SESSION 
-"test/test_debug_timestamps.ml":23:33: process_message
 ├─msg = "hello"
-├─"test/test_debug_timestamps.ml":24:8: timestamp
 │ └─timestamp = "[2024-03-22 15:30:45] "
-├─"test/test_debug_timestamps.ml":25:8: processed
 │ └─processed = "[2024-03-22 15:30:45] Processing: hello"
 └─process_message = 39
 ]}
