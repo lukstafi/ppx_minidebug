@@ -222,7 +222,14 @@ module Renderer = struct
       (* Get value children (same entry_id, different seq_num) *)
       let value_children =
         List.filter (fun v -> v.Query.entry_id = entry.Query.entry_id) value_entries
-        |> List.sort (fun a b -> compare a.Query.seq_num b.Query.seq_num)
+        |> List.sort (fun a b ->
+             (* Sort so parameters (seq_num > 0) come first, then result (seq_num = -1) *)
+             match a.Query.seq_num, b.Query.seq_num with
+             | -1, -1 -> 0  (* Both results *)
+             | -1, _ -> 1   (* Result goes after parameters *)
+             | _, -1 -> -1  (* Parameters go before result *)
+             | n, m -> compare n m  (* Parameters sorted by seq_num *)
+           )
         |> List.map (fun v -> { entry = v; children = [] })
       in
 
