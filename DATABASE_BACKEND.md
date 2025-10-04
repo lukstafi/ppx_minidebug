@@ -84,20 +84,43 @@ val debug_db :
 - `value_type`: Type of value (message, location, value, result)
 - `size_bytes`: Size of value in bytes
 
-**entries** - Trace entries
+**entries** - Trace entries (composite key allows multiple values per scope)
 - `run_id`: Foreign key to runs table
-- `entry_id`: Entry identifier (unique within run)
-- `parent_id`: Parent entry ID (NULL for top-level)
-- `depth`: Nesting depth
-- `message_value_id`: Foreign key to value_atoms (function/binding name)
-- `location_value_id`: Foreign key to value_atoms (source location)
-- `data_value_id`: Foreign key to value_atoms (logged value)
+- `entry_id`: Entry identifier (unique within run for scopes)
+- `seq_num`: Sequence number discriminating row type:
+  - `0` = scope entry (function/let binding created by `open_log`)
+  - `1, 2, 3...` = parameter values (created by `log_value_*`)
+  - `-1` = result value (created by `log_value_*` with `is_result=true`)
+- `parent_id`: Parent entry ID (NULL for top-level, self for values)
+- `depth`: Nesting depth (scope depth + 1 for values)
+- `message_value_id`: Foreign key to value_atoms (function name or parameter name)
+- `location_value_id`: Foreign key to value_atoms (source location, only for seq_num=0)
+- `data_value_id`: Foreign key to value_atoms (logged value, only for seq_num!=0)
 - `structure_value_id`: Foreign key to value_atoms (sexp structure, future use)
 - `elapsed_start_ns`: Entry start time in nanoseconds
-- `elapsed_end_ns`: Entry end time in nanoseconds (NULL if not closed)
+- `elapsed_end_ns`: Entry end time in nanoseconds (NULL until close_log, only for seq_num=0)
 - `is_result`: Boolean indicating if this is a result value
 - `log_level`: Log level of the entry
-- `entry_type`: Entry type (diagn, debug, track)
+- `entry_type`: Entry type (diagn, debug, track for scopes; "value" for logged values)
+
+**Primary Key:** `(run_id, entry_id, seq_num)` allows multiple rows per logical entry.
+
+**Example:** For `let%debug_sexp foo (x : int) (y : int) : int list = [x; y; 2*y]` called as `foo 7 8`:
+
+| run_id | entry_id | seq_num | message | location | data | is_result |
+|--------|----------|---------|---------|----------|------|-----------|
+| 1 | 42 | 0 | "foo" | "test.ml:10:15" | NULL | false |
+| 1 | 42 | 1 | "x" | NULL | "7" | false |
+| 1 | 42 | 2 | "y" | NULL | "8" | false |
+| 1 | 42 | -1 | "" | NULL | "(7 8 16)" | true |
+
+Rendered as:
+```
+[debug] foo @ test.ml:10:15
+  x = 7
+  y = 8
+  => (7 8 16)
+```
 
 **schema_version** - Schema version tracking
 - `version`: Current schema version

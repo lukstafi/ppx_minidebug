@@ -135,8 +135,9 @@ CREATE INDEX idx_value_type ON value_atoms(value_type);
 
 -- Main trace entries (references values via IDs)
 CREATE TABLE entries (
-  entry_id INTEGER NOT NULL,
   run_id INTEGER NOT NULL,
+  entry_id INTEGER NOT NULL,
+  seq_num INTEGER NOT NULL DEFAULT 0,  -- Discriminates scope vs value rows
   parent_id INTEGER,             -- NULL for top-level entries
   depth INTEGER NOT NULL,
 
@@ -150,19 +151,48 @@ CREATE TABLE entries (
 
   -- Timing
   elapsed_start_ns INTEGER NOT NULL,
-  elapsed_end_ns INTEGER,        -- NULL until close_log
+  elapsed_end_ns INTEGER,        -- NULL until close_log (only for seq_num=0)
 
   -- Metadata
   is_result BOOLEAN DEFAULT FALSE,
   track_or_explicit TEXT,        -- 'Diagn', 'Debug', 'Track'
 
-  PRIMARY KEY (run_id, entry_id),
-  FOREIGN KEY (run_id, parent_id) REFERENCES entries(run_id, entry_id)
+  PRIMARY KEY (run_id, entry_id, seq_num),
+  FOREIGN KEY (run_id) REFERENCES runs(run_id)
 );
 CREATE INDEX idx_parent ON entries(run_id, parent_id);
 CREATE INDEX idx_depth ON entries(run_id, depth);
 CREATE INDEX idx_message ON entries(message_value_id);
 ```
+
+**Key Design: `seq_num` Discriminates Row Types**
+
+The composite primary key `(run_id, entry_id, seq_num)` allows multiple rows per logical entry:
+
+- **`seq_num = 0`**: Scope entry (function call, let binding) created by `open_log`
+  - Contains: message (function name), location, timing (start/end)
+  - Represents non-leaf tree nodes
+
+- **`seq_num > 0`**: Parameter/intermediate values created by `log_value_*`
+  - Contains: message (parameter name like "x"), data (parameter value)
+  - `seq_num` increments: 1, 2, 3... for multiple parameters
+  - Represents leaf tree nodes
+
+- **`seq_num = -1`**: Result value created by `log_value_*` with `is_result=true`
+  - Contains: data (function return value)
+  - Represents the final result leaf node
+
+Example for `let%debug_sexp foo (x : int) (y : int) : int list`:
+```
+(run_id=1, entry_id=42, seq_num=0)  → scope: "foo" @ location
+(run_id=1, entry_id=42, seq_num=1)  → param: "x" = 7
+(run_id=1, entry_id=42, seq_num=2)  → param: "y" = 8
+(run_id=1, entry_id=42, seq_num=-1) → result: => (7 8 16)
+```
+
+This matches the original design philosophy:
+- **Entries** = non-leaf tree nodes (scopes/spans opened by `open_log`)
+- **Values** = leaf nodes (parameters/results logged by `log_value_*`)
 
 #### Cross-Run Diff Tables
 
