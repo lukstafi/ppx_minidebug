@@ -1,7 +1,7 @@
 Run #1
-Timestamp: 2025-10-04 12:35:13.739646 +02:00
+Timestamp: 2025-10-04 12:54:30.497842 +02:00
 Command: ./test_debug_interrupts.exe
-Elapsed: 3.98ms
+Elapsed: 4.22ms
 
 [debug] loop_exceeded : int @ test/test_debug_interrupts.ml:9:33-11:55
   (lazy <thunk>)

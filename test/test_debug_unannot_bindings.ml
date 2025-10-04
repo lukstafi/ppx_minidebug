@@ -1,5 +1,6 @@
 let _get_local_debug_runtime =
-  Minidebug_runtime.local_runtime_flushing "debugger_unannot_bindings"
+  let rt = Minidebug_db.debug_db_file "debugger_unannot_bindings" in
+  fun () -> rt
 
 let%debug_show _result =
   let a = 1 in

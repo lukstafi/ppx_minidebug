@@ -186,7 +186,7 @@
 (executable
  (name test_debug_unannot_bindings)
  (modules test_debug_unannot_bindings)
- (libraries minidebug_runtime)
+ (libraries minidebug_db)
  (modes exe)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
@@ -216,14 +216,6 @@
 (executable
  (name test_debug_log_nothing)
  (modules test_debug_log_nothing)
- (libraries minidebug_runtime)
- (modes exe)
- (preprocess
-  (pps ppx_minidebug ppx_deriving.show)))
-
-(test
- (name test_debug_generate_nothing)
- (modules test_debug_generate_nothing)
  (libraries minidebug_runtime)
  (modes exe)
  (preprocess
