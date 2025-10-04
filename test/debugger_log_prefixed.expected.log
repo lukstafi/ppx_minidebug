@@ -1,0 +1,68 @@
+Run #1
+Timestamp: 2025-10-04 13:55:00.222272 +02:00
+Command: ./test_debug_log_prefixed.exe
+Elapsed: 5.13ms
+
+[diagn] loop_exceeded @ test/test_debug_log_prefixed.ml:8:33-14:55
+  (lazy <thunk>)
+  [diagn] loop_exceeded @ test/test_debug_log_prefixed.ml:8:33-14:55
+    (lazy <thunk>)
+    [diagn] loop_exceeded @ test/test_debug_log_prefixed.ml:8:33-14:55
+      (lazy <thunk>)
+      [diagn] loop_exceeded @ test/test_debug_log_prefixed.ml:8:33-14:55
+        (lazy <thunk>)
+        [diagn] loop_exceeded @ test/test_debug_log_prefixed.ml:8:33-14:55
+          (lazy <thunk>)
+          [diagn] loop_exceeded @ test/test_debug_log_prefixed.ml:8:33-14:55
+            (lazy <thunk>)
+            [diagn] loop_exceeded @ test/test_debug_log_prefixed.ml:8:33-14:55
+              (lazy <thunk>)
+              [diagn] loop_exceeded @ test/test_debug_log_prefixed.ml:8:33-14:55
+                (lazy <thunk>)
+[track] bar @ test/test_debug_log_prefixed.ml:21:19-26:6
+  => (lazy <thunk>)
+  [track] for:test_debug_log_prefixed:22 @ test/test_debug_log_prefixed.ml:22:2-26:6
+    [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
+      (lazy <thunk>)
+      [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
+        => (lazy <thunk>)
+    [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
+      (lazy <thunk>)
+      [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
+        => (lazy <thunk>)
+    [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
+      (lazy <thunk>)
+      [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
+        => (lazy <thunk>)
+    [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
+      (lazy <thunk>)
+      [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
+        => (lazy <thunk>)
+    [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
+      (lazy <thunk>)
+      [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
+        => (lazy <thunk>)
+    [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
+      (lazy <thunk>)
+      [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
+        => (lazy <thunk>)
+    [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
+      (lazy <thunk>)
+      [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
+        => (lazy <thunk>)
+    [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
+      (lazy <thunk>)
+      [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
+        => (lazy <thunk>)
+    [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
+      (lazy <thunk>)
+      [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
+        => (lazy <thunk>)
+    [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
+      (lazy <thunk>)
+      [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
+        => (lazy <thunk>)
+    [track] <for i> @ test/test_debug_log_prefixed.ml:22:6-22:7
+      (lazy <thunk>)
+      [track] _baz @ test/test_debug_log_prefixed.ml:23:8-23:12
+        => (lazy <thunk>)

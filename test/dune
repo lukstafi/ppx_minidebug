@@ -232,10 +232,24 @@
 (executable
  (name test_debug_log_prefixed)
  (modules test_debug_log_prefixed)
- (libraries minidebug_runtime)
+ (libraries minidebug_db)
  (modes exe)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
+
+(rule
+ (targets debugger_log_prefixed.db debugger_log_prefixed.log)
+ (deps ../bin/minidebug_view.exe)
+ (action
+  (progn
+   (run %{dep:test_debug_log_prefixed.exe})
+   (with-stdout-to debugger_log_prefixed.log
+    (run %{dep:../bin/minidebug_view.exe} debugger_log_prefixed.db show)))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_log_prefixed.expected.log debugger_log_prefixed.log)))
 
 
 

@@ -1,6 +1,7 @@
 (* $MDX part-begin=global_debug_log_level *)
 let _get_local_debug_runtime =
-  Minidebug_runtime.local_runtime_flushing "debugger_show_log_prefixed"
+  let rt = Minidebug_db.debug_db_file "debugger_log_prefixed" in
+  fun () -> rt
 
 [%%global_debug_log_level 2]
 
