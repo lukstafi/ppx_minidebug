@@ -346,7 +346,7 @@
 (test
  (name test_path_filter)
  (modules test_path_filter)
- (libraries sexplib0 minidebug_runtime re)
+ (libraries sexplib0 minidebug_db re)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
 
