@@ -1,60 +1,60 @@
 Run #1
-Timestamp: 2025-10-04 12:54:30.497842 +02:00
+Timestamp: 2025-10-04 17:12:30.400725 +02:00
 Command: ./test_debug_interrupts.exe
-Elapsed: 4.22ms
+Elapsed: 7.89ms
 
 [debug] loop_exceeded : int @ test/test_debug_interrupts.ml:9:33-11:55
-  (lazy <thunk>)
+  17
   [debug] z @ test/test_debug_interrupts.ml:10:6-10:7
-    => (lazy <thunk>)
+    => 8
   [debug] loop_exceeded : int @ test/test_debug_interrupts.ml:9:33-11:55
-    (lazy <thunk>)
+    16
     [debug] z @ test/test_debug_interrupts.ml:10:6-10:7
-      => (lazy <thunk>)
+      => 7
     [debug] loop_exceeded : int @ test/test_debug_interrupts.ml:9:33-11:55
-      (lazy <thunk>)
+      15
       [debug] z @ test/test_debug_interrupts.ml:10:6-10:7
-        => (lazy <thunk>)
+        => 7
       [debug] loop_exceeded : int @ test/test_debug_interrupts.ml:9:33-11:55
-        (lazy <thunk>)
+        14
         [debug] z @ test/test_debug_interrupts.ml:10:6-10:7
-          => (lazy <thunk>)
+          => 6
         [debug] loop_exceeded : int @ test/test_debug_interrupts.ml:9:33-11:55
-          (lazy <thunk>)
+          13
           [debug] z @ test/test_debug_interrupts.ml:10:6-10:7
             <max_nesting_depth exceeded>
 [track] bar : unit @ test/test_debug_interrupts.ml:18:19-22:6
   [track] for:test_debug_interrupts:19 @ test/test_debug_interrupts.ml:19:2-22:6
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
-        => (lazy <thunk>)
+        => 0
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
-        => (lazy <thunk>)
+        => 2
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
-        => (lazy <thunk>)
+        => 4
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
-        => (lazy <thunk>)
+        => 6
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
-        => (lazy <thunk>)
+        => 8
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
-        => (lazy <thunk>)
+        => 10
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
-        => (lazy <thunk>)
+        => 12
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
-        => (lazy <thunk>)
+        => 14
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
-        => (lazy <thunk>)
+        => 16
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
-        => (lazy <thunk>)
+        => 18
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
       [track] _baz @ test/test_debug_interrupts.ml:20:8-20:12
-        => (lazy <thunk>)
+        => 20

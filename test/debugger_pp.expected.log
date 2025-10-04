@@ -1,7 +1,7 @@
 Run #1
-Timestamp: 2025-10-04 12:54:30.357603 +02:00
+Timestamp: 2025-10-04 17:12:30.681927 +02:00
 Command: ./test_debug_pp.exe
-Elapsed: 3.71ms
+Elapsed: 4.10ms
 
 [debug] bar @ test/test_debug_pp.ml:8:17-10:14
   => 336

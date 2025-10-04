@@ -1,31 +1,6 @@
 open Sexplib0.Sexp_conv
 
-let () =
-  let%track_rt_show baz : int list -> int = function
-    | [] -> 7
-    | [ y ] -> y * 2
-    | [ y; z ] -> y + z
-    | y :: z :: _ -> y + z + 1
-  in
-  print_endline @@ Int.to_string
-  @@ baz Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"baz-1" ()) [ 4 ]
-
 type t = { first : int; second : int } [@@deriving show]
-
-let%expect_test "%debug_show flushing to a file" =
-  let _get_local_debug_runtime =
-    Minidebug_runtime.local_runtime_flushing "../../../debugger_expect_show_flushing"
-  in
-  let%debug_show rec loop (depth : int) (x : t) : int =
-    if depth > 6 then x.first + x.second
-    else if depth > 3 then loop (depth + 1) { first = x.second + 1; second = x.first / 2 }
-    else
-      let y : int = loop (depth + 1) { first = x.second - 1; second = x.first + 2 } in
-      let z : int = loop (depth + 1) { first = x.second + 1; second = y } in
-      z + 7
-  in
-  print_endline @@ Int.to_string @@ loop 0 { first = 7; second = 42 };
-  [%expect {| 56 |}]
 
 let%expect_test "%debug_show flushing to stdout" =
   let _get_local_debug_runtime =

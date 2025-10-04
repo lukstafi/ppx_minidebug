@@ -337,34 +337,31 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
 
   let log_value_sexp ?descr ~entry_id ~log_level ~is_result v =
     if not (check_log_level log_level) then ()
-    else if Lazy.is_val v && Lazy.force v = Sexplib0.Sexp.List [] then ()
-    else if Lazy.is_val v then
-      let content = Sexplib0.Sexp.to_string_mach (Lazy.force v) in
-      log_value_common ~descr ~entry_id ~log_level ~is_result content
     else
-      let content = "(lazy <thunk>)" in
-      log_value_common ~descr ~entry_id ~log_level ~is_result content
+      (* Force the lazy value to get actual content *)
+      let sexp = Lazy.force v in
+      if sexp = Sexplib0.Sexp.List [] then ()
+      else
+        let content = Sexplib0.Sexp.to_string_mach sexp in
+        log_value_common ~descr ~entry_id ~log_level ~is_result content
 
   let log_value_pp ?descr ~entry_id ~log_level ~pp ~is_result v =
     if not (check_log_level log_level) then ()
-    else if Lazy.is_val v then
+    else
+      (* Force the lazy value to get actual content *)
+      let value = Lazy.force v in
       let buf = Buffer.create 512 in
       let formatter = CFormat.formatter_of_buffer buf in
-      pp formatter (Lazy.force v);
+      pp formatter value;
       CFormat.pp_print_flush formatter ();
       let content = Buffer.contents buf in
-      log_value_common ~descr ~entry_id ~log_level ~is_result content
-    else
-      let content = "(lazy <thunk>)" in
       log_value_common ~descr ~entry_id ~log_level ~is_result content
 
   let log_value_show ?descr ~entry_id ~log_level ~is_result v =
     if not (check_log_level log_level) then ()
-    else if Lazy.is_val v then
-      let content = Lazy.force v in
-      log_value_common ~descr ~entry_id ~log_level ~is_result content
     else
-      let content = "(lazy <thunk>)" in
+      (* Force the lazy value to get actual content *)
+      let content = Lazy.force v in
       log_value_common ~descr ~entry_id ~log_level ~is_result content
 
   let log_value_printbox ~entry_id ~log_level v =

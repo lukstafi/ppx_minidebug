@@ -1,245 +1,245 @@
 Run #1
-Timestamp: 2025-10-04 12:54:31.082973 +02:00
+Timestamp: 2025-10-04 17:12:31.395998 +02:00
 Command: ./test_debug_show.exe
-Elapsed: 4.48ms
+Elapsed: 4.05ms
 
 [debug] foo @ test/test_debug_show.ml:5:19-7:17
-  => (lazy <thunk>)
+  => [7; 8; 16]
   [debug] y @ test/test_debug_show.ml:6:6-6:7
-    => (lazy <thunk>)
+    => 8
 [debug] bar @ test/test_debug_show.ml:13:19-15:14
-  => (lazy <thunk>)
+  => 336
   [debug] y @ test/test_debug_show.ml:14:6-14:7
-    => (lazy <thunk>)
+    => 8
 [debug] baz @ test/test_debug_show.ml:19:19-21:20
-  => (lazy <thunk>)
+  => 339
   [debug] _yz @ test/test_debug_show.ml:20:17-20:20
-    => (lazy <thunk>)
+    => (8, 3)
 [debug] loop @ test/test_debug_show.ml:25:24-31:9
-  => (lazy <thunk>)
+  => 56
   [debug] y @ test/test_debug_show.ml:29:8-29:9
-    => (lazy <thunk>)
+    => 42
     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-      => (lazy <thunk>)
+      => 42
       [debug] y @ test/test_debug_show.ml:29:8-29:9
-        => (lazy <thunk>)
+        => 36
         [debug] loop @ test/test_debug_show.ml:25:24-31:9
-          => (lazy <thunk>)
+          => 36
           [debug] y @ test/test_debug_show.ml:29:8-29:9
-            => (lazy <thunk>)
+            => 24
             [debug] loop @ test/test_debug_show.ml:25:24-31:9
-              => (lazy <thunk>)
+              => 24
               [debug] y @ test/test_debug_show.ml:29:8-29:9
-                => (lazy <thunk>)
+                => 25
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                  => (lazy <thunk>)
+                  => 25
                   [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                    => (lazy <thunk>)
+                    => 25
                     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                      => (lazy <thunk>)
+                      => 25
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                        => (lazy <thunk>)
+                        => 25
               [debug] z @ test/test_debug_show.ml:30:8-30:9
-                => (lazy <thunk>)
+                => 17
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                  => (lazy <thunk>)
+                  => 17
                   [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                    => (lazy <thunk>)
+                    => 17
                     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                      => (lazy <thunk>)
+                      => 17
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                        => (lazy <thunk>)
+                        => 17
           [debug] z @ test/test_debug_show.ml:30:8-30:9
-            => (lazy <thunk>)
+            => 29
             [debug] loop @ test/test_debug_show.ml:25:24-31:9
-              => (lazy <thunk>)
+              => 29
               [debug] y @ test/test_debug_show.ml:29:8-29:9
-                => (lazy <thunk>)
+                => 30
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                  => (lazy <thunk>)
+                  => 30
                   [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                    => (lazy <thunk>)
+                    => 30
                     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                      => (lazy <thunk>)
+                      => 30
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                        => (lazy <thunk>)
+                        => 30
               [debug] z @ test/test_debug_show.ml:30:8-30:9
-                => (lazy <thunk>)
+                => 22
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                  => (lazy <thunk>)
+                  => 22
                   [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                    => (lazy <thunk>)
+                    => 22
                     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                      => (lazy <thunk>)
+                      => 22
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                        => (lazy <thunk>)
+                        => 22
       [debug] z @ test/test_debug_show.ml:30:8-30:9
-        => (lazy <thunk>)
+        => 35
         [debug] loop @ test/test_debug_show.ml:25:24-31:9
-          => (lazy <thunk>)
+          => 35
           [debug] y @ test/test_debug_show.ml:29:8-29:9
-            => (lazy <thunk>)
+            => 23
             [debug] loop @ test/test_debug_show.ml:25:24-31:9
-              => (lazy <thunk>)
+              => 23
               [debug] y @ test/test_debug_show.ml:29:8-29:9
-                => (lazy <thunk>)
+                => 23
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                  => (lazy <thunk>)
+                  => 23
                   [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                    => (lazy <thunk>)
+                    => 23
                     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                      => (lazy <thunk>)
+                      => 23
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                        => (lazy <thunk>)
+                        => 23
               [debug] z @ test/test_debug_show.ml:30:8-30:9
-                => (lazy <thunk>)
+                => 16
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                  => (lazy <thunk>)
+                  => 16
                   [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                    => (lazy <thunk>)
+                    => 16
                     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                      => (lazy <thunk>)
+                      => 16
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                        => (lazy <thunk>)
+                        => 16
           [debug] z @ test/test_debug_show.ml:30:8-30:9
-            => (lazy <thunk>)
+            => 28
             [debug] loop @ test/test_debug_show.ml:25:24-31:9
-              => (lazy <thunk>)
+              => 28
               [debug] y @ test/test_debug_show.ml:29:8-29:9
-                => (lazy <thunk>)
+                => 27
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                  => (lazy <thunk>)
+                  => 27
                   [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                    => (lazy <thunk>)
+                    => 27
                     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                      => (lazy <thunk>)
+                      => 27
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                        => (lazy <thunk>)
+                        => 27
               [debug] z @ test/test_debug_show.ml:30:8-30:9
-                => (lazy <thunk>)
+                => 21
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                  => (lazy <thunk>)
+                  => 21
                   [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                    => (lazy <thunk>)
+                    => 21
                     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                      => (lazy <thunk>)
+                      => 21
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                        => (lazy <thunk>)
+                        => 21
   [debug] z @ test/test_debug_show.ml:30:8-30:9
-    => (lazy <thunk>)
+    => 49
     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-      => (lazy <thunk>)
+      => 49
       [debug] y @ test/test_debug_show.ml:29:8-29:9
-        => (lazy <thunk>)
+        => 42
         [debug] loop @ test/test_debug_show.ml:25:24-31:9
-          => (lazy <thunk>)
+          => 42
           [debug] y @ test/test_debug_show.ml:29:8-29:9
-            => (lazy <thunk>)
+            => 37
             [debug] loop @ test/test_debug_show.ml:25:24-31:9
-              => (lazy <thunk>)
+              => 37
               [debug] y @ test/test_debug_show.ml:29:8-29:9
-                => (lazy <thunk>)
+                => 35
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                  => (lazy <thunk>)
+                  => 35
                   [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                    => (lazy <thunk>)
+                    => 35
                     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                      => (lazy <thunk>)
+                      => 35
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                        => (lazy <thunk>)
+                        => 35
               [debug] z @ test/test_debug_show.ml:30:8-30:9
-                => (lazy <thunk>)
+                => 30
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                  => (lazy <thunk>)
+                  => 30
                   [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                    => (lazy <thunk>)
+                    => 30
                     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                      => (lazy <thunk>)
+                      => 30
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                        => (lazy <thunk>)
+                        => 30
           [debug] z @ test/test_debug_show.ml:30:8-30:9
-            => (lazy <thunk>)
+            => 35
             [debug] loop @ test/test_debug_show.ml:25:24-31:9
-              => (lazy <thunk>)
+              => 35
               [debug] y @ test/test_debug_show.ml:29:8-29:9
-                => (lazy <thunk>)
+                => 34
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                  => (lazy <thunk>)
+                  => 34
                   [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                    => (lazy <thunk>)
+                    => 34
                     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                      => (lazy <thunk>)
+                      => 34
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                        => (lazy <thunk>)
+                        => 34
               [debug] z @ test/test_debug_show.ml:30:8-30:9
-                => (lazy <thunk>)
+                => 28
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                  => (lazy <thunk>)
+                  => 28
                   [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                    => (lazy <thunk>)
+                    => 28
                     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                      => (lazy <thunk>)
+                      => 28
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                        => (lazy <thunk>)
+                        => 28
       [debug] z @ test/test_debug_show.ml:30:8-30:9
-        => (lazy <thunk>)
+        => 42
         [debug] loop @ test/test_debug_show.ml:25:24-31:9
-          => (lazy <thunk>)
+          => 42
           [debug] y @ test/test_debug_show.ml:29:8-29:9
-            => (lazy <thunk>)
+            => 37
             [debug] loop @ test/test_debug_show.ml:25:24-31:9
-              => (lazy <thunk>)
+              => 37
               [debug] y @ test/test_debug_show.ml:29:8-29:9
-                => (lazy <thunk>)
+                => 34
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                  => (lazy <thunk>)
+                  => 34
                   [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                    => (lazy <thunk>)
+                    => 34
                     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                      => (lazy <thunk>)
+                      => 34
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                        => (lazy <thunk>)
+                        => 34
               [debug] z @ test/test_debug_show.ml:30:8-30:9
-                => (lazy <thunk>)
+                => 30
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                  => (lazy <thunk>)
+                  => 30
                   [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                    => (lazy <thunk>)
+                    => 30
                     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                      => (lazy <thunk>)
+                      => 30
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                        => (lazy <thunk>)
+                        => 30
           [debug] z @ test/test_debug_show.ml:30:8-30:9
-            => (lazy <thunk>)
+            => 35
             [debug] loop @ test/test_debug_show.ml:25:24-31:9
-              => (lazy <thunk>)
+              => 35
               [debug] y @ test/test_debug_show.ml:29:8-29:9
-                => (lazy <thunk>)
+                => 33
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                  => (lazy <thunk>)
+                  => 33
                   [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                    => (lazy <thunk>)
+                    => 33
                     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                      => (lazy <thunk>)
+                      => 33
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                        => (lazy <thunk>)
+                        => 33
               [debug] z @ test/test_debug_show.ml:30:8-30:9
-                => (lazy <thunk>)
+                => 28
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                  => (lazy <thunk>)
+                  => 28
                   [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                    => (lazy <thunk>)
+                    => 28
                     [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                      => (lazy <thunk>)
+                      => 28
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
-                        => (lazy <thunk>)
+                        => 28
 [debug] simple_thunk @ test/test_debug_show.ml:38:28-38:83
-  => (lazy <thunk>)
+  => ()
 [debug] nested_fun @ test/test_debug_show.ml:43:26-43:75
-  => (lazy <thunk>)
+  => ()
 [debug] cascade @ test/test_debug_show.ml:48:23-48:82
-  => (lazy <thunk>)
+  => 6
 [debug] parallel_update @ test/test_debug_show.ml:53:31-55:28
-  => (lazy <thunk>)
+  => <fun>
 [debug] complex_case @ test/test_debug_show.ml:60:28-62:29
-  => (lazy <thunk>)
+  => <fun>
