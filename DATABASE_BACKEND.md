@@ -128,15 +128,57 @@ For Fibonacci sequence:
 - Location `test.ml:10:15-12:20` → stored once for all calls from that location
 - Message `fib` → stored once for all recursive calls
 
-## Querying the Database
+## Viewing Traces
 
-### View All Runs
+### Using the minidebug_view CLI Tool
+
+ppx_minidebug 3.0.0 includes an in-process client for viewing database traces:
+
+```bash
+# Show statistics
+minidebug_view trace.db stats
+
+# Show latest trace with entry IDs and times
+minidebug_view trace.db show --entry-ids --times
+
+# Show compact view (function names only)
+minidebug_view trace.db compact
+
+# Search for entries matching pattern
+minidebug_view trace.db search "fib"
+
+# Export to markdown
+minidebug_view trace.db export output.md
+
+# Show specific run
+minidebug_view trace.db show --run=1 --max-depth=3
+```
+
+**Example output** (compact view):
+```
+fib <3.79ms>
+  a <2.46ms>
+    fib <1.64ms>
+      a <1.02ms>
+        fib <943.04μs>
+  b <888.42μs>
+    fib <810.00μs>
+calculate <471.58μs>
+  sum <133.58μs>
+  product <139.79μs>
+```
+
+### Direct SQL Queries
+
+You can also query the database directly with sqlite3:
+
+#### View All Runs
 
 ```sql
 SELECT run_id, timestamp, command_line FROM runs;
 ```
 
-### View Top-Level Entries
+#### View Top-Level Entries
 
 ```sql
 SELECT

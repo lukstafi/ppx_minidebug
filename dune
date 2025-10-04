@@ -37,6 +37,16 @@
   mtime.clock.os
   sexplib0))
 
+(library
+ (public_name ppx_minidebug.client)
+ (name minidebug_client)
+ (modules minidebug_client)
+ (libraries
+  sqlite3
+  re
+  re.pcre
+  unix))
+
 (mdx
  (files README.md)
  (libraries minidebug_runtime))

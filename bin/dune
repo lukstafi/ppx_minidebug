@@ -1,0 +1,5 @@
+(executable
+ (public_name minidebug_view)
+ (name minidebug_view)
+ (modules minidebug_view)
+ (libraries minidebug_client))
