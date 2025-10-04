@@ -635,7 +635,7 @@ let%debug_sexp _test_at_log_level_3 : unit = test_at_log_level 3</code></pre><p>
     fun () -&gt; rt
   in
   let%debug_show compute_value (x : int) : int =
-    let y = x + 10 in
+    let y : int = x + 10 in
     y * 2
   in
   Printf.printf &quot;=== Test 1: Whitelist by file (logs from test_path_filter.ml) ===\n%!&quot;;
@@ -651,7 +651,7 @@ let%debug_sexp _test_at_log_level_3 : unit = test_at_log_level 3</code></pre><p>
     fun () -&gt; rt
   in
   let%debug_show compute_sum (x : int) : int =
-    let y = x + 10 in
+    let y : int = x + 10 in
     y * 2
   in
   let%debug_show helper_function (x : int) : int = x + 1 in
@@ -662,6 +662,8 @@ Result: 30
 [debug] compute_value @ test/test_path_filter.ml:14:31-16:9
   x = 5
   =&gt; 30
+  [debug] y @ test/test_path_filter.ml:15:8-15:9
+    =&gt; 15
 
 === Test 2: Whitelist by function (only compute_* functions) ===
 Results: 30, 6
@@ -673,7 +675,12 @@ Results: 30, 6
 Result: 30
 
 === Test 4: No filter (shows all logs) ===
-Result: 30</code></pre><p>This is useful for focusing on specific parts of your codebase during debugging, or for excluding noisy test utilities from production debug logs.</p><h4 id="dynamic-subtree-filtering"><a href="#dynamic-subtree-filtering" class="anchor"></a>Dynamic subtree filtering</h4><p>In the PrintBox backend, you can disable the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space. The test suite example:</p><pre class="language-ocaml"><code>  let%debug_show rec loop_changes (x : int) : int =
+Result: 30
+[debug] compute_nofilter @ test/test_path_filter.ml:71:34-73:9
+  x = 5
+  =&gt; 30
+  [debug] y @ test/test_path_filter.ml:72:8-72:9
+    =&gt; 15</code></pre><p>This is useful for focusing on specific parts of your codebase during debugging, or for excluding noisy test utilities from production debug logs.</p><h4 id="dynamic-subtree-filtering"><a href="#dynamic-subtree-filtering" class="anchor"></a>Dynamic subtree filtering</h4><p>In the PrintBox backend, you can disable the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space. The test suite example:</p><pre class="language-ocaml"><code>  let%debug_show rec loop_changes (x : int) : int =
     let z : int = (x - 1) / 2 in
     (* The call [x = 2] is not printed because it is a descendant of the no-debug call [x
        = 4]. *)
