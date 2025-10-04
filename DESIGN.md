@@ -839,27 +839,11 @@ class StateManager {
 - Phase 2 & 3 complete
 - `PrevRun` module adapted for database queries
 
-## Migration Path for Existing Code
+## No Backward Compatibility Planned: 2.x Branch for Old Behavior
 
-**Backward Compatibility:**
-
-The new `DatabaseBackend` will be added **alongside** existing `Flushing` and `PrintBox` backends. Users can opt-in gradually:
-
-```ocaml
-(* Old style - still works *)
-let _get_local_debug_runtime =
-  Minidebug_runtime.local_runtime "mylog"
-
-(* New style - database tracing *)
-let _get_local_debug_runtime =
-  Minidebug_runtime.database_runtime "trace.db"
-```
-
-**Coexistence Strategy:**
-
-1. Keep `Flushing` and `PrintBox` modules for users who want static artifacts
-2. Add `DatabaseBackend` as third option
-3. Eventually deprecate static backends (after GUI client matures)
+For users preferring static backends and / or mature functionality,
+we maintain a 2.x versions branch for bug fixes and potentially backporting
+new features.
 
 ## Open Questions / Future Work
 
@@ -883,8 +867,9 @@ let _get_local_debug_runtime =
    - May need to tune PRAGMA settings (journal_mode, synchronous, etc.)
 
 5. **Schema evolution:** How to handle DB schema changes across versions?
-   - Use migrations (e.g., with `ppx_rapper` or manual SQL scripts)
    - Store schema version in DB metadata table
+   - There is no need to worry because it is very unlikely for debugging logs
+     to be retained over a long term or not reproducible with a new version.
 
 ## References
 
