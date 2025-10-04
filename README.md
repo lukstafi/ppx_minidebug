@@ -405,8 +405,11 @@ The `%debug_interrupts` extension point emits the interrupt checks in a lexicall
 
 <!-- $MDX file=test/test_debug_interrupts.ml,part=global_debug_interrupts -->
 ```ocaml
-module Debug_runtime =
-  (val Minidebug_runtime.debug_flushing ~filename:"debugger_show_interrupts" ())
+let _get_local_debug_runtime =
+  let rt = Minidebug_db.debug_db_file "debugger_interrupts" in
+  fun () -> rt
+
+module Debug_runtime = (val _get_local_debug_runtime ())
 
 [%%global_debug_interrupts { max_nesting_depth = 5; max_num_children = 10 }]
 [%%global_debug_type_info true]
