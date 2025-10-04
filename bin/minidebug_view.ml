@@ -18,6 +18,7 @@ OPTIONS:
   --entry-ids             Show entry IDs in output
   --times                 Show elapsed times
   --max-depth=<n>         Limit tree depth
+  --values-first          Show result values as headers (values-first mode)
   --help                  Show this help message
 
 EXAMPLES:
@@ -48,6 +49,7 @@ type options = {
   show_times : bool;
   max_depth : int option;
   run_id : int option;
+  values_first_mode : bool;
 }
 
 let parse_args () =
@@ -63,6 +65,7 @@ let parse_args () =
         show_times = false;
         max_depth = None;
         run_id = None;
+        values_first_mode = false;
       } in
 
       let rec parse_rest = function
@@ -110,6 +113,9 @@ let parse_args () =
                 parse_rest rest
             | ["--times"] ->
                 opts := { !opts with show_times = true };
+                parse_rest rest
+            | ["--values-first"] ->
+                opts := { !opts with values_first_mode = true };
                 parse_rest rest
             | _ ->
                 Printf.eprintf "Unknown option: %s\n" opt;
@@ -167,6 +173,7 @@ let () =
           ~show_entry_ids:opts.show_entry_ids
           ~show_times:opts.show_times
           ~max_depth:opts.max_depth
+          ~values_first_mode:opts.values_first_mode
           run_id
 
     | Compact run_id_opt ->

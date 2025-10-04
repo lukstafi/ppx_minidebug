@@ -249,7 +249,7 @@ module Renderer = struct
     | None -> None
 
   (** Render tree to string with indentation *)
-  let render_tree ?(show_entry_ids=false) ?(show_times=false) ?(max_depth=None) trees =
+  let render_tree ?(show_entry_ids=false) ?(show_times=false) ?(max_depth=None) ?(values_first_mode=false) trees =
     let buf = Buffer.create 1024 in
 
     let rec render_node ~indent ~depth node =
@@ -267,39 +267,77 @@ module Renderer = struct
         if show_entry_ids then
           Buffer.add_string buf (Printf.sprintf "{#%d} " entry.entry_id);
 
-        (* Message and type *)
-        Buffer.add_string buf (Printf.sprintf "[%s] %s"
-          entry.entry_type entry.message);
-
-        (* Location *)
-        (match entry.location with
-        | Some loc -> Buffer.add_string buf (Printf.sprintf " @ %s" loc)
-        | None -> ());
-
-        (* Elapsed time *)
-        if show_times then
-          (match elapsed_time entry with
-          | Some elapsed -> Buffer.add_string buf (Printf.sprintf " <%s>" (format_elapsed_ns elapsed))
-          | None -> ());
-
-        Buffer.add_string buf "\n";
-
-        (* Data (if present) *)
-        (match entry.data with
-        | Some data when not entry.is_result ->
-            Buffer.add_string buf (indent ^ "  ");
-            Buffer.add_string buf data;
-            Buffer.add_string buf "\n"
-        | _ -> ());
-
-        (* Result (if present) *)
-        if entry.is_result then
+        if values_first_mode && entry.is_result then begin
+          (* In values_first_mode, result becomes the header *)
           (match entry.data with
           | Some data ->
-              Buffer.add_string buf (indent ^ "  => ");
+              Buffer.add_string buf data;
+              (* Elapsed time after result value *)
+              if show_times then
+                (match elapsed_time entry with
+                | Some elapsed -> Buffer.add_string buf (Printf.sprintf " <%s>" (format_elapsed_ns elapsed))
+                | None -> ());
+              Buffer.add_string buf "\n";
+
+              (* Location becomes a child item *)
+              (match entry.location with
+              | Some loc ->
+                  Buffer.add_string buf (indent ^ "  ");
+                  Buffer.add_string buf (Printf.sprintf "@ %s" loc);
+                  Buffer.add_string buf "\n"
+              | None -> ());
+
+              (* Message as child item *)
+              Buffer.add_string buf (indent ^ "  ");
+              Buffer.add_string buf (Printf.sprintf "[%s] %s" entry.entry_type entry.message);
+              Buffer.add_string buf "\n"
+          | None ->
+              (* No result data, fall back to normal rendering *)
+              Buffer.add_string buf (Printf.sprintf "[%s] %s" entry.entry_type entry.message);
+              (match entry.location with
+              | Some loc -> Buffer.add_string buf (Printf.sprintf " @ %s" loc)
+              | None -> ());
+              if show_times then
+                (match elapsed_time entry with
+                | Some elapsed -> Buffer.add_string buf (Printf.sprintf " <%s>" (format_elapsed_ns elapsed))
+                | None -> ());
+              Buffer.add_string buf "\n");
+        end else begin
+          (* Normal rendering mode *)
+          (* Message and type *)
+          Buffer.add_string buf (Printf.sprintf "[%s] %s"
+            entry.entry_type entry.message);
+
+          (* Location *)
+          (match entry.location with
+          | Some loc -> Buffer.add_string buf (Printf.sprintf " @ %s" loc)
+          | None -> ());
+
+          (* Elapsed time *)
+          if show_times then
+            (match elapsed_time entry with
+            | Some elapsed -> Buffer.add_string buf (Printf.sprintf " <%s>" (format_elapsed_ns elapsed))
+            | None -> ());
+
+          Buffer.add_string buf "\n";
+
+          (* Data (if present) *)
+          (match entry.data with
+          | Some data when not entry.is_result ->
+              Buffer.add_string buf (indent ^ "  ");
               Buffer.add_string buf data;
               Buffer.add_string buf "\n"
-          | None -> ());
+          | _ -> ());
+
+          (* Result (if present) *)
+          if entry.is_result then
+            (match entry.data with
+            | Some data ->
+                Buffer.add_string buf (indent ^ "  => ");
+                Buffer.add_string buf data;
+                Buffer.add_string buf "\n"
+            | None -> ());
+        end;
 
         (* Children *)
         let child_indent = indent ^ "  " in
@@ -383,10 +421,10 @@ module Client = struct
     Printf.printf "Database size: %d KB\n" stats.database_size_kb
 
   (** Show trace tree for a run *)
-  let show_trace t ?(show_entry_ids=false) ?(show_times=false) ?(max_depth=None) run_id =
+  let show_trace t ?(show_entry_ids=false) ?(show_times=false) ?(max_depth=None) ?(values_first_mode=false) run_id =
     let entries = Query.get_entries t.db ~run_id () in
     let trees = Renderer.build_tree entries in
-    let output = Renderer.render_tree ~show_entry_ids ~show_times ~max_depth trees in
+    let output = Renderer.render_tree ~show_entry_ids ~show_times ~max_depth ~values_first_mode trees in
     print_string output
 
   (** Show compact trace (function names only) *)

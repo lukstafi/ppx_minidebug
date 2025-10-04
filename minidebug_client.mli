@@ -70,9 +70,11 @@ module Renderer : sig
     ?show_entry_ids:bool ->
     ?show_times:bool ->
     ?max_depth:int option ->
+    ?values_first_mode:bool ->
     tree_node list ->
     string
-  (** Render tree to string with full details *)
+  (** Render tree to string with full details. When [values_first_mode] is true,
+      result values become headers with location/message as children. *)
 
   val render_compact : tree_node list -> string
   (** Render compact summary (just function calls) *)
@@ -105,9 +107,11 @@ module Client : sig
     ?show_entry_ids:bool ->
     ?show_times:bool ->
     ?max_depth:int option ->
+    ?values_first_mode:bool ->
     int ->
     unit
-  (** Print full trace tree for a run *)
+  (** Print full trace tree for a run. When [values_first_mode] is true,
+      result values become headers with location/message as children. *)
 
   val show_compact_trace : t -> int -> unit
   (** Print compact trace (function names only) *)
