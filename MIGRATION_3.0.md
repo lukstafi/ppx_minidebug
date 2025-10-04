@@ -29,13 +29,9 @@ This guide helps you migrate from ppx_minidebug 2.4.x (static artifacts) to 3.0.
 ```ocaml
 open Sexplib0.Sexp_conv
 
-module Debug_runtime = Minidebug_runtime.PrintBox (
-  (val Minidebug_runtime.shared_config "debug.log")
-)
-
 let () = Debug_runtime.config.values_first_mode <- false
 
-let%debug_o_sexp rec fib (n : int) : int =
+let%debug_sexp rec fib (n : int) : int =
   if n <= 1 then n else fib (n - 1) + fib (n - 2)
 
 let () =
@@ -48,15 +44,11 @@ let () =
 open Sexplib0.Sexp_conv
 
 (* Setup database runtime *)
-module Debug_runtime =
-  (val Minidebug_db.debug_db_file ~print_entry_ids:true "debug")
-
-(* Required for PPX local runtime support *)
 let _get_local_debug_runtime =
   let rt = Minidebug_db.debug_db_file ~print_entry_ids:true "debug" in
   fun () -> rt
 
-let%debug_o_sexp rec fib (n : int) : int =
+let%debug_sexp rec fib (n : int) : int =
   if n <= 1 then n else fib (n - 1) + fib (n - 2)
 
 let () =

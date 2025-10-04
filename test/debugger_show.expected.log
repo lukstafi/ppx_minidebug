@@ -1,7 +1,7 @@
 Run #1
-Timestamp: 2025-10-04 12:13:07.831011 +02:00
+Timestamp: 2025-10-04 12:35:13.600332 +02:00
 Command: ./test_debug_show.exe
-Elapsed: 4.14ms
+Elapsed: 3.82ms
 
 [debug] foo @ test/test_debug_show.ml:5:19-7:17
   => (lazy <thunk>)

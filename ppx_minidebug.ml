@@ -388,9 +388,9 @@ let rec collect_fun accu = function
       match body with
       | Pfunction_body body_exp -> (
           let args, body, ret_typ = collect_fun accu body_exp in
-          (* The constraint_ on this Pexp_function node represents the return type
-             after applying all params in this node. We should only drop arrows for
-             params collected from inner nodes (i.e., args that are not in params). *)
+          (* The constraint_ on this Pexp_function node represents the return type after
+             applying all params in this node. We should only drop arrows for params
+             collected from inner nodes (i.e., args that are not in params). *)
           let inner_args =
             let num_params = List.length params in
             let num_args = List.length args in
@@ -399,7 +399,9 @@ let rec collect_fun accu = function
             else []
           in
           let alt_typ =
-            Option.map (fun typ -> snd @@ collect_fun_typs ~to_drop:inner_args [] typ) alt_typ
+            Option.map
+              (fun typ -> snd @@ collect_fun_typs ~to_drop:inner_args [] typ)
+              alt_typ
           in
           ( args,
             body,
@@ -1784,6 +1786,7 @@ let global_interrupts =
             init_context := { !init_context with interrupts = true };
             A.pstr_eval ~loc
               [%expr
+                let module Debug_runtime = (val _get_local_debug_runtime ()) in
                 Debug_runtime.max_nesting_depth := Some [%e max_nesting_depth];
                 Debug_runtime.max_num_children := Some [%e max_num_children]]
               attrs

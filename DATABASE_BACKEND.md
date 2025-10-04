@@ -18,10 +18,6 @@ The database backend (`minidebug_db.ml`) provides:
 open Sexplib0.Sexp_conv
 
 (* Setup database runtime *)
-module Debug_runtime =
-  (val Minidebug_db.debug_db_file ~print_entry_ids:true "trace")
-
-(* Required for PPX local runtime support *)
 let _get_local_debug_runtime =
   let rt = Minidebug_db.debug_db_file ~print_entry_ids:true "trace" in
   fun () -> rt

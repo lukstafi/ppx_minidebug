@@ -65,15 +65,12 @@ CREATE TABLE entries (
 open Sexplib0.Sexp_conv
 
 (* Setup once *)
-module Debug_runtime =
-  (val Minidebug_db.debug_db_file "trace")
-
 let _get_local_debug_runtime =
   let rt = Minidebug_db.debug_db_file "trace" in
   fun () -> rt
 
 (* Use anywhere *)
-let%debug_o_sexp process (data : data_type) : result_type =
+let%debug_sexp process (data : data_type) : result_type =
   (* your code here *)
 
 let () =

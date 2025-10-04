@@ -1,11 +1,8 @@
 open Sexplib0.Sexp_conv
 
-(* Database backend for testing *)
-let _get_local_debug_runtime =
-  let rt = Minidebug_db.debug_db_file "debugger_sexp" in
-  fun () -> rt
-
-module Debug_runtime = (val _get_local_debug_runtime ())
+(* Database backend for testing. This test also illustrates the alternative
+   non-thread-safe approach with an explicit module binding and the `_o_` infix. *)
+module Debug_runtime = (val Minidebug_db.debug_db_file "debugger_sexp")
 
 let%debug_o_sexp foo (x : int) : int list =
   let y : int = x + 1 in

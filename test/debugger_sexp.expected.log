@@ -1,73 +1,73 @@
 Run #1
-Timestamp: 2025-10-04 12:18:20.166210 +02:00
+Timestamp: 2025-10-04 12:35:13.900957 +02:00
 Command: ./test_debug_sexp.exe
-Elapsed: 8.21ms
+Elapsed: 3.92ms
 
-[debug] foo @ test/test_debug_sexp.ml:10:21-12:17
+[debug] foo @ test/test_debug_sexp.ml:7:21-9:17
   => (lazy <thunk>)
-  [debug] y @ test/test_debug_sexp.ml:11:6-11:7
+  [debug] y @ test/test_debug_sexp.ml:8:6-8:7
     => (lazy <thunk>)
-[debug] bar @ test/test_debug_sexp.ml:18:21-20:14
+[debug] bar @ test/test_debug_sexp.ml:15:21-17:14
   => (lazy <thunk>)
-  [debug] y @ test/test_debug_sexp.ml:19:6-19:7
+  [debug] y @ test/test_debug_sexp.ml:16:6-16:7
     => (lazy <thunk>)
-[debug] baz @ test/test_debug_sexp.ml:24:21-27:28
+[debug] baz @ test/test_debug_sexp.ml:21:21-24:28
   => (lazy <thunk>)
-  [debug] _yz @ test/test_debug_sexp.ml:25:17-25:20
+  [debug] _yz @ test/test_debug_sexp.ml:22:17-22:20
     => (lazy <thunk>)
-  [debug] _uw @ test/test_debug_sexp.ml:26:17-26:20
+  [debug] _uw @ test/test_debug_sexp.ml:23:17-23:20
     => (lazy <thunk>)
-[debug] lab @ test/test_debug_sexp.ml:31:21-33:17
+[debug] lab @ test/test_debug_sexp.ml:28:21-30:17
   => (lazy <thunk>)
-  [debug] y @ test/test_debug_sexp.ml:32:6-32:7
+  [debug] y @ test/test_debug_sexp.ml:29:6-29:7
     => (lazy <thunk>)
-[debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+[debug] loop @ test/test_debug_sexp.ml:34:26-40:9
   => (lazy <thunk>)
-  [debug] y @ test/test_debug_sexp.ml:41:8-41:9
+  [debug] y @ test/test_debug_sexp.ml:38:8-38:9
     => (lazy <thunk>)
-    [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+    [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
       => (lazy <thunk>)
-      [debug] y @ test/test_debug_sexp.ml:41:8-41:9
+      [debug] y @ test/test_debug_sexp.ml:38:8-38:9
         => (lazy <thunk>)
-        [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+        [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
           => (lazy <thunk>)
-          [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+          [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
             => (lazy <thunk>)
-            [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+            [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
               => (lazy <thunk>)
-              [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+              [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
                 => (lazy <thunk>)
-      [debug] z @ test/test_debug_sexp.ml:42:8-42:9
+      [debug] z @ test/test_debug_sexp.ml:39:8-39:9
         => (lazy <thunk>)
-        [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+        [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
           => (lazy <thunk>)
-          [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+          [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
             => (lazy <thunk>)
-            [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+            [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
               => (lazy <thunk>)
-              [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+              [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
                 => (lazy <thunk>)
-  [debug] z @ test/test_debug_sexp.ml:42:8-42:9
+  [debug] z @ test/test_debug_sexp.ml:39:8-39:9
     => (lazy <thunk>)
-    [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+    [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
       => (lazy <thunk>)
-      [debug] y @ test/test_debug_sexp.ml:41:8-41:9
+      [debug] y @ test/test_debug_sexp.ml:38:8-38:9
         => (lazy <thunk>)
-        [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+        [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
           => (lazy <thunk>)
-          [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+          [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
             => (lazy <thunk>)
-            [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+            [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
               => (lazy <thunk>)
-              [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+              [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
                 => (lazy <thunk>)
-      [debug] z @ test/test_debug_sexp.ml:42:8-42:9
+      [debug] z @ test/test_debug_sexp.ml:39:8-39:9
         => (lazy <thunk>)
-        [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+        [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
           => (lazy <thunk>)
-          [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+          [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
             => (lazy <thunk>)
-            [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+            [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
               => (lazy <thunk>)
-              [debug] loop @ test/test_debug_sexp.ml:37:26-43:9
+              [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
                 => (lazy <thunk>)
