@@ -191,8 +191,12 @@ end
 (** The output is flushed line-at-a-time, so no output should be lost if the traced
     program crashes. The logged traces are still indented, but if the values to print are
     multi-line, their formatting might be messy. The indentation is also smaller (half of
-    PrintBox). *)
+    PrintBox).
+
+    @deprecated Use {!Minidebug_db.DatabaseBackend} instead. This module will be removed
+    in 3.0.0. For static HTML/Markdown generation, use the 2.4.x-static-artifacts branch. *)
 module Flushing : functor (_ : Shared_config) -> Debug_runtime
+  [@@deprecated "Use Minidebug_db.DatabaseBackend instead. Removed in 3.0.0."]
 
 val default_html_config : PrintBox_html.Config.t
 val default_md_config : PrintBox_md.Config.t
@@ -283,8 +287,13 @@ end
 
 (** The logged traces will be pretty-printed as trees using the `printbox` package. This
     logger supports conditionally disabling a particular nesting of the logs, regardless
-    of where in the nesting level [no_debug_if] is called. *)
+    of where in the nesting level [no_debug_if] is called.
+
+    @deprecated Use {!Minidebug_db.DatabaseBackend} for new projects. This module will be
+    removed in 3.0.0. For static HTML/Markdown generation, use the 2.4.x-static-artifacts
+    branch. *)
 module PrintBox : functor (_ : Shared_config) -> PrintBox_runtime
+  [@@deprecated "Use Minidebug_db.DatabaseBackend for new projects. Removed in 3.0.0."]
 
 val debug_file :
   ?time_tagged:time_tagged ->

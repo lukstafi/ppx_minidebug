@@ -24,6 +24,19 @@
   threads
   thread-local-storage))
 
+(library
+ (public_name ppx_minidebug.db)
+ (name minidebug_db)
+ (modules minidebug_db)
+ (libraries
+  minidebug_runtime
+  sqlite3
+  printbox
+  printbox-text
+  ptime.clock.os
+  mtime.clock.os
+  sexplib0))
+
 (mdx
  (files README.md)
  (libraries minidebug_runtime))

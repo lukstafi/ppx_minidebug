@@ -59,6 +59,7 @@
   (thread-local-storage
    (>= 0.2))
   (mdx
-   (>= 2.5.0)))
+   (>= 2.5.0))
+  sqlite3)
  (tags
   (logger debugger "printf debugging")))

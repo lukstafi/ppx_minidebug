@@ -29,6 +29,7 @@ depends: [
   "odoc" {with-doc}
   "thread-local-storage" {>= "0.2"}
   "mdx" {>= "2.5.0"}
+  "sqlite3"
 ]
 build: [
   ["dune" "subst"] {dev}

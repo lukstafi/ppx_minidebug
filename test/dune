@@ -508,3 +508,11 @@
  (libraries sexplib0 minidebug_runtime re)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
+
+(executable
+ (name test_db_backend)
+ (modules test_db_backend)
+ (libraries sexplib0 minidebug_db)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_sexp_conv)))
