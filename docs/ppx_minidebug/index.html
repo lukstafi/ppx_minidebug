@@ -152,9 +152,8 @@ let (_ : int) = foo [ 1; 5; 3; 4 ]</code></pre><p>This produces:</p><pre class="
             └─&quot;test/test_expect_test.ml&quot;:345:10: z
               └─z = &lt;max_nesting_depth exceeded&gt;
     Raised exception.
-    |}]</code></pre><p>Similarly, <code>max_num_children</code> raises a failure when the given number of logs with the same parent is exceeded. For example:</p><pre class="language-ocaml"><code>    let module Debug_runtime = (val _get_local_debug_runtime ()) in
-    try
-      let%debug_o_show _bar : unit =
+    |}]</code></pre><p>Similarly, <code>max_num_children</code> raises a failure when the given number of logs with the same parent is exceeded. For example:</p><pre class="language-ocaml"><code>    try
+      let%debug_show _bar : unit =
         [%debug_interrupts
           { max_nesting_depth = 1000; max_num_children = 10 };
           for i = 0 to 100 do
@@ -193,13 +192,14 @@ let (_ : int) = foo [ 1; 5; 3; 4 ]</code></pre><p>This produces:</p><pre class="
     │ └─_baz = 20
     └─_baz = &lt;max_num_children exceeded&gt;
     Raised exception: ppx_minidebug: max_num_children exceeded
-    |}]</code></pre><p>The <code>%debug_interrupts</code> extension point emits the interrupt checks in a lexically delimited scope. For convenience, we offer the extension point <code>%global_debug_interrupts</code> which triggers emitting the interrupt checks in the remainder of the source preprocessed in the same process (its scope is therefore less well defined). For example:</p><pre class="language-ocaml"><code>module Debug_runtime =
-  (val Minidebug_runtime.debug_flushing ~filename:&quot;debugger_show_interrupts&quot; ())
+    |}]</code></pre><p>The <code>%debug_interrupts</code> extension point emits the interrupt checks in a lexically delimited scope. For convenience, we offer the extension point <code>%global_debug_interrupts</code> which triggers emitting the interrupt checks in the remainder of the source preprocessed in the same process (its scope is therefore less well defined). For example:</p><pre class="language-ocaml"><code>let _get_local_debug_runtime =
+  let rt = Minidebug_db.debug_db_file &quot;debugger_interrupts&quot; in
+  fun () -&gt; rt
 
 [%%global_debug_interrupts { max_nesting_depth = 5; max_num_children = 10 }]
 [%%global_debug_type_info true]
 
-let%debug_o_show rec loop_exceeded (x : int) : int =
+let%debug_show rec loop_exceeded (x : int) : int =
   let z : int = (x - 1) / 2 in
   if x &lt;= 0 then 0 else z + loop_exceeded (z + (x / 2))</code></pre><p>If that is insufficient, you can define <code>_get_local_debug_runtime</code> using a <code>_flushing</code> builder. The logged traces are still indented, but if the values to print are multi-line, their formatting might be messy. The benefit of &quot;flushing&quot; traces is that the output is flushed line-at-a-time, so no output should be lost if the traced program crashes. But in recent versions of <code>ppx_minidebug</code>, uncaught exceptions no longer break logging. The indentation is also smaller (half of the PrintBox runtimes). Example:</p><pre class="language-ocaml"><code>  let _get_local_debug_runtime =
     Minidebug_runtime.prefixed_runtime_flushing ~time_tagged:Not_tagged
