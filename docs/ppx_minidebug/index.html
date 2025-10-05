@@ -659,7 +659,7 @@ Result: 30
   x = 5
   =&gt; 30
   [debug] y @ test/test_path_filter.ml:72:8-72:9
-    =&gt; 15</code></pre><p>This is useful for focusing on specific parts of your codebase during debugging, or for excluding noisy test utilities from production debug logs.</p><h4 id="dynamic-subtree-filtering"><a href="#dynamic-subtree-filtering" class="anchor"></a>Dynamic subtree filtering</h4><p>In the PrintBox backend, you can disable the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space. The test suite example:</p><pre class="language-ocaml"><code>  let%debug_show rec loop_changes (x : int) : int =
+    =&gt; 15</code></pre><p>This is useful for focusing on specific parts of your codebase during debugging, or for excluding noisy test utilities from production debug logs.</p><h4 id="dynamic-subtree-filtering"><a href="#dynamic-subtree-filtering" class="anchor"></a>Dynamic subtree filtering</h4><p>You can discard the logs of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space. For simplicity, currently the behavior is only retroactive: it discards the past subtree of the current entry, but does not prevent future logs at the current entry. The test suite example:</p><pre class="language-ocaml"><code>  let%debug_show rec loop_changes (x : int) : int =
     let z : int = (x - 1) / 2 in
     (* The call [x = 2] is not printed because it is a descendant of the no-debug call [x
        = 4]. The effect of no_debug_if is retroactive. *)
@@ -690,7 +690,7 @@ Result: 30
             =&gt; 2
           [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
             =&gt; 2
-    |}]</code></pre><p>The <code>no_debug_if</code> mechanism requires modifying the logged sources, and since it's limited to cutting out subtrees of the logs, it can be tricky to select and preserve the context one wants. The highlighting mechanism with the <code>prune_upto</code> setting avoids these problems. You provide a search term without modifying the debugged sources. You can tune the pruning level to keep the context around the place the search term was found.</p><p>Setting the option <code>truncate_children</code> will only log the given number of children at each node, prioritizing the most recent ones. An example from the test suite:</p><pre class="language-ocaml"><code>  let _get_local_debug_runtime =
+    |}]</code></pre><p>Setting the option <code>truncate_children</code> will only log the given number of children at each node, prioritizing the most recent ones. An example from the test suite:</p><pre class="language-ocaml"><code>  let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file ~values_first_mode:false ~truncate_children:10 db_file in
     fun () -&gt; rt
   in
