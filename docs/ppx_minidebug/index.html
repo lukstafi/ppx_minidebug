@@ -662,29 +662,34 @@ Result: 30
     =&gt; 15</code></pre><p>This is useful for focusing on specific parts of your codebase during debugging, or for excluding noisy test utilities from production debug logs.</p><h4 id="dynamic-subtree-filtering"><a href="#dynamic-subtree-filtering" class="anchor"></a>Dynamic subtree filtering</h4><p>In the PrintBox backend, you can disable the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space. The test suite example:</p><pre class="language-ocaml"><code>  let%debug_show rec loop_changes (x : int) : int =
     let z : int = (x - 1) / 2 in
     (* The call [x = 2] is not printed because it is a descendant of the no-debug call [x
-       = 4]. *)
+       = 4]. The effect of no_debug_if is retroactive. *)
+    let res = if x &lt;= 0 then 0 else z + loop_changes (z + (x / 2)) in
     Debug_runtime.no_debug_if (x &lt;&gt; 6 &amp;&amp; x &lt;&gt; 2 &amp;&amp; (z + 1) * 2 = x);
-    if x &lt;= 0 then 0 else z + loop_changes (z + (x / 2))
+    res
   in
   let () = print_endline @@ Int.to_string @@ loop_changes 7 in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id2;
   [%expect
     {|
-    &quot;test/test_expect_test.ml&quot;:232:34: loop_changes
-    ├─x = 7
-    ├─&quot;test/test_expect_test.ml&quot;:233:8: z
-    │ └─z = 3
-    ├─&quot;test/test_expect_test.ml&quot;:232:34: loop_changes
-    │ ├─x = 6
-    │ ├─&quot;test/test_expect_test.ml&quot;:233:8: z
-    │ │ └─z = 2
-    │ ├─&quot;test/test_expect_test.ml&quot;:232:34: loop_changes
-    │ │ ├─x = 5
-    │ │ ├─&quot;test/test_expect_test.ml&quot;:233:8: z
-    │ │ │ └─z = 2
-    │ │ └─loop_changes = 4
-    │ └─loop_changes = 6
-    └─loop_changes = 9
     9
+    [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+      x = 7
+      =&gt; 9
+      [debug] z @ test/test_expect_test.ml:153:8-153:9
+        =&gt; 3
+      [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+        x = 6
+        =&gt; 6
+        [debug] z @ test/test_expect_test.ml:153:8-153:9
+          =&gt; 2
+        [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+          x = 5
+          =&gt; 4
+          [debug] z @ test/test_expect_test.ml:153:8-153:9
+            =&gt; 2
+          [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+            =&gt; 2
     |}]</code></pre><p>The <code>no_debug_if</code> mechanism requires modifying the logged sources, and since it's limited to cutting out subtrees of the logs, it can be tricky to select and preserve the context one wants. The highlighting mechanism with the <code>prune_upto</code> setting avoids these problems. You provide a search term without modifying the debugged sources. You can tune the pruning level to keep the context around the place the search term was found.</p><p>Setting the option <code>truncate_children</code> will only log the given number of children at each node, prioritizing the most recent ones. An example from the test suite:</p><pre class="language-ocaml"><code>  let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file ~values_first_mode:false ~truncate_children:10 db_file in
     fun () -&gt; rt
