@@ -6,4 +6,5 @@
 
 (executable
  (name filter_test_output)
- (modules filter_test_output))
+ (modules filter_test_output)
+ (libraries str))
