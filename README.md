@@ -1024,29 +1024,34 @@ The test suite example:
   let%debug_show rec loop_changes (x : int) : int =
     let z : int = (x - 1) / 2 in
     (* The call [x = 2] is not printed because it is a descendant of the no-debug call [x
-       = 4]. *)
+       = 4]. The effect of no_debug_if is retroactive. *)
+    let res = if x <= 0 then 0 else z + loop_changes (z + (x / 2)) in
     Debug_runtime.no_debug_if (x <> 6 && x <> 2 && (z + 1) * 2 = x);
-    if x <= 0 then 0 else z + loop_changes (z + (x / 2))
+    res
   in
   let () = print_endline @@ Int.to_string @@ loop_changes 7 in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id2;
   [%expect
     {|
-    "test/test_expect_test.ml":232:34: loop_changes
-    ├─x = 7
-    ├─"test/test_expect_test.ml":233:8: z
-    │ └─z = 3
-    ├─"test/test_expect_test.ml":232:34: loop_changes
-    │ ├─x = 6
-    │ ├─"test/test_expect_test.ml":233:8: z
-    │ │ └─z = 2
-    │ ├─"test/test_expect_test.ml":232:34: loop_changes
-    │ │ ├─x = 5
-    │ │ ├─"test/test_expect_test.ml":233:8: z
-    │ │ │ └─z = 2
-    │ │ └─loop_changes = 4
-    │ └─loop_changes = 6
-    └─loop_changes = 9
     9
+    [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+      x = 7
+      => 9
+      [debug] z @ test/test_expect_test.ml:153:8-153:9
+        => 3
+      [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+        x = 6
+        => 6
+        [debug] z @ test/test_expect_test.ml:153:8-153:9
+          => 2
+        [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+          x = 5
+          => 4
+          [debug] z @ test/test_expect_test.ml:153:8-153:9
+            => 2
+          [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+            => 2
     |}]
 ```
 

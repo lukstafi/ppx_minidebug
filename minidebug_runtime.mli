@@ -175,10 +175,10 @@ module type Debug_runtime = sig
       not call this function if there is a chance that the backend will be used again. *)
 
   val no_debug_if : bool -> unit
-  (** For [PrintBox] runtimes, when passed true within the scope of a log subtree,
-      disables the logging of this subtree and its subtrees. Does not do anything when
-      passed false ([no_debug_if false] does {e not} re-enable the log). Does nothing for
-      the [Flushing] runtimes. *)
+  (** When passed true within the scope of a log subtree, discards past logs of this
+      subtree: the current log entry and its subtrees. Currently, does not do anything
+      when passed false ([no_debug_if false] does {e not} re-enable the log),
+      and only acts retroactively -- does {e not} discard future logs. *)
 
   val log_level : int ref
   (** The runtime log level.
@@ -193,10 +193,11 @@ end
     multi-line, their formatting might be messy. The indentation is also smaller (half of
     PrintBox).
 
-    @deprecated Use {!Minidebug_db.DatabaseBackend} instead. This module will be removed
-    in 3.0.0. For static HTML/Markdown generation, use the 2.4.x-static-artifacts branch. *)
+    @deprecated
+      Use {!Minidebug_db.DatabaseBackend} instead. This module will be removed in 3.0.0.
+      For static HTML/Markdown generation, use the 2.4.x-static-artifacts branch. *)
 module Flushing : functor (_ : Shared_config) -> Debug_runtime
-  [@@deprecated "Use Minidebug_db.DatabaseBackend instead. Removed in 3.0.0."]
+[@@deprecated "Use Minidebug_db.DatabaseBackend instead. Removed in 3.0.0."]
 
 val default_html_config : PrintBox_html.Config.t
 val default_md_config : PrintBox_md.Config.t
@@ -289,11 +290,12 @@ end
     logger supports conditionally disabling a particular nesting of the logs, regardless
     of where in the nesting level [no_debug_if] is called.
 
-    @deprecated Use {!Minidebug_db.DatabaseBackend} for new projects. This module will be
-    removed in 3.0.0. For static HTML/Markdown generation, use the 2.4.x-static-artifacts
-    branch. *)
+    @deprecated
+      Use {!Minidebug_db.DatabaseBackend} for new projects. This module will be removed in
+      3.0.0. For static HTML/Markdown generation, use the 2.4.x-static-artifacts branch.
+*)
 module PrintBox : functor (_ : Shared_config) -> PrintBox_runtime
-  [@@deprecated "Use Minidebug_db.DatabaseBackend for new projects. Removed in 3.0.0."]
+[@@deprecated "Use Minidebug_db.DatabaseBackend for new projects. Removed in 3.0.0."]
 
 val debug_file :
   ?time_tagged:time_tagged ->
@@ -383,8 +385,8 @@ val debug :
 (** Same as {!debug_file}, but by default it will log to [stdout] and will not be time
     tagged, and some functionality is not supported.
 
-    See {!type:printbox_config} for details about PrintBox-specific parameters.
-    See {!shared_config} for the details about shared parameters. *)
+    See {!type:printbox_config} for details about PrintBox-specific parameters. See
+    {!shared_config} for the details about shared parameters. *)
 
 val debug_flushing :
   ?debug_ch:out_channel ->
@@ -511,8 +513,8 @@ val prefixed_runtime :
     not provided, the prefix will default to ["Thread-<thread ID>"] if the thread ID is
     non-zero, or an empty string otherwise.
 
-    See {!type:printbox_config} for details about PrintBox-specific parameters.
-    See {!shared_config} for the details about shared parameters. *)
+    See {!type:printbox_config} for details about PrintBox-specific parameters. See
+    {!shared_config} for the details about shared parameters. *)
 
 val prefixed_runtime_flushing :
   ?debug_ch:out_channel ->

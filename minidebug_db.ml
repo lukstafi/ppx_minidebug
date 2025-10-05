@@ -487,7 +487,73 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
 
   let global_prefix = global_prefix
   let snapshot () = ()
-  let no_debug_if _condition = ()
+
+  let no_debug_if condition =
+    if not condition then ()
+    else
+      match !stack with
+      | [] -> ()
+      | top :: _ ->
+          let db = get_db () in
+          let run_id = get_run_id () in
+          let entry_id = top.entry_id in
+
+          (* Iteratively collect all descendants using BFS *)
+          let descendant_ids = ref [] in
+          let to_process = ref [entry_id] in
+          while !to_process <> [] do
+            let current_ids = !to_process in
+            to_process := [];
+
+            List.iter (fun parent_entry_id ->
+              (* Find direct children of this entry *)
+              let child_stmt =
+                Sqlite3.prepare db
+                  "SELECT DISTINCT entry_id FROM entries WHERE run_id = ? AND parent_id = ? AND seq_num = 0"
+              in
+              Sqlite3.bind_int child_stmt 1 run_id |> ignore;
+              Sqlite3.bind_int child_stmt 2 parent_entry_id |> ignore;
+
+              let rec collect_children () =
+                match Sqlite3.step child_stmt with
+                | Sqlite3.Rc.ROW ->
+                    let child_id = Sqlite3.Data.to_int_exn (Sqlite3.column child_stmt 0) in
+                    descendant_ids := child_id :: !descendant_ids;
+                    to_process := child_id :: !to_process;
+                    collect_children ()
+                | Sqlite3.Rc.DONE -> ()
+                | _ -> failwith "Failed to collect child entries"
+              in
+              collect_children ();
+              Sqlite3.finalize child_stmt |> ignore
+            ) current_ids
+          done;
+
+          (* Delete logged values (seq_num > 0) for current entry *)
+          let delete_values_stmt =
+            Sqlite3.prepare db
+              "DELETE FROM entries WHERE run_id = ? AND entry_id = ? AND seq_num > 0"
+          in
+          Sqlite3.bind_int delete_values_stmt 1 run_id |> ignore;
+          Sqlite3.bind_int delete_values_stmt 2 entry_id |> ignore;
+          (match Sqlite3.step delete_values_stmt with
+          | Sqlite3.Rc.DONE -> ()
+          | _ -> failwith "Failed to delete entry values");
+          Sqlite3.finalize delete_values_stmt |> ignore;
+
+          (* Delete each descendant entry (all seq_num values) *)
+          List.iter
+            (fun desc_id ->
+              let delete_stmt =
+                Sqlite3.prepare db "DELETE FROM entries WHERE run_id = ? AND entry_id = ?"
+              in
+              Sqlite3.bind_int delete_stmt 1 run_id |> ignore;
+              Sqlite3.bind_int delete_stmt 2 desc_id |> ignore;
+              (match Sqlite3.step delete_stmt with
+              | Sqlite3.Rc.DONE -> ()
+              | _ -> failwith "Failed to delete descendant entry");
+              Sqlite3.finalize delete_stmt |> ignore)
+            !descendant_ids
 
   let finish_and_cleanup () =
     match !db with

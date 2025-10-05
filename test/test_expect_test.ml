@@ -89,94 +89,100 @@ let%expect_test "%debug_show with run name" =
     Run #2 has name: test-51
     |}]
 
-(*
 let%expect_test "%debug_show disabled subtree" =
-  let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
-    fun () -> rt
-  in
+  let run_id1 = next_run () in
+  let rt1 = Minidebug_db.debug_db_file db_file in
+  let _get_local_debug_runtime = fun () -> rt1 in
   let%debug_show rec loop_complete (x : int) : int =
     let z : int = (x - 1) / 2 in
     if x <= 0 then 0 else z + loop_complete (z + (x / 2))
   in
   let () = print_endline @@ Int.to_string @@ loop_complete 7 in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id1;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":180:35: loop_complete
-    ├─x = 7
-    ├─"test/test_expect_test.ml":181:8: z
-    │ └─z = 3
-    ├─"test/test_expect_test.ml":180:35: loop_complete
-    │ ├─x = 6
-    │ ├─"test/test_expect_test.ml":181:8: z
-    │ │ └─z = 2
-    │ ├─"test/test_expect_test.ml":180:35: loop_complete
-    │ │ ├─x = 5
-    │ │ ├─"test/test_expect_test.ml":181:8: z
-    │ │ │ └─z = 2
-    │ │ ├─"test/test_expect_test.ml":180:35: loop_complete
-    │ │ │ ├─x = 4
-    │ │ │ ├─"test/test_expect_test.ml":181:8: z
-    │ │ │ │ └─z = 1
-    │ │ │ ├─"test/test_expect_test.ml":180:35: loop_complete
-    │ │ │ │ ├─x = 3
-    │ │ │ │ ├─"test/test_expect_test.ml":181:8: z
-    │ │ │ │ │ └─z = 1
-    │ │ │ │ ├─"test/test_expect_test.ml":180:35: loop_complete
-    │ │ │ │ │ ├─x = 2
-    │ │ │ │ │ ├─"test/test_expect_test.ml":181:8: z
-    │ │ │ │ │ │ └─z = 0
-    │ │ │ │ │ ├─"test/test_expect_test.ml":180:35: loop_complete
-    │ │ │ │ │ │ ├─x = 1
-    │ │ │ │ │ │ ├─"test/test_expect_test.ml":181:8: z
-    │ │ │ │ │ │ │ └─z = 0
-    │ │ │ │ │ │ ├─"test/test_expect_test.ml":180:35: loop_complete
-    │ │ │ │ │ │ │ ├─x = 0
-    │ │ │ │ │ │ │ ├─"test/test_expect_test.ml":181:8: z
-    │ │ │ │ │ │ │ │ └─z = 0
-    │ │ │ │ │ │ │ └─loop_complete = 0
-    │ │ │ │ │ │ └─loop_complete = 0
-    │ │ │ │ │ └─loop_complete = 0
-    │ │ │ │ └─loop_complete = 1
-    │ │ │ └─loop_complete = 2
-    │ │ └─loop_complete = 4
-    │ └─loop_complete = 6
-    └─loop_complete = 9
     9
+    [debug] loop_complete @ test/test_expect_test.ml:96:35-98:57
+      x = 7
+      => 9
+      [debug] z @ test/test_expect_test.ml:97:8-97:9
+        => 3
+      [debug] loop_complete @ test/test_expect_test.ml:96:35-98:57
+        x = 6
+        => 6
+        [debug] z @ test/test_expect_test.ml:97:8-97:9
+          => 2
+        [debug] loop_complete @ test/test_expect_test.ml:96:35-98:57
+          x = 5
+          => 4
+          [debug] z @ test/test_expect_test.ml:97:8-97:9
+            => 2
+          [debug] loop_complete @ test/test_expect_test.ml:96:35-98:57
+            x = 4
+            => 2
+            [debug] z @ test/test_expect_test.ml:97:8-97:9
+              => 1
+            [debug] loop_complete @ test/test_expect_test.ml:96:35-98:57
+              x = 3
+              => 1
+              [debug] z @ test/test_expect_test.ml:97:8-97:9
+                => 1
+              [debug] loop_complete @ test/test_expect_test.ml:96:35-98:57
+                x = 2
+                => 0
+                [debug] z @ test/test_expect_test.ml:97:8-97:9
+                  => 0
+                [debug] loop_complete @ test/test_expect_test.ml:96:35-98:57
+                  x = 1
+                  => 0
+                  [debug] z @ test/test_expect_test.ml:97:8-97:9
+                    => 0
+                  [debug] loop_complete @ test/test_expect_test.ml:96:35-98:57
+                    x = 0
+                    => 0
+                    [debug] z @ test/test_expect_test.ml:97:8-97:9
+                      => 0
     |}];
 
+  let run_id2 = next_run () in
+  let rt2 = Minidebug_db.debug_db_file db_file in
+  let _get_local_debug_runtime = fun () -> rt2 in
   (* $MDX part-begin=loop_changes *)
   let%debug_show rec loop_changes (x : int) : int =
     let z : int = (x - 1) / 2 in
     (* The call [x = 2] is not printed because it is a descendant of the no-debug call [x
-       = 4]. *)
+       = 4]. The effect of no_debug_if is retroactive. *)
+    let res = if x <= 0 then 0 else z + loop_changes (z + (x / 2)) in
     Debug_runtime.no_debug_if (x <> 6 && x <> 2 && (z + 1) * 2 = x);
-    if x <= 0 then 0 else z + loop_changes (z + (x / 2))
+    res
   in
   let () = print_endline @@ Int.to_string @@ loop_changes 7 in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id2;
   [%expect
     {|
-    "test/test_expect_test.ml":232:34: loop_changes
-    ├─x = 7
-    ├─"test/test_expect_test.ml":233:8: z
-    │ └─z = 3
-    ├─"test/test_expect_test.ml":232:34: loop_changes
-    │ ├─x = 6
-    │ ├─"test/test_expect_test.ml":233:8: z
-    │ │ └─z = 2
-    │ ├─"test/test_expect_test.ml":232:34: loop_changes
-    │ │ ├─x = 5
-    │ │ ├─"test/test_expect_test.ml":233:8: z
-    │ │ │ └─z = 2
-    │ │ └─loop_changes = 4
-    │ └─loop_changes = 6
-    └─loop_changes = 9
     9
+    [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+      x = 7
+      => 9
+      [debug] z @ test/test_expect_test.ml:153:8-153:9
+        => 3
+      [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+        x = 6
+        => 6
+        [debug] z @ test/test_expect_test.ml:153:8-153:9
+          => 2
+        [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+          x = 5
+          => 4
+          [debug] z @ test/test_expect_test.ml:153:8-153:9
+            => 2
+          [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+            => 2
     |}]
 (* $MDX part-end *)
 
-*)
 
 (*
 let%expect_test "%debug_show with exception" =
