@@ -23,6 +23,8 @@ Version 3.0.0 transitions from static file generation (PrintBox/Flushing) to dat
   - For promotion to work, tests need to run, here this means the diffing rules need to run
   - So this requires e.g. `dune runtest` before, or can be combined into `dune test --auto-promote`
 - Run a specific test executable: `dune exec test/test_debug_sexp.exe`
+- Run a specific `test` stanza: `dune build @runtest-test_path_filter`
+- Run an inline test suite, use `@runtest-<library name>`: `dune build @runtest-test_inline_tests`
 
 ## Key Architecture Insights
 
