@@ -19,7 +19,8 @@ module Schema = struct
           run_id INTEGER PRIMARY KEY AUTOINCREMENT,
           timestamp TEXT NOT NULL,
           elapsed_ns INTEGER NOT NULL,
-          command_line TEXT
+          command_line TEXT,
+          run_name TEXT
         )|}
     |> ignore;
 
@@ -193,14 +194,19 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
       | Some ns -> ns
     in
     let cmd = String.concat " " (Array.to_list Sys.argv) in
+    let run_name = if global_prefix = "" then None else Some global_prefix in
 
     let stmt =
       Sqlite3.prepare db_handle
-        "INSERT INTO runs (timestamp, elapsed_ns, command_line) VALUES (?, ?, ?)"
+        "INSERT INTO runs (timestamp, elapsed_ns, command_line, run_name) VALUES (?, ?, ?, ?)"
     in
     Sqlite3.bind_text stmt 1 timestamp |> ignore;
     Sqlite3.bind_int stmt 2 elapsed_ns |> ignore;
     Sqlite3.bind_text stmt 3 cmd |> ignore;
+    (match run_name with
+    | Some name -> Sqlite3.bind_text stmt 4 name
+    | None -> Sqlite3.bind stmt 4 Sqlite3.Data.NULL)
+    |> ignore;
     (match Sqlite3.step stmt with
     | Sqlite3.Rc.DONE -> ()
     | _ -> failwith "Failed to create run");
@@ -500,7 +506,7 @@ end
 let db_config ?(time_tagged = Minidebug_runtime.Not_tagged)
     ?(elapsed_times = Minidebug_runtime.Not_reported)
     ?(location_format = Minidebug_runtime.Beg_pos) ?(print_entry_ids = false)
-    ?(verbose_entry_ids = false) ?(global_prefix = "") ?(log_level = 9) ?path_filter
+    ?(verbose_entry_ids = false) ?(run_name = "") ?(log_level = 9) ?path_filter
     db_filename : (module Minidebug_runtime.Shared_config) =
   let module Config = struct
     let refresh_ch () = false
@@ -514,7 +520,7 @@ let db_config ?(time_tagged = Minidebug_runtime.Not_tagged)
     let location_format = location_format
     let print_entry_ids = print_entry_ids
     let verbose_entry_ids = verbose_entry_ids
-    let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
+    let global_prefix = if run_name = "" then "" else run_name ^ " "
     let prefix_all_logs = false
     let split_files_after = None
     let toc_entry = Minidebug_runtime.And []
@@ -527,12 +533,12 @@ let db_config ?(time_tagged = Minidebug_runtime.Not_tagged)
 let debug_db_file ?(time_tagged = Minidebug_runtime.Not_tagged)
     ?(elapsed_times = Minidebug_runtime.Not_reported)
     ?(location_format = Minidebug_runtime.Beg_pos) ?(print_entry_ids = false)
-    ?(verbose_entry_ids = false) ?(global_prefix = "") ?(for_append = true)
+    ?(verbose_entry_ids = false) ?(run_name = "") ?(for_append = true)
     ?(log_level = 9) ?path_filter filename =
   let _ = for_append in (* Ignore for database backend *)
   let config =
     db_config ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
-      ~verbose_entry_ids ~global_prefix ~log_level ?path_filter filename
+      ~verbose_entry_ids ~run_name ~log_level ?path_filter filename
   in
   let module Config = (val config : Minidebug_runtime.Shared_config) in
   (module DatabaseBackend (Config) : Minidebug_runtime.Debug_runtime)
@@ -541,9 +547,9 @@ let debug_db_file ?(time_tagged = Minidebug_runtime.Not_tagged)
 let debug_db ?(debug_ch = stdout) ?(time_tagged = Minidebug_runtime.Not_tagged)
     ?(elapsed_times = Minidebug_runtime.Not_reported)
     ?(location_format = Minidebug_runtime.Beg_pos) ?(print_entry_ids = false)
-    ?(verbose_entry_ids = false) ?(global_prefix = "") ?(log_level = 9) ?path_filter () =
+    ?(verbose_entry_ids = false) ?(run_name = "") ?(log_level = 9) ?path_filter () =
   (* For database backend, we ignore debug_ch and create a file-based config *)
   let _ = debug_ch in
   let filename = "debug" in
   debug_db_file ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
-    ~verbose_entry_ids ~global_prefix ~for_append:true ~log_level ?path_filter filename
+    ~verbose_entry_ids ~run_name ~for_append:true ~log_level ?path_filter filename

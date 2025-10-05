@@ -49,106 +49,11 @@ let%expect_test "%debug_show, `as` alias and show_times" =
         => (8, 3)
     |}]
 
-(*
-let%expect_test "%debug_show elapsed times" =
-  let run_id = next_run () in
-  let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file db_file in
-    fun () -> rt
-  in
-  let%debug_show bar (x : t) : int =
-    let y : int = x.first + 1 in
-    x.second * y
-  in
-  let () = print_endline @@ Int.to_string @@ bar { first = 7; second = 42 } in
-  let%debug_show baz (x : t) : int =
-    let ((y, z) as _yz) : int * int = (x.first + 1, 3) in
-    (x.second * y) + z
-  in
-  let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db ~show_times:true run_id;
-  let output = [%expect.output] in
-  let output =
-    Str.global_replace (Str.regexp {|<[0-9.]+\(μs\|ms\|s\)>|}) "<TIME>" output
-  in
-  print_endline output;
-  [%expect
-    {|
-    BEGIN DEBUG SESSION at elapsed NNN.NNxs / NNNNNNNns, corresponding to time YYYY-MM-DD HH:MM:SS.NNNNNN
-    bar begin "test/test_expect_test.ml":52:21: NNN.NNxs / NNNNNNNns
-     x = { Test_expect_test.first = 7; second = 42 }
-     y begin "test/test_expect_test.ml":53:8: NNN.NNxs / NNNNNNNns
-      y = 8
-     NNN.NNxs / NNNNNNNns - y end
-     bar = 336
-    NNN.NNxs / NNNNNNNns - bar end
-    336
-    baz begin "test/test_expect_test.ml":57:21: NNN.NNxs / NNNNNNNns
-     x = { Test_expect_test.first = 7; second = 42 }
-     _yz begin "test/test_expect_test.ml":58:19: NNN.NNxs / NNNNNNNns
-      _yz = (8, 3)
-     NNN.NNxs / NNNNNNNns - _yz end
-     baz = 339
-    NNN.NNxs / NNNNNNNns - baz end
-    339
-    |}]
-
-*)
-
-(*
-let%expect_test "%debug_show time spans" =
-  let run_id = next_run () in
-  let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~elapsed_times:Microseconds db_file in
-    fun () -> rt
-  in
-  let%debug_show bar (x : t) : int =
-    let y : int = x.first + 1 in
-    x.second * y
-  in
-  let () = print_endline @@ Int.to_string @@ bar { first = 7; second = 42 } in
-  let%debug_show baz (x : t) : int =
-    let ((y, z) as _yz) : int * int = (x.first + 1, 3) in
-    (x.second * y) + z
-  in
-  let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db ~show_times:true run_id;
-  let output = [%expect.output] in
-  let output =
-    Str.global_replace (Str.regexp {|<[0-9.]+\(μs\|ms\|s\)>|}) "<TIME>" output
-  in
-  print_endline output;
-  [%expect
-    {|
-    BEGIN DEBUG SESSION
-    bar begin "test/test_expect_test.ml":100:21:
-     x = { Test_expect_test.first = 7; second = 42 }
-     y begin "test/test_expect_test.ml":101:8:
-      y = 8
-     <N.NNμs> y end
-     bar = 336
-    <N.NNμs> bar end
-    336
-    baz begin "test/test_expect_test.ml":105:21:
-     x = { Test_expect_test.first = 7; second = 42 }
-     _yz begin "test/test_expect_test.ml":106:19:
-      _yz = (8, 3)
-     <N.NNμs> _yz end
-     baz = 339
-    <N.NNμs> baz end
-    339
-    |}]
-
-*)
-
-(*
-let%expect_test "%debug_show with global prefix" =
+let%expect_test "%debug_show with run name" =
   (* $MDX part-begin=simple_flushing *)
   let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~global_prefix:"test-51" db_file in
+    let rt = Minidebug_db.debug_db_file ~run_name:"test-51" db_file in
     fun () -> rt
   in
   let%debug_show bar (x : t) : int =
@@ -163,29 +68,28 @@ let%expect_test "%debug_show with global prefix" =
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
   let db = Minidebug_client.Client.open_db db_file in
   Minidebug_client.Client.show_trace db run_id;
+  let runs = Minidebug_client.Client.list_runs db in
+  let run = List.find (fun r -> r.Minidebug_client.Query.run_id = run_id) runs in
+  Printf.printf "\nRun #%d has name: %s\n" run.run_id
+    (match run.run_name with Some n -> n | None -> "(none)");
   [%expect
     {|
-    BEGIN DEBUG SESSION test-51
-    test-51 bar begin "test/test_expect_test.ml":142:21:
-     test-51 x = { Test_expect_test.first = 7; second = 42 }
-     test-51 y begin "test/test_expect_test.ml":143:8:
-      test-51 y = 8
-     test-51 y end
-     test-51 bar = 336
-    test-51 bar end
     336
-    test-51 baz begin "test/test_expect_test.ml":147:21:
-     test-51 x = { Test_expect_test.first = 7; second = 42 }
-     test-51 _yz begin "test/test_expect_test.ml":148:19:
-      test-51 _yz = (8, 3)
-     test-51 _yz end
-     test-51 baz = 339
-    test-51 baz end
     339
+    [debug] bar @ test/test_expect_test.ml:59:21-61:16
+      x = { Test_expect_test.first = 7; second = 42 }
+      => 336
+      [debug] y @ test/test_expect_test.ml:60:8-60:9
+        => 8
+    [debug] baz @ test/test_expect_test.ml:64:21-66:22
+      x = { Test_expect_test.first = 7; second = 42 }
+      => 339
+      [debug] _yz @ test/test_expect_test.ml:65:19-65:22
+        => (8, 3)
+
+    Run #2 has name: test-51
     |}]
 (* $MDX part-end *)
-
-*)
 
 (*
 let%expect_test "%debug_show disabled subtree" =
@@ -2545,7 +2449,7 @@ let%expect_test "%track_rt_show list runtime passing" =
   let%track_rt_show foo l : int = match (l : int list) with [] -> 7 | y :: _ -> y * 2 in
   let () =
     print_endline @@ Int.to_string
-    @@ foo Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"foo-1" ()) [ 7 ]
+    @@ foo Minidebug_runtime.(forget_printbox @@ debug ~run_name:"foo-1" ()) [ 7 ]
   in
   let%track_rt_show baz : int list -> int = function
     | [] -> 7
@@ -2555,12 +2459,12 @@ let%expect_test "%track_rt_show list runtime passing" =
   in
   let () =
     print_endline @@ Int.to_string
-    @@ baz Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"baz-1" ()) [ 4 ]
+    @@ baz Minidebug_runtime.(forget_printbox @@ debug ~run_name:"baz-1" ()) [ 4 ]
   in
   let () =
     print_endline @@ Int.to_string
     @@ baz
-         Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"baz-2" ())
+         Minidebug_runtime.(forget_printbox @@ debug ~run_name:"baz-2" ())
          [ 4; 5; 6 ]
   in
   [%expect
@@ -2595,14 +2499,14 @@ let%expect_test "%track_rt_show list runtime passing" =
 (*
 let%expect_test "%track_rt_show procedure runtime passing" =
   let%track_rt_show bar () = (fun () -> ()) () in
-  let () = bar (Minidebug_runtime.debug_flushing ~global_prefix:"bar-1" ()) () in
-  let () = bar (Minidebug_runtime.debug_flushing ~global_prefix:"bar-2" ()) () in
+  let () = bar (Minidebug_runtime.debug_flushing ~run_name:"bar-1" ()) () in
+  let () = bar (Minidebug_runtime.debug_flushing ~run_name:"bar-2" ()) () in
   let%track_rt_show foo () =
     let () = () in
     ()
   in
-  let () = foo (Minidebug_runtime.debug_flushing ~global_prefix:"foo-1" ()) () in
-  let () = foo (Minidebug_runtime.debug_flushing ~global_prefix:"foo-2" ()) () in
+  let () = foo (Minidebug_runtime.debug_flushing ~run_name:"foo-1" ()) () in
+  let () = foo (Minidebug_runtime.debug_flushing ~run_name:"foo-2" ()) () in
   [%expect
     {|
     BEGIN DEBUG SESSION bar-1
@@ -2643,10 +2547,10 @@ let%expect_test "%track_rt_show nested procedure runtime passing" =
     (foo, bar)
   in
   let foo, bar = rt_test () in
-  let () = foo (Minidebug_runtime.debug_flushing ~global_prefix:"foo-1" ()) () in
-  let () = foo (Minidebug_runtime.debug_flushing ~global_prefix:"foo-2" ()) () in
-  let () = bar (Minidebug_runtime.debug_flushing ~global_prefix:"bar-1" ()) () in
-  let () = bar (Minidebug_runtime.debug_flushing ~global_prefix:"bar-2" ()) () in
+  let () = foo (Minidebug_runtime.debug_flushing ~run_name:"foo-1" ()) () in
+  let () = foo (Minidebug_runtime.debug_flushing ~run_name:"foo-2" ()) () in
+  let () = bar (Minidebug_runtime.debug_flushing ~run_name:"bar-1" ()) () in
+  let () = bar (Minidebug_runtime.debug_flushing ~run_name:"bar-2" ()) () in
   [%expect
     {|
     BEGIN DEBUG SESSION
@@ -2860,27 +2764,27 @@ let%expect_test "%log runtime log levels while-loop" =
        (result
           Minidebug_runtime.(
             forget_printbox
-            @@ debug ~values_first_mode:false ~global_prefix:"Everything" ())
+            @@ debug ~values_first_mode:false ~run_name:"Everything" ())
           ());
   print_endline
   @@ Int.to_string
        (result
           Minidebug_runtime.(
             forget_printbox
-            @@ debug ~values_first_mode:false ~log_level:0 ~global_prefix:"Nothing" ())
+            @@ debug ~values_first_mode:false ~log_level:0 ~run_name:"Nothing" ())
           ());
   print_endline
   @@ Int.to_string
        (result
           Minidebug_runtime.(
-            forget_printbox @@ debug ~log_level:1 ~global_prefix:"Error" ())
+            forget_printbox @@ debug ~log_level:1 ~run_name:"Error" ())
           ());
   (* $MDX part-end *)
   print_endline
   @@ Int.to_string
        (result
           Minidebug_runtime.(
-            forget_printbox @@ debug ~log_level:2 ~global_prefix:"Warning" ())
+            forget_printbox @@ debug ~log_level:2 ~run_name:"Warning" ())
           ());
   [%expect
     {|
@@ -3190,7 +3094,7 @@ let%expect_test "%log compile time log levels while-loop" =
 (*
 let%expect_test "%log compile time log levels runtime-passing while-loop" =
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~global_prefix:"TOPLEVEL" db_file in
+    let rt = Minidebug_db.debug_db_file ~run_name:"TOPLEVEL" db_file in
     fun () -> rt
   in
   (* Compile-time log level restrictions cannot be undone, since the logging code is not
@@ -3213,7 +3117,7 @@ let%expect_test "%log compile time log levels runtime-passing while-loop" =
        in
        print_endline @@ Int.to_string
        @@ nothing
-            Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"nothing" ())
+            Minidebug_runtime.(forget_printbox @@ debug ~run_name:"nothing" ())
             ()]);
     [%log_level
       2;
@@ -3234,7 +3138,7 @@ let%expect_test "%log compile time log levels runtime-passing while-loop" =
       in
       print_endline @@ Int.to_string
       @@ warning
-           Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"warning" ())
+           Minidebug_runtime.(forget_printbox @@ debug ~run_name:"warning" ())
            ()]
   in
   [%expect
@@ -4294,7 +4198,7 @@ let%expect_test "%track_show procedure runtime prefixes" =
   (* $MDX part-begin=track_show_procedure_runtime_prefixes *)
   let i = ref 0 in
   let _get_local_debug_runtime () =
-    let rt = Minidebug_db.debug_db_file ~global_prefix:("foo-" ^ string_of_int !i) db_file in
+    let rt = Minidebug_db.debug_db_file ~run_name:("foo-" ^ string_of_int !i) db_file in
     fun () -> rt
   in
   let%track_show foo () =
@@ -4353,18 +4257,18 @@ let%expect_test "%track_rt_show expression runtime passing" =
     [%log_block
       "test A";
       [%log "line A"]]]
-    (Minidebug_db.debug_db_file ~global_prefix:"t1" db_file);
+    (Minidebug_db.debug_db_file ~run_name:"t1" db_file);
   [%track_rt_show
     [%log_block
       "test B";
       [%log "line B"]]]
-    (Minidebug_db.debug_db_file ~global_prefix:"t2" db_file);
+    (Minidebug_db.debug_db_file ~run_name:"t2" db_file);
   [%track_rt_show
     [%log_block
       "test C";
       [%log "line C"]]]
     Minidebug_db.(
-      debug_db_file ~values_first_mode:false ~global_prefix:"t3" ~log_level:0 db_file);
+      debug_db_file ~values_first_mode:false ~run_name:"t3" ~log_level:0 db_file);
   [%expect
     {|
     BEGIN DEBUG SESSION t1
@@ -4480,31 +4384,31 @@ let%expect_test "%logN_block runtime log levels" =
   @@ Int.to_string
        (result
           Minidebug_db.(
-            debug_db_file ~values_first_mode:false ~global_prefix:"for=2,with=default" db_file)
+            debug_db_file ~values_first_mode:false ~run_name:"for=2,with=default" db_file)
           ~for_log_level:2);
   print_endline
   @@ Int.to_string
        (result
           Minidebug_db.(
-            debug_db_file ~log_level:0 ~global_prefix:"for=1,with=0" db_file)
+            debug_db_file ~log_level:0 ~run_name:"for=1,with=0" db_file)
           ~for_log_level:1);
   print_endline
   @@ Int.to_string
        (result
           Minidebug_db.(
-            debug_db_file ~log_level:1 ~global_prefix:"for=2,with=1" db_file)
+            debug_db_file ~log_level:1 ~run_name:"for=2,with=1" db_file)
           ~for_log_level:2);
   print_endline
   @@ Int.to_string
        (result
           Minidebug_db.(
-            debug_db_file ~log_level:2 ~global_prefix:"for=1,with=2" db_file)
+            debug_db_file ~log_level:2 ~run_name:"for=1,with=2" db_file)
           ~for_log_level:1);
   print_endline
   @@ Int.to_string
        (result
           Minidebug_db.(
-            debug_db_file ~log_level:3 ~global_prefix:"for=3,with=3" db_file)
+            debug_db_file ~log_level:3 ~run_name:"for=3,with=3" db_file)
           ~for_log_level:3);
   (* Unlike with other constructs, INFO should not be printed in "for=4,with=3", because
      log_block filters out the whole body by the log level. *)
@@ -4512,7 +4416,7 @@ let%expect_test "%logN_block runtime log levels" =
   @@ Int.to_string
        (result
           Minidebug_db.(
-            debug_db_file ~log_level:3 ~global_prefix:"for=4,with=3" db_file)
+            debug_db_file ~log_level:3 ~run_name:"for=4,with=3" db_file)
           ~for_log_level:4);
   [%expect
     {|

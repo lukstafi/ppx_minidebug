@@ -41,7 +41,7 @@ val debug_db_file :
   ?location_format:Minidebug_runtime.location_format ->
   ?print_entry_ids:bool ->
   ?verbose_entry_ids:bool ->
-  ?global_prefix:string ->
+  ?run_name:string ->
   ?for_append:bool ->
   ?log_level:int ->
   ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->
@@ -56,7 +56,7 @@ val debug_db :
   ?location_format:Minidebug_runtime.location_format ->
   ?print_entry_ids:bool ->
   ?verbose_entry_ids:bool ->
-  ?global_prefix:string ->
+  ?run_name:string ->
   ?log_level:int ->
   ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->
   unit ->

@@ -22,6 +22,7 @@ module Query : sig
     timestamp : string;
     elapsed_ns : int;
     command_line : string;
+    run_name : string option;
   }
 
   type stats = {

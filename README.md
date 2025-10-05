@@ -364,7 +364,7 @@ If that is insufficient, you can define `_get_local_debug_runtime` using a `_flu
 ```ocaml
   let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~global_prefix:"test-51" db_file in
+    let rt = Minidebug_db.debug_db_file ~run_name:"test-51" db_file in
     fun () -> rt
   in
   let%debug_show bar (x : t) : int =
@@ -379,25 +379,26 @@ If that is insufficient, you can define `_get_local_debug_runtime` using a `_flu
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
   let db = Minidebug_client.Client.open_db db_file in
   Minidebug_client.Client.show_trace db run_id;
+  let runs = Minidebug_client.Client.list_runs db in
+  let run = List.find (fun r -> r.Minidebug_client.Query.run_id = run_id) runs in
+  Printf.printf "\nRun #%d has name: %s\n" run.run_id
+    (match run.run_name with Some n -> n | None -> "(none)");
   [%expect
     {|
-    BEGIN DEBUG SESSION test-51
-    test-51 bar begin "test/test_expect_test.ml":142:21:
-     test-51 x = { Test_expect_test.first = 7; second = 42 }
-     test-51 y begin "test/test_expect_test.ml":143:8:
-      test-51 y = 8
-     test-51 y end
-     test-51 bar = 336
-    test-51 bar end
     336
-    test-51 baz begin "test/test_expect_test.ml":147:21:
-     test-51 x = { Test_expect_test.first = 7; second = 42 }
-     test-51 _yz begin "test/test_expect_test.ml":148:19:
-      test-51 _yz = (8, 3)
-     test-51 _yz end
-     test-51 baz = 339
-    test-51 baz end
     339
+    [debug] bar @ test/test_expect_test.ml:59:21-61:16
+      x = { Test_expect_test.first = 7; second = 42 }
+      => 336
+      [debug] y @ test/test_expect_test.ml:60:8-60:9
+        => 8
+    [debug] baz @ test/test_expect_test.ml:64:21-66:22
+      x = { Test_expect_test.first = 7; second = 42 }
+      => 339
+      [debug] _yz @ test/test_expect_test.ml:65:19-65:22
+        => (8, 3)
+
+    Run #2 has name: test-51
     |}]
 ```
 
@@ -612,20 +613,20 @@ At runtime creation, the level can be set via the `~log_level` parameter, or via
        (result
           Minidebug_runtime.(
             forget_printbox
-            @@ debug ~values_first_mode:false ~global_prefix:"Everything" ())
+            @@ debug ~values_first_mode:false ~run_name:"Everything" ())
           ());
   print_endline
   @@ Int.to_string
        (result
           Minidebug_runtime.(
             forget_printbox
-            @@ debug ~values_first_mode:false ~log_level:0 ~global_prefix:"Nothing" ())
+            @@ debug ~values_first_mode:false ~log_level:0 ~run_name:"Nothing" ())
           ());
   print_endline
   @@ Int.to_string
        (result
           Minidebug_runtime.(
-            forget_printbox @@ debug ~log_level:1 ~global_prefix:"Error" ())
+            forget_printbox @@ debug ~log_level:1 ~run_name:"Error" ())
           ());
 ```
 
@@ -1575,7 +1576,7 @@ Example from the test suite:
 ```ocaml
   let i = ref 0 in
   let _get_local_debug_runtime () =
-    let rt = Minidebug_db.debug_db_file ~global_prefix:("foo-" ^ string_of_int !i) db_file in
+    let rt = Minidebug_db.debug_db_file ~run_name:("foo-" ^ string_of_int !i) db_file in
     fun () -> rt
   in
   let%track_show foo () =
@@ -1635,7 +1636,7 @@ Example from the test suite:
   let%track_rt_show foo l : int = match (l : int list) with [] -> 7 | y :: _ -> y * 2 in
   let () =
     print_endline @@ Int.to_string
-    @@ foo Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"foo-1" ()) [ 7 ]
+    @@ foo Minidebug_runtime.(forget_printbox @@ debug ~run_name:"foo-1" ()) [ 7 ]
   in
   let%track_rt_show baz : int list -> int = function
     | [] -> 7
@@ -1645,12 +1646,12 @@ Example from the test suite:
   in
   let () =
     print_endline @@ Int.to_string
-    @@ baz Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"baz-1" ()) [ 4 ]
+    @@ baz Minidebug_runtime.(forget_printbox @@ debug ~run_name:"baz-1" ()) [ 4 ]
   in
   let () =
     print_endline @@ Int.to_string
     @@ baz
-         Minidebug_runtime.(forget_printbox @@ debug ~global_prefix:"baz-2" ())
+         Minidebug_runtime.(forget_printbox @@ debug ~run_name:"baz-2" ())
          [ 4; 5; 6 ]
   in
   [%expect

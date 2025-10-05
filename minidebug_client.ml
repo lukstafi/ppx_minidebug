@@ -24,6 +24,7 @@ module Query = struct
     timestamp : string;
     elapsed_ns : int;
     command_line : string;
+    run_name : string option;
   }
 
   type stats = {
@@ -36,7 +37,7 @@ module Query = struct
 
   (** Get all runs from database *)
   let get_runs db =
-    let stmt = Sqlite3.prepare db "SELECT run_id, timestamp, elapsed_ns, command_line FROM runs ORDER BY run_id DESC" in
+    let stmt = Sqlite3.prepare db "SELECT run_id, timestamp, elapsed_ns, command_line, run_name FROM runs ORDER BY run_id DESC" in
     let runs = ref [] in
     let rec loop () =
       match Sqlite3.step stmt with
@@ -46,6 +47,9 @@ module Query = struct
             timestamp = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 1);
             elapsed_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 2);
             command_line = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 3);
+            run_name = (match Sqlite3.column stmt 4 with
+              | Sqlite3.Data.TEXT s -> Some s
+              | _ -> None);
           } in
           runs := run :: !runs;
           loop ()

@@ -149,7 +149,11 @@ let () =
         let runs = Minidebug_client.Client.list_runs client in
         Printf.printf "Runs in %s:\n\n" db_path;
         List.iter (fun run ->
-          Printf.printf "Run #%d - %s\n" run.Minidebug_client.Query.run_id run.timestamp;
+          Printf.printf "Run #%d - %s" run.Minidebug_client.Query.run_id run.timestamp;
+          (match run.run_name with
+          | Some name -> Printf.printf " [%s]" name
+          | None -> ());
+          Printf.printf "\n";
           Printf.printf "  Command: %s\n" run.command_line;
           Printf.printf "  Elapsed: %s\n\n"
             (Minidebug_client.Renderer.format_elapsed_ns run.elapsed_ns)
