@@ -6,6 +6,7 @@ module Query : sig
     entry_id : int;
     seq_num : int;
     parent_id : int option;
+    parent_seq_num : int option;
     depth : int;
     message : string;
     location : string option;

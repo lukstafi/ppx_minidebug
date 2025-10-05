@@ -38,15 +38,15 @@ let%expect_test "%debug_show, `as` alias and show_times" =
     336
     339
     [debug] bar @ test/test_expect_test.ml:19:21-21:16 <TIME>
-      x = { Test_expect_test.first = 7; second = 42 }
-      => 336
       [debug] y @ test/test_expect_test.ml:20:8-20:9 <TIME>
         => 8
-    [debug] baz @ test/test_expect_test.ml:24:21-26:22 <TIME>
       x = { Test_expect_test.first = 7; second = 42 }
-      => 339
+      => 336
+    [debug] baz @ test/test_expect_test.ml:24:21-26:22 <TIME>
       [debug] _yz @ test/test_expect_test.ml:25:19-25:22 <TIME>
         => (8, 3)
+      x = { Test_expect_test.first = 7; second = 42 }
+      => 339
     |}]
 
 let%expect_test "%debug_show with run name" =
@@ -76,15 +76,15 @@ let%expect_test "%debug_show with run name" =
     336
     339
     [debug] bar @ test/test_expect_test.ml:58:21-60:16
-      x = { Test_expect_test.first = 7; second = 42 }
-      => 336
       [debug] y @ test/test_expect_test.ml:59:8-59:9
         => 8
-    [debug] baz @ test/test_expect_test.ml:63:21-65:22
       x = { Test_expect_test.first = 7; second = 42 }
-      => 339
+      => 336
+    [debug] baz @ test/test_expect_test.ml:63:21-65:22
       [debug] _yz @ test/test_expect_test.ml:64:19-64:22
         => (8, 3)
+      x = { Test_expect_test.first = 7; second = 42 }
+      => 339
 
     Run #2 has name: test-51
     |}]
@@ -104,45 +104,45 @@ let%expect_test "%debug_show disabled subtree" =
     {|
     9
     [debug] loop_complete @ test/test_expect_test.ml:96:35-98:57
-      x = 7
-      => 9
       [debug] z @ test/test_expect_test.ml:97:8-97:9
         => 3
+      x = 7
       [debug] loop_complete @ test/test_expect_test.ml:96:35-98:57
-        x = 6
-        => 6
         [debug] z @ test/test_expect_test.ml:97:8-97:9
           => 2
+        x = 6
         [debug] loop_complete @ test/test_expect_test.ml:96:35-98:57
-          x = 5
-          => 4
           [debug] z @ test/test_expect_test.ml:97:8-97:9
             => 2
+          x = 5
           [debug] loop_complete @ test/test_expect_test.ml:96:35-98:57
-            x = 4
-            => 2
             [debug] z @ test/test_expect_test.ml:97:8-97:9
               => 1
+            x = 4
             [debug] loop_complete @ test/test_expect_test.ml:96:35-98:57
-              x = 3
-              => 1
               [debug] z @ test/test_expect_test.ml:97:8-97:9
                 => 1
+              x = 3
               [debug] loop_complete @ test/test_expect_test.ml:96:35-98:57
-                x = 2
-                => 0
                 [debug] z @ test/test_expect_test.ml:97:8-97:9
                   => 0
+                x = 2
                 [debug] loop_complete @ test/test_expect_test.ml:96:35-98:57
-                  x = 1
-                  => 0
                   [debug] z @ test/test_expect_test.ml:97:8-97:9
                     => 0
+                  x = 1
                   [debug] loop_complete @ test/test_expect_test.ml:96:35-98:57
-                    x = 0
-                    => 0
                     [debug] z @ test/test_expect_test.ml:97:8-97:9
                       => 0
+                    x = 0
+                    => 0
+                  => 0
+                => 0
+              => 1
+            => 2
+          => 4
+        => 6
+      => 9
     |}];
 
   let run_id2 = next_run () in
@@ -164,29 +164,29 @@ let%expect_test "%debug_show disabled subtree" =
     {|
     9
     [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
-      x = 7
-      => 9
       [debug] z @ test/test_expect_test.ml:153:8-153:9
         => 3
+      x = 7
       [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
-        x = 6
-        => 6
         [debug] z @ test/test_expect_test.ml:153:8-153:9
           => 2
+        x = 6
         [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
-          x = 5
-          => 4
           [debug] z @ test/test_expect_test.ml:153:8-153:9
             => 2
+          x = 5
           [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
             => 2
+          => 4
+        => 6
+      => 9
     |}]
 (* $MDX part-end *)
 
-(* 
 let%expect_test "%debug_show with exception" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
   in
   let%debug_show rec loop_truncated (x : int) : int =
@@ -198,44 +198,44 @@ let%expect_test "%debug_show with exception" =
     try print_endline @@ Int.to_string @@ loop_truncated 7
     with _ -> print_endline "Raised exception."
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":265:36: loop_truncated
-    ├─x = 7
-    ├─"test/test_expect_test.ml":266:8: z
-    │ └─z = 3
-    └─"test/test_expect_test.ml":265:36: loop_truncated
-      ├─x = 6
-      ├─"test/test_expect_test.ml":266:8: z
-      │ └─z = 2
-      └─"test/test_expect_test.ml":265:36: loop_truncated
-        ├─x = 5
-        ├─"test/test_expect_test.ml":266:8: z
-        │ └─z = 2
-        └─"test/test_expect_test.ml":265:36: loop_truncated
-          ├─x = 4
-          ├─"test/test_expect_test.ml":266:8: z
-          │ └─z = 1
-          └─"test/test_expect_test.ml":265:36: loop_truncated
-            ├─x = 3
-            ├─"test/test_expect_test.ml":266:8: z
-            │ └─z = 1
-            └─"test/test_expect_test.ml":265:36: loop_truncated
-              ├─x = 2
-              ├─"test/test_expect_test.ml":266:8: z
-              │ └─z = 0
-              └─"test/test_expect_test.ml":265:36: loop_truncated
-                ├─x = 1
-                ├─"test/test_expect_test.ml":266:8: z
-                │ └─z = 0
-                └─"test/test_expect_test.ml":265:36: loop_truncated
-                  ├─x = 0
-                  └─"test/test_expect_test.ml":266:8: z
-                    └─z = 0
     Raised exception.
+    [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36
+      [debug] z @ test/test_expect_test.ml:193:8-193:9
+        => 3
+      x = 7
+      [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36
+        [debug] z @ test/test_expect_test.ml:193:8-193:9
+          => 2
+        x = 6
+        [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36
+          [debug] z @ test/test_expect_test.ml:193:8-193:9
+            => 2
+          x = 5
+          [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36
+            [debug] z @ test/test_expect_test.ml:193:8-193:9
+              => 1
+            x = 4
+            [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36
+              [debug] z @ test/test_expect_test.ml:193:8-193:9
+                => 1
+              x = 3
+              [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36
+                [debug] z @ test/test_expect_test.ml:193:8-193:9
+                  => 0
+                x = 2
+                [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36
+                  [debug] z @ test/test_expect_test.ml:193:8-193:9
+                    => 0
+                  x = 1
+                  [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36
+                    [debug] z @ test/test_expect_test.ml:193:8-193:9
+                      => 0
+                    x = 0
     |}]
-*)
 
 (*
 let%expect_test "%debug_show depth exceeded" =

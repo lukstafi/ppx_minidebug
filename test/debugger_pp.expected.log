@@ -2,388 +2,388 @@ Run #1
 Command: ./test_debug_pp.exe
 
 [debug] bar @ test/test_debug_pp.ml:8:17-10:14
-  x = { Test_debug_pp.first = 7; second = 42 }
-  => 336
   [debug] y @ test/test_debug_pp.ml:9:6-9:7
     => 8
-[debug] baz @ test/test_debug_pp.ml:14:17-16:20
   x = { Test_debug_pp.first = 7; second = 42 }
-  => 339
+  => 336
+[debug] baz @ test/test_debug_pp.ml:14:17-16:20
   [debug] _yz @ test/test_debug_pp.ml:15:36-15:39
     => { Test_debug_pp.first = 8; second = 3 }
-[debug] loop @ test/test_debug_pp.ml:20:22-26:9
-  depth = 0
   x = { Test_debug_pp.first = 7; second = 42 }
-  => 56
+  => 339
+[debug] loop @ test/test_debug_pp.ml:20:22-26:9
   [debug] y @ test/test_debug_pp.ml:24:8-24:9
-    => 42
     [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-      depth = 1
-      x = { Test_debug_pp.first = 41; second = 9 }
-      => 42
       [debug] y @ test/test_debug_pp.ml:24:8-24:9
-        => 36
         [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-          depth = 2
-          x = { Test_debug_pp.first = 8; second = 43 }
-          => 36
           [debug] y @ test/test_debug_pp.ml:24:8-24:9
-            => 24
             [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-              depth = 3
-              x = { Test_debug_pp.first = 42; second = 10 }
-              => 24
               [debug] y @ test/test_debug_pp.ml:24:8-24:9
-                => 25
                 [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                  depth = 4
-                  x = { Test_debug_pp.first = 9; second = 44 }
-                  => 25
                   [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                    depth = 5
-                    x = { Test_debug_pp.first = 45; second = 4 }
-                    => 25
                     [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                      depth = 6
-                      x = { Test_debug_pp.first = 5; second = 22 }
-                      => 25
                       [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                         depth = 7
                         x = { Test_debug_pp.first = 23; second = 2 }
                         => 25
-              [debug] z @ test/test_debug_pp.ml:25:8-25:9
-                => 17
-                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                  depth = 4
-                  x = { Test_debug_pp.first = 11; second = 25 }
-                  => 17
-                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                    depth = 5
-                    x = { Test_debug_pp.first = 26; second = 5 }
-                    => 17
-                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       depth = 6
-                      x = { Test_debug_pp.first = 6; second = 13 }
-                      => 17
+                      x = { Test_debug_pp.first = 5; second = 22 }
+                      => 25
+                    depth = 5
+                    x = { Test_debug_pp.first = 45; second = 4 }
+                    => 25
+                  depth = 4
+                  x = { Test_debug_pp.first = 9; second = 44 }
+                  => 25
+                => 25
+              depth = 3
+              [debug] z @ test/test_debug_pp.ml:25:8-25:9
+                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                         depth = 7
                         x = { Test_debug_pp.first = 14; second = 3 }
                         => 17
-          [debug] z @ test/test_debug_pp.ml:25:8-25:9
-            => 29
-            [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-              depth = 3
-              x = { Test_debug_pp.first = 44; second = 24 }
-              => 29
-              [debug] y @ test/test_debug_pp.ml:24:8-24:9
-                => 30
-                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                  depth = 4
-                  x = { Test_debug_pp.first = 23; second = 46 }
-                  => 30
-                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                    depth = 5
-                    x = { Test_debug_pp.first = 47; second = 11 }
-                    => 30
-                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       depth = 6
-                      x = { Test_debug_pp.first = 12; second = 23 }
-                      => 30
+                      x = { Test_debug_pp.first = 6; second = 13 }
+                      => 17
+                    depth = 5
+                    x = { Test_debug_pp.first = 26; second = 5 }
+                    => 17
+                  depth = 4
+                  x = { Test_debug_pp.first = 11; second = 25 }
+                  => 17
+                => 17
+              x = { Test_debug_pp.first = 42; second = 10 }
+              => 24
+            => 24
+          depth = 2
+          [debug] z @ test/test_debug_pp.ml:25:8-25:9
+            [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+              [debug] y @ test/test_debug_pp.ml:24:8-24:9
+                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                         depth = 7
                         x = { Test_debug_pp.first = 24; second = 6 }
                         => 30
-              [debug] z @ test/test_debug_pp.ml:25:8-25:9
-                => 22
-                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                  depth = 4
-                  x = { Test_debug_pp.first = 25; second = 30 }
-                  => 22
-                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                    depth = 5
-                    x = { Test_debug_pp.first = 31; second = 12 }
-                    => 22
-                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       depth = 6
-                      x = { Test_debug_pp.first = 13; second = 15 }
-                      => 22
+                      x = { Test_debug_pp.first = 12; second = 23 }
+                      => 30
+                    depth = 5
+                    x = { Test_debug_pp.first = 47; second = 11 }
+                    => 30
+                  depth = 4
+                  x = { Test_debug_pp.first = 23; second = 46 }
+                  => 30
+                => 30
+              depth = 3
+              [debug] z @ test/test_debug_pp.ml:25:8-25:9
+                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                         depth = 7
                         x = { Test_debug_pp.first = 16; second = 6 }
                         => 22
-      [debug] z @ test/test_debug_pp.ml:25:8-25:9
-        => 35
-        [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-          depth = 2
-          x = { Test_debug_pp.first = 10; second = 36 }
-          => 35
-          [debug] y @ test/test_debug_pp.ml:24:8-24:9
-            => 23
-            [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-              depth = 3
-              x = { Test_debug_pp.first = 35; second = 12 }
-              => 23
-              [debug] y @ test/test_debug_pp.ml:24:8-24:9
-                => 23
-                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                  depth = 4
-                  x = { Test_debug_pp.first = 11; second = 37 }
-                  => 23
-                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                    depth = 5
-                    x = { Test_debug_pp.first = 38; second = 5 }
-                    => 23
-                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       depth = 6
-                      x = { Test_debug_pp.first = 6; second = 19 }
-                      => 23
+                      x = { Test_debug_pp.first = 13; second = 15 }
+                      => 22
+                    depth = 5
+                    x = { Test_debug_pp.first = 31; second = 12 }
+                    => 22
+                  depth = 4
+                  x = { Test_debug_pp.first = 25; second = 30 }
+                  => 22
+                => 22
+              x = { Test_debug_pp.first = 44; second = 24 }
+              => 29
+            => 29
+          x = { Test_debug_pp.first = 8; second = 43 }
+          => 36
+        => 36
+      depth = 1
+      [debug] z @ test/test_debug_pp.ml:25:8-25:9
+        [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+          [debug] y @ test/test_debug_pp.ml:24:8-24:9
+            [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+              [debug] y @ test/test_debug_pp.ml:24:8-24:9
+                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                         depth = 7
                         x = { Test_debug_pp.first = 20; second = 3 }
                         => 23
-              [debug] z @ test/test_debug_pp.ml:25:8-25:9
-                => 16
-                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                  depth = 4
-                  x = { Test_debug_pp.first = 13; second = 23 }
-                  => 16
-                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                    depth = 5
-                    x = { Test_debug_pp.first = 24; second = 6 }
-                    => 16
-                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       depth = 6
-                      x = { Test_debug_pp.first = 7; second = 12 }
-                      => 16
+                      x = { Test_debug_pp.first = 6; second = 19 }
+                      => 23
+                    depth = 5
+                    x = { Test_debug_pp.first = 38; second = 5 }
+                    => 23
+                  depth = 4
+                  x = { Test_debug_pp.first = 11; second = 37 }
+                  => 23
+                => 23
+              depth = 3
+              [debug] z @ test/test_debug_pp.ml:25:8-25:9
+                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                         depth = 7
                         x = { Test_debug_pp.first = 13; second = 3 }
                         => 16
-          [debug] z @ test/test_debug_pp.ml:25:8-25:9
-            => 28
-            [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-              depth = 3
-              x = { Test_debug_pp.first = 37; second = 23 }
-              => 28
-              [debug] y @ test/test_debug_pp.ml:24:8-24:9
-                => 27
-                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                  depth = 4
-                  x = { Test_debug_pp.first = 22; second = 39 }
-                  => 27
-                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                    depth = 5
-                    x = { Test_debug_pp.first = 40; second = 11 }
-                    => 27
-                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       depth = 6
-                      x = { Test_debug_pp.first = 12; second = 20 }
-                      => 27
+                      x = { Test_debug_pp.first = 7; second = 12 }
+                      => 16
+                    depth = 5
+                    x = { Test_debug_pp.first = 24; second = 6 }
+                    => 16
+                  depth = 4
+                  x = { Test_debug_pp.first = 13; second = 23 }
+                  => 16
+                => 16
+              x = { Test_debug_pp.first = 35; second = 12 }
+              => 23
+            => 23
+          depth = 2
+          [debug] z @ test/test_debug_pp.ml:25:8-25:9
+            [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+              [debug] y @ test/test_debug_pp.ml:24:8-24:9
+                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                         depth = 7
                         x = { Test_debug_pp.first = 21; second = 6 }
                         => 27
-              [debug] z @ test/test_debug_pp.ml:25:8-25:9
-                => 21
-                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                  depth = 4
-                  x = { Test_debug_pp.first = 24; second = 27 }
-                  => 21
-                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                    depth = 5
-                    x = { Test_debug_pp.first = 28; second = 12 }
-                    => 21
-                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       depth = 6
-                      x = { Test_debug_pp.first = 13; second = 14 }
-                      => 21
+                      x = { Test_debug_pp.first = 12; second = 20 }
+                      => 27
+                    depth = 5
+                    x = { Test_debug_pp.first = 40; second = 11 }
+                    => 27
+                  depth = 4
+                  x = { Test_debug_pp.first = 22; second = 39 }
+                  => 27
+                => 27
+              depth = 3
+              [debug] z @ test/test_debug_pp.ml:25:8-25:9
+                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                         depth = 7
                         x = { Test_debug_pp.first = 15; second = 6 }
                         => 21
-  [debug] z @ test/test_debug_pp.ml:25:8-25:9
-    => 49
-    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-      depth = 1
-      x = { Test_debug_pp.first = 43; second = 42 }
-      => 49
-      [debug] y @ test/test_debug_pp.ml:24:8-24:9
-        => 42
-        [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-          depth = 2
-          x = { Test_debug_pp.first = 41; second = 45 }
-          => 42
-          [debug] y @ test/test_debug_pp.ml:24:8-24:9
-            => 37
-            [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-              depth = 3
-              x = { Test_debug_pp.first = 44; second = 43 }
-              => 37
-              [debug] y @ test/test_debug_pp.ml:24:8-24:9
-                => 35
-                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                  depth = 4
-                  x = { Test_debug_pp.first = 42; second = 46 }
-                  => 35
-                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                    depth = 5
-                    x = { Test_debug_pp.first = 47; second = 21 }
-                    => 35
-                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       depth = 6
-                      x = { Test_debug_pp.first = 22; second = 23 }
-                      => 35
+                      x = { Test_debug_pp.first = 13; second = 14 }
+                      => 21
+                    depth = 5
+                    x = { Test_debug_pp.first = 28; second = 12 }
+                    => 21
+                  depth = 4
+                  x = { Test_debug_pp.first = 24; second = 27 }
+                  => 21
+                => 21
+              x = { Test_debug_pp.first = 37; second = 23 }
+              => 28
+            => 28
+          x = { Test_debug_pp.first = 10; second = 36 }
+          => 35
+        => 35
+      x = { Test_debug_pp.first = 41; second = 9 }
+      => 42
+    => 42
+  depth = 0
+  [debug] z @ test/test_debug_pp.ml:25:8-25:9
+    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+      [debug] y @ test/test_debug_pp.ml:24:8-24:9
+        [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+          [debug] y @ test/test_debug_pp.ml:24:8-24:9
+            [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+              [debug] y @ test/test_debug_pp.ml:24:8-24:9
+                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                         depth = 7
                         x = { Test_debug_pp.first = 24; second = 11 }
                         => 35
-              [debug] z @ test/test_debug_pp.ml:25:8-25:9
-                => 30
-                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                  depth = 4
-                  x = { Test_debug_pp.first = 44; second = 35 }
-                  => 30
-                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                    depth = 5
-                    x = { Test_debug_pp.first = 36; second = 22 }
-                    => 30
-                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       depth = 6
-                      x = { Test_debug_pp.first = 23; second = 18 }
-                      => 30
+                      x = { Test_debug_pp.first = 22; second = 23 }
+                      => 35
+                    depth = 5
+                    x = { Test_debug_pp.first = 47; second = 21 }
+                    => 35
+                  depth = 4
+                  x = { Test_debug_pp.first = 42; second = 46 }
+                  => 35
+                => 35
+              depth = 3
+              [debug] z @ test/test_debug_pp.ml:25:8-25:9
+                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                         depth = 7
                         x = { Test_debug_pp.first = 19; second = 11 }
                         => 30
-          [debug] z @ test/test_debug_pp.ml:25:8-25:9
-            => 35
-            [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-              depth = 3
-              x = { Test_debug_pp.first = 46; second = 37 }
-              => 35
-              [debug] y @ test/test_debug_pp.ml:24:8-24:9
-                => 34
-                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                  depth = 4
-                  x = { Test_debug_pp.first = 36; second = 48 }
-                  => 34
-                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                    depth = 5
-                    x = { Test_debug_pp.first = 49; second = 18 }
-                    => 34
-                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       depth = 6
-                      x = { Test_debug_pp.first = 19; second = 24 }
-                      => 34
+                      x = { Test_debug_pp.first = 23; second = 18 }
+                      => 30
+                    depth = 5
+                    x = { Test_debug_pp.first = 36; second = 22 }
+                    => 30
+                  depth = 4
+                  x = { Test_debug_pp.first = 44; second = 35 }
+                  => 30
+                => 30
+              x = { Test_debug_pp.first = 44; second = 43 }
+              => 37
+            => 37
+          depth = 2
+          [debug] z @ test/test_debug_pp.ml:25:8-25:9
+            [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+              [debug] y @ test/test_debug_pp.ml:24:8-24:9
+                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                         depth = 7
                         x = { Test_debug_pp.first = 25; second = 9 }
                         => 34
-              [debug] z @ test/test_debug_pp.ml:25:8-25:9
-                => 28
-                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                  depth = 4
-                  x = { Test_debug_pp.first = 38; second = 34 }
-                  => 28
-                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                    depth = 5
-                    x = { Test_debug_pp.first = 35; second = 19 }
-                    => 28
-                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       depth = 6
-                      x = { Test_debug_pp.first = 20; second = 17 }
-                      => 28
+                      x = { Test_debug_pp.first = 19; second = 24 }
+                      => 34
+                    depth = 5
+                    x = { Test_debug_pp.first = 49; second = 18 }
+                    => 34
+                  depth = 4
+                  x = { Test_debug_pp.first = 36; second = 48 }
+                  => 34
+                => 34
+              depth = 3
+              [debug] z @ test/test_debug_pp.ml:25:8-25:9
+                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                         depth = 7
                         x = { Test_debug_pp.first = 18; second = 10 }
                         => 28
-      [debug] z @ test/test_debug_pp.ml:25:8-25:9
-        => 42
-        [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-          depth = 2
-          x = { Test_debug_pp.first = 43; second = 42 }
-          => 42
-          [debug] y @ test/test_debug_pp.ml:24:8-24:9
-            => 37
-            [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-              depth = 3
-              x = { Test_debug_pp.first = 41; second = 45 }
-              => 37
-              [debug] y @ test/test_debug_pp.ml:24:8-24:9
-                => 34
-                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                  depth = 4
-                  x = { Test_debug_pp.first = 44; second = 43 }
-                  => 34
-                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                    depth = 5
-                    x = { Test_debug_pp.first = 44; second = 22 }
-                    => 34
-                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       depth = 6
-                      x = { Test_debug_pp.first = 23; second = 22 }
-                      => 34
+                      x = { Test_debug_pp.first = 20; second = 17 }
+                      => 28
+                    depth = 5
+                    x = { Test_debug_pp.first = 35; second = 19 }
+                    => 28
+                  depth = 4
+                  x = { Test_debug_pp.first = 38; second = 34 }
+                  => 28
+                => 28
+              x = { Test_debug_pp.first = 46; second = 37 }
+              => 35
+            => 35
+          x = { Test_debug_pp.first = 41; second = 45 }
+          => 42
+        => 42
+      depth = 1
+      [debug] z @ test/test_debug_pp.ml:25:8-25:9
+        [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+          [debug] y @ test/test_debug_pp.ml:24:8-24:9
+            [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+              [debug] y @ test/test_debug_pp.ml:24:8-24:9
+                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                         depth = 7
                         x = { Test_debug_pp.first = 23; second = 11 }
                         => 34
-              [debug] z @ test/test_debug_pp.ml:25:8-25:9
-                => 30
-                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                  depth = 4
-                  x = { Test_debug_pp.first = 46; second = 34 }
-                  => 30
-                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                    depth = 5
-                    x = { Test_debug_pp.first = 35; second = 23 }
-                    => 30
-                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       depth = 6
-                      x = { Test_debug_pp.first = 24; second = 17 }
-                      => 30
+                      x = { Test_debug_pp.first = 23; second = 22 }
+                      => 34
+                    depth = 5
+                    x = { Test_debug_pp.first = 44; second = 22 }
+                    => 34
+                  depth = 4
+                  x = { Test_debug_pp.first = 44; second = 43 }
+                  => 34
+                => 34
+              depth = 3
+              [debug] z @ test/test_debug_pp.ml:25:8-25:9
+                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                         depth = 7
                         x = { Test_debug_pp.first = 18; second = 12 }
                         => 30
-          [debug] z @ test/test_debug_pp.ml:25:8-25:9
-            => 35
-            [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-              depth = 3
-              x = { Test_debug_pp.first = 43; second = 37 }
-              => 35
-              [debug] y @ test/test_debug_pp.ml:24:8-24:9
-                => 33
-                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                  depth = 4
-                  x = { Test_debug_pp.first = 36; second = 45 }
-                  => 33
-                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                    depth = 5
-                    x = { Test_debug_pp.first = 46; second = 18 }
-                    => 33
-                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       depth = 6
-                      x = { Test_debug_pp.first = 19; second = 23 }
-                      => 33
+                      x = { Test_debug_pp.first = 24; second = 17 }
+                      => 30
+                    depth = 5
+                    x = { Test_debug_pp.first = 35; second = 23 }
+                    => 30
+                  depth = 4
+                  x = { Test_debug_pp.first = 46; second = 34 }
+                  => 30
+                => 30
+              x = { Test_debug_pp.first = 41; second = 45 }
+              => 37
+            => 37
+          depth = 2
+          [debug] z @ test/test_debug_pp.ml:25:8-25:9
+            [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+              [debug] y @ test/test_debug_pp.ml:24:8-24:9
+                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                         depth = 7
                         x = { Test_debug_pp.first = 24; second = 9 }
                         => 33
-              [debug] z @ test/test_debug_pp.ml:25:8-25:9
-                => 28
-                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                  depth = 4
-                  x = { Test_debug_pp.first = 38; second = 33 }
-                  => 28
-                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
-                    depth = 5
-                    x = { Test_debug_pp.first = 34; second = 19 }
-                    => 28
-                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       depth = 6
-                      x = { Test_debug_pp.first = 20; second = 17 }
-                      => 28
+                      x = { Test_debug_pp.first = 19; second = 23 }
+                      => 33
+                    depth = 5
+                    x = { Test_debug_pp.first = 46; second = 18 }
+                    => 33
+                  depth = 4
+                  x = { Test_debug_pp.first = 36; second = 45 }
+                  => 33
+                => 33
+              depth = 3
+              [debug] z @ test/test_debug_pp.ml:25:8-25:9
+                [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                  [debug] loop @ test/test_debug_pp.ml:20:22-26:9
+                    [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                       [debug] loop @ test/test_debug_pp.ml:20:22-26:9
                         depth = 7
                         x = { Test_debug_pp.first = 18; second = 10 }
                         => 28
+                      depth = 6
+                      x = { Test_debug_pp.first = 20; second = 17 }
+                      => 28
+                    depth = 5
+                    x = { Test_debug_pp.first = 34; second = 19 }
+                    => 28
+                  depth = 4
+                  x = { Test_debug_pp.first = 38; second = 33 }
+                  => 28
+                => 28
+              x = { Test_debug_pp.first = 43; second = 37 }
+              => 35
+            => 35
+          x = { Test_debug_pp.first = 43; second = 42 }
+          => 42
+        => 42
+      x = { Test_debug_pp.first = 43; second = 42 }
+      => 49
+    => 49
+  x = { Test_debug_pp.first = 7; second = 42 }
+  => 56

@@ -38,13 +38,15 @@ module Schema = struct
     |> ignore;
 
     (* Entries table with foreign keys to value_atoms.
-       seq_num discriminates between scope entry (0) and logged values (>0, or -1 for results) *)
+       seq_num discriminates between scope entry (0) and logged values (>0, or -1 for results).
+       parent_seq_num tracks chronological position within parent (populated when parent_id is set and seq_num = 0) *)
     Sqlite3.exec db
       {|CREATE TABLE IF NOT EXISTS entries (
           run_id INTEGER NOT NULL,
           entry_id INTEGER NOT NULL,
           seq_num INTEGER NOT NULL DEFAULT 0,
           parent_id INTEGER,
+          parent_seq_num INTEGER,
           depth INTEGER NOT NULL,
           message_value_id INTEGER REFERENCES value_atoms(value_id),
           location_value_id INTEGER REFERENCES value_atoms(value_id),
@@ -249,7 +251,10 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
       let db = get_db () in
       let run_id = get_run_id () in
       let intern = get_intern () in
-      let parent_id = match !stack with [] -> None | parent :: _ -> Some parent.entry_id in
+      let parent_id, parent_seq_num = match !stack with
+        | [] -> None, None
+        | parent :: _ -> Some parent.entry_id, Some parent.num_children
+      in
       let depth = List.length !stack in
       let elapsed_start = Mtime_clock.elapsed () in
 
@@ -266,9 +271,9 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
       (* Insert entry with seq_num = 0 for scope entry *)
       let stmt =
         Sqlite3.prepare db
-          "INSERT INTO entries (run_id, entry_id, seq_num, parent_id, depth, message_value_id, \
+          "INSERT INTO entries (run_id, entry_id, seq_num, parent_id, parent_seq_num, depth, message_value_id, \
            location_value_id, elapsed_start_ns, log_level, entry_type) VALUES (?, ?, 0, ?, \
-           ?, ?, ?, ?, ?, ?)"
+           ?, ?, ?, ?, ?, ?, ?)"
       in
       Sqlite3.bind_int stmt 1 run_id |> ignore;
       Sqlite3.bind_int stmt 2 entry_id |> ignore;
@@ -276,20 +281,24 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
       | None -> Sqlite3.bind stmt 3 Sqlite3.Data.NULL
       | Some pid -> Sqlite3.bind_int stmt 3 pid)
       |> ignore;
-      Sqlite3.bind_int stmt 4 depth |> ignore;
-      Sqlite3.bind_int stmt 5 message_value_id |> ignore;
-      Sqlite3.bind_int stmt 6 location_value_id |> ignore;
+      (match parent_seq_num with
+      | None -> Sqlite3.bind stmt 4 Sqlite3.Data.NULL
+      | Some psn -> Sqlite3.bind_int stmt 4 psn)
+      |> ignore;
+      Sqlite3.bind_int stmt 5 depth |> ignore;
+      Sqlite3.bind_int stmt 6 message_value_id |> ignore;
+      Sqlite3.bind_int stmt 7 location_value_id |> ignore;
       let elapsed_ns =
         match Int64.unsigned_to_int @@ Mtime.Span.to_uint64_ns elapsed_start with
         | None -> 0
         | Some ns -> ns
       in
-      Sqlite3.bind_int stmt 7 elapsed_ns |> ignore;
-      Sqlite3.bind_int stmt 8 log_level |> ignore;
+      Sqlite3.bind_int stmt 8 elapsed_ns |> ignore;
+      Sqlite3.bind_int stmt 9 log_level |> ignore;
       let entry_type_str =
         match log_type with `Diagn -> "diagn" | `Debug -> "debug" | `Track -> "track"
       in
-      Sqlite3.bind_text stmt 9 entry_type_str |> ignore;
+      Sqlite3.bind_text stmt 10 entry_type_str |> ignore;
 
       (match Sqlite3.step stmt with
       | Sqlite3.Rc.DONE -> ()
@@ -381,22 +390,24 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
       (* Insert value row with same entry_id but different seq_num *)
       let stmt =
         Sqlite3.prepare db
-          "INSERT INTO entries (run_id, entry_id, seq_num, parent_id, depth, message_value_id, \
+          "INSERT INTO entries (run_id, entry_id, seq_num, parent_id, parent_seq_num, depth, message_value_id, \
            data_value_id, elapsed_start_ns, elapsed_end_ns, is_result, log_level, entry_type) \
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
       in
       Sqlite3.bind_int stmt 1 run_id |> ignore;
       Sqlite3.bind_int stmt 2 entry_id |> ignore;  (* Same entry_id as parent scope *)
       Sqlite3.bind_int stmt 3 seq_num |> ignore;
       Sqlite3.bind_int stmt 4 entry_id |> ignore;  (* parent_id same as entry_id *)
-      Sqlite3.bind_int stmt 5 depth |> ignore;
-      Sqlite3.bind_int stmt 6 message_value_id |> ignore;
-      Sqlite3.bind_int stmt 7 data_value_id |> ignore;
-      Sqlite3.bind_int stmt 8 elapsed_ns |> ignore;
-      Sqlite3.bind_int stmt 9 elapsed_ns |> ignore;  (* Same for start and end for value nodes *)
-      Sqlite3.bind_int stmt 10 (if is_result then 1 else 0) |> ignore;
-      Sqlite3.bind_int stmt 11 1 |> ignore;  (* log_level *)
-      Sqlite3.bind_text stmt 12 "value" |> ignore;  (* entry_type *)
+      (* parent_seq_num is same as the scope entry's parent_seq_num - set to NULL for value nodes *)
+      Sqlite3.bind stmt 5 Sqlite3.Data.NULL |> ignore;
+      Sqlite3.bind_int stmt 6 depth |> ignore;
+      Sqlite3.bind_int stmt 7 message_value_id |> ignore;
+      Sqlite3.bind_int stmt 8 data_value_id |> ignore;
+      Sqlite3.bind_int stmt 9 elapsed_ns |> ignore;
+      Sqlite3.bind_int stmt 10 elapsed_ns |> ignore;  (* Same for start and end for value nodes *)
+      Sqlite3.bind_int stmt 11 (if is_result then 1 else 0) |> ignore;
+      Sqlite3.bind_int stmt 12 1 |> ignore;  (* log_level *)
+      Sqlite3.bind_text stmt 13 "value" |> ignore;  (* entry_type *)
 
       (match Sqlite3.step stmt with
       | Sqlite3.Rc.DONE -> ()

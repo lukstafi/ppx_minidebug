@@ -8,6 +8,7 @@ module Query = struct
     entry_id : int;
     seq_num : int;
     parent_id : int option;
+    parent_seq_num : int option;
     depth : int;
     message : string;
     location : string option;
@@ -80,6 +81,7 @@ module Query = struct
         e.entry_id,
         e.seq_num,
         e.parent_id,
+        e.parent_seq_num,
         e.depth,
         m.value_content as message,
         l.value_content as location,
@@ -123,21 +125,24 @@ module Query = struct
             parent_id = (match Sqlite3.column stmt 2 with
               | Sqlite3.Data.INT id -> Some (Int64.to_int id)
               | _ -> None);
-            depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
-            message = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 4);
-            location = (match Sqlite3.column stmt 5 with
+            parent_seq_num = (match Sqlite3.column stmt 3 with
+              | Sqlite3.Data.INT psn -> Some (Int64.to_int psn)
+              | _ -> None);
+            depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 4);
+            message = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 5);
+            location = (match Sqlite3.column stmt 6 with
               | Sqlite3.Data.TEXT s -> Some s
               | _ -> None);
-            data = (match Sqlite3.column stmt 6 with
+            data = (match Sqlite3.column stmt 7 with
               | Sqlite3.Data.TEXT s -> Some s
               | _ -> None);
-            elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
-            elapsed_end_ns = (match Sqlite3.column stmt 8 with
+            elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 8);
+            elapsed_end_ns = (match Sqlite3.column stmt 9 with
               | Sqlite3.Data.INT ns -> Some (Int64.to_int ns)
               | _ -> None);
-            is_result = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 9) = 1;
-            log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
-            entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
+            is_result = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10) = 1;
+            log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 11);
+            entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 12);
           } in
           entries := entry :: !entries;
           loop ()
@@ -223,21 +228,13 @@ module Renderer = struct
 
     (* Build tree structure *)
     let rec build_node entry =
-      (* Get value children (same entry_id, different seq_num) *)
+      (* Get value children (same entry_id, different seq_num) - these are leaf values *)
       let value_children =
         List.filter (fun v -> v.Query.entry_id = entry.Query.entry_id) value_entries
-        |> List.sort (fun a b ->
-             (* Sort so parameters (seq_num > 0) come first, then result (seq_num = -1) *)
-             match a.Query.seq_num, b.Query.seq_num with
-             | -1, -1 -> 0  (* Both results *)
-             | -1, _ -> 1   (* Result goes after parameters *)
-             | _, -1 -> -1  (* Parameters go before result *)
-             | n, m -> compare n m  (* Parameters sorted by seq_num *)
-           )
         |> List.map (fun v -> { entry = v; children = [] })
       in
 
-      (* Get scope children (different entry_id, parent_id matches) *)
+      (* Get scope children (different entry_id, parent_id matches) - these are sub-entries *)
       let scope_children_entries =
         List.filter (fun e ->
           match e.Query.parent_id with
@@ -247,8 +244,25 @@ module Renderer = struct
       in
       let scope_children = List.map build_node scope_children_entries in
 
-      (* Combine: value children first, then scope children *)
-      { entry; children = value_children @ scope_children }
+      (* Combine all children and sort by parent_seq_num for chronological order, with special handling for result values *)
+      let all_children = value_children @ scope_children in
+      let sorted_children = List.sort (fun a b ->
+        let a_entry = a.entry in
+        let b_entry = b.entry in
+        (* Use parent_seq_num for scope entries (seq_num = 0), and seq_num for value entries *)
+        let a_pos = if a_entry.Query.seq_num = 0 then a_entry.parent_seq_num else Some a_entry.seq_num in
+        let b_pos = if b_entry.Query.seq_num = 0 then b_entry.parent_seq_num else Some b_entry.seq_num in
+        match a_pos, b_pos with
+        | Some ap, Some bp when ap >= 0 && bp >= 0 -> compare ap bp  (* Normal chronological order *)
+        | Some ap, Some bp when ap >= 0 && bp = -1 -> -1  (* Non-result before result *)
+        | Some ap, Some bp when ap = -1 && bp >= 0 -> 1   (* Result after non-result *)
+        | Some ap, Some bp -> compare ap bp  (* Both results or other case *)
+        | Some _, None -> -1  (* Item with position comes before item without *)
+        | None, Some _ -> 1   (* Item without position comes after *)
+        | None, None -> 0     (* Both lack position, consider equal *)
+      ) all_children in
+
+      { entry; children = sorted_children }
     in
 
     (* Find roots (entries with no parent or parent not in list) *)

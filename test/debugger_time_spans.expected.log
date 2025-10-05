@@ -2,25 +2,21 @@ Run #1
 Command: ./test_debug_time_spans.exe
 
 [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-  x = 3
-  => 58435
   [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
     => 1
+  x = 3
   [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-    x = 2
-    => 11685
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 0
+    x = 2
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -59,13 +55,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -104,13 +100,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -149,13 +145,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -194,13 +190,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -239,13 +235,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -284,13 +280,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -329,13 +325,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -374,13 +370,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -419,13 +415,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -464,18 +460,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 1
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -514,13 +510,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -559,13 +555,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -604,13 +600,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -649,13 +645,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -694,13 +690,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -739,13 +735,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -784,13 +780,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -829,13 +825,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -874,13 +870,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -919,18 +915,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 2
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -969,13 +965,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1014,13 +1010,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1059,13 +1055,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1104,13 +1100,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1149,13 +1145,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1194,13 +1190,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1239,13 +1235,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1284,13 +1280,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1329,13 +1325,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1374,18 +1370,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 3
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1424,13 +1420,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1469,13 +1465,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1514,13 +1510,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1559,13 +1555,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1604,13 +1600,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1649,13 +1645,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1694,13 +1690,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1739,13 +1735,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1784,13 +1780,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1829,18 +1825,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 4
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1879,13 +1875,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1924,13 +1920,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -1969,13 +1965,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2014,13 +2010,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2059,13 +2055,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2104,13 +2100,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2149,13 +2145,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2194,13 +2190,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2239,13 +2235,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2284,18 +2280,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 5
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2334,13 +2330,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2379,13 +2375,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2424,13 +2420,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2469,13 +2465,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2514,13 +2510,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2559,13 +2555,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2604,13 +2600,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2649,13 +2645,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2694,13 +2690,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2739,23 +2735,23 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
+    => 11685
   [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
     => 2
   [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-    x = 2
-    => 11685
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 0
+    x = 2
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2794,13 +2790,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2839,13 +2835,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2884,13 +2880,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2929,13 +2925,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -2974,13 +2970,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3019,13 +3015,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3064,13 +3060,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3109,13 +3105,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3154,13 +3150,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3199,18 +3195,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 1
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3249,13 +3245,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3294,13 +3290,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3339,13 +3335,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3384,13 +3380,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3429,13 +3425,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3474,13 +3470,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3519,13 +3515,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3564,13 +3560,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3609,13 +3605,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3654,18 +3650,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 2
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3704,13 +3700,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3749,13 +3745,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3794,13 +3790,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3839,13 +3835,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3884,13 +3880,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3929,13 +3925,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -3974,13 +3970,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4019,13 +4015,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4064,13 +4060,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4109,18 +4105,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 3
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4159,13 +4155,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4204,13 +4200,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4249,13 +4245,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4294,13 +4290,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4339,13 +4335,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4384,13 +4380,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4429,13 +4425,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4474,13 +4470,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4519,13 +4515,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4564,18 +4560,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 4
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4614,13 +4610,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4659,13 +4655,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4704,13 +4700,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4749,13 +4745,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4794,13 +4790,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4839,13 +4835,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4884,13 +4880,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4929,13 +4925,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -4974,13 +4970,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5019,18 +5015,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 5
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5069,13 +5065,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5114,13 +5110,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5159,13 +5155,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5204,13 +5200,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5249,13 +5245,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5294,13 +5290,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5339,13 +5335,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5384,13 +5380,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5429,13 +5425,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5474,23 +5470,23 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
+    => 11685
   [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
     => 3
   [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-    x = 2
-    => 11685
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 0
+    x = 2
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5529,13 +5525,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5574,13 +5570,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5619,13 +5615,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5664,13 +5660,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5709,13 +5705,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5754,13 +5750,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5799,13 +5795,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5844,13 +5840,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5889,13 +5885,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5934,18 +5930,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 1
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -5984,13 +5980,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6029,13 +6025,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6074,13 +6070,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6119,13 +6115,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6164,13 +6160,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6209,13 +6205,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6254,13 +6250,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6299,13 +6295,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6344,13 +6340,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6389,18 +6385,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 2
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6439,13 +6435,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6484,13 +6480,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6529,13 +6525,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6574,13 +6570,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6619,13 +6615,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6664,13 +6660,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6709,13 +6705,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6754,13 +6750,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6799,13 +6795,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6844,18 +6840,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 3
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6894,13 +6890,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6939,13 +6935,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -6984,13 +6980,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7029,13 +7025,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7074,13 +7070,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7119,13 +7115,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7164,13 +7160,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7209,13 +7205,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7254,13 +7250,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7299,18 +7295,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 4
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7349,13 +7345,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7394,13 +7390,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7439,13 +7435,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7484,13 +7480,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7529,13 +7525,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7574,13 +7570,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7619,13 +7615,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7664,13 +7660,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7709,13 +7705,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7754,18 +7750,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 5
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7804,13 +7800,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7849,13 +7845,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7894,13 +7890,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7939,13 +7935,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -7984,13 +7980,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8029,13 +8025,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8074,13 +8070,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8119,13 +8115,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8164,13 +8160,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8209,23 +8205,23 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
+    => 11685
   [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
     => 4
   [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-    x = 2
-    => 11685
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 0
+    x = 2
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8264,13 +8260,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8309,13 +8305,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8354,13 +8350,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8399,13 +8395,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8444,13 +8440,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8489,13 +8485,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8534,13 +8530,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8579,13 +8575,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8624,13 +8620,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8669,18 +8665,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 1
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8719,13 +8715,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8764,13 +8760,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8809,13 +8805,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8854,13 +8850,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8899,13 +8895,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8944,13 +8940,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -8989,13 +8985,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9034,13 +9030,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9079,13 +9075,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9124,18 +9120,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 2
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9174,13 +9170,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9219,13 +9215,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9264,13 +9260,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9309,13 +9305,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9354,13 +9350,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9399,13 +9395,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9444,13 +9440,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9489,13 +9485,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9534,13 +9530,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9579,18 +9575,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 3
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9629,13 +9625,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9674,13 +9670,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9719,13 +9715,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9764,13 +9760,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9809,13 +9805,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9854,13 +9850,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9899,13 +9895,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9944,13 +9940,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -9989,13 +9985,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10034,18 +10030,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 4
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10084,13 +10080,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10129,13 +10125,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10174,13 +10170,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10219,13 +10215,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10264,13 +10260,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10309,13 +10305,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10354,13 +10350,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10399,13 +10395,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10444,13 +10440,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10489,18 +10485,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 5
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10539,13 +10535,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10584,13 +10580,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10629,13 +10625,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10674,13 +10670,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10719,13 +10715,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10764,13 +10760,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10809,13 +10805,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10854,13 +10850,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10899,13 +10895,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10944,23 +10940,23 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
+    => 11685
   [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
     => 5
   [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-    x = 2
-    => 11685
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 0
+    x = 2
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -10999,13 +10995,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11044,13 +11040,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11089,13 +11085,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11134,13 +11130,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11179,13 +11175,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11224,13 +11220,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11269,13 +11265,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11314,13 +11310,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11359,13 +11355,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11404,18 +11400,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 1
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11454,13 +11450,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11499,13 +11495,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11544,13 +11540,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11589,13 +11585,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11634,13 +11630,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11679,13 +11675,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11724,13 +11720,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11769,13 +11765,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11814,13 +11810,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11859,18 +11855,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 2
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11909,13 +11905,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11954,13 +11950,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -11999,13 +11995,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12044,13 +12040,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12089,13 +12085,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12134,13 +12130,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12179,13 +12175,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12224,13 +12220,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12269,13 +12265,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12314,18 +12310,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 3
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12364,13 +12360,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12409,13 +12405,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12454,13 +12450,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12499,13 +12495,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12544,13 +12540,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12589,13 +12585,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12634,13 +12630,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12679,13 +12675,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12724,13 +12720,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12769,18 +12765,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 4
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12819,13 +12815,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12864,13 +12860,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12909,13 +12905,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12954,13 +12950,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -12999,13 +12995,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -13044,13 +13040,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -13089,13 +13085,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -13134,13 +13130,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -13179,13 +13175,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -13224,18 +13220,18 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
     [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
       => 5
     [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-      x = 1
-      => 1945
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 0
+      x = 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -13274,13 +13270,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 1
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -13319,13 +13315,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 2
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -13364,13 +13360,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 3
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -13409,13 +13405,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 4
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -13454,13 +13450,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 5
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -13499,13 +13495,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 6
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -13544,13 +13540,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 7
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -13589,13 +13585,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 8
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -13634,13 +13630,13 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
       [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
         => 9
       [debug] loop @ test/test_debug_time_spans.ml:8:26-14:60 <TIME>
-        x = 0
-        => 190
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 0
+        x = 0
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 1
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
@@ -13679,3 +13675,7 @@ Command: ./test_debug_time_spans.exe
           => 18
         [debug] z @ test/test_debug_time_spans.ml:13:15-13:16 <TIME>
           => 19
+        => 190
+      => 1945
+    => 11685
+  => 58435

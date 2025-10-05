@@ -2,112 +2,112 @@ Run #1
 Command: ./test_debug_sexp.exe
 
 [debug] foo @ test/test_debug_sexp.ml:7:21-9:17
-  x = 7
-  => (7 8 16)
   [debug] y @ test/test_debug_sexp.ml:8:6-8:7
     => 8
-[debug] bar @ test/test_debug_sexp.ml:15:21-17:14
-  x = ((first 7)(second 42))
-  => 336
-  [debug] y @ test/test_debug_sexp.ml:16:6-16:7
-    => 8
-[debug] baz @ test/test_debug_sexp.ml:21:21-24:28
-  x = ((first 7)(second 42))
-  => 359
-  [debug] _yz @ test/test_debug_sexp.ml:22:17-22:20
-    => (8 3)
-  [debug] _uw @ test/test_debug_sexp.ml:23:17-23:20
-    => (7 13)
-[debug] lab @ test/test_debug_sexp.ml:28:21-30:17
   x = 7
   => (7 8 16)
+[debug] bar @ test/test_debug_sexp.ml:15:21-17:14
+  [debug] y @ test/test_debug_sexp.ml:16:6-16:7
+    => 8
+  x = ((first 7)(second 42))
+  => 336
+[debug] baz @ test/test_debug_sexp.ml:21:21-24:28
+  [debug] _yz @ test/test_debug_sexp.ml:22:17-22:20
+    => (8 3)
+  x = ((first 7)(second 42))
+  [debug] _uw @ test/test_debug_sexp.ml:23:17-23:20
+    => (7 13)
+  => 359
+[debug] lab @ test/test_debug_sexp.ml:28:21-30:17
   [debug] y @ test/test_debug_sexp.ml:29:6-29:7
     => 8
+  x = 7
+  => (7 8 16)
 [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
-  depth = 0
-  x = ((first 7)(second 42))
-  => 36
   [debug] y @ test/test_debug_sexp.ml:38:8-38:9
-    => 24
     [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
-      depth = 1
-      x = ((first 41)(second 9))
-      => 24
       [debug] y @ test/test_debug_sexp.ml:38:8-38:9
-        => 25
         [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
-          depth = 2
-          x = ((first 8)(second 43))
-          => 25
           [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
-            depth = 3
-            x = ((first 44)(second 4))
-            => 25
             [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
-              depth = 4
-              x = ((first 5)(second 22))
-              => 25
               [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
                 depth = 5
                 x = ((first 23)(second 2))
                 => 25
-      [debug] z @ test/test_debug_sexp.ml:39:8-39:9
-        => 17
-        [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
-          depth = 2
-          x = ((first 10)(second 25))
-          => 17
-          [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
-            depth = 3
-            x = ((first 26)(second 5))
-            => 17
-            [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
               depth = 4
-              x = ((first 6)(second 13))
-              => 17
+              x = ((first 5)(second 22))
+              => 25
+            depth = 3
+            x = ((first 44)(second 4))
+            => 25
+          depth = 2
+          x = ((first 8)(second 43))
+          => 25
+        => 25
+      depth = 1
+      [debug] z @ test/test_debug_sexp.ml:39:8-39:9
+        [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
+          [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
+            [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
               [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
                 depth = 5
                 x = ((first 14)(second 3))
                 => 17
-  [debug] z @ test/test_debug_sexp.ml:39:8-39:9
-    => 29
-    [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
-      depth = 1
-      x = ((first 43)(second 24))
-      => 29
-      [debug] y @ test/test_debug_sexp.ml:38:8-38:9
-        => 30
-        [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
-          depth = 2
-          x = ((first 23)(second 45))
-          => 30
-          [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
-            depth = 3
-            x = ((first 46)(second 11))
-            => 30
-            [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
               depth = 4
-              x = ((first 12)(second 23))
-              => 30
+              x = ((first 6)(second 13))
+              => 17
+            depth = 3
+            x = ((first 26)(second 5))
+            => 17
+          depth = 2
+          x = ((first 10)(second 25))
+          => 17
+        => 17
+      x = ((first 41)(second 9))
+      => 24
+    => 24
+  depth = 0
+  [debug] z @ test/test_debug_sexp.ml:39:8-39:9
+    [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
+      [debug] y @ test/test_debug_sexp.ml:38:8-38:9
+        [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
+          [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
+            [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
               [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
                 depth = 5
                 x = ((first 24)(second 6))
                 => 30
-      [debug] z @ test/test_debug_sexp.ml:39:8-39:9
-        => 22
-        [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
-          depth = 2
-          x = ((first 25)(second 30))
-          => 22
-          [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
-            depth = 3
-            x = ((first 31)(second 12))
-            => 22
-            [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
               depth = 4
-              x = ((first 13)(second 15))
-              => 22
+              x = ((first 12)(second 23))
+              => 30
+            depth = 3
+            x = ((first 46)(second 11))
+            => 30
+          depth = 2
+          x = ((first 23)(second 45))
+          => 30
+        => 30
+      depth = 1
+      [debug] z @ test/test_debug_sexp.ml:39:8-39:9
+        [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
+          [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
+            [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
               [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
                 depth = 5
                 x = ((first 16)(second 6))
                 => 22
+              depth = 4
+              x = ((first 13)(second 15))
+              => 22
+            depth = 3
+            x = ((first 31)(second 12))
+            => 22
+          depth = 2
+          x = ((first 25)(second 30))
+          => 22
+        => 22
+      x = ((first 43)(second 24))
+      => 29
+    => 29
+  x = ((first 7)(second 42))
+  => 36
