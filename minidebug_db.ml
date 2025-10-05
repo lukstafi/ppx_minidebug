@@ -213,7 +213,11 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
     match !db with
     | Some db -> db
     | None ->
-        let filename = debug_ch_name () ^ ".db" in
+        let base_filename = debug_ch_name () in
+        let filename =
+          if Filename.check_suffix base_filename ".db" then base_filename
+          else base_filename ^ ".db"
+        in
         initialize_database filename;
         Option.get !db
 

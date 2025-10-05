@@ -255,7 +255,8 @@ PrintBox-based runtimes only produces any output when a top-level log entry gets
 <!-- $MDX file=test/test_expect_test.ml,part=debug_interrupts -->
 ```ocaml
   let _get_local_debug_runtime =
-    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
+    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    fun () -> rt
   in
   let%debug_show rec loop_exceeded (x : int) : int =
     [%debug_interrupts
@@ -361,9 +362,10 @@ If that is insufficient, you can define `_get_local_debug_runtime` using a `_flu
 
 <!-- $MDX file=test/test_expect_test.ml,part=simple_flushing -->
 ```ocaml
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    Minidebug_runtime.prefixed_runtime_flushing ~time_tagged:Not_tagged
-      ~global_prefix:"test-51" ()
+    let rt = Minidebug_db.debug_db_file ~global_prefix:"test-51" db_file in
+    fun () -> rt
   in
   let%debug_show bar (x : t) : int =
     let y : int = x.first + 1 in
@@ -375,8 +377,8 @@ If that is insufficient, you can define `_get_local_debug_runtime` using a `_flu
     (x.second * y) + z
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
-  let output = [%expect.output] in
-  print_endline output;
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
     BEGIN DEBUG SESSION test-51
@@ -411,7 +413,8 @@ Example that also illustrates disabling tracing:
 <!-- $MDX file=test/test_expect_test.ml,part=track_notrace_example -->
 ```ocaml
   let _get_local_debug_runtime =
-    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
+    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    fun () -> rt
   in
   let%track_show track_branches (x : int) : int =
     if x < 6 then
@@ -491,7 +494,8 @@ Explicit logging statements also help with tracking the execution, since they ca
 <!-- $MDX file=test/test_expect_test.ml,part=track_while_loop_example -->
 ```ocaml
   let _get_local_debug_runtime =
-    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
+    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    fun () -> rt
   in
   let%track_sexp result =
     let i = ref 0 in
@@ -553,7 +557,10 @@ The `%diagn_` extension points further restrict logging to explicit logs only. E
 
 <!-- $MDX file=test/test_expect_test.ml,part=diagn_show_ignores_bindings -->
 ```ocaml
-  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
+  let _get_local_debug_runtime =
+    let rt = Minidebug_db.debug_db_file db_file in
+    fun () -> rt
+  in
   let%diagn_show bar { first : int; second : int } : int =
     let { first : int = a; second : int = b } = { first; second = second + 3 } in
     let y : int = a + 1 in
@@ -657,7 +664,10 @@ Another example from the test suite, notice how the log level of `%log1` overrid
 
 <!-- $MDX file=test/test_expect_test.ml,part=debug_show_log_level_runtime -->
 ```ocaml
-  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime ~log_level:2 () in
+  let _get_local_debug_runtime =
+    let rt = Minidebug_db.debug_db_file ~log_level:2 db_file in
+    fun () -> rt
+  in
   let%debug3_show () =
     let foo { first : int; second : int } : int =
       let { first : int = a; second : int = b } = { first; second = second + 3 } in
@@ -705,7 +715,10 @@ The extension point `%log_printbox` lets you embed a `PrintBox.t` in the logs di
 
 <!-- $MDX file=test/test_expect_test.ml,part=log_printbox -->
 ```ocaml
-  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
+  let _get_local_debug_runtime =
+    let rt = Minidebug_db.debug_db_file db_file in
+    fun () -> rt
+  in
   let%debug_show foo () : unit =
     [%log_printbox
       PrintBox.init_grid ~line:5 ~col:5 (fun ~line ~col ->
@@ -772,7 +785,8 @@ The extension point `%log_entry` lets you shape arbitrary log tree structures. T
 <!-- $MDX file=test/test_expect_test.ml,part=log_entry -->
 ```ocaml
   let _get_local_debug_runtime =
-    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
+    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    fun () -> rt
   in
   let%diagn_show _logging_logic : unit =
     let rec loop logs =
@@ -885,7 +899,8 @@ the runtime, and look for the path line with the log's entry id. When the backen
 <!-- $MDX file=test/test_expect_test.ml,part=log_with_print_entry_ids_mixed_up_scopes -->
 ```ocaml
   let _get_local_debug_runtime =
-    Minidebug_runtime.prefixed_runtime ~print_entry_ids:true ()
+    let rt = Minidebug_db.debug_db_file ~print_entry_ids:true db_file in
+    fun () -> rt
   in
   let i = 3 in
   let pi = 3.14 in
@@ -1083,7 +1098,8 @@ Setting the option `truncate_children` will only log the given number of childre
 <!-- $MDX file=test/test_expect_test.ml,part=track_for_loop_truncated_children -->
 ```ocaml
   let _get_local_debug_runtime =
-    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ~truncate_children:10 ()
+    let rt = Minidebug_db.debug_db_file ~values_first_mode:false ~truncate_children:10 db_file in
+    fun () -> rt
   in
   let () =
     try
@@ -1513,7 +1529,10 @@ As a help in debugging whether the right type information got propagated, we off
 
 <!-- $MDX file=test/test_expect_test.ml,part=debug_type_info -->
 ```ocaml
-  let _get_local_debug_runtime = Minidebug_runtime.prefixed_runtime () in
+  let _get_local_debug_runtime =
+    let rt = Minidebug_db.debug_db_file db_file in
+    fun () -> rt
+  in
   [%debug_show
     [%debug_type_info
       let f : 'a. 'a -> int -> int = fun _a b -> b + 1 in
@@ -1556,7 +1575,8 @@ Example from the test suite:
 ```ocaml
   let i = ref 0 in
   let _get_local_debug_runtime () =
-    Minidebug_runtime.debug_flushing ~global_prefix:("foo-" ^ string_of_int !i) ()
+    let rt = Minidebug_db.debug_db_file ~global_prefix:("foo-" ^ string_of_int !i) db_file in
+    fun () -> rt
   in
   let%track_show foo () =
     let () = () in

@@ -283,7 +283,7 @@
  (name test_inline_tests)
  (inline_tests)
  (modules test_expect_test)
- (libraries minidebug_runtime str)
+ (libraries minidebug_db minidebug_client str)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show ppx_sexp_conv ppx_expect)))
 
