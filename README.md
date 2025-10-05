@@ -1016,7 +1016,7 @@ This is useful for focusing on specific parts of your codebase during debugging,
 
 #### Dynamic subtree filtering
 
-In the PrintBox backend, you can disable the logging of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space.
+You can discard the logs of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space. For simplicity, currently the behavior is only retroactive: it discards the past subtree of the current entry, but does not prevent future logs at the current entry.
 The test suite example:
 
 <!-- $MDX file=test/test_expect_test.ml,part=loop_changes -->
@@ -1054,8 +1054,6 @@ The test suite example:
             => 2
     |}]
 ```
-
-The `no_debug_if` mechanism requires modifying the logged sources, and since it's limited to cutting out subtrees of the logs, it can be tricky to select and preserve the context one wants. The highlighting mechanism with the `prune_upto` setting avoids these problems. You provide a search term without modifying the debugged sources. You can tune the pruning level to keep the context around the place the search term was found.
 
 Setting the option `truncate_children` will only log the given number of children at each node, prioritizing the most recent ones. An example from the test suite:
 

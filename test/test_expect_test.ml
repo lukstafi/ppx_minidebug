@@ -183,8 +183,7 @@ let%expect_test "%debug_show disabled subtree" =
     |}]
 (* $MDX part-end *)
 
-
-(*
+(* 
 let%expect_test "%debug_show with exception" =
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
@@ -236,7 +235,6 @@ let%expect_test "%debug_show with exception" =
                     └─z = 0
     Raised exception.
     |}]
-
 *)
 
 (*
