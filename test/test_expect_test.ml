@@ -50,7 +50,6 @@ let%expect_test "%debug_show, `as` alias and show_times" =
     |}]
 
 let%expect_test "%debug_show with run name" =
-  (* $MDX part-begin=simple_flushing *)
   let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file ~run_name:"test-51" db_file in
@@ -76,20 +75,19 @@ let%expect_test "%debug_show with run name" =
     {|
     336
     339
-    [debug] bar @ test/test_expect_test.ml:59:21-61:16
+    [debug] bar @ test/test_expect_test.ml:58:21-60:16
       x = { Test_expect_test.first = 7; second = 42 }
       => 336
-      [debug] y @ test/test_expect_test.ml:60:8-60:9
+      [debug] y @ test/test_expect_test.ml:59:8-59:9
         => 8
-    [debug] baz @ test/test_expect_test.ml:64:21-66:22
+    [debug] baz @ test/test_expect_test.ml:63:21-65:22
       x = { Test_expect_test.first = 7; second = 42 }
       => 339
-      [debug] _yz @ test/test_expect_test.ml:65:19-65:22
+      [debug] _yz @ test/test_expect_test.ml:64:19-64:22
         => (8, 3)
 
     Run #2 has name: test-51
     |}]
-(* $MDX part-end *)
 
 (*
 let%expect_test "%debug_show disabled subtree" =

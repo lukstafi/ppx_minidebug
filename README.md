@@ -248,9 +248,9 @@ To ensure that log files are properly closed, you can use `Minidebug_runtime.fin
 
 `ppx_minidebug` can be installed using `opam`. `ppx_minidebug.runtime` depends on `printbox`, `ptime`, `mtime`, `sexplib0`.
 
-### Breaking infinite recursion with `max_nesting_depth` and looping with `max_num_children`; flushing-based traces
+### Breaking infinite recursion with `max_nesting_depth` and looping with `max_num_children`
 
-PrintBox-based runtimes only produces any output when a top-level log entry gets closed. This makes it harder to debug infinite loops and especially infinite recursion. The setting `max_nesting_depth` terminates a computation when the given log nesting is exceeded. For example:
+The setting `max_nesting_depth` terminates a computation when the given log nesting is exceeded. For example:
 
 <!-- $MDX file=test/test_expect_test.ml,part=debug_interrupts -->
 ```ocaml
@@ -358,49 +358,7 @@ let%debug_show rec loop_exceeded (x : int) : int =
   if x <= 0 then 0 else z + loop_exceeded (z + (x / 2))
 ```
 
-If that is insufficient, you can define `_get_local_debug_runtime` using a `_flushing` builder. The logged traces are still indented, but if the values to print are multi-line, their formatting might be messy. The benefit of "flushing" traces is that the output is flushed line-at-a-time, so no output should be lost if the traced program crashes. But in recent versions of `ppx_minidebug`, uncaught exceptions no longer break logging. The indentation is also smaller (half of the PrintBox runtimes). Example:
-
-<!-- $MDX file=test/test_expect_test.ml,part=simple_flushing -->
-```ocaml
-  let run_id = next_run () in
-  let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~run_name:"test-51" db_file in
-    fun () -> rt
-  in
-  let%debug_show bar (x : t) : int =
-    let y : int = x.first + 1 in
-    x.second * y
-  in
-  let () = print_endline @@ Int.to_string @@ bar { first = 7; second = 42 } in
-  let%debug_show baz (x : t) : int =
-    let ((y, z) as _yz) : int * int = (x.first + 1, 3) in
-    (x.second * y) + z
-  in
-  let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db run_id;
-  let runs = Minidebug_client.Client.list_runs db in
-  let run = List.find (fun r -> r.Minidebug_client.Query.run_id = run_id) runs in
-  Printf.printf "\nRun #%d has name: %s\n" run.run_id
-    (match run.run_name with Some n -> n | None -> "(none)");
-  [%expect
-    {|
-    336
-    339
-    [debug] bar @ test/test_expect_test.ml:59:21-61:16
-      x = { Test_expect_test.first = 7; second = 42 }
-      => 336
-      [debug] y @ test/test_expect_test.ml:60:8-60:9
-        => 8
-    [debug] baz @ test/test_expect_test.ml:64:21-66:22
-      x = { Test_expect_test.first = 7; second = 42 }
-      => 339
-      [debug] _yz @ test/test_expect_test.ml:65:19-65:22
-        => (8, 3)
-
-    Run #2 has name: test-51
-    |}]
-```
+Since starting with ppx_minidebug 3.0 we stream logs to a database, this functionality is much less useful -- the growing log tree can be queried while the program is still running.
 
 ### Tracking: control flow branches, anonymous and insufficiently annotated functions
 
