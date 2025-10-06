@@ -23,6 +23,9 @@
 
 <!-- /TOC -->
 
+ppx_minidebug 3.0.0 is a major release that introduces a new database backend, replacing the previous backends based on static HTML or text files. See [ppx_minidebug 2.4.0](https://ocaml.org/p/ppx_minidebug/2.4.0) ([2.4.x-static-artifacts branch](https://github.com/lukstafi/ppx_minidebug/tree/2.4.x-static-artifacts)) -- if the artifacts it generates for your use case are not too large, it will offer more features until the 3.x rewrite matures.
+
+
 ## `ppx_minidebug`: Debug logs for selected functions and let-bindings
 
 `ppx_minidebug` traces let bindings and functions within a selected scope if they have type annotations. `ppx_minidebug` offers three ways of instrumenting the code: `%debug_pp` and `%debug_show` (also `%track_pp`, `%diagn_pp` and `%track_show`, `%diagn_show`), based on `deriving.show`, and `%debug_sexp` (also `%track_sexp`, `%diagn_sexp`) based on `sexplib0` and `ppx_sexp_conv`. Explicit logs can be added with `%log` within a debug scope (`%log` is not a registered extension point to avoid conflicts with other logging frameworks). The syntax extension expects a function `_get_local_debug_runtime` in the scope (or a module `Debug_runtime` for extension points `_o_` e.g. `%debug_o_sexp`). The `ppx_minidebug.runtime` library (part of the `ppx_minidebug` package) offers multiple ways of logging the traces, as helper functions generating `Debug_runtime` modules. See [the generated documentation for `Minidebug_runtime`](https://lukstafi.github.io/ppx_minidebug/ppx_minidebug/Minidebug_runtime/index.html).
@@ -1054,57 +1057,6 @@ The test suite example:
       => 9
     |}]
 ```
-
-Setting the option `truncate_children` will only log the given number of children at each node, prioritizing the most recent ones. An example from the test suite:
-
-<!-- $MDX file=test/test_expect_test.ml,part=track_for_loop_truncated_children -->
-```ocaml
-  let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false ~truncate_children:10 db_file in
-    fun () -> rt
-  in
-  let () =
-    try
-      let%track_show _bar : unit =
-        for i = 0 to 30 do
-          let _baz : int = i * 2 in
-          ()
-        done
-      in
-      ()
-    with Failure s -> print_endline @@ "Raised exception: " ^ s
-  in
-  [%expect
-    {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":498:21: _bar
-    ├─"test/test_expect_test.ml":499:8: for:test_expect_test:499
-    │ ├─<earlier entries truncated>
-    │ ├─i = 26
-    │ ├─"test/test_expect_test.ml":499:12: <for i>
-    │ │ └─"test/test_expect_test.ml":500:14: _baz
-    │ │   └─_baz = 52
-    │ ├─i = 27
-    │ ├─"test/test_expect_test.ml":499:12: <for i>
-    │ │ └─"test/test_expect_test.ml":500:14: _baz
-    │ │   └─_baz = 54
-    │ ├─i = 28
-    │ ├─"test/test_expect_test.ml":499:12: <for i>
-    │ │ └─"test/test_expect_test.ml":500:14: _baz
-    │ │   └─_baz = 56
-    │ ├─i = 29
-    │ ├─"test/test_expect_test.ml":499:12: <for i>
-    │ │ └─"test/test_expect_test.ml":500:14: _baz
-    │ │   └─_baz = 58
-    │ ├─i = 30
-    │ └─"test/test_expect_test.ml":499:12: <for i>
-    │   └─"test/test_expect_test.ml":500:14: _baz
-    │     └─_baz = 60
-    └─_bar = ()
-    |}]
-```
-
-If you provide the `split_files_after` setting, the logging will transition to a new file after the current file exceeds the given number of characters. However, the splits only happen at the "toplevel", to not interrupt laying out the log trees. If required, you can remove logging indicators from your high-level functions, to bring the deeper logic log trees to the toplevel. This matters when you prefer Markdown output over HTML output -- in my experience, Markdown renderers (VS Code Markdown Preview, GitHub Preview) fail for files larger than 2MB, while browsers easily handle HTML files of over 200MB (including via VS Code Live Preview).
 
 ### Navigating large logs
 

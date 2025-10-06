@@ -340,52 +340,6 @@ let%expect_test "%debug_show num children exceeded linear" =
     |}]
 (* $MDX part-end *)
 
-(*
-let%expect_test "%debug_show truncated children linear" =
-  let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false ~truncate_children:10 db_file in
-    fun () -> rt
-  in
-  let () =
-    try
-      let%debug_show _bar : unit =
-        for i = 0 to 30 do
-          let _baz : int = i * 2 in
-          ()
-        done
-      in
-      ()
-    with Failure s -> print_endline @@ "Raised exception: " ^ s
-  in
-  [%expect
-    {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":409:21: _bar
-    ├─<earlier entries truncated>
-    ├─"test/test_expect_test.ml":411:14: _baz
-    │ └─_baz = 44
-    ├─"test/test_expect_test.ml":411:14: _baz
-    │ └─_baz = 46
-    ├─"test/test_expect_test.ml":411:14: _baz
-    │ └─_baz = 48
-    ├─"test/test_expect_test.ml":411:14: _baz
-    │ └─_baz = 50
-    ├─"test/test_expect_test.ml":411:14: _baz
-    │ └─_baz = 52
-    ├─"test/test_expect_test.ml":411:14: _baz
-    │ └─_baz = 54
-    ├─"test/test_expect_test.ml":411:14: _baz
-    │ └─_baz = 56
-    ├─"test/test_expect_test.ml":411:14: _baz
-    │ └─_baz = 58
-    ├─"test/test_expect_test.ml":411:14: _baz
-    │ └─_baz = 60
-    └─_bar = ()
-    |}]
-
-*)
-
-(*
 let%expect_test "%track_show track for-loop num children exceeded" =
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
@@ -433,58 +387,6 @@ let%expect_test "%track_show track for-loop num children exceeded" =
       └─i = <max_num_children exceeded>
     Raised exception: ppx_minidebug: max_num_children exceeded
     |}]
-
-*)
-
-(*
-let%expect_test "%track_show track for-loop truncated children" =
-  (* $MDX part-begin=track_for_loop_truncated_children *)
-  let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false ~truncate_children:10 db_file in
-    fun () -> rt
-  in
-  let () =
-    try
-      let%track_show _bar : unit =
-        for i = 0 to 30 do
-          let _baz : int = i * 2 in
-          ()
-        done
-      in
-      ()
-    with Failure s -> print_endline @@ "Raised exception: " ^ s
-  in
-  [%expect
-    {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":498:21: _bar
-    ├─"test/test_expect_test.ml":499:8: for:test_expect_test:499
-    │ ├─<earlier entries truncated>
-    │ ├─i = 26
-    │ ├─"test/test_expect_test.ml":499:12: <for i>
-    │ │ └─"test/test_expect_test.ml":500:14: _baz
-    │ │   └─_baz = 52
-    │ ├─i = 27
-    │ ├─"test/test_expect_test.ml":499:12: <for i>
-    │ │ └─"test/test_expect_test.ml":500:14: _baz
-    │ │   └─_baz = 54
-    │ ├─i = 28
-    │ ├─"test/test_expect_test.ml":499:12: <for i>
-    │ │ └─"test/test_expect_test.ml":500:14: _baz
-    │ │   └─_baz = 56
-    │ ├─i = 29
-    │ ├─"test/test_expect_test.ml":499:12: <for i>
-    │ │ └─"test/test_expect_test.ml":500:14: _baz
-    │ │   └─_baz = 58
-    │ ├─i = 30
-    │ └─"test/test_expect_test.ml":499:12: <for i>
-    │   └─"test/test_expect_test.ml":500:14: _baz
-    │     └─_baz = 60
-    └─_bar = ()
-    |}]
-(* $MDX part-end *)
-
-*)
 
 (*
 let%expect_test "%track_show track for-loop" =
