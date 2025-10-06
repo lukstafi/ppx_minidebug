@@ -341,8 +341,9 @@ let%expect_test "%debug_show num children exceeded linear" =
 (* $MDX part-end *)
 
 let%expect_test "%track_show track for-loop num children exceeded" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
   in
   let () =
@@ -358,40 +359,66 @@ let%expect_test "%track_show track for-loop num children exceeded" =
       ()
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":450:21: _bar
-    └─"test/test_expect_test.ml":453:10: for:test_expect_test:453
-      ├─i = 0
-      ├─"test/test_expect_test.ml":453:14: <for i>
-      │ └─"test/test_expect_test.ml":454:16: _baz
-      │   └─_baz = 0
-      ├─i = 1
-      ├─"test/test_expect_test.ml":453:14: <for i>
-      │ └─"test/test_expect_test.ml":454:16: _baz
-      │   └─_baz = 2
-      ├─i = 2
-      ├─"test/test_expect_test.ml":453:14: <for i>
-      │ └─"test/test_expect_test.ml":454:16: _baz
-      │   └─_baz = 4
-      ├─i = 3
-      ├─"test/test_expect_test.ml":453:14: <for i>
-      │ └─"test/test_expect_test.ml":454:16: _baz
-      │   └─_baz = 6
-      ├─i = 4
-      ├─"test/test_expect_test.ml":453:14: <for i>
-      │ └─"test/test_expect_test.ml":454:16: _baz
-      │   └─_baz = 8
-      ├─i = 5
-      └─i = <max_num_children exceeded>
     Raised exception: ppx_minidebug: max_num_children exceeded
+    [track] _bar @ test/test_expect_test.ml:351:21-351:25
+      [track] for:test_expect_test:354 @ test/test_expect_test.ml:354:10-357:14
+        [track] <for i> @ test/test_expect_test.ml:354:14-354:15
+          [track] _baz @ test/test_expect_test.ml:355:16-355:20
+            => 0
+          i = 0
+        [track] <for i> @ test/test_expect_test.ml:354:14-354:15
+          [track] _baz @ test/test_expect_test.ml:355:16-355:20
+            => 2
+          i = 1
+        [track] <for i> @ test/test_expect_test.ml:354:14-354:15
+          [track] _baz @ test/test_expect_test.ml:355:16-355:20
+            => 4
+          i = 2
+        [track] <for i> @ test/test_expect_test.ml:354:14-354:15
+          [track] _baz @ test/test_expect_test.ml:355:16-355:20
+            => 6
+          i = 3
+        [track] <for i> @ test/test_expect_test.ml:354:14-354:15
+          [track] _baz @ test/test_expect_test.ml:355:16-355:20
+            => 8
+          i = 4
+        [track] <for i> @ test/test_expect_test.ml:354:14-354:15
+          [track] _baz @ test/test_expect_test.ml:355:16-355:20
+            => 10
+          i = 5
+        [track] <for i> @ test/test_expect_test.ml:354:14-354:15
+          [track] _baz @ test/test_expect_test.ml:355:16-355:20
+            => 12
+          i = 6
+        [track] <for i> @ test/test_expect_test.ml:354:14-354:15
+          [track] _baz @ test/test_expect_test.ml:355:16-355:20
+            => 14
+          i = 7
+        [track] <for i> @ test/test_expect_test.ml:354:14-354:15
+          [track] _baz @ test/test_expect_test.ml:355:16-355:20
+            => 16
+          i = 8
+        [track] <for i> @ test/test_expect_test.ml:354:14-354:15
+          [track] _baz @ test/test_expect_test.ml:355:16-355:20
+            => 18
+          i = 9
+        [track] <for i> @ test/test_expect_test.ml:354:14-354:15
+          [track] _baz @ test/test_expect_test.ml:355:16-355:20
+            => 20
+          i = 10
+        [track] <for i> @ test/test_expect_test.ml:354:14-354:15
+          i = 11
+          i = <max_num_children exceeded>
     |}]
 
-(*
 let%expect_test "%track_show track for-loop" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
   in
   let () =
@@ -407,48 +434,47 @@ let%expect_test "%track_show track for-loop" =
       ()
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":543:21: _bar
-    ├─"test/test_expect_test.ml":546:10: for:test_expect_test:546
-    │ ├─i = 0
-    │ ├─"test/test_expect_test.ml":546:14: <for i>
-    │ │ └─"test/test_expect_test.ml":547:16: _baz
-    │ │   └─_baz = 0
-    │ ├─i = 1
-    │ ├─"test/test_expect_test.ml":546:14: <for i>
-    │ │ └─"test/test_expect_test.ml":547:16: _baz
-    │ │   └─_baz = 2
-    │ ├─i = 2
-    │ ├─"test/test_expect_test.ml":546:14: <for i>
-    │ │ └─"test/test_expect_test.ml":547:16: _baz
-    │ │   └─_baz = 4
-    │ ├─i = 3
-    │ ├─"test/test_expect_test.ml":546:14: <for i>
-    │ │ └─"test/test_expect_test.ml":547:16: _baz
-    │ │   └─_baz = 6
-    │ ├─i = 4
-    │ ├─"test/test_expect_test.ml":546:14: <for i>
-    │ │ └─"test/test_expect_test.ml":547:16: _baz
-    │ │   └─_baz = 8
-    │ ├─i = 5
-    │ ├─"test/test_expect_test.ml":546:14: <for i>
-    │ │ └─"test/test_expect_test.ml":547:16: _baz
-    │ │   └─_baz = 10
-    │ ├─i = 6
-    │ └─"test/test_expect_test.ml":546:14: <for i>
-    │   └─"test/test_expect_test.ml":547:16: _baz
-    │     └─_baz = 12
-    └─_bar = ()
+    [track] _bar @ test/test_expect_test.ml:426:21-426:25
+      [track] for:test_expect_test:429 @ test/test_expect_test.ml:429:10-432:14
+        [track] <for i> @ test/test_expect_test.ml:429:14-429:15
+          [track] _baz @ test/test_expect_test.ml:430:16-430:20
+            => 0
+          i = 0
+        [track] <for i> @ test/test_expect_test.ml:429:14-429:15
+          [track] _baz @ test/test_expect_test.ml:430:16-430:20
+            => 2
+          i = 1
+        [track] <for i> @ test/test_expect_test.ml:429:14-429:15
+          [track] _baz @ test/test_expect_test.ml:430:16-430:20
+            => 4
+          i = 2
+        [track] <for i> @ test/test_expect_test.ml:429:14-429:15
+          [track] _baz @ test/test_expect_test.ml:430:16-430:20
+            => 6
+          i = 3
+        [track] <for i> @ test/test_expect_test.ml:429:14-429:15
+          [track] _baz @ test/test_expect_test.ml:430:16-430:20
+            => 8
+          i = 4
+        [track] <for i> @ test/test_expect_test.ml:429:14-429:15
+          [track] _baz @ test/test_expect_test.ml:430:16-430:20
+            => 10
+          i = 5
+        [track] <for i> @ test/test_expect_test.ml:429:14-429:15
+          [track] _baz @ test/test_expect_test.ml:430:16-430:20
+            => 12
+          i = 6
+      => ()
     |}]
 
-*)
-
-(*
 let%expect_test "%track_show track for-loop, time spans" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false
+    let rt = Minidebug_db.debug_db_file
       ~elapsed_times:Microseconds db_file in
     fun () -> rt
   in
@@ -465,6 +491,8 @@ let%expect_test "%track_show track for-loop, time spans" =
       ()
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false ~show_times:true run_id;
   let output = [%expect.output] in
   let output =
     Str.global_replace (Str.regexp {|[0-9]+?[0-9]+.[0-9]+[0-9]+μs|}) "N.NNμs" output
@@ -472,46 +500,43 @@ let%expect_test "%track_show track for-loop, time spans" =
   print_endline output;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":597:21: _bar <N.NNμs>
-    ├─"test/test_expect_test.ml":600:10: for:test_expect_test:600 <N.NNμs>
-    │ ├─i = 0
-    │ ├─"test/test_expect_test.ml":600:14: <for i> <N.NNμs>
-    │ │ └─"test/test_expect_test.ml":601:16: _baz <N.NNμs>
-    │ │   └─_baz = 0
-    │ ├─i = 1
-    │ ├─"test/test_expect_test.ml":600:14: <for i> <N.NNμs>
-    │ │ └─"test/test_expect_test.ml":601:16: _baz <N.NNμs>
-    │ │   └─_baz = 2
-    │ ├─i = 2
-    │ ├─"test/test_expect_test.ml":600:14: <for i> <N.NNμs>
-    │ │ └─"test/test_expect_test.ml":601:16: _baz <N.NNμs>
-    │ │   └─_baz = 4
-    │ ├─i = 3
-    │ ├─"test/test_expect_test.ml":600:14: <for i> <N.NNμs>
-    │ │ └─"test/test_expect_test.ml":601:16: _baz <N.NNμs>
-    │ │   └─_baz = 6
-    │ ├─i = 4
-    │ ├─"test/test_expect_test.ml":600:14: <for i> <N.NNμs>
-    │ │ └─"test/test_expect_test.ml":601:16: _baz <N.NNμs>
-    │ │   └─_baz = 8
-    │ ├─i = 5
-    │ ├─"test/test_expect_test.ml":600:14: <for i> <N.NNμs>
-    │ │ └─"test/test_expect_test.ml":601:16: _baz <N.NNμs>
-    │ │   └─_baz = 10
-    │ ├─i = 6
-    │ └─"test/test_expect_test.ml":600:14: <for i> <N.NNμs>
-    │   └─"test/test_expect_test.ml":601:16: _baz <N.NNμs>
-    │     └─_baz = 12
-    └─_bar = ()
+    [track] _bar @ test/test_expect_test.ml:483:21-483:25 <1.31ms>
+      [track] for:test_expect_test:486 @ test/test_expect_test.ml:486:10-489:14 <1.20ms>
+        [track] <for i> @ test/test_expect_test.ml:486:14-486:15 <N.NNμs>
+          [track] _baz @ test/test_expect_test.ml:487:16-487:20 <N.NNμs>
+            => 0
+          i = 0
+        [track] <for i> @ test/test_expect_test.ml:486:14-486:15 <N.NNμs>
+          [track] _baz @ test/test_expect_test.ml:487:16-487:20 <N.NNμs>
+            => 2
+          i = 1
+        [track] <for i> @ test/test_expect_test.ml:486:14-486:15 <N.NNμs>
+          [track] _baz @ test/test_expect_test.ml:487:16-487:20 <N.NNμs>
+            => 4
+          i = 2
+        [track] <for i> @ test/test_expect_test.ml:486:14-486:15 <N.NNμs>
+          [track] _baz @ test/test_expect_test.ml:487:16-487:20 <N.NNμs>
+            => 6
+          i = 3
+        [track] <for i> @ test/test_expect_test.ml:486:14-486:15 <N.NNμs>
+          [track] _baz @ test/test_expect_test.ml:487:16-487:20 <N.NNμs>
+            => 8
+          i = 4
+        [track] <for i> @ test/test_expect_test.ml:486:14-486:15 <N.NNμs>
+          [track] _baz @ test/test_expect_test.ml:487:16-487:20 <N.NNμs>
+            => 10
+          i = 5
+        [track] <for i> @ test/test_expect_test.ml:486:14-486:15 <N.NNμs>
+          [track] _baz @ test/test_expect_test.ml:487:16-487:20 <N.NNμs>
+            => 12
+          i = 6
+      => ()
     |}]
 
-*)
-
-(*
 let%expect_test "%track_show track while-loop" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
   in
   let () =
@@ -526,38 +551,38 @@ let%expect_test "%track_show track while-loop" =
       ()
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":655:21: _bar
-    ├─"test/test_expect_test.ml":657:8: while:test_expect_test:657
-    │ ├─"test/test_expect_test.ml":658:10: <while loop>
-    │ │ └─"test/test_expect_test.ml":658:14: _baz
-    │ │   └─_baz = 0
-    │ ├─"test/test_expect_test.ml":658:10: <while loop>
-    │ │ └─"test/test_expect_test.ml":658:14: _baz
-    │ │   └─_baz = 2
-    │ ├─"test/test_expect_test.ml":658:10: <while loop>
-    │ │ └─"test/test_expect_test.ml":658:14: _baz
-    │ │   └─_baz = 4
-    │ ├─"test/test_expect_test.ml":658:10: <while loop>
-    │ │ └─"test/test_expect_test.ml":658:14: _baz
-    │ │   └─_baz = 6
-    │ ├─"test/test_expect_test.ml":658:10: <while loop>
-    │ │ └─"test/test_expect_test.ml":658:14: _baz
-    │ │   └─_baz = 8
-    │ └─"test/test_expect_test.ml":658:10: <while loop>
-    │   └─"test/test_expect_test.ml":658:14: _baz
-    │     └─_baz = 10
-    └─_bar = ()
+    [track] _bar @ test/test_expect_test.ml:544:21-544:25
+      [track] while:test_expect_test:546 @ test/test_expect_test.ml:546:8-549:12
+        [track] <while loop> @ test/test_expect_test.ml:547:10-548:16
+          [track] _baz @ test/test_expect_test.ml:547:14-547:18
+            => 0
+        [track] <while loop> @ test/test_expect_test.ml:547:10-548:16
+          [track] _baz @ test/test_expect_test.ml:547:14-547:18
+            => 2
+        [track] <while loop> @ test/test_expect_test.ml:547:10-548:16
+          [track] _baz @ test/test_expect_test.ml:547:14-547:18
+            => 4
+        [track] <while loop> @ test/test_expect_test.ml:547:10-548:16
+          [track] _baz @ test/test_expect_test.ml:547:14-547:18
+            => 6
+        [track] <while loop> @ test/test_expect_test.ml:547:10-548:16
+          [track] _baz @ test/test_expect_test.ml:547:14-547:18
+            => 8
+        [track] <while loop> @ test/test_expect_test.ml:547:10-548:16
+          [track] _baz @ test/test_expect_test.ml:547:14-547:18
+            => 10
+      => ()
     |}]
 
-*)
-
-(*
 let%expect_test "%debug_show num children exceeded nested" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    Minidebug_runtime.prefixed_runtime ~values_first_mode:false ()
+    let rt = Minidebug_db.debug_db_file db_file in
+    fun () -> rt
   in
   let%debug_show rec loop_exceeded (x : int) : int =
     [%debug_interrupts
@@ -573,259 +598,50 @@ let%expect_test "%debug_show num children exceeded nested" =
     try print_endline @@ Int.to_string @@ loop_exceeded 3
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":695:35: loop_exceeded
-    ├─x = 3
-    ├─"test/test_expect_test.ml":702:17: z
-    │ └─z = 1
-    └─"test/test_expect_test.ml":695:35: loop_exceeded
-      ├─x = 2
-      ├─"test/test_expect_test.ml":702:17: z
-      │ └─z = 0
-      └─"test/test_expect_test.ml":695:35: loop_exceeded
-        ├─x = 1
-        ├─"test/test_expect_test.ml":702:17: z
-        │ └─z = 0
-        └─"test/test_expect_test.ml":695:35: loop_exceeded
-          ├─x = 0
-          ├─"test/test_expect_test.ml":702:17: z
-          │ └─z = 0
-          ├─"test/test_expect_test.ml":702:17: z
-          │ └─z = 1
-          ├─"test/test_expect_test.ml":702:17: z
-          │ └─z = 2
-          ├─"test/test_expect_test.ml":702:17: z
-          │ └─z = 3
-          ├─"test/test_expect_test.ml":702:17: z
-          │ └─z = 4
-          ├─"test/test_expect_test.ml":702:17: z
-          │ └─z = 5
-          ├─"test/test_expect_test.ml":702:17: z
-          │ └─z = 6
-          ├─"test/test_expect_test.ml":702:17: z
-          │ └─z = 7
-          ├─"test/test_expect_test.ml":702:17: z
-          │ └─z = 8
-          ├─"test/test_expect_test.ml":702:17: z
-          │ └─z = 9
-          └─z = <max_num_children exceeded>
     Raised exception: ppx_minidebug: max_num_children exceeded
+    [debug] loop_exceeded @ test/test_expect_test.ml:587:35-595:72
+      [debug] z @ test/test_expect_test.ml:594:17-594:18
+        => 1
+      x = 3
+      [debug] loop_exceeded @ test/test_expect_test.ml:587:35-595:72
+        [debug] z @ test/test_expect_test.ml:594:17-594:18
+          => 0
+        x = 2
+        [debug] loop_exceeded @ test/test_expect_test.ml:587:35-595:72
+          [debug] z @ test/test_expect_test.ml:594:17-594:18
+            => 0
+          x = 1
+          [debug] loop_exceeded @ test/test_expect_test.ml:587:35-595:72
+            [debug] z @ test/test_expect_test.ml:594:17-594:18
+              => 0
+            x = 0
+            [debug] z @ test/test_expect_test.ml:594:17-594:18
+              => 1
+            [debug] z @ test/test_expect_test.ml:594:17-594:18
+              => 2
+            [debug] z @ test/test_expect_test.ml:594:17-594:18
+              => 3
+            [debug] z @ test/test_expect_test.ml:594:17-594:18
+              => 4
+            [debug] z @ test/test_expect_test.ml:594:17-594:18
+              => 5
+            [debug] z @ test/test_expect_test.ml:594:17-594:18
+              => 6
+            [debug] z @ test/test_expect_test.ml:594:17-594:18
+              => 7
+            [debug] z @ test/test_expect_test.ml:594:17-594:18
+              => 8
+            [debug] z @ test/test_expect_test.ml:594:17-594:18
+              => 9
+            [debug] z @ test/test_expect_test.ml:594:17-594:18
+              => 10
+            [debug] z @ test/test_expect_test.ml:594:17-594:18
+              z = <max_num_children exceeded>
     |}]
-
-*)
-
-(*
-let%expect_test "%debug_show truncated children nested" =
-  let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false ~truncate_children:4 db_file in
-    fun () -> rt
-  in
-  let%debug_show rec loop_exceeded (x : int) : int =
-    Array.fold_left ( + ) 0
-    @@ Array.init
-         (20 / (x + 1))
-         (fun i ->
-           let z : int = i + ((x - 1) / 2) in
-           if x <= 0 then i else i + loop_exceeded (z + (x / 2) - i))
-  in
-  let () =
-    try print_endline @@ Int.to_string @@ loop_exceeded 3
-    with Failure s -> print_endline @@ "Raised exception: " ^ s
-  in
-  [%expect
-    {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":754:35: loop_exceeded
-    ├─<earlier entries truncated>
-    ├─"test/test_expect_test.ml":754:35: loop_exceeded
-    │ ├─<earlier entries truncated>
-    │ ├─"test/test_expect_test.ml":754:35: loop_exceeded
-    │ │ ├─<earlier entries truncated>
-    │ │ ├─"test/test_expect_test.ml":754:35: loop_exceeded
-    │ │ │ ├─<earlier entries truncated>
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 17
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 18
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 19
-    │ │ │ └─loop_exceeded = 190
-    │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ └─z = 9
-    │ │ ├─"test/test_expect_test.ml":754:35: loop_exceeded
-    │ │ │ ├─<earlier entries truncated>
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 17
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 18
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 19
-    │ │ │ └─loop_exceeded = 190
-    │ │ └─loop_exceeded = 1945
-    │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ └─z = 5
-    │ ├─"test/test_expect_test.ml":754:35: loop_exceeded
-    │ │ ├─<earlier entries truncated>
-    │ │ ├─"test/test_expect_test.ml":754:35: loop_exceeded
-    │ │ │ ├─<earlier entries truncated>
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 17
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 18
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 19
-    │ │ │ └─loop_exceeded = 190
-    │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ └─z = 9
-    │ │ ├─"test/test_expect_test.ml":754:35: loop_exceeded
-    │ │ │ ├─<earlier entries truncated>
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 17
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 18
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 19
-    │ │ │ └─loop_exceeded = 190
-    │ │ └─loop_exceeded = 1945
-    │ └─loop_exceeded = 11685
-    ├─"test/test_expect_test.ml":759:15: z
-    │ └─z = 5
-    ├─"test/test_expect_test.ml":754:35: loop_exceeded
-    │ ├─<earlier entries truncated>
-    │ ├─"test/test_expect_test.ml":754:35: loop_exceeded
-    │ │ ├─<earlier entries truncated>
-    │ │ ├─"test/test_expect_test.ml":754:35: loop_exceeded
-    │ │ │ ├─<earlier entries truncated>
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 17
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 18
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 19
-    │ │ │ └─loop_exceeded = 190
-    │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ └─z = 9
-    │ │ ├─"test/test_expect_test.ml":754:35: loop_exceeded
-    │ │ │ ├─<earlier entries truncated>
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 17
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 18
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 19
-    │ │ │ └─loop_exceeded = 190
-    │ │ └─loop_exceeded = 1945
-    │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ └─z = 5
-    │ ├─"test/test_expect_test.ml":754:35: loop_exceeded
-    │ │ ├─<earlier entries truncated>
-    │ │ ├─"test/test_expect_test.ml":754:35: loop_exceeded
-    │ │ │ ├─<earlier entries truncated>
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 17
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 18
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 19
-    │ │ │ └─loop_exceeded = 190
-    │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ └─z = 9
-    │ │ ├─"test/test_expect_test.ml":754:35: loop_exceeded
-    │ │ │ ├─<earlier entries truncated>
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 17
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 18
-    │ │ │ ├─"test/test_expect_test.ml":759:15: z
-    │ │ │ │ └─z = 19
-    │ │ │ └─loop_exceeded = 190
-    │ │ └─loop_exceeded = 1945
-    │ └─loop_exceeded = 11685
-    └─loop_exceeded = 58435
-    58435
-    |}]
-
-*)
-
-(*
-let%expect_test "%track_show highlight" =
-  let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false
-      ~highlight_terms:(Re.str "3") db_file in
-    fun () -> rt
-  in
-  let%debug_show rec loop_highlight (x : int) : int =
-    [%debug_interrupts
-      { max_nesting_depth = 1000; max_num_children = 1000 };
-      let z : int = (x - 1) / 2 in
-      if x <= 0 then 0 else z + loop_highlight (z + (x / 2))]
-  in
-  print_endline @@ Int.to_string @@ loop_highlight 7;
-  [%expect
-    {|
-    BEGIN DEBUG SESSION
-    ┌─────────────────────────────────────────────────┐
-    │"test/test_expect_test.ml":884:36: loop_highlight│
-    ├─────────────────────────────────────────────────┘
-    ├─x = 7
-    ├─┬────────────────────────────────────┐
-    │ │"test/test_expect_test.ml":887:10: z│
-    │ ├────────────────────────────────────┘
-    │ └─┬─────┐
-    │   │z = 3│
-    │   └─────┘
-    ├─┬─────────────────────────────────────────────────┐
-    │ │"test/test_expect_test.ml":884:36: loop_highlight│
-    │ ├─────────────────────────────────────────────────┘
-    │ ├─x = 6
-    │ ├─"test/test_expect_test.ml":887:10: z
-    │ │ └─z = 2
-    │ ├─┬─────────────────────────────────────────────────┐
-    │ │ │"test/test_expect_test.ml":884:36: loop_highlight│
-    │ │ ├─────────────────────────────────────────────────┘
-    │ │ ├─x = 5
-    │ │ ├─"test/test_expect_test.ml":887:10: z
-    │ │ │ └─z = 2
-    │ │ ├─┬─────────────────────────────────────────────────┐
-    │ │ │ │"test/test_expect_test.ml":884:36: loop_highlight│
-    │ │ │ ├─────────────────────────────────────────────────┘
-    │ │ │ ├─x = 4
-    │ │ │ ├─"test/test_expect_test.ml":887:10: z
-    │ │ │ │ └─z = 1
-    │ │ │ ├─┬─────────────────────────────────────────────────┐
-    │ │ │ │ │"test/test_expect_test.ml":884:36: loop_highlight│
-    │ │ │ │ ├─────────────────────────────────────────────────┘
-    │ │ │ │ ├─┬─────┐
-    │ │ │ │ │ │x = 3│
-    │ │ │ │ │ └─────┘
-    │ │ │ │ ├─"test/test_expect_test.ml":887:10: z
-    │ │ │ │ │ └─z = 1
-    │ │ │ │ ├─"test/test_expect_test.ml":884:36: loop_highlight
-    │ │ │ │ │ ├─x = 2
-    │ │ │ │ │ ├─"test/test_expect_test.ml":887:10: z
-    │ │ │ │ │ │ └─z = 0
-    │ │ │ │ │ ├─"test/test_expect_test.ml":884:36: loop_highlight
-    │ │ │ │ │ │ ├─x = 1
-    │ │ │ │ │ │ ├─"test/test_expect_test.ml":887:10: z
-    │ │ │ │ │ │ │ └─z = 0
-    │ │ │ │ │ │ ├─"test/test_expect_test.ml":884:36: loop_highlight
-    │ │ │ │ │ │ │ ├─x = 0
-    │ │ │ │ │ │ │ ├─"test/test_expect_test.ml":887:10: z
-    │ │ │ │ │ │ │ │ └─z = 0
-    │ │ │ │ │ │ │ └─loop_highlight = 0
-    │ │ │ │ │ │ └─loop_highlight = 0
-    │ │ │ │ │ └─loop_highlight = 0
-    │ │ │ │ └─loop_highlight = 1
-    │ │ │ └─loop_highlight = 2
-    │ │ └─loop_highlight = 4
-    │ └─loop_highlight = 6
-    └─loop_highlight = 9
-    9
-    |}]
-
-*)
 
 (*
 let%expect_test "%track_show PrintBox tracking" =
@@ -859,9 +675,7 @@ let%expect_test "%track_show PrintBox tracking" =
     └─track_branches = -3
     -3
     |}]
-
 *)
-
 (*
 let%expect_test "%track_show PrintBox tracking <function>" =
   let _get_local_debug_runtime =
