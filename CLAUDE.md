@@ -25,6 +25,7 @@ Version 3.0.0 transitions from static file generation (PrintBox/Flushing) to dat
 - Run a specific test executable: `dune exec test/test_debug_sexp.exe`
 - Run a specific `test` stanza: `dune build @runtest-test_path_filter`
 - Run an inline test suite, use `@runtest-<library name>`: `dune build @runtest-test_inline_tests`
+  - Note that the inline test library name is different than the file / module name `test_expect_test`
 
 ## Key Architecture Insights
 
