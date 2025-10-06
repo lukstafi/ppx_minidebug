@@ -37,16 +37,28 @@ module Schema = struct
     Sqlite3.exec db "CREATE INDEX IF NOT EXISTS idx_value_hash ON value_atoms(value_hash)"
     |> ignore;
 
+    (* Entry parents table: tracks entry_id -> parent_id relationships *)
+    Sqlite3.exec db
+      {|CREATE TABLE IF NOT EXISTS entry_parents (
+          run_id INTEGER NOT NULL,
+          entry_id INTEGER NOT NULL,
+          parent_id INTEGER,
+          PRIMARY KEY (run_id, entry_id),
+          FOREIGN KEY (run_id) REFERENCES runs(run_id)
+        )|}
+    |> ignore;
+
     (* Entries table with foreign keys to value_atoms.
-       seq_num discriminates between scope entry (0) and logged values (>0, or -1 for results).
-       parent_seq_num tracks chronological position within parent (populated when parent_id is set and seq_num = 0) *)
+       entry_id: ID of parent scope (all children share same entry_id).
+       seq_id: position within parent's children list (0, 1, 2...).
+       header_entry_id: NULL for values/results, points to new scope ID for headers.
+       is_result: false for headers and parameters, true for results. *)
     Sqlite3.exec db
       {|CREATE TABLE IF NOT EXISTS entries (
           run_id INTEGER NOT NULL,
           entry_id INTEGER NOT NULL,
-          seq_num INTEGER NOT NULL DEFAULT 0,
-          parent_id INTEGER,
-          parent_seq_num INTEGER,
+          seq_id INTEGER NOT NULL,
+          header_entry_id INTEGER,
           depth INTEGER NOT NULL,
           message_value_id INTEGER REFERENCES value_atoms(value_id),
           location_value_id INTEGER REFERENCES value_atoms(value_id),
@@ -57,11 +69,11 @@ module Schema = struct
           is_result BOOLEAN DEFAULT FALSE,
           log_level INTEGER,
           entry_type TEXT,
-          PRIMARY KEY (run_id, entry_id, seq_num),
+          PRIMARY KEY (run_id, entry_id, seq_id),
           FOREIGN KEY (run_id) REFERENCES runs(run_id)
         )|}
     |> ignore;
-    Sqlite3.exec db "CREATE INDEX IF NOT EXISTS idx_entries_parent ON entries(run_id, parent_id)"
+    Sqlite3.exec db "CREATE INDEX IF NOT EXISTS idx_entries_header ON entries(run_id, header_entry_id)"
     |> ignore;
     Sqlite3.exec db "CREATE INDEX IF NOT EXISTS idx_entries_depth ON entries(run_id, depth)"
     |> ignore;
@@ -168,6 +180,7 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
   let intern = ref None
   let stack : entry_info list ref = ref []
   let hidden_entries = ref []
+  let root_seq_counter = ref 0  (* Counter for root-level entries *)
 
   (** Initialize database connection *)
   let initialize_database filename =
@@ -251,12 +264,31 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
       let db = get_db () in
       let run_id = get_run_id () in
       let intern = get_intern () in
-      let parent_id, parent_seq_num = match !stack with
-        | [] -> None, None
-        | parent :: _ -> Some parent.entry_id, Some parent.num_children
+      let parent_entry_id, seq_id = match !stack with
+        | [] ->
+            let seq = !root_seq_counter in
+            incr root_seq_counter;
+            None, seq
+        | parent :: _ -> Some parent.entry_id, parent.num_children
       in
       let depth = List.length !stack in
       let elapsed_start = Mtime_clock.elapsed () in
+
+      (* Insert into entry_parents table *)
+      let parent_stmt =
+        Sqlite3.prepare db
+          "INSERT INTO entry_parents (run_id, entry_id, parent_id) VALUES (?, ?, ?)"
+      in
+      Sqlite3.bind_int parent_stmt 1 run_id |> ignore;
+      Sqlite3.bind_int parent_stmt 2 entry_id |> ignore;
+      (match parent_entry_id with
+      | None -> Sqlite3.bind parent_stmt 3 Sqlite3.Data.NULL
+      | Some pid -> Sqlite3.bind_int parent_stmt 3 pid)
+      |> ignore;
+      (match Sqlite3.step parent_stmt with
+      | Sqlite3.Rc.DONE -> ()
+      | _ -> failwith "Failed to insert entry parent");
+      Sqlite3.finalize parent_stmt |> ignore;
 
       (* Intern message *)
       let message_value_id = ValueIntern.intern intern ~value_type:"message" message in
@@ -268,23 +300,21 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
       in
       let location_value_id = ValueIntern.intern intern ~value_type:"location" location in
 
-      (* Insert entry with seq_num = 0 for scope entry *)
+      (* Insert header row into entries table *)
       let stmt =
         Sqlite3.prepare db
-          "INSERT INTO entries (run_id, entry_id, seq_num, parent_id, parent_seq_num, depth, message_value_id, \
-           location_value_id, elapsed_start_ns, log_level, entry_type) VALUES (?, ?, 0, ?, \
-           ?, ?, ?, ?, ?, ?, ?)"
+          "INSERT INTO entries (run_id, entry_id, seq_id, header_entry_id, depth, message_value_id, \
+           location_value_id, elapsed_start_ns, log_level, entry_type) VALUES (?, ?, ?, ?, \
+           ?, ?, ?, ?, ?, ?)"
       in
       Sqlite3.bind_int stmt 1 run_id |> ignore;
-      Sqlite3.bind_int stmt 2 entry_id |> ignore;
-      (match parent_id with
-      | None -> Sqlite3.bind stmt 3 Sqlite3.Data.NULL
-      | Some pid -> Sqlite3.bind_int stmt 3 pid)
+      (* entry_id is parent's entry_id (or 0 for root) *)
+      (match parent_entry_id with
+      | None -> Sqlite3.bind_int stmt 2 0  (* Root entries have entry_id = 0 *)
+      | Some pid -> Sqlite3.bind_int stmt 2 pid)
       |> ignore;
-      (match parent_seq_num with
-      | None -> Sqlite3.bind stmt 4 Sqlite3.Data.NULL
-      | Some psn -> Sqlite3.bind_int stmt 4 psn)
-      |> ignore;
+      Sqlite3.bind_int stmt 3 seq_id |> ignore;
+      Sqlite3.bind_int stmt 4 entry_id |> ignore;  (* header_entry_id points to new scope *)
       Sqlite3.bind_int stmt 5 depth |> ignore;
       Sqlite3.bind_int stmt 6 message_value_id |> ignore;
       Sqlite3.bind_int stmt 7 location_value_id |> ignore;
@@ -302,14 +332,14 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
 
       (match Sqlite3.step stmt with
       | Sqlite3.Rc.DONE -> ()
-      | _ -> failwith "Failed to insert entry");
+      | _ -> failwith "Failed to insert header entry");
       Sqlite3.finalize stmt |> ignore;
 
       (* Push to stack *)
       let entry =
         {
           entry_id;
-          parent_id;
+          parent_id = parent_entry_id;
           depth;
           elapsed_start;
           num_children = 0;
@@ -336,40 +366,12 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
       let run_id = get_run_id () in
       let intern = get_intern () in
 
-      (* Determine seq_num: get next available for this entry_id *)
-      let seq_num =
-        if is_result then -1  (* Use -1 for result values *)
-        else begin
-          (* Get max seq_num for this entry_id to find next available slot *)
-          let count_stmt = Sqlite3.prepare db
-            "SELECT COALESCE(MAX(seq_num), 0) FROM entries WHERE run_id = ? AND entry_id = ? AND seq_num > 0"
-          in
-          Sqlite3.bind_int count_stmt 1 run_id |> ignore;
-          Sqlite3.bind_int count_stmt 2 entry_id |> ignore;
-          let next_seq =
-            match Sqlite3.step count_stmt with
-            | Sqlite3.Rc.ROW ->
-                Sqlite3.Data.to_int_exn (Sqlite3.column count_stmt 0) + 1
-            | _ -> 1
-          in
-          Sqlite3.finalize count_stmt |> ignore;
-          next_seq
-        end
+      (* Get depth and seq_id from the entry's stack info *)
+      let depth, seq_id =
+        match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
+        | Some parent_entry -> parent_entry.depth + 1, parent_entry.num_children
+        | None -> List.length !stack, 0  (* Fallback *)
       in
-
-      (* Get parent entry info for depth *)
-      let depth_stmt = Sqlite3.prepare db
-        "SELECT depth FROM entries WHERE run_id = ? AND entry_id = ? AND seq_num = 0"
-      in
-      Sqlite3.bind_int depth_stmt 1 run_id |> ignore;
-      Sqlite3.bind_int depth_stmt 2 entry_id |> ignore;
-      let depth =
-        match Sqlite3.step depth_stmt with
-        | Sqlite3.Rc.ROW ->
-            Sqlite3.Data.to_int_exn (Sqlite3.column depth_stmt 0) + 1
-        | _ -> List.length !stack  (* Fallback *)
-      in
-      Sqlite3.finalize depth_stmt |> ignore;
 
       (* Intern the message (parameter/result name) *)
       let message = match descr with Some d -> d | None -> if is_result then "=>" else "" in
@@ -387,34 +389,25 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
         | Some ns -> ns
       in
 
-      (* Get parent_seq_num from the entry's num_children counter for chronological ordering *)
-      let parent_seq_num =
-        match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
-        | Some parent_entry -> parent_entry.num_children
-        | None -> 0  (* Fallback if entry not in stack *)
-      in
-
-      (* Insert value row with same entry_id but different seq_num *)
+      (* Insert value row into entries table *)
       let stmt =
         Sqlite3.prepare db
-          "INSERT INTO entries (run_id, entry_id, seq_num, parent_id, parent_seq_num, depth, message_value_id, \
+          "INSERT INTO entries (run_id, entry_id, seq_id, header_entry_id, depth, message_value_id, \
            data_value_id, elapsed_start_ns, elapsed_end_ns, is_result, log_level, entry_type) \
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
       in
       Sqlite3.bind_int stmt 1 run_id |> ignore;
-      Sqlite3.bind_int stmt 2 entry_id |> ignore;  (* Same entry_id as parent scope *)
-      Sqlite3.bind_int stmt 3 seq_num |> ignore;
-      Sqlite3.bind_int stmt 4 entry_id |> ignore;  (* parent_id same as entry_id *)
-      (* Use parent entry's num_children for unified chronological ordering with scope children *)
-      Sqlite3.bind_int stmt 5 parent_seq_num |> ignore;
-      Sqlite3.bind_int stmt 6 depth |> ignore;
-      Sqlite3.bind_int stmt 7 message_value_id |> ignore;
-      Sqlite3.bind_int stmt 8 data_value_id |> ignore;
-      Sqlite3.bind_int stmt 9 elapsed_ns |> ignore;
-      Sqlite3.bind_int stmt 10 elapsed_ns |> ignore;  (* Same for start and end for value nodes *)
-      Sqlite3.bind_int stmt 11 (if is_result then 1 else 0) |> ignore;
-      Sqlite3.bind_int stmt 12 1 |> ignore;  (* log_level *)
-      Sqlite3.bind_text stmt 13 "value" |> ignore;  (* entry_type *)
+      Sqlite3.bind_int stmt 2 entry_id |> ignore;  (* entry_id is the parent scope *)
+      Sqlite3.bind_int stmt 3 seq_id |> ignore;
+      Sqlite3.bind stmt 4 Sqlite3.Data.NULL |> ignore;  (* header_entry_id is NULL for values *)
+      Sqlite3.bind_int stmt 5 depth |> ignore;
+      Sqlite3.bind_int stmt 6 message_value_id |> ignore;
+      Sqlite3.bind_int stmt 7 data_value_id |> ignore;
+      Sqlite3.bind_int stmt 8 elapsed_ns |> ignore;
+      Sqlite3.bind_int stmt 9 elapsed_ns |> ignore;  (* Same for start and end for value nodes *)
+      Sqlite3.bind_int stmt 10 (if is_result then 1 else 0) |> ignore;
+      Sqlite3.bind_int stmt 11 1 |> ignore;  (* log_level *)
+      Sqlite3.bind_text stmt 12 "value" |> ignore;  (* entry_type *)
 
       (match Sqlite3.step stmt with
       | Sqlite3.Rc.DONE -> ()
@@ -471,24 +464,46 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
         let db = get_db () in
         let run_id = get_run_id () in
 
-        (* Update entry with end time (only for seq_num = 0, the scope entry) *)
-        let stmt =
+        (* Step 1: Look up parent_id from entry_parents table *)
+        let parent_stmt =
           Sqlite3.prepare db
-            "UPDATE entries SET elapsed_end_ns = ? WHERE run_id = ? AND entry_id = ? AND seq_num = 0"
+            "SELECT parent_id FROM entry_parents WHERE run_id = ? AND entry_id = ?"
         in
-        let elapsed_ns =
-          match Int64.unsigned_to_int @@ Mtime.Span.to_uint64_ns elapsed_end with
-          | None -> 0
-          | Some ns -> ns
+        Sqlite3.bind_int parent_stmt 1 run_id |> ignore;
+        Sqlite3.bind_int parent_stmt 2 entry_id |> ignore;
+        let parent_entry_id =
+          match Sqlite3.step parent_stmt with
+          | Sqlite3.Rc.ROW ->
+              (match Sqlite3.column parent_stmt 0 with
+              | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+              | Sqlite3.Data.NULL -> Some 0  (* Root has parent_id = NULL, but we use 0 as entry_id *)
+              | _ -> None)
+          | _ -> None
         in
-        Sqlite3.bind_int stmt 1 elapsed_ns |> ignore;
-        Sqlite3.bind_int stmt 2 run_id |> ignore;
-        Sqlite3.bind_int stmt 3 entry_id |> ignore;
+        Sqlite3.finalize parent_stmt |> ignore;
 
-        (match Sqlite3.step stmt with
-        | Sqlite3.Rc.DONE -> ()
-        | _ -> failwith "Failed to update entry end time");
-        Sqlite3.finalize stmt |> ignore;
+        (* Step 2: Update header row in entries table *)
+        (match parent_entry_id with
+        | Some parent_id ->
+            let stmt =
+              Sqlite3.prepare db
+                "UPDATE entries SET elapsed_end_ns = ? WHERE run_id = ? AND entry_id = ? AND header_entry_id = ?"
+            in
+            let elapsed_ns =
+              match Int64.unsigned_to_int @@ Mtime.Span.to_uint64_ns elapsed_end with
+              | None -> 0
+              | Some ns -> ns
+            in
+            Sqlite3.bind_int stmt 1 elapsed_ns |> ignore;
+            Sqlite3.bind_int stmt 2 run_id |> ignore;
+            Sqlite3.bind_int stmt 3 parent_id |> ignore;
+            Sqlite3.bind_int stmt 4 entry_id |> ignore;
+
+            (match Sqlite3.step stmt with
+            | Sqlite3.Rc.DONE -> ()
+            | _ -> failwith "Failed to update entry end time");
+            Sqlite3.finalize stmt |> ignore
+        | None -> ());
 
         stack := rest;
         hidden_entries := List.filter (( <> ) entry_id) !hidden_entries
@@ -529,10 +544,10 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
             to_process := [];
 
             List.iter (fun parent_entry_id ->
-              (* Find direct children of this entry *)
+              (* Find direct children of this entry - look for headers with entry_id matching parent *)
               let child_stmt =
                 Sqlite3.prepare db
-                  "SELECT DISTINCT entry_id FROM entries WHERE run_id = ? AND parent_id = ? AND seq_num = 0"
+                  "SELECT DISTINCT header_entry_id FROM entries WHERE run_id = ? AND entry_id = ? AND header_entry_id IS NOT NULL"
               in
               Sqlite3.bind_int child_stmt 1 run_id |> ignore;
               Sqlite3.bind_int child_stmt 2 parent_entry_id |> ignore;
@@ -552,30 +567,54 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
             ) current_ids
           done;
 
-          (* Delete logged values (seq_num > 0) for current entry *)
-          let delete_values_stmt =
+          (* Delete all entries rows where entry_id matches this scope (values and child headers) *)
+          let delete_children_stmt =
             Sqlite3.prepare db
-              "DELETE FROM entries WHERE run_id = ? AND entry_id = ? AND seq_num > 0"
+              "DELETE FROM entries WHERE run_id = ? AND entry_id = ?"
           in
-          Sqlite3.bind_int delete_values_stmt 1 run_id |> ignore;
-          Sqlite3.bind_int delete_values_stmt 2 entry_id |> ignore;
-          (match Sqlite3.step delete_values_stmt with
+          Sqlite3.bind_int delete_children_stmt 1 run_id |> ignore;
+          Sqlite3.bind_int delete_children_stmt 2 entry_id |> ignore;
+          (match Sqlite3.step delete_children_stmt with
           | Sqlite3.Rc.DONE -> ()
-          | _ -> failwith "Failed to delete entry values");
-          Sqlite3.finalize delete_values_stmt |> ignore;
+          | _ -> failwith "Failed to delete entry children");
+          Sqlite3.finalize delete_children_stmt |> ignore;
 
-          (* Delete each descendant entry (all seq_num values) *)
+          (* Delete the header row for this entry (which has header_entry_id = this scope) *)
+          let delete_header_stmt =
+            Sqlite3.prepare db
+              "DELETE FROM entries WHERE run_id = ? AND header_entry_id = ?"
+          in
+          Sqlite3.bind_int delete_header_stmt 1 run_id |> ignore;
+          Sqlite3.bind_int delete_header_stmt 2 entry_id |> ignore;
+          (match Sqlite3.step delete_header_stmt with
+          | Sqlite3.Rc.DONE -> ()
+          | _ -> failwith "Failed to delete entry header");
+          Sqlite3.finalize delete_header_stmt |> ignore;
+
+          (* Delete each descendant entry (all rows) - recursively *)
           List.iter
             (fun desc_id ->
-              let delete_stmt =
+              (* Delete children/values *)
+              let delete_children_stmt =
                 Sqlite3.prepare db "DELETE FROM entries WHERE run_id = ? AND entry_id = ?"
               in
-              Sqlite3.bind_int delete_stmt 1 run_id |> ignore;
-              Sqlite3.bind_int delete_stmt 2 desc_id |> ignore;
-              (match Sqlite3.step delete_stmt with
+              Sqlite3.bind_int delete_children_stmt 1 run_id |> ignore;
+              Sqlite3.bind_int delete_children_stmt 2 desc_id |> ignore;
+              (match Sqlite3.step delete_children_stmt with
               | Sqlite3.Rc.DONE -> ()
-              | _ -> failwith "Failed to delete descendant entry");
-              Sqlite3.finalize delete_stmt |> ignore)
+              | _ -> failwith "Failed to delete descendant children");
+              Sqlite3.finalize delete_children_stmt |> ignore;
+
+              (* Delete header *)
+              let delete_header_stmt =
+                Sqlite3.prepare db "DELETE FROM entries WHERE run_id = ? AND header_entry_id = ?"
+              in
+              Sqlite3.bind_int delete_header_stmt 1 run_id |> ignore;
+              Sqlite3.bind_int delete_header_stmt 2 desc_id |> ignore;
+              (match Sqlite3.step delete_header_stmt with
+              | Sqlite3.Rc.DONE -> ()
+              | _ -> failwith "Failed to delete descendant header");
+              Sqlite3.finalize delete_header_stmt |> ignore)
             !descendant_ids
 
   let finish_and_cleanup () =

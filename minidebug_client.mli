@@ -3,10 +3,9 @@
 (** Query layer for database access *)
 module Query : sig
   type entry = {
-    entry_id : int;
-    seq_num : int;
-    parent_id : int option;
-    parent_seq_num : int option;
+    entry_id : int;  (* parent scope ID for all rows *)
+    seq_id : int;  (* position in parent's children list *)
+    header_entry_id : int option;  (* NULL for values, points to new scope for headers *)
     depth : int;
     message : string;
     location : string option;

@@ -5,10 +5,9 @@ module CFormat = Format
 (** Query layer for database access *)
 module Query = struct
   type entry = {
-    entry_id : int;
-    seq_num : int;
-    parent_id : int option;
-    parent_seq_num : int option;
+    entry_id : int;  (* parent scope ID for all rows *)
+    seq_id : int;  (* position in parent's children list *)
+    header_entry_id : int option;  (* NULL for values, points to new scope for headers *)
     depth : int;
     message : string;
     location : string option;
@@ -79,9 +78,8 @@ module Query = struct
     let base_query = {|
       SELECT
         e.entry_id,
-        e.seq_num,
-        e.parent_id,
-        e.parent_seq_num,
+        e.seq_id,
+        e.header_entry_id,
         e.depth,
         m.value_content as message,
         l.value_content as location,
@@ -99,10 +97,10 @@ module Query = struct
     |} in
 
     let query = match parent_id, max_depth with
-      | None, None -> base_query ^ " ORDER BY e.entry_id, e.seq_num"
-      | Some _, None -> base_query ^ " AND e.parent_id = ? ORDER BY e.entry_id, e.seq_num"
-      | None, Some _ -> base_query ^ " AND e.depth <= ? ORDER BY e.entry_id, e.seq_num"
-      | Some _, Some _ -> base_query ^ " AND e.parent_id = ? AND e.depth <= ? ORDER BY e.entry_id, e.seq_num"
+      | None, None -> base_query ^ " ORDER BY e.entry_id, e.seq_id"
+      | Some _, None -> base_query ^ " AND e.entry_id = ? ORDER BY e.entry_id, e.seq_id"
+      | None, Some _ -> base_query ^ " AND e.depth <= ? ORDER BY e.entry_id, e.seq_id"
+      | Some _, Some _ -> base_query ^ " AND e.entry_id = ? AND e.depth <= ? ORDER BY e.entry_id, e.seq_id"
     in
 
     let stmt = Sqlite3.prepare db query in
@@ -121,28 +119,25 @@ module Query = struct
       | Sqlite3.Rc.ROW ->
           let entry = {
             entry_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
-            seq_num = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
-            parent_id = (match Sqlite3.column stmt 2 with
+            seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
+            header_entry_id = (match Sqlite3.column stmt 2 with
               | Sqlite3.Data.INT id -> Some (Int64.to_int id)
               | _ -> None);
-            parent_seq_num = (match Sqlite3.column stmt 3 with
-              | Sqlite3.Data.INT psn -> Some (Int64.to_int psn)
-              | _ -> None);
-            depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 4);
-            message = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 5);
-            location = (match Sqlite3.column stmt 6 with
+            depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
+            message = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 4);
+            location = (match Sqlite3.column stmt 5 with
               | Sqlite3.Data.TEXT s -> Some s
               | _ -> None);
-            data = (match Sqlite3.column stmt 7 with
+            data = (match Sqlite3.column stmt 6 with
               | Sqlite3.Data.TEXT s -> Some s
               | _ -> None);
-            elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 8);
-            elapsed_end_ns = (match Sqlite3.column stmt 9 with
+            elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
+            elapsed_end_ns = (match Sqlite3.column stmt 8 with
               | Sqlite3.Data.INT ns -> Some (Int64.to_int ns)
               | _ -> None);
-            is_result = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10) = 1;
-            log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 11);
-            entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 12);
+            is_result = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 9) = 1;
+            log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
+            entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
           } in
           entries := entry :: !entries;
           loop ()
@@ -215,58 +210,56 @@ module Renderer = struct
 
   (** Build tree structure from flat entry list *)
   let build_tree entries =
-    (* Separate scope entries (seq_num = 0) from value entries (seq_num != 0) *)
-    let scope_entries, value_entries = List.partition (fun e -> e.Query.seq_num = 0) entries in
+    (* Separate headers from values/results *)
+    let headers, _values = List.partition (fun e -> e.Query.header_entry_id <> None) entries in
 
-    let by_id = Hashtbl.create 100 in
-    let roots = ref [] in
+    (* Build tree recursively *)
+    let rec build_node header_entry_id =
+      (* Find the header row for this scope *)
+      let header_opt = List.find_opt (fun e ->
+        match e.Query.header_entry_id with
+        | Some hid -> hid = header_entry_id
+        | None -> false
+      ) headers in
 
-    (* Index scope entries by ID *)
-    List.iter (fun entry ->
-      Hashtbl.add by_id entry.Query.entry_id entry
-    ) scope_entries;
+      match header_opt with
+      | None -> { entry = List.hd headers; children = [] }  (* Fallback - shouldn't happen *)
+      | Some header ->
+          (* Get all children of this scope *)
+          let children_entries =
+            List.filter (fun e ->
+              (* All children (headers and values) have entry_id = this scope's ID *)
+              e.Query.entry_id = header_entry_id
+            ) entries
+          in
 
-    (* Build tree structure *)
-    let rec build_node entry =
-      (* Get value children (same entry_id, different seq_num) - these are leaf values *)
-      let value_children =
-        List.filter (fun v -> v.Query.entry_id = entry.Query.entry_id) value_entries
-        |> List.map (fun v -> { entry = v; children = [] })
-      in
+          (* Sort by seq_id *)
+          let sorted_children_entries = List.sort (fun a b ->
+            compare a.Query.seq_id b.Query.seq_id
+          ) children_entries in
 
-      (* Get scope children (different entry_id, parent_id matches) - these are sub-entries *)
-      let scope_children_entries =
-        List.filter (fun e ->
-          match e.Query.parent_id with
-          | Some pid -> pid = entry.Query.entry_id && e.Query.entry_id <> entry.Query.entry_id
-          | None -> false
-        ) scope_entries
-      in
-      let scope_children = List.map build_node scope_children_entries in
+          (* Build child nodes *)
+          let children = List.map (fun child ->
+            match child.Query.header_entry_id with
+            | Some sub_scope_id -> build_node sub_scope_id  (* Recursively build subscope *)
+            | None -> { entry = child; children = [] }  (* Leaf value *)
+          ) sorted_children_entries in
 
-      (* Combine all children and sort by parent_seq_num for unified chronological ordering *)
-      let all_children = value_children @ scope_children in
-      let sorted_children = List.sort (fun a b ->
-        match a.entry.Query.parent_seq_num, b.entry.Query.parent_seq_num with
-        | Some ap, Some bp -> compare ap bp
-        | Some _, None -> -1
-        | None, Some _ -> 1
-        | None, None -> 0
-      ) all_children in
-
-      { entry; children = sorted_children }
+          { entry = header; children }
     in
 
-    (* Find roots (entries with no parent or parent not in list) *)
-    List.iter (fun entry ->
-      match entry.Query.parent_id with
-      | None -> roots := entry :: !roots
-      | Some pid ->
-          if not (Hashtbl.mem by_id pid) then
-            roots := entry :: !roots
-    ) scope_entries;
+    (* Find root entries (entry_id = 0, which means they're children of the virtual root) *)
+    let root_headers = List.filter (fun e -> e.Query.entry_id = 0) headers in
 
-    List.map build_node (List.rev !roots)
+    (* Sort roots by seq_id *)
+    let sorted_roots = List.sort (fun a b -> compare a.Query.seq_id b.Query.seq_id) root_headers in
+
+    (* Build tree for each root *)
+    List.map (fun root ->
+      match root.Query.header_entry_id with
+      | Some hid -> build_node hid
+      | None -> { entry = root; children = [] }
+    ) sorted_roots
 
   (** Format elapsed time *)
   let format_elapsed_ns ns =
@@ -300,8 +293,8 @@ module Renderer = struct
         if show_entry_ids then
           Buffer.add_string buf (Printf.sprintf "{#%d} " entry.entry_id);
 
-        (* Check if this is a value node (seq_num != 0) *)
-        if entry.seq_num <> 0 then begin
+        (* Check if this is a value node (header_entry_id = None) *)
+        if entry.header_entry_id = None then begin
           (* Value node: display as "name = value" or "=> value" *)
           if entry.is_result then
             Buffer.add_string buf "=> "
