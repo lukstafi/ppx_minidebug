@@ -10,9 +10,18 @@ let rec loop_exceeded (x : int) =
      ();
      if Debug_runtime.exceeds_max_children ()
      then
-       (Debug_runtime.log_value_show ~descr:"loop_exceeded"
+       ((Debug_runtime.open_log ~fname:"test_debug_interrupts.ml"
+           ~start_lnum:9 ~start_colnum:33 ~end_lnum:11 ~end_colnum:55
+           ~message:"loop_exceeded : int" ~entry_id:__entry_id ~log_level:1
+           `Debug;
+         Debug_runtime.log_value_show ?descr:(Some "x : int")
+           ~entry_id:__entry_id ~log_level:1 ~is_result:false
+           (lazy (([%show : int]) x)));
+        Debug_runtime.log_value_show ~descr:"loop_exceeded"
           ~entry_id:__entry_id ~log_level:1 ~is_result:false
           (lazy "<max_num_children exceeded>");
+        Debug_runtime.close_log ~fname:"test_debug_interrupts.ml"
+          ~start_lnum:9 ~entry_id:__entry_id;
         failwith "ppx_minidebug: max_num_children exceeded")
      else
        ((Debug_runtime.open_log ~fname:"test_debug_interrupts.ml"
@@ -36,9 +45,16 @@ let rec loop_exceeded (x : int) =
                    ();
                    if Debug_runtime.exceeds_max_children ()
                    then
-                     (Debug_runtime.log_value_show ~descr:"z"
+                     (Debug_runtime.open_log
+                        ~fname:"test_debug_interrupts.ml" ~start_lnum:10
+                        ~start_colnum:6 ~end_lnum:10 ~end_colnum:7
+                        ~message:"z" ~entry_id:__entry_id ~log_level:1 `Debug;
+                      Debug_runtime.log_value_show ~descr:"z"
                         ~entry_id:__entry_id ~log_level:1 ~is_result:false
                         (lazy "<max_num_children exceeded>");
+                      Debug_runtime.close_log
+                        ~fname:"test_debug_interrupts.ml" ~start_lnum:10
+                        ~entry_id:__entry_id;
                       failwith "ppx_minidebug: max_num_children exceeded")
                    else
                      (Debug_runtime.open_log
@@ -93,8 +109,13 @@ let bar () =
      ();
      if Debug_runtime.exceeds_max_children ()
      then
-       (Debug_runtime.log_value_show ~descr:"bar" ~entry_id:__entry_id
+       (Debug_runtime.open_log ~fname:"test_debug_interrupts.ml"
+          ~start_lnum:18 ~start_colnum:19 ~end_lnum:22 ~end_colnum:6
+          ~message:"bar : unit" ~entry_id:__entry_id ~log_level:1 `Track;
+        Debug_runtime.log_value_show ~descr:"bar" ~entry_id:__entry_id
           ~log_level:1 ~is_result:false (lazy "<max_num_children exceeded>");
+        Debug_runtime.close_log ~fname:"test_debug_interrupts.ml"
+          ~start_lnum:18 ~entry_id:__entry_id;
         failwith "ppx_minidebug: max_num_children exceeded")
      else
        (Debug_runtime.open_log ~fname:"test_debug_interrupts.ml"
@@ -122,10 +143,18 @@ let bar () =
                             (lazy (([%show : int]) i));
                           if Debug_runtime.exceeds_max_children ()
                           then
-                            (Debug_runtime.log_value_show ~descr:"i"
+                            (Debug_runtime.open_log
+                               ~fname:"test_debug_interrupts.ml"
+                               ~start_lnum:19 ~start_colnum:6 ~end_lnum:19
+                               ~end_colnum:7 ~message:"<for i>"
+                               ~entry_id:__entry_id ~log_level:1 `Track;
+                             Debug_runtime.log_value_show ~descr:"i"
                                ~entry_id:__entry_id ~log_level:1
                                ~is_result:false
                                (lazy "<max_num_children exceeded>");
+                             Debug_runtime.close_log
+                               ~fname:"test_debug_interrupts.ml"
+                               ~start_lnum:20 ~entry_id:__entry_id;
                              failwith
                                "ppx_minidebug: max_num_children exceeded")
                           else
@@ -154,12 +183,23 @@ let bar () =
                                           Debug_runtime.exceeds_max_children
                                             ()
                                         then
-                                          (Debug_runtime.log_value_show
+                                          (Debug_runtime.open_log
+                                             ~fname:"test_debug_interrupts.ml"
+                                             ~start_lnum:20 ~start_colnum:8
+                                             ~end_lnum:20 ~end_colnum:12
+                                             ~message:"_baz"
+                                             ~entry_id:__entry_id
+                                             ~log_level:1 `Track;
+                                           Debug_runtime.log_value_show
                                              ~descr:"_baz"
                                              ~entry_id:__entry_id
                                              ~log_level:1 ~is_result:false
                                              (lazy
                                                 "<max_num_children exceeded>");
+                                           Debug_runtime.close_log
+                                             ~fname:"test_debug_interrupts.ml"
+                                             ~start_lnum:20
+                                             ~entry_id:__entry_id;
                                            failwith
                                              "ppx_minidebug: max_num_children exceeded")
                                         else

@@ -579,8 +579,10 @@ let entry_with_interrupts context ~loc ?descr_loc ?message ~log_count_before ?he
         [%expr
           [%e header];
           if Debug_runtime.exceeds_max_children () then (
+            [%e preamble];
             [%e
               log_string ~log_level:context.entry_log_level "<max_num_children exceeded>"];
+            [%e log_close];
             failwith "ppx_minidebug: max_num_children exceeded")
           else (
             [%e preamble];

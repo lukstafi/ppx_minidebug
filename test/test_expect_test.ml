@@ -242,13 +242,13 @@ let%expect_test "%debug_show with exception" =
                     x = 0
     |}]
 
-(*
 let%expect_test "%debug_show depth exceeded" =
-  (* $MDX part-begin=debug_interrupts *)
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
   in
+  (* $MDX part-begin=debug_interrupts *)
   let%debug_show rec loop_exceeded (x : int) : int =
     [%debug_interrupts
       { max_nesting_depth = 5; max_num_children = 1000 };
@@ -259,43 +259,42 @@ let%expect_test "%debug_show depth exceeded" =
     try print_endline @@ Int.to_string @@ loop_exceeded 7
     with _ -> print_endline "Raised exception."
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":317:35: loop_exceeded
-    ├─x = 7
-    ├─"test/test_expect_test.ml":320:10: z
-    │ └─z = 3
-    └─"test/test_expect_test.ml":317:35: loop_exceeded
-      ├─x = 6
-      ├─"test/test_expect_test.ml":320:10: z
-      │ └─z = 2
-      └─"test/test_expect_test.ml":317:35: loop_exceeded
-        ├─x = 5
-        ├─"test/test_expect_test.ml":320:10: z
-        │ └─z = 2
-        └─"test/test_expect_test.ml":317:35: loop_exceeded
-          ├─x = 4
-          ├─"test/test_expect_test.ml":320:10: z
-          │ └─z = 1
-          └─"test/test_expect_test.ml":317:35: loop_exceeded
-            ├─x = 3
-            └─"test/test_expect_test.ml":320:10: z
-              └─z = <max_nesting_depth exceeded>
     Raised exception.
+    [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+      [debug] z @ test/test_expect_test.ml:255:10-255:11
+        => 3
+      x = 7
+      [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+        [debug] z @ test/test_expect_test.ml:255:10-255:11
+          => 2
+        x = 6
+        [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+          [debug] z @ test/test_expect_test.ml:255:10-255:11
+            => 2
+          x = 5
+          [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+            [debug] z @ test/test_expect_test.ml:255:10-255:11
+              => 1
+            x = 4
+            [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+              [debug] z @ test/test_expect_test.ml:255:10-255:11
+                z = <max_nesting_depth exceeded>
+              x = 3
     |}]
 (* $MDX part-end *)
 
-*)
-
-(*
 let%expect_test "%debug_show num children exceeded linear" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
   in
+  (* $MDX part-begin=debug_limit_children *)
   let () =
-    (* $MDX part-begin=debug_limit_children *)
     try
       let%debug_show _bar : unit =
         [%debug_interrupts
@@ -308,38 +307,38 @@ let%expect_test "%debug_show num children exceeded linear" =
       ()
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":361:21: _bar
-    ├─"test/test_expect_test.ml":365:16: _baz
-    │ └─_baz = 0
-    ├─"test/test_expect_test.ml":365:16: _baz
-    │ └─_baz = 2
-    ├─"test/test_expect_test.ml":365:16: _baz
-    │ └─_baz = 4
-    ├─"test/test_expect_test.ml":365:16: _baz
-    │ └─_baz = 6
-    ├─"test/test_expect_test.ml":365:16: _baz
-    │ └─_baz = 8
-    ├─"test/test_expect_test.ml":365:16: _baz
-    │ └─_baz = 10
-    ├─"test/test_expect_test.ml":365:16: _baz
-    │ └─_baz = 12
-    ├─"test/test_expect_test.ml":365:16: _baz
-    │ └─_baz = 14
-    ├─"test/test_expect_test.ml":365:16: _baz
-    │ └─_baz = 16
-    ├─"test/test_expect_test.ml":365:16: _baz
-    │ └─_baz = 18
-    ├─"test/test_expect_test.ml":365:16: _baz
-    │ └─_baz = 20
-    └─_baz = <max_num_children exceeded>
     Raised exception: ppx_minidebug: max_num_children exceeded
+    [debug] _bar @ test/test_expect_test.ml:299:21-299:25
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        => 0
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        => 2
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        => 4
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        => 6
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        => 8
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        => 10
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        => 12
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        => 14
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        => 16
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        => 18
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        => 20
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        _baz = <max_num_children exceeded>
     |}]
 (* $MDX part-end *)
-
-*)
 
 (*
 let%expect_test "%debug_show truncated children linear" =
