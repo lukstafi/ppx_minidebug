@@ -296,25 +296,25 @@ The setting [max_nesting_depth] terminates a computation when the given log nest
     {|
     Raised exception.
     [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+      x = 7
       [debug] z @ test/test_expect_test.ml:255:10-255:11
         => 3
-      x = 7
       [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+        x = 6
         [debug] z @ test/test_expect_test.ml:255:10-255:11
           => 2
-        x = 6
         [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+          x = 5
           [debug] z @ test/test_expect_test.ml:255:10-255:11
             => 2
-          x = 5
           [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+            x = 4
             [debug] z @ test/test_expect_test.ml:255:10-255:11
               => 1
-            x = 4
             [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+              x = 3
               [debug] z @ test/test_expect_test.ml:255:10-255:11
                 z = <max_nesting_depth exceeded>
-              x = 3
     |}]
 ]}
 
@@ -995,9 +995,9 @@ The overall test produces:
 === Test 1: Whitelist by file (logs from test_path_filter.ml) ===
 Result: 30
 [debug] compute_value @ test/test_path_filter.ml:14:31-16:9
+  x = 5
   [debug] y @ test/test_path_filter.ml:15:8-15:9
     => 15
-  x = 5
   => 30
 
 === Test 2: Whitelist by function (only compute_* functions) ===
@@ -1012,9 +1012,9 @@ Result: 30
 === Test 4: No filter (shows all logs) ===
 Result: 30
 [debug] compute_nofilter @ test/test_path_filter.ml:71:34-73:9
+  x = 5
   [debug] y @ test/test_path_filter.ml:72:8-72:9
     => 15
-  x = 5
   => 30
 ]}
 
@@ -1041,17 +1041,17 @@ The test suite example:
     {|
     9
     [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+      x = 7
       [debug] z @ test/test_expect_test.ml:153:8-153:9
         => 3
-      x = 7
       [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+        x = 6
         [debug] z @ test/test_expect_test.ml:153:8-153:9
           => 2
-        x = 6
         [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+          x = 5
           [debug] z @ test/test_expect_test.ml:153:8-153:9
             => 2
-          x = 5
           [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
             => 2
           => 4

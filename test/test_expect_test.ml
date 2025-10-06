@@ -500,8 +500,8 @@ let%expect_test "%track_show track for-loop, time spans" =
   print_endline output;
   [%expect
     {|
-    [track] _bar @ test/test_expect_test.ml:483:21-483:25 <1.20ms>
-      [track] for:test_expect_test:486 @ test/test_expect_test.ml:486:10-489:14 <1.11ms>
+    [track] _bar @ test/test_expect_test.ml:483:21-483:25 <1.14ms>
+      [track] for:test_expect_test:486 @ test/test_expect_test.ml:486:10-489:14 <1.04ms>
         [track] <for i> @ test/test_expect_test.ml:486:14-486:15 <N.NNμs>
           i = 0
           [track] _baz @ test/test_expect_test.ml:487:16-487:20 <N.NNμs>
@@ -637,8 +637,6 @@ let%expect_test "%debug_show num children exceeded nested" =
               => 8
             [debug] z @ test/test_expect_test.ml:594:17-594:18
               => 9
-            [debug] z @ test/test_expect_test.ml:594:17-594:18
-              => 10
             [debug] z @ test/test_expect_test.ml:594:17-594:18
               z = <max_num_children exceeded>
     |}]

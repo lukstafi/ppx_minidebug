@@ -387,6 +387,13 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
         | Some ns -> ns
       in
 
+      (* Get parent_seq_num from the entry's num_children counter for chronological ordering *)
+      let parent_seq_num =
+        match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
+        | Some parent_entry -> parent_entry.num_children
+        | None -> 0  (* Fallback if entry not in stack *)
+      in
+
       (* Insert value row with same entry_id but different seq_num *)
       let stmt =
         Sqlite3.prepare db
@@ -398,8 +405,8 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
       Sqlite3.bind_int stmt 2 entry_id |> ignore;  (* Same entry_id as parent scope *)
       Sqlite3.bind_int stmt 3 seq_num |> ignore;
       Sqlite3.bind_int stmt 4 entry_id |> ignore;  (* parent_id same as entry_id *)
-      (* parent_seq_num is same as the scope entry's parent_seq_num - set to NULL for value nodes *)
-      Sqlite3.bind stmt 5 Sqlite3.Data.NULL |> ignore;
+      (* Use parent entry's num_children for unified chronological ordering with scope children *)
+      Sqlite3.bind_int stmt 5 parent_seq_num |> ignore;
       Sqlite3.bind_int stmt 6 depth |> ignore;
       Sqlite3.bind_int stmt 7 message_value_id |> ignore;
       Sqlite3.bind_int stmt 8 data_value_id |> ignore;
@@ -412,7 +419,12 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
       (match Sqlite3.step stmt with
       | Sqlite3.Rc.DONE -> ()
       | _ -> failwith "Failed to insert value row");
-      Sqlite3.finalize stmt |> ignore
+      Sqlite3.finalize stmt |> ignore;
+
+      (* Increment parent's num_children counter *)
+      (match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
+      | Some parent_entry -> parent_entry.num_children <- parent_entry.num_children + 1
+      | None -> ())
 
   let log_value_sexp ?descr ~entry_id ~log_level ~is_result v =
     if not (check_log_level log_level) then ()

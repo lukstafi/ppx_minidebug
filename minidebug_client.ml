@@ -244,24 +244,15 @@ module Renderer = struct
       in
       let scope_children = List.map build_node scope_children_entries in
 
-      (* Separate parameters from results *)
-      let parameters = List.filter (fun v -> v.entry.Query.seq_num > 0) value_children in
-      let results = List.filter (fun v -> v.entry.Query.seq_num = -1) value_children in
-
-      (* Sort parameters by seq_num, scope children by parent_seq_num *)
-      let sorted_parameters = List.sort (fun a b ->
-        compare a.entry.Query.seq_num b.entry.Query.seq_num
-      ) parameters in
-      let sorted_scope_children = List.sort (fun a b ->
+      (* Combine all children and sort by parent_seq_num for unified chronological ordering *)
+      let all_children = value_children @ scope_children in
+      let sorted_children = List.sort (fun a b ->
         match a.entry.Query.parent_seq_num, b.entry.Query.parent_seq_num with
         | Some ap, Some bp -> compare ap bp
         | Some _, None -> -1
         | None, Some _ -> 1
         | None, None -> 0
-      ) scope_children in
-
-      (* Combine: parameters first, then scope children chronologically, then results *)
-      let sorted_children = sorted_parameters @ sorted_scope_children @ results in
+      ) all_children in
 
       { entry; children = sorted_children }
     in
