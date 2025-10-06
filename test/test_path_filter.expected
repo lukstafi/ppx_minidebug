@@ -1,9 +1,9 @@
 === Test 1: Whitelist by file (logs from test_path_filter.ml) ===
 Result: 30
 [debug] compute_value @ test/test_path_filter.ml:14:31-16:9
+  x = 5
   [debug] y @ test/test_path_filter.ml:15:8-15:9
     => 15
-  x = 5
   => 30
 
 === Test 2: Whitelist by function (only compute_* functions) ===
@@ -18,7 +18,7 @@ Result: 30
 === Test 4: No filter (shows all logs) ===
 Result: 30
 [debug] compute_nofilter @ test/test_path_filter.ml:71:34-73:9
+  x = 5
   [debug] y @ test/test_path_filter.ml:72:8-72:9
     => 15
-  x = 5
   => 30

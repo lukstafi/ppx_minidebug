@@ -244,23 +244,24 @@ module Renderer = struct
       in
       let scope_children = List.map build_node scope_children_entries in
 
-      (* Combine all children and sort by parent_seq_num for chronological order, with special handling for result values *)
-      let all_children = value_children @ scope_children in
-      let sorted_children = List.sort (fun a b ->
-        let a_entry = a.entry in
-        let b_entry = b.entry in
-        (* Use parent_seq_num for scope entries (seq_num = 0), and seq_num for value entries *)
-        let a_pos = if a_entry.Query.seq_num = 0 then a_entry.parent_seq_num else Some a_entry.seq_num in
-        let b_pos = if b_entry.Query.seq_num = 0 then b_entry.parent_seq_num else Some b_entry.seq_num in
-        match a_pos, b_pos with
-        | Some ap, Some bp when ap >= 0 && bp >= 0 -> compare ap bp  (* Normal chronological order *)
-        | Some ap, Some bp when ap >= 0 && bp = -1 -> -1  (* Non-result before result *)
-        | Some ap, Some bp when ap = -1 && bp >= 0 -> 1   (* Result after non-result *)
-        | Some ap, Some bp -> compare ap bp  (* Both results or other case *)
-        | Some _, None -> -1  (* Item with position comes before item without *)
-        | None, Some _ -> 1   (* Item without position comes after *)
-        | None, None -> 0     (* Both lack position, consider equal *)
-      ) all_children in
+      (* Separate parameters from results *)
+      let parameters = List.filter (fun v -> v.entry.Query.seq_num > 0) value_children in
+      let results = List.filter (fun v -> v.entry.Query.seq_num = -1) value_children in
+
+      (* Sort parameters by seq_num, scope children by parent_seq_num *)
+      let sorted_parameters = List.sort (fun a b ->
+        compare a.entry.Query.seq_num b.entry.Query.seq_num
+      ) parameters in
+      let sorted_scope_children = List.sort (fun a b ->
+        match a.entry.Query.parent_seq_num, b.entry.Query.parent_seq_num with
+        | Some ap, Some bp -> compare ap bp
+        | Some _, None -> -1
+        | None, Some _ -> 1
+        | None, None -> 0
+      ) scope_children in
+
+      (* Combine: parameters first, then scope children chronologically, then results *)
+      let sorted_children = sorted_parameters @ sorted_scope_children @ results in
 
       { entry; children = sorted_children }
     in
