@@ -94,11 +94,7 @@ let (_ : int) = foo [ 1; 5; 3; 4 ]</code></pre><p>This produces:</p><pre class="
         (* Force mappings: - Entry 2 (early prev) to Entry 4 (middle curr) - Entry 8 (late
            prev) to Entry 6 (in the shorter curr) *)
       curr_run
-  in</code></pre><h3 id="overview-of-runtime-creating-helpers"><a href="#overview-of-runtime-creating-helpers" class="anchor"></a>Overview of runtime creating helpers</h3><p>Binding <code>_get_local_debug_runtime</code> to a result of the <code>_runtime</code> functions is the suggested way of providing debug runtimes, since it is aware of multithreaded contexts. The <code>local_</code> functions log to different files from different threads, while the <code>prefixed_</code> functions log to the single channel <code>debug_ch</code>, and by default to standard output. The <code>_flushing</code> functions have limited functionality (don't use PrintBox) but output messages immediately.</p><h3 id="hyperlinks-to-source-locations"><a href="#hyperlinks-to-source-locations" class="anchor"></a>Hyperlinks to source locations</h3><p>The HTML and Markdown outputs support emitting file locations as hyperlinks. For example:</p><p>where <code>~hyperlink</code> is the prefix to let you tune the file path and select a browsing option. For illustration, the prefixes for Markdown / HTML outputs I might use at the time of writing:</p><ul><li><code>~hyperlink:&quot;./&quot;</code> or <code>~hyperlink:&quot;../&quot;</code> depending on the relative locations of the log file and the binary</li><li><p><code>~hyperlink:&quot;vscode://file//wsl.localhost/Ubuntu/home/lukstafi/ppx_minidebug/&quot;</code></p><ul><li>if left-clicking a link from within VS Code Live Preview follows the file in the HTML preview window rather than an editor window, middle-click the link</li></ul></li><li><code>~hyperlink:&quot;https://github.com/lukstafi/ppx_minidebug/tree/main/&quot;</code></li></ul><h3 id="values_first_mode"><a href="#values_first_mode" class="anchor"></a><code>values_first_mode</code></h3><p>This setting, by default <code>true</code>, puts the result of the computation as the header of a computation subtree, rather than the source code location of the computation. I recommend using this setting as it reduces noise and makes the important information easier to find and visible with less unfolding. Another important benefit is that it makes hyperlinks usable, by pushing them from the summary line to under the fold. It is the default setting, but can be disabled by passing <code>~values_first_mode:false</code> to runtime builders, because it can be confusing: the logs are no longer ordered by computation time. It is not available in the <code>_flushing</code> runtimes.</p><p>For example, the diffs example we saw before:</p><p>leads to: BEGIN DEBUG SESSION ├─msg = &quot;hello&quot; │ └─timestamp = &quot;<code>2024-03-22 15:30:45</code> &quot; │ └─processed = &quot;<code>2024-03-22 15:30:45</code> Processing: hello&quot; └─process_message = 39</p><p>When logging uses sexps and boxification, and the result is decomposed into a subtree, only the header of the result subtree is put in the header line, and the rest of the result subtree is just underneath it with a <code>&lt;returns&gt;</code> or a <code>&lt;values&gt;</code> header. Example showcasing the <code>printbox-html</code> backend: <img src="https://raw.githubusercontent.com/lukstafi/ppx_minidebug/refs/heads/main/doc/html-hyperlink.png" alt="PrintBox HTML backend -- follow hyperlink" style="width: 100%"/></p><p>Example showcasing the <code>printbox-md</code> (Markdown) backend: <img src="https://raw.githubusercontent.com/lukstafi/ppx_minidebug/refs/heads/main/doc/md-hyperlink.png" alt="PrintBox Markdown backend -- follow hyperlink" style="width: 100%"/></p><h2 id="usage"><a href="#usage" class="anchor"></a>Usage</h2><p>Tracing only happens in explicitly marked lexical scopes. For extension points applied directly to bindings (let-definitions) only the <code>let</code> definition in scope for logging, the body of the definition(s) is considered outside the extension point. (But if the extension is over an expression with a nested let-binding, the body of the definition is in the scope of the extension.)</p><p>The entry extension points vary along three axes:</p><ul><li><p><code>%debug_</code> vs. <code>%track_</code> vs. <code>%diagn_</code></p><ul><li>The prefix <code>%debug_</code> means logging fewer things: only let-bound values and functions are logged, and functions only when either: directly in a <code>%debug_</code>-annotated let binding, or their return type is annotated.</li><li><code>%track_</code> also logs: which <code>if</code>, <code>match</code>, <code>function</code> branch is taken, <code>for</code> and <code>while</code> loops, and all functions, including anonymous ones.</li><li>The prefix <code>%diagn_</code> means only generating logs for explicitly logged values, i.e. introduced by <code>[%log ...]</code>, <code>[%log_result ...]</code>, <code>[%log_printbox ...]</code> statements.</li></ul></li><li><p>Optional infixes `_rt_` and `_o_`, and the default &quot;no-infix&quot; behavior:</p><ul><li>`_rt_` adds a first-class module argument to a function, and unpacks it as `module Debug_runtime` for the scope of the function.</li><li>`_o_` uses an existing `Debug_runtime` module from the scope instead of calling `_get_local_debug_runtime`</li><li>without any infix, the runtime is unpacked within the scope of each function: `let module Debug_runtime = (val _get_local_debug_runtime ()) in ...`.</li><li>Both the `_rt_` and the default (no-infix) functionality is &quot;one use only&quot;: it applies only to the function the extension point is attached to.</li></ul></li><li><p>Representation and printing mechanism: <code>_pp</code>, <code>_show</code>, recommended: <code>_sexp</code></p><ul><li><code>_pp</code> is currently most restrictive as it requires the type of a value to be an identifier. The identifier is converted to a <code>pp_</code> printing function, e.g. <code>pp_int</code>.</li><li><code>_show</code> converts values to strings via the <code>%show</code> extension provided by <code>deriving.show</code>: e.g. <code>[%show: int list]</code>.</li><li><code>_sexp</code> converts values to sexp expressions first using <code>%sexp_of</code>, e.g. <code>[%sexp_of: int list]</code>. The runtime can decide how to print the sexp expressions. The <code>PrintBox</code> backend allows to convert the sexps to box structures first, with the <code>boxify_sexp_from_size</code> setting. This means large values can be unfolded gradually for inspection.</li></ul></li></ul><p>Plus, there are non-entry extension points <code>%log</code>, <code>%log_printbox</code> and <code>%log_result</code> for logging values. They are not registered, which as a side effect should somewhat mitigate conflicts with other ppx extensions for logging. There's also an un-registered extension points <code>%log_entry</code> and <code>%log_block</code> for opening a log subtree; <code>%log_entry</code> is for arbitrary computations whereas <code>%log_block</code>'s body is for logging purposes only.</p><p>See examples in <a href="https://github.com/lukstafi/ppx_minidebug/blob/main/test/">the test directory</a>, and especially <a href="https://github.com/lukstafi/ppx_minidebug/blob/main/test/test_expect_test.ml">the inline tests</a>.</p><p>Only type-annotated let-bindings, function arguments, function results can be implicitly logged. However, the bindings and function arguments can be nested patterns with only parts of them type-annotated! The explicit loggers <code>%log</code> and <code>%log_result</code> take a value and reconstruct its type from partial type annotations (deconstructing the expression), sometimes assuming unknown types are strings. The <code>%log_printbox</code> logger takes a <code>PrintBox.t</code> value. The <code>%log_entry</code> and <code>%log_block</code> loggers takes a string value for the header of the log subtree.</p><p>To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can manually bind <code>Debug_runtime</code> locally: <code>let module Debug_runtime = Minidebug_runtime.debug_file thread_name in ...</code> and use extension points <code>_o_</code> infixed. To facilitate that, the default (non-infix) behavior is to open locally a runtime returned by <code>_get_local_debug_runtime</code>, but note that this only happens inside the functions annotated by ppx_minidebug entry points (not in nested un-annotated functions). Extension points with the <code>_rt_</code> infixes can help where more fine-grained or declarative control is needed, e.g. with fibers for cooperative multithreading. See <a href="#dealing-with-concurrent-execution">Dealing with concurrent execution</a> for more.</p><p>To ensure that log files are properly closed, you can use <code>Minidebug_runtime.finish_and_cleanup</code> at the end. This is typically not needed (and is more helpful on Windows, where a log file might remain locked after a process exits without closing it).</p><p><code>ppx_minidebug</code> can be installed using <code>opam</code>. <code>ppx_minidebug.runtime</code> depends on <code>printbox</code>, <code>ptime</code>, <code>mtime</code>, <code>sexplib0</code>.</p><h3 id="breaking-infinite-recursion-with-max_nesting_depth-and-looping-with-max_num_children;-flushing-based-traces"><a href="#breaking-infinite-recursion-with-max_nesting_depth-and-looping-with-max_num_children;-flushing-based-traces" class="anchor"></a>Breaking infinite recursion with <code>max_nesting_depth</code> and looping with <code>max_num_children</code>; flushing-based traces</h3><p>The setting <code>max_nesting_depth</code> terminates a computation when the given log nesting is exceeded. For example:</p><pre class="language-ocaml"><code>  let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
-    fun () -&gt; rt
-  in
-  let%debug_show rec loop_exceeded (x : int) : int =
+  in</code></pre><h3 id="overview-of-runtime-creating-helpers"><a href="#overview-of-runtime-creating-helpers" class="anchor"></a>Overview of runtime creating helpers</h3><p>Binding <code>_get_local_debug_runtime</code> to a result of the <code>_runtime</code> functions is the suggested way of providing debug runtimes, since it is aware of multithreaded contexts. The <code>local_</code> functions log to different files from different threads, while the <code>prefixed_</code> functions log to the single channel <code>debug_ch</code>, and by default to standard output. The <code>_flushing</code> functions have limited functionality (don't use PrintBox) but output messages immediately.</p><h3 id="hyperlinks-to-source-locations"><a href="#hyperlinks-to-source-locations" class="anchor"></a>Hyperlinks to source locations</h3><p>The HTML and Markdown outputs support emitting file locations as hyperlinks. For example:</p><p>where <code>~hyperlink</code> is the prefix to let you tune the file path and select a browsing option. For illustration, the prefixes for Markdown / HTML outputs I might use at the time of writing:</p><ul><li><code>~hyperlink:&quot;./&quot;</code> or <code>~hyperlink:&quot;../&quot;</code> depending on the relative locations of the log file and the binary</li><li><p><code>~hyperlink:&quot;vscode://file//wsl.localhost/Ubuntu/home/lukstafi/ppx_minidebug/&quot;</code></p><ul><li>if left-clicking a link from within VS Code Live Preview follows the file in the HTML preview window rather than an editor window, middle-click the link</li></ul></li><li><code>~hyperlink:&quot;https://github.com/lukstafi/ppx_minidebug/tree/main/&quot;</code></li></ul><h3 id="values_first_mode"><a href="#values_first_mode" class="anchor"></a><code>values_first_mode</code></h3><p>This setting, by default <code>true</code>, puts the result of the computation as the header of a computation subtree, rather than the source code location of the computation. I recommend using this setting as it reduces noise and makes the important information easier to find and visible with less unfolding. Another important benefit is that it makes hyperlinks usable, by pushing them from the summary line to under the fold. It is the default setting, but can be disabled by passing <code>~values_first_mode:false</code> to runtime builders, because it can be confusing: the logs are no longer ordered by computation time. It is not available in the <code>_flushing</code> runtimes.</p><p>For example, the diffs example we saw before:</p><p>leads to: BEGIN DEBUG SESSION ├─msg = &quot;hello&quot; │ └─timestamp = &quot;<code>2024-03-22 15:30:45</code> &quot; │ └─processed = &quot;<code>2024-03-22 15:30:45</code> Processing: hello&quot; └─process_message = 39</p><p>When logging uses sexps and boxification, and the result is decomposed into a subtree, only the header of the result subtree is put in the header line, and the rest of the result subtree is just underneath it with a <code>&lt;returns&gt;</code> or a <code>&lt;values&gt;</code> header. Example showcasing the <code>printbox-html</code> backend: <img src="https://raw.githubusercontent.com/lukstafi/ppx_minidebug/refs/heads/main/doc/html-hyperlink.png" alt="PrintBox HTML backend -- follow hyperlink" style="width: 100%"/></p><p>Example showcasing the <code>printbox-md</code> (Markdown) backend: <img src="https://raw.githubusercontent.com/lukstafi/ppx_minidebug/refs/heads/main/doc/md-hyperlink.png" alt="PrintBox Markdown backend -- follow hyperlink" style="width: 100%"/></p><h2 id="usage"><a href="#usage" class="anchor"></a>Usage</h2><p>Tracing only happens in explicitly marked lexical scopes. For extension points applied directly to bindings (let-definitions) only the <code>let</code> definition in scope for logging, the body of the definition(s) is considered outside the extension point. (But if the extension is over an expression with a nested let-binding, the body of the definition is in the scope of the extension.)</p><p>The entry extension points vary along three axes:</p><ul><li><p><code>%debug_</code> vs. <code>%track_</code> vs. <code>%diagn_</code></p><ul><li>The prefix <code>%debug_</code> means logging fewer things: only let-bound values and functions are logged, and functions only when either: directly in a <code>%debug_</code>-annotated let binding, or their return type is annotated.</li><li><code>%track_</code> also logs: which <code>if</code>, <code>match</code>, <code>function</code> branch is taken, <code>for</code> and <code>while</code> loops, and all functions, including anonymous ones.</li><li>The prefix <code>%diagn_</code> means only generating logs for explicitly logged values, i.e. introduced by <code>[%log ...]</code>, <code>[%log_result ...]</code>, <code>[%log_printbox ...]</code> statements.</li></ul></li><li><p>Optional infixes `_rt_` and `_o_`, and the default &quot;no-infix&quot; behavior:</p><ul><li>`_rt_` adds a first-class module argument to a function, and unpacks it as `module Debug_runtime` for the scope of the function.</li><li>`_o_` uses an existing `Debug_runtime` module from the scope instead of calling `_get_local_debug_runtime`</li><li>without any infix, the runtime is unpacked within the scope of each function: `let module Debug_runtime = (val _get_local_debug_runtime ()) in ...`.</li><li>Both the `_rt_` and the default (no-infix) functionality is &quot;one use only&quot;: it applies only to the function the extension point is attached to.</li></ul></li><li><p>Representation and printing mechanism: <code>_pp</code>, <code>_show</code>, recommended: <code>_sexp</code></p><ul><li><code>_pp</code> is currently most restrictive as it requires the type of a value to be an identifier. The identifier is converted to a <code>pp_</code> printing function, e.g. <code>pp_int</code>.</li><li><code>_show</code> converts values to strings via the <code>%show</code> extension provided by <code>deriving.show</code>: e.g. <code>[%show: int list]</code>.</li><li><code>_sexp</code> converts values to sexp expressions first using <code>%sexp_of</code>, e.g. <code>[%sexp_of: int list]</code>. The runtime can decide how to print the sexp expressions. The <code>PrintBox</code> backend allows to convert the sexps to box structures first, with the <code>boxify_sexp_from_size</code> setting. This means large values can be unfolded gradually for inspection.</li></ul></li></ul><p>Plus, there are non-entry extension points <code>%log</code>, <code>%log_printbox</code> and <code>%log_result</code> for logging values. They are not registered, which as a side effect should somewhat mitigate conflicts with other ppx extensions for logging. There's also an un-registered extension points <code>%log_entry</code> and <code>%log_block</code> for opening a log subtree; <code>%log_entry</code> is for arbitrary computations whereas <code>%log_block</code>'s body is for logging purposes only.</p><p>See examples in <a href="https://github.com/lukstafi/ppx_minidebug/blob/main/test/">the test directory</a>, and especially <a href="https://github.com/lukstafi/ppx_minidebug/blob/main/test/test_expect_test.ml">the inline tests</a>.</p><p>Only type-annotated let-bindings, function arguments, function results can be implicitly logged. However, the bindings and function arguments can be nested patterns with only parts of them type-annotated! The explicit loggers <code>%log</code> and <code>%log_result</code> take a value and reconstruct its type from partial type annotations (deconstructing the expression), sometimes assuming unknown types are strings. The <code>%log_printbox</code> logger takes a <code>PrintBox.t</code> value. The <code>%log_entry</code> and <code>%log_block</code> loggers takes a string value for the header of the log subtree.</p><p>To properly trace in concurrent settings, ensure that different threads use different log channels. For example, you can manually bind <code>Debug_runtime</code> locally: <code>let module Debug_runtime = Minidebug_runtime.debug_file thread_name in ...</code> and use extension points <code>_o_</code> infixed. To facilitate that, the default (non-infix) behavior is to open locally a runtime returned by <code>_get_local_debug_runtime</code>, but note that this only happens inside the functions annotated by ppx_minidebug entry points (not in nested un-annotated functions). Extension points with the <code>_rt_</code> infixes can help where more fine-grained or declarative control is needed, e.g. with fibers for cooperative multithreading. See <a href="#dealing-with-concurrent-execution">Dealing with concurrent execution</a> for more.</p><p>To ensure that log files are properly closed, you can use <code>Minidebug_runtime.finish_and_cleanup</code> at the end. This is typically not needed (and is more helpful on Windows, where a log file might remain locked after a process exits without closing it).</p><p><code>ppx_minidebug</code> can be installed using <code>opam</code>. <code>ppx_minidebug.runtime</code> depends on <code>printbox</code>, <code>ptime</code>, <code>mtime</code>, <code>sexplib0</code>.</p><h3 id="breaking-infinite-recursion-with-max_nesting_depth-and-looping-with-max_num_children;-flushing-based-traces"><a href="#breaking-infinite-recursion-with-max_nesting_depth-and-looping-with-max_num_children;-flushing-based-traces" class="anchor"></a>Breaking infinite recursion with <code>max_nesting_depth</code> and looping with <code>max_num_children</code>; flushing-based traces</h3><p>The setting <code>max_nesting_depth</code> terminates a computation when the given log nesting is exceeded. For example:</p><pre class="language-ocaml"><code>  let%debug_show rec loop_exceeded (x : int) : int =
     [%debug_interrupts
       { max_nesting_depth = 5; max_num_children = 1000 };
       let z : int = (x - 1) / 2 in
@@ -108,31 +104,33 @@ let (_ : int) = foo [ 1; 5; 3; 4 ]</code></pre><p>This produces:</p><pre class="
     try print_endline @@ Int.to_string @@ loop_exceeded 7
     with _ -&gt; print_endline &quot;Raised exception.&quot;
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    &quot;test/test_expect_test.ml&quot;:317:35: loop_exceeded
-    ├─x = 7
-    ├─&quot;test/test_expect_test.ml&quot;:320:10: z
-    │ └─z = 3
-    └─&quot;test/test_expect_test.ml&quot;:317:35: loop_exceeded
-      ├─x = 6
-      ├─&quot;test/test_expect_test.ml&quot;:320:10: z
-      │ └─z = 2
-      └─&quot;test/test_expect_test.ml&quot;:317:35: loop_exceeded
-        ├─x = 5
-        ├─&quot;test/test_expect_test.ml&quot;:320:10: z
-        │ └─z = 2
-        └─&quot;test/test_expect_test.ml&quot;:317:35: loop_exceeded
-          ├─x = 4
-          ├─&quot;test/test_expect_test.ml&quot;:320:10: z
-          │ └─z = 1
-          └─&quot;test/test_expect_test.ml&quot;:317:35: loop_exceeded
-            ├─x = 3
-            └─&quot;test/test_expect_test.ml&quot;:320:10: z
-              └─z = &lt;max_nesting_depth exceeded&gt;
     Raised exception.
-    |}]</code></pre><p>Similarly, <code>max_num_children</code> raises a failure when the given number of logs with the same parent is exceeded. For example:</p><pre class="language-ocaml"><code>    try
+    [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+      [debug] z @ test/test_expect_test.ml:255:10-255:11
+        =&gt; 3
+      x = 7
+      [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+        [debug] z @ test/test_expect_test.ml:255:10-255:11
+          =&gt; 2
+        x = 6
+        [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+          [debug] z @ test/test_expect_test.ml:255:10-255:11
+            =&gt; 2
+          x = 5
+          [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+            [debug] z @ test/test_expect_test.ml:255:10-255:11
+              =&gt; 1
+            x = 4
+            [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+              [debug] z @ test/test_expect_test.ml:255:10-255:11
+                z = &lt;max_nesting_depth exceeded&gt;
+              x = 3
+    |}]</code></pre><p>Similarly, <code>max_num_children</code> raises a failure when the given number of logs with the same parent is exceeded. For example:</p><pre class="language-ocaml"><code>  let () =
+    try
       let%debug_show _bar : unit =
         [%debug_interrupts
           { max_nesting_depth = 1000; max_num_children = 10 };
@@ -144,34 +142,36 @@ let (_ : int) = foo [ 1; 5; 3; 4 ]</code></pre><p>This produces:</p><pre class="
       ()
     with Failure s -&gt; print_endline @@ &quot;Raised exception: &quot; ^ s
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    &quot;test/test_expect_test.ml&quot;:361:21: _bar
-    ├─&quot;test/test_expect_test.ml&quot;:365:16: _baz
-    │ └─_baz = 0
-    ├─&quot;test/test_expect_test.ml&quot;:365:16: _baz
-    │ └─_baz = 2
-    ├─&quot;test/test_expect_test.ml&quot;:365:16: _baz
-    │ └─_baz = 4
-    ├─&quot;test/test_expect_test.ml&quot;:365:16: _baz
-    │ └─_baz = 6
-    ├─&quot;test/test_expect_test.ml&quot;:365:16: _baz
-    │ └─_baz = 8
-    ├─&quot;test/test_expect_test.ml&quot;:365:16: _baz
-    │ └─_baz = 10
-    ├─&quot;test/test_expect_test.ml&quot;:365:16: _baz
-    │ └─_baz = 12
-    ├─&quot;test/test_expect_test.ml&quot;:365:16: _baz
-    │ └─_baz = 14
-    ├─&quot;test/test_expect_test.ml&quot;:365:16: _baz
-    │ └─_baz = 16
-    ├─&quot;test/test_expect_test.ml&quot;:365:16: _baz
-    │ └─_baz = 18
-    ├─&quot;test/test_expect_test.ml&quot;:365:16: _baz
-    │ └─_baz = 20
-    └─_baz = &lt;max_num_children exceeded&gt;
     Raised exception: ppx_minidebug: max_num_children exceeded
+    [debug] _bar @ test/test_expect_test.ml:299:21-299:25
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        =&gt; 0
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        =&gt; 2
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        =&gt; 4
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        =&gt; 6
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        =&gt; 8
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        =&gt; 10
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        =&gt; 12
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        =&gt; 14
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        =&gt; 16
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        =&gt; 18
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        =&gt; 20
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+        _baz = &lt;max_num_children exceeded&gt;
     |}]</code></pre><p>The <code>%debug_interrupts</code> extension point emits the interrupt checks in a lexically delimited scope. For convenience, we offer the extension point <code>%global_debug_interrupts</code> which triggers emitting the interrupt checks in the remainder of the source preprocessed in the same process (its scope is therefore less well defined). For example:</p><pre class="language-ocaml"><code>let _get_local_debug_runtime =
   let rt = Minidebug_db.debug_db_file &quot;debugger_interrupts&quot; in
   fun () -&gt; rt
@@ -639,10 +639,10 @@ let%debug_sexp _test_at_log_level_3 : unit = test_at_log_level 3</code></pre><p>
   Printf.printf &quot;Results: %d, %d\n%!&quot; result1 result2;</code></pre><p>The overall test produces:</p><pre class="language-include"><code>=== Test 1: Whitelist by file (logs from test_path_filter.ml) ===
 Result: 30
 [debug] compute_value @ test/test_path_filter.ml:14:31-16:9
-  x = 5
-  =&gt; 30
   [debug] y @ test/test_path_filter.ml:15:8-15:9
     =&gt; 15
+  x = 5
+  =&gt; 30
 
 === Test 2: Whitelist by function (only compute_* functions) ===
 Results: 30, 6
@@ -656,10 +656,10 @@ Result: 30
 === Test 4: No filter (shows all logs) ===
 Result: 30
 [debug] compute_nofilter @ test/test_path_filter.ml:71:34-73:9
-  x = 5
-  =&gt; 30
   [debug] y @ test/test_path_filter.ml:72:8-72:9
-    =&gt; 15</code></pre><p>This is useful for focusing on specific parts of your codebase during debugging, or for excluding noisy test utilities from production debug logs.</p><h4 id="dynamic-subtree-filtering"><a href="#dynamic-subtree-filtering" class="anchor"></a>Dynamic subtree filtering</h4><p>You can discard the logs of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space. For simplicity, currently the behavior is only retroactive: it discards the past subtree of the current entry, but does not prevent future logs at the current entry. The test suite example:</p><pre class="language-ocaml"><code>  let%debug_show rec loop_changes (x : int) : int =
+    =&gt; 15
+  x = 5
+  =&gt; 30</code></pre><p>This is useful for focusing on specific parts of your codebase during debugging, or for excluding noisy test utilities from production debug logs.</p><h4 id="dynamic-subtree-filtering"><a href="#dynamic-subtree-filtering" class="anchor"></a>Dynamic subtree filtering</h4><p>You can discard the logs of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space. For simplicity, currently the behavior is only retroactive: it discards the past subtree of the current entry, but does not prevent future logs at the current entry. The test suite example:</p><pre class="language-ocaml"><code>  let%debug_show rec loop_changes (x : int) : int =
     let z : int = (x - 1) / 2 in
     (* The call [x = 2] is not printed because it is a descendant of the no-debug call [x
        = 4]. The effect of no_debug_if is retroactive. *)
@@ -674,22 +674,22 @@ Result: 30
     {|
     9
     [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
-      x = 7
-      =&gt; 9
       [debug] z @ test/test_expect_test.ml:153:8-153:9
         =&gt; 3
+      x = 7
       [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
-        x = 6
-        =&gt; 6
         [debug] z @ test/test_expect_test.ml:153:8-153:9
           =&gt; 2
+        x = 6
         [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
-          x = 5
-          =&gt; 4
           [debug] z @ test/test_expect_test.ml:153:8-153:9
             =&gt; 2
+          x = 5
           [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
             =&gt; 2
+          =&gt; 4
+        =&gt; 6
+      =&gt; 9
     |}]</code></pre><p>Setting the option <code>truncate_children</code> will only log the given number of children at each node, prioritizing the most recent ones. An example from the test suite:</p><pre class="language-ocaml"><code>  let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file ~values_first_mode:false ~truncate_children:10 db_file in
     fun () -&gt; rt
