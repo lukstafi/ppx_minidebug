@@ -993,10 +993,10 @@ The overall test produces:
 === Test 1: Whitelist by file (logs from test_path_filter.ml) ===
 Result: 30
 [debug] compute_value @ test/test_path_filter.ml:14:31-16:9
-  x = 5
-  => 30
   [debug] y @ test/test_path_filter.ml:15:8-15:9
     => 15
+  x = 5
+  => 30
 
 === Test 2: Whitelist by function (only compute_* functions) ===
 Results: 30, 6
@@ -1010,10 +1010,10 @@ Result: 30
 === Test 4: No filter (shows all logs) ===
 Result: 30
 [debug] compute_nofilter @ test/test_path_filter.ml:71:34-73:9
-  x = 5
-  => 30
   [debug] y @ test/test_path_filter.ml:72:8-72:9
     => 15
+  x = 5
+  => 30
 ]}
 
 This is useful for focusing on specific parts of your codebase during debugging, or for excluding noisy test utilities from production debug logs.
@@ -1039,22 +1039,22 @@ The test suite example:
     {|
     9
     [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
-      x = 7
-      => 9
       [debug] z @ test/test_expect_test.ml:153:8-153:9
         => 3
+      x = 7
       [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
-        x = 6
-        => 6
         [debug] z @ test/test_expect_test.ml:153:8-153:9
           => 2
+        x = 6
         [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
-          x = 5
-          => 4
           [debug] z @ test/test_expect_test.ml:153:8-153:9
             => 2
+          x = 5
           [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
             => 2
+          => 4
+        => 6
+      => 9
     |}]
 ]}
 

@@ -199,40 +199,45 @@ let%expect_test "%debug_show with exception" =
     with _ -> print_endline "Raised exception."
   in
   let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
+  Minidebug_client.Client.show_trace db ~values_first_mode:false ~show_times:true run_id;
+  let output = [%expect.output] in
+  let output =
+    Str.global_replace (Str.regexp {|<[0-9.]+\(μs\|ms\|s\)>|}) "<TIME>" output
+  in
+  print_endline output;
   [%expect
     {|
     Raised exception.
-    [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36
-      [debug] z @ test/test_expect_test.ml:193:8-193:9
+    [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36 <TIME>
+      [debug] z @ test/test_expect_test.ml:193:8-193:9 <TIME>
         => 3
       x = 7
-      [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36
-        [debug] z @ test/test_expect_test.ml:193:8-193:9
+      [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36 <TIME>
+        [debug] z @ test/test_expect_test.ml:193:8-193:9 <TIME>
           => 2
         x = 6
-        [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36
-          [debug] z @ test/test_expect_test.ml:193:8-193:9
+        [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36 <TIME>
+          [debug] z @ test/test_expect_test.ml:193:8-193:9 <TIME>
             => 2
           x = 5
-          [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36
-            [debug] z @ test/test_expect_test.ml:193:8-193:9
+          [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36 <TIME>
+            [debug] z @ test/test_expect_test.ml:193:8-193:9 <TIME>
               => 1
             x = 4
-            [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36
-              [debug] z @ test/test_expect_test.ml:193:8-193:9
+            [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36 <TIME>
+              [debug] z @ test/test_expect_test.ml:193:8-193:9 <TIME>
                 => 1
               x = 3
-              [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36
-                [debug] z @ test/test_expect_test.ml:193:8-193:9
+              [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36 <TIME>
+                [debug] z @ test/test_expect_test.ml:193:8-193:9 <TIME>
                   => 0
                 x = 2
-                [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36
-                  [debug] z @ test/test_expect_test.ml:193:8-193:9
+                [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36 <TIME>
+                  [debug] z @ test/test_expect_test.ml:193:8-193:9 <TIME>
                     => 0
                   x = 1
-                  [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36
-                    [debug] z @ test/test_expect_test.ml:193:8-193:9
+                  [debug] loop_truncated @ test/test_expect_test.ml:192:36-195:36 <TIME>
+                    [debug] z @ test/test_expect_test.ml:193:8-193:9 <TIME>
                       => 0
                     x = 0
     |}]
