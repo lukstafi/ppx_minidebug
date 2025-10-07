@@ -4,18 +4,18 @@ Command: ./test_debug_show.exe
 [debug] foo @ test/test_debug_show.ml:5:19-7:17
   x = 7
   [debug] y @ test/test_debug_show.ml:6:6-6:7
-    => 8
-  => [7; 8; 16]
+    y => 8
+  foo => [7; 8; 16]
 [debug] bar @ test/test_debug_show.ml:13:19-15:14
   x = { Test_debug_show.first = 7; second = 42 }
   [debug] y @ test/test_debug_show.ml:14:6-14:7
-    => 8
-  => 336
+    y => 8
+  bar => 336
 [debug] baz @ test/test_debug_show.ml:19:19-21:20
   x = { Test_debug_show.first = 7; second = 42 }
   [debug] _yz @ test/test_debug_show.ml:20:17-20:20
-    => (8, 3)
-  => 339
+    _yz => (8, 3)
+  baz => 339
 [debug] loop @ test/test_debug_show.ml:25:24-31:9
   depth = 0
   x = { Test_debug_show.first = 7; second = 42 }
@@ -44,11 +44,11 @@ Command: ./test_debug_show.exe
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
                         depth = 7
                         x = { Test_debug_show.first = 23; second = 2 }
-                        => 25
-                      => 25
-                    => 25
-                  => 25
-                => 25
+                        loop => 25
+                      loop => 25
+                    loop => 25
+                  loop => 25
+                y => 25
               [debug] z @ test/test_debug_show.ml:30:8-30:9
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
                   depth = 4
@@ -62,13 +62,13 @@ Command: ./test_debug_show.exe
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
                         depth = 7
                         x = { Test_debug_show.first = 14; second = 3 }
-                        => 17
-                      => 17
-                    => 17
-                  => 17
-                => 17
-              => 24
-            => 24
+                        loop => 17
+                      loop => 17
+                    loop => 17
+                  loop => 17
+                z => 17
+              loop => 24
+            y => 24
           [debug] z @ test/test_debug_show.ml:30:8-30:9
             [debug] loop @ test/test_debug_show.ml:25:24-31:9
               depth = 3
@@ -86,11 +86,11 @@ Command: ./test_debug_show.exe
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
                         depth = 7
                         x = { Test_debug_show.first = 24; second = 6 }
-                        => 30
-                      => 30
-                    => 30
-                  => 30
-                => 30
+                        loop => 30
+                      loop => 30
+                    loop => 30
+                  loop => 30
+                y => 30
               [debug] z @ test/test_debug_show.ml:30:8-30:9
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
                   depth = 4
@@ -104,15 +104,15 @@ Command: ./test_debug_show.exe
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
                         depth = 7
                         x = { Test_debug_show.first = 16; second = 6 }
-                        => 22
-                      => 22
-                    => 22
-                  => 22
-                => 22
-              => 29
-            => 29
-          => 36
-        => 36
+                        loop => 22
+                      loop => 22
+                    loop => 22
+                  loop => 22
+                z => 22
+              loop => 29
+            z => 29
+          loop => 36
+        y => 36
       [debug] z @ test/test_debug_show.ml:30:8-30:9
         [debug] loop @ test/test_debug_show.ml:25:24-31:9
           depth = 2
@@ -134,11 +134,11 @@ Command: ./test_debug_show.exe
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
                         depth = 7
                         x = { Test_debug_show.first = 20; second = 3 }
-                        => 23
-                      => 23
-                    => 23
-                  => 23
-                => 23
+                        loop => 23
+                      loop => 23
+                    loop => 23
+                  loop => 23
+                y => 23
               [debug] z @ test/test_debug_show.ml:30:8-30:9
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
                   depth = 4
@@ -152,13 +152,13 @@ Command: ./test_debug_show.exe
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
                         depth = 7
                         x = { Test_debug_show.first = 13; second = 3 }
-                        => 16
-                      => 16
-                    => 16
-                  => 16
-                => 16
-              => 23
-            => 23
+                        loop => 16
+                      loop => 16
+                    loop => 16
+                  loop => 16
+                z => 16
+              loop => 23
+            y => 23
           [debug] z @ test/test_debug_show.ml:30:8-30:9
             [debug] loop @ test/test_debug_show.ml:25:24-31:9
               depth = 3
@@ -176,11 +176,11 @@ Command: ./test_debug_show.exe
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
                         depth = 7
                         x = { Test_debug_show.first = 21; second = 6 }
-                        => 27
-                      => 27
-                    => 27
-                  => 27
-                => 27
+                        loop => 27
+                      loop => 27
+                    loop => 27
+                  loop => 27
+                y => 27
               [debug] z @ test/test_debug_show.ml:30:8-30:9
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
                   depth = 4
@@ -194,17 +194,17 @@ Command: ./test_debug_show.exe
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
                         depth = 7
                         x = { Test_debug_show.first = 15; second = 6 }
-                        => 21
-                      => 21
-                    => 21
-                  => 21
-                => 21
-              => 28
-            => 28
-          => 35
-        => 35
-      => 42
-    => 42
+                        loop => 21
+                      loop => 21
+                    loop => 21
+                  loop => 21
+                z => 21
+              loop => 28
+            z => 28
+          loop => 35
+        z => 35
+      loop => 42
+    y => 42
   [debug] z @ test/test_debug_show.ml:30:8-30:9
     [debug] loop @ test/test_debug_show.ml:25:24-31:9
       depth = 1
@@ -230,11 +230,11 @@ Command: ./test_debug_show.exe
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
                         depth = 7
                         x = { Test_debug_show.first = 24; second = 11 }
-                        => 35
-                      => 35
-                    => 35
-                  => 35
-                => 35
+                        loop => 35
+                      loop => 35
+                    loop => 35
+                  loop => 35
+                y => 35
               [debug] z @ test/test_debug_show.ml:30:8-30:9
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
                   depth = 4
@@ -248,13 +248,13 @@ Command: ./test_debug_show.exe
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
                         depth = 7
                         x = { Test_debug_show.first = 19; second = 11 }
-                        => 30
-                      => 30
-                    => 30
-                  => 30
-                => 30
-              => 37
-            => 37
+                        loop => 30
+                      loop => 30
+                    loop => 30
+                  loop => 30
+                z => 30
+              loop => 37
+            y => 37
           [debug] z @ test/test_debug_show.ml:30:8-30:9
             [debug] loop @ test/test_debug_show.ml:25:24-31:9
               depth = 3
@@ -272,11 +272,11 @@ Command: ./test_debug_show.exe
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
                         depth = 7
                         x = { Test_debug_show.first = 25; second = 9 }
-                        => 34
-                      => 34
-                    => 34
-                  => 34
-                => 34
+                        loop => 34
+                      loop => 34
+                    loop => 34
+                  loop => 34
+                y => 34
               [debug] z @ test/test_debug_show.ml:30:8-30:9
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
                   depth = 4
@@ -290,15 +290,15 @@ Command: ./test_debug_show.exe
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
                         depth = 7
                         x = { Test_debug_show.first = 18; second = 10 }
-                        => 28
-                      => 28
-                    => 28
-                  => 28
-                => 28
-              => 35
-            => 35
-          => 42
-        => 42
+                        loop => 28
+                      loop => 28
+                    loop => 28
+                  loop => 28
+                z => 28
+              loop => 35
+            z => 35
+          loop => 42
+        y => 42
       [debug] z @ test/test_debug_show.ml:30:8-30:9
         [debug] loop @ test/test_debug_show.ml:25:24-31:9
           depth = 2
@@ -320,11 +320,11 @@ Command: ./test_debug_show.exe
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
                         depth = 7
                         x = { Test_debug_show.first = 23; second = 11 }
-                        => 34
-                      => 34
-                    => 34
-                  => 34
-                => 34
+                        loop => 34
+                      loop => 34
+                    loop => 34
+                  loop => 34
+                y => 34
               [debug] z @ test/test_debug_show.ml:30:8-30:9
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
                   depth = 4
@@ -338,13 +338,13 @@ Command: ./test_debug_show.exe
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
                         depth = 7
                         x = { Test_debug_show.first = 18; second = 12 }
-                        => 30
-                      => 30
-                    => 30
-                  => 30
-                => 30
-              => 37
-            => 37
+                        loop => 30
+                      loop => 30
+                    loop => 30
+                  loop => 30
+                z => 30
+              loop => 37
+            y => 37
           [debug] z @ test/test_debug_show.ml:30:8-30:9
             [debug] loop @ test/test_debug_show.ml:25:24-31:9
               depth = 3
@@ -362,11 +362,11 @@ Command: ./test_debug_show.exe
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
                         depth = 7
                         x = { Test_debug_show.first = 24; second = 9 }
-                        => 33
-                      => 33
-                    => 33
-                  => 33
-                => 33
+                        loop => 33
+                      loop => 33
+                    loop => 33
+                  loop => 33
+                y => 33
               [debug] z @ test/test_debug_show.ml:30:8-30:9
                 [debug] loop @ test/test_debug_show.ml:25:24-31:9
                   depth = 4
@@ -380,32 +380,32 @@ Command: ./test_debug_show.exe
                       [debug] loop @ test/test_debug_show.ml:25:24-31:9
                         depth = 7
                         x = { Test_debug_show.first = 18; second = 10 }
-                        => 28
-                      => 28
-                    => 28
-                  => 28
-                => 28
-              => 35
-            => 35
-          => 42
-        => 42
-      => 49
-    => 49
-  => 56
+                        loop => 28
+                      loop => 28
+                    loop => 28
+                  loop => 28
+                z => 28
+              loop => 35
+            z => 35
+          loop => 42
+        z => 42
+      loop => 49
+    z => 49
+  loop => 56
 [debug] simple_thunk @ test/test_debug_show.ml:38:28-38:83
   x = "hello"
-  => ()
+  simple_thunk => ()
 [debug] nested_fun @ test/test_debug_show.ml:43:26-43:75
   x = 5
-  => ()
+  nested_fun => ()
 [debug] cascade @ test/test_debug_show.ml:48:23-48:82
   x = 1
-  => 6
+  cascade => 6
 [debug] parallel_update @ test/test_debug_show.ml:53:31-55:28
   x = 10
   y = 20
-  => <fun>
+  parallel_update => <fun>
 [debug] complex_case @ test/test_debug_show.ml:60:28-62:29
   x = 5
   y = <fun>
-  => <fun>
+  complex_case => <fun>

@@ -335,9 +335,9 @@ module Renderer = struct
         match (entry.header_entry_id, values_first_mode, results) with
         | None, _, _ ->
             (* Value node: display as "name = value" or "=> value" *)
-            if entry.is_result then Buffer.add_string buf "=> "
+            if entry.is_result then Buffer.add_string buf (entry.message ^ " => ")
             else if String.empty = entry.message then ()
-            else Buffer.add_string buf (Printf.sprintf "%s = " entry.message);
+            else Buffer.add_string buf (entry.message ^ " = ");
 
             (match entry.data with Some data -> Buffer.add_string buf data | None -> ());
 

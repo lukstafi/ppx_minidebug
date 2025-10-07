@@ -4,25 +4,25 @@ Command: ./test_debug_sexp.exe
 [debug] foo @ test/test_debug_sexp.ml:7:21-9:17
   x = 7
   [debug] y @ test/test_debug_sexp.ml:8:6-8:7
-    => 8
-  => (7 8 16)
+    y => 8
+  foo => (7 8 16)
 [debug] bar @ test/test_debug_sexp.ml:15:21-17:14
   x = ((first 7)(second 42))
   [debug] y @ test/test_debug_sexp.ml:16:6-16:7
-    => 8
-  => 336
+    y => 8
+  bar => 336
 [debug] baz @ test/test_debug_sexp.ml:21:21-24:28
   x = ((first 7)(second 42))
   [debug] _yz @ test/test_debug_sexp.ml:22:17-22:20
-    => (8 3)
+    _yz => (8 3)
   [debug] _uw @ test/test_debug_sexp.ml:23:17-23:20
-    => (7 13)
-  => 359
+    _uw => (7 13)
+  baz => 359
 [debug] lab @ test/test_debug_sexp.ml:28:21-30:17
   x = 7
   [debug] y @ test/test_debug_sexp.ml:29:6-29:7
-    => 8
-  => (7 8 16)
+    y => 8
+  lab => (7 8 16)
 [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
   depth = 0
   x = ((first 7)(second 42))
@@ -43,11 +43,11 @@ Command: ./test_debug_sexp.exe
               [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
                 depth = 5
                 x = ((first 23)(second 2))
-                => 25
-              => 25
-            => 25
-          => 25
-        => 25
+                loop => 25
+              loop => 25
+            loop => 25
+          loop => 25
+        y => 25
       [debug] z @ test/test_debug_sexp.ml:39:8-39:9
         [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
           depth = 2
@@ -61,13 +61,13 @@ Command: ./test_debug_sexp.exe
               [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
                 depth = 5
                 x = ((first 14)(second 3))
-                => 17
-              => 17
-            => 17
-          => 17
-        => 17
-      => 24
-    => 24
+                loop => 17
+              loop => 17
+            loop => 17
+          loop => 17
+        z => 17
+      loop => 24
+    y => 24
   [debug] z @ test/test_debug_sexp.ml:39:8-39:9
     [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
       depth = 1
@@ -85,11 +85,11 @@ Command: ./test_debug_sexp.exe
               [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
                 depth = 5
                 x = ((first 24)(second 6))
-                => 30
-              => 30
-            => 30
-          => 30
-        => 30
+                loop => 30
+              loop => 30
+            loop => 30
+          loop => 30
+        y => 30
       [debug] z @ test/test_debug_sexp.ml:39:8-39:9
         [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
           depth = 2
@@ -103,11 +103,11 @@ Command: ./test_debug_sexp.exe
               [debug] loop @ test/test_debug_sexp.ml:34:26-40:9
                 depth = 5
                 x = ((first 16)(second 6))
-                => 22
-              => 22
-            => 22
-          => 22
-        => 22
-      => 29
-    => 29
-  => 36
+                loop => 22
+              loop => 22
+            loop => 22
+          loop => 22
+        z => 22
+      loop => 29
+    z => 29
+  loop => 36

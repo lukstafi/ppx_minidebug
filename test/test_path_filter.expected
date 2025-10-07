@@ -3,14 +3,14 @@ Result: 30
 [debug] compute_value @ test/test_path_filter.ml:14:31-16:9
   x = 5
   [debug] y @ test/test_path_filter.ml:15:8-15:9
-    => 15
-  => 30
+    y => 15
+  compute_value => 30
 
 === Test 2: Whitelist by function (only compute_* functions) ===
 Results: 30, 6
 [debug] compute_sum @ test/test_path_filter.ml:36:29-38:9
   x = 5
-  => 30
+  compute_sum => 30
 
 === Test 3: Blacklist (blocks test_path_filter.ml) ===
 Result: 30
@@ -20,5 +20,5 @@ Result: 30
 [debug] compute_nofilter @ test/test_path_filter.ml:71:34-73:9
   x = 5
   [debug] y @ test/test_path_filter.ml:72:8-72:9
-    => 15
-  => 30
+    y => 15
+  compute_nofilter => 30
