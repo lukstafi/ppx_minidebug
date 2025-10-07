@@ -109,26 +109,30 @@ let (_ : int) = foo [ 1; 5; 3; 4 ]</code></pre><p>This produces:</p><pre class="
   [%expect
     {|
     Raised exception.
-    [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
-      [debug] z @ test/test_expect_test.ml:255:10-255:11
-        =&gt; 3
+    [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
       x = 7
-      [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
-        [debug] z @ test/test_expect_test.ml:255:10-255:11
-          =&gt; 2
+      [debug] z @ test/test_expect_test.ml:253:10-253:11
+        =&gt; 3
+      [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
         x = 6
-        [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
-          [debug] z @ test/test_expect_test.ml:255:10-255:11
-            =&gt; 2
+        [debug] z @ test/test_expect_test.ml:253:10-253:11
+          =&gt; 2
+        [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
           x = 5
-          [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
-            [debug] z @ test/test_expect_test.ml:255:10-255:11
-              =&gt; 1
+          [debug] z @ test/test_expect_test.ml:253:10-253:11
+            =&gt; 2
+          [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
             x = 4
-            [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
-              [debug] z @ test/test_expect_test.ml:255:10-255:11
-                z = &lt;max_nesting_depth exceeded&gt;
+            [debug] z @ test/test_expect_test.ml:253:10-253:11
+              =&gt; 1
+            [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
               x = 3
+              [debug] z @ test/test_expect_test.ml:253:10-253:11
+                =&gt; 1
+              [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
+                x = 2
+                [debug] z @ test/test_expect_test.ml:253:10-253:11
+                  z = &lt;max_nesting_depth exceeded&gt;
     |}]</code></pre><p>Similarly, <code>max_num_children</code> raises a failure when the given number of logs with the same parent is exceeded. For example:</p><pre class="language-ocaml"><code>  let () =
     try
       let%debug_show _bar : unit =
@@ -147,30 +151,30 @@ let (_ : int) = foo [ 1; 5; 3; 4 ]</code></pre><p>This produces:</p><pre class="
   [%expect
     {|
     Raised exception: ppx_minidebug: max_num_children exceeded
-    [debug] _bar @ test/test_expect_test.ml:299:21-299:25
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+    [debug] _bar @ test/test_expect_test.ml:301:21-301:25
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         =&gt; 0
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         =&gt; 2
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         =&gt; 4
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         =&gt; 6
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         =&gt; 8
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         =&gt; 10
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         =&gt; 12
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         =&gt; 14
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         =&gt; 16
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         =&gt; 18
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         =&gt; 20
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         _baz = &lt;max_num_children exceeded&gt;
     |}]</code></pre><p>The <code>%debug_interrupts</code> extension point emits the interrupt checks in a lexically delimited scope. For convenience, we offer the extension point <code>%global_debug_interrupts</code> which triggers emitting the interrupt checks in the remainder of the source preprocessed in the same process (its scope is therefore less well defined). For example:</p><pre class="language-ocaml"><code>let _get_local_debug_runtime =
   let rt = Minidebug_db.debug_db_file &quot;debugger_interrupts&quot; in
@@ -639,9 +643,9 @@ let%debug_sexp _test_at_log_level_3 : unit = test_at_log_level 3</code></pre><p>
   Printf.printf &quot;Results: %d, %d\n%!&quot; result1 result2;</code></pre><p>The overall test produces:</p><pre class="language-include"><code>=== Test 1: Whitelist by file (logs from test_path_filter.ml) ===
 Result: 30
 [debug] compute_value @ test/test_path_filter.ml:14:31-16:9
+  x = 5
   [debug] y @ test/test_path_filter.ml:15:8-15:9
     =&gt; 15
-  x = 5
   =&gt; 30
 
 === Test 2: Whitelist by function (only compute_* functions) ===
@@ -656,13 +660,13 @@ Result: 30
 === Test 4: No filter (shows all logs) ===
 Result: 30
 [debug] compute_nofilter @ test/test_path_filter.ml:71:34-73:9
+  x = 5
   [debug] y @ test/test_path_filter.ml:72:8-72:9
     =&gt; 15
-  x = 5
   =&gt; 30</code></pre><p>This is useful for focusing on specific parts of your codebase during debugging, or for excluding noisy test utilities from production debug logs.</p><h4 id="dynamic-subtree-filtering"><a href="#dynamic-subtree-filtering" class="anchor"></a>Dynamic subtree filtering</h4><p>You can discard the logs of specified subtrees, when the output is irrelevant, would be a distraction, or the logs take up too much space. For simplicity, currently the behavior is only retroactive: it discards the past subtree of the current entry, but does not prevent future logs at the current entry. The test suite example:</p><pre class="language-ocaml"><code>  let%debug_show rec loop_changes (x : int) : int =
     let z : int = (x - 1) / 2 in
     (* The call [x = 2] is not printed because it is a descendant of the no-debug call [x
-       = 4]. The effect of no_debug_if is retroactive. *)
+       = 4]. The whole subtree is not printed. *)
     let res = if x &lt;= 0 then 0 else z + loop_changes (z + (x / 2)) in
     Debug_runtime.no_debug_if (x &lt;&gt; 6 &amp;&amp; x &lt;&gt; 2 &amp;&amp; (z + 1) * 2 = x);
     res
@@ -674,18 +678,16 @@ Result: 30
     {|
     9
     [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+      x = 7
       [debug] z @ test/test_expect_test.ml:153:8-153:9
         =&gt; 3
-      x = 7
       [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+        x = 6
         [debug] z @ test/test_expect_test.ml:153:8-153:9
           =&gt; 2
-        x = 6
         [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
-          [debug] z @ test/test_expect_test.ml:153:8-153:9
-            =&gt; 2
           x = 5
-          [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+          [debug] z @ test/test_expect_test.ml:153:8-153:9
             =&gt; 2
           =&gt; 4
         =&gt; 6
