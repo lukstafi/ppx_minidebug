@@ -3,18 +3,18 @@ let _get_local_debug_runtime =
 let foo (x : int) =
   let module Debug_runtime = (val _get_local_debug_runtime ()) in
     (let __entry_id = Debug_runtime.get_entry_id () in
-     ();
      (Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:5
         ~start_colnum:19 ~end_lnum:7 ~end_colnum:17 ~message:"foo"
         ~entry_id:__entry_id ~log_level:1 `Debug;
       Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
         ~log_level:1 ~is_result:false (lazy (([%show : int]) x)));
+     ();
      (match let y =
               let __entry_id = Debug_runtime.get_entry_id () in
-              ();
               Debug_runtime.open_log ~fname:"test_debug_show.ml"
                 ~start_lnum:6 ~start_colnum:6 ~end_lnum:6 ~end_colnum:7
                 ~message:"y" ~entry_id:__entry_id ~log_level:1 `Debug;
+              ();
               (match x + 1 with
                | y as __res ->
                    ((();
@@ -48,18 +48,18 @@ type t = {
 let bar (x : t) =
   let module Debug_runtime = (val _get_local_debug_runtime ()) in
     (let __entry_id = Debug_runtime.get_entry_id () in
-     ();
      (Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:13
         ~start_colnum:19 ~end_lnum:15 ~end_colnum:14 ~message:"bar"
         ~entry_id:__entry_id ~log_level:1 `Debug;
       Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
         ~log_level:1 ~is_result:false (lazy (([%show : t]) x)));
+     ();
      (match let y =
               let __entry_id = Debug_runtime.get_entry_id () in
-              ();
               Debug_runtime.open_log ~fname:"test_debug_show.ml"
                 ~start_lnum:14 ~start_colnum:6 ~end_lnum:14 ~end_colnum:7
                 ~message:"y" ~entry_id:__entry_id ~log_level:1 `Debug;
+              ();
               (match x.first + 1 with
                | y as __res ->
                    ((();
@@ -90,18 +90,18 @@ let () = ignore @@ (bar { first = 7; second = 42 })
 let baz (x : t) =
   let module Debug_runtime = (val _get_local_debug_runtime ()) in
     (let __entry_id = Debug_runtime.get_entry_id () in
-     ();
      (Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:19
         ~start_colnum:19 ~end_lnum:21 ~end_colnum:20 ~message:"baz"
         ~entry_id:__entry_id ~log_level:1 `Debug;
       Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
         ~log_level:1 ~is_result:false (lazy (([%show : t]) x)));
+     ();
      (match let (y, z) as _yz =
               let __entry_id = Debug_runtime.get_entry_id () in
-              ();
               Debug_runtime.open_log ~fname:"test_debug_show.ml"
                 ~start_lnum:20 ~start_colnum:17 ~end_lnum:20 ~end_colnum:20
                 ~message:"_yz" ~entry_id:__entry_id ~log_level:1 `Debug;
+              ();
               (match ((x.first + 1), 3) with
                | _yz as __res ->
                    ((();
@@ -132,7 +132,6 @@ let () = ignore @@ (baz { first = 7; second = 42 })
 let rec loop (depth : int) (x : t) =
   let module Debug_runtime = (val _get_local_debug_runtime ()) in
     (let __entry_id = Debug_runtime.get_entry_id () in
-     ();
      ((Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:25
          ~start_colnum:24 ~end_lnum:31 ~end_colnum:9 ~message:"loop"
          ~entry_id:__entry_id ~log_level:1 `Debug;
@@ -141,6 +140,7 @@ let rec loop (depth : int) (x : t) =
          (lazy (([%show : int]) depth)));
       Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
         ~log_level:1 ~is_result:false (lazy (([%show : t]) x)));
+     ();
      (match if depth > 6
             then x.first + x.second
             else
@@ -151,11 +151,11 @@ let rec loop (depth : int) (x : t) =
               else
                 (let y =
                    let __entry_id = Debug_runtime.get_entry_id () in
-                   ();
                    Debug_runtime.open_log ~fname:"test_debug_show.ml"
                      ~start_lnum:29 ~start_colnum:8 ~end_lnum:29
                      ~end_colnum:9 ~message:"y" ~entry_id:__entry_id
                      ~log_level:1 `Debug;
+                   ();
                    (match loop (depth + 1)
                             { first = (x.second - 1); second = (x.first + 2)
                             }
@@ -174,11 +174,11 @@ let rec loop (depth : int) (x : t) =
                          raise e)) in
                  let z =
                    let __entry_id = Debug_runtime.get_entry_id () in
-                   ();
                    Debug_runtime.open_log ~fname:"test_debug_show.ml"
                      ~start_lnum:30 ~start_colnum:8 ~end_lnum:30
                      ~end_colnum:9 ~message:"z" ~entry_id:__entry_id
                      ~log_level:1 `Debug;
+                   ();
                    (match loop (depth + 1)
                             { first = (x.second + 1); second = y }
                     with
@@ -211,12 +211,12 @@ let () = ignore @@ (loop 0 { first = 7; second = 42 })
 let simple_thunk (x : string) () =
   let module Debug_runtime = (val _get_local_debug_runtime ()) in
     (let __entry_id = Debug_runtime.get_entry_id () in
-     ();
      (Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:38
         ~start_colnum:28 ~end_lnum:38 ~end_colnum:83 ~message:"simple_thunk"
         ~entry_id:__entry_id ~log_level:1 `Debug;
       Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
         ~log_level:1 ~is_result:false (lazy (([%show : string]) x)));
+     ();
      (match print_endline x with
       | __res ->
           (Debug_runtime.log_value_show ?descr:(Some "simple_thunk")
@@ -233,12 +233,12 @@ let () = simple_thunk "hello" ()
 let nested_fun (x : int) y =
   let module Debug_runtime = (val _get_local_debug_runtime ()) in
     (let __entry_id = Debug_runtime.get_entry_id () in
-     ();
      (Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:43
         ~start_colnum:26 ~end_lnum:43 ~end_colnum:75 ~message:"nested_fun"
         ~entry_id:__entry_id ~log_level:1 `Debug;
       Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
         ~log_level:1 ~is_result:false (lazy (([%show : int]) x)));
+     ();
      (match ignore (x + y) with
       | __res ->
           (Debug_runtime.log_value_show ?descr:(Some "nested_fun")
@@ -255,12 +255,12 @@ let () = nested_fun 5 10
 let cascade (x : int) y z =
   let module Debug_runtime = (val _get_local_debug_runtime ()) in
     (let __entry_id = Debug_runtime.get_entry_id () in
-     ();
      (Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:48
         ~start_colnum:23 ~end_lnum:48 ~end_colnum:82 ~message:"cascade"
         ~entry_id:__entry_id ~log_level:1 `Debug;
       Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
         ~log_level:1 ~is_result:false (lazy (([%show : int]) x)));
+     ();
      (match (x + y) + z with
       | __res ->
           (Debug_runtime.log_value_show ?descr:(Some "cascade")
@@ -277,7 +277,6 @@ let () = ignore @@ (cascade 1 2 3)
 let parallel_update (x : int) (y : int) =
   let module Debug_runtime = (val _get_local_debug_runtime ()) in
     (let __entry_id = Debug_runtime.get_entry_id () in
-     ();
      ((Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:53
          ~start_colnum:31 ~end_lnum:55 ~end_colnum:28
          ~message:"parallel_update" ~entry_id:__entry_id ~log_level:1 `Debug;
@@ -285,6 +284,7 @@ let parallel_update (x : int) (y : int) =
          ~log_level:1 ~is_result:false (lazy (([%show : int]) x)));
       Debug_runtime.log_value_show ?descr:(Some "y") ~entry_id:__entry_id
         ~log_level:1 ~is_result:false (lazy (([%show : int]) y)));
+     ();
      (match let result = x + y in fun () -> print_int result with
       | __res ->
           (Debug_runtime.log_value_show ?descr:(Some "parallel_update")
@@ -301,7 +301,6 @@ let () = parallel_update 10 20 ()
 let complex_case (type buffer_ptr) (x : int) (y : buffer_ptr -> int) =
   let module Debug_runtime = (val _get_local_debug_runtime ()) in
     (let __entry_id = Debug_runtime.get_entry_id () in
-     ();
      ((Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:60
          ~start_colnum:28 ~end_lnum:62 ~end_colnum:29 ~message:"complex_case"
          ~entry_id:__entry_id ~log_level:1 `Debug;
@@ -310,6 +309,7 @@ let complex_case (type buffer_ptr) (x : int) (y : buffer_ptr -> int) =
       Debug_runtime.log_value_show ?descr:(Some "y") ~entry_id:__entry_id
         ~log_level:1 ~is_result:false
         (lazy (([%show : buffer_ptr -> int]) y)));
+     ();
      (match let compute = x + (y (Obj.magic 0)) in
             fun () -> print_int compute
       with

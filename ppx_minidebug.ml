@@ -577,34 +577,35 @@ let entry_with_interrupts context ~loc ?descr_loc ?message ~log_count_before ?he
     let body =
       if context.interrupts then
         [%expr
-          [%e header];
           if Debug_runtime.exceeds_max_children () then (
             [%e preamble];
+            [%e header];
             [%e
               log_string ~log_level:context.entry_log_level "<max_num_children exceeded>"];
             [%e log_close];
             failwith "ppx_minidebug: max_num_children exceeded")
+          else if Debug_runtime.exceeds_max_nesting () then (
+            [%e preamble];
+            [%e header];
+            [%e
+              log_string ~log_level:context.entry_log_level "<max_nesting_depth exceeded>"];
+            [%e log_close];
+            failwith "ppx_minidebug: max_nesting_depth exceeded")
           else (
             [%e preamble];
-            if Debug_runtime.exceeds_max_nesting () then (
-              [%e
-                log_string ~log_level:context.entry_log_level
-                  "<max_nesting_depth exceeded>"];
-              [%e log_close];
-              failwith "ppx_minidebug: max_nesting_depth exceeded")
-            else
-              match [%e entry] with
-              | [%p result] ->
-                  [%e log_result];
-                  [%e log_close];
-                  [%e pat2expr result]
-              | exception e ->
-                  [%e log_close];
-                  raise e)]
+            [%e header];
+            match [%e entry] with
+            | [%p result] ->
+                [%e log_result];
+                [%e log_close];
+                [%e pat2expr result]
+            | exception e ->
+                [%e log_close];
+                raise e)]
       else
         [%expr
-          [%e header];
           [%e preamble];
+          [%e header];
           match [%e entry] with
           | [%p result] ->
               [%e log_result];

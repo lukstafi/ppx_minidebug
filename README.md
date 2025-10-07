@@ -272,26 +272,30 @@ The setting `max_nesting_depth` terminates a computation when the given log nest
   [%expect
     {|
     Raised exception.
-    [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+    [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
       x = 7
-      [debug] z @ test/test_expect_test.ml:255:10-255:11
+      [debug] z @ test/test_expect_test.ml:253:10-253:11
         => 3
-      [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+      [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
         x = 6
-        [debug] z @ test/test_expect_test.ml:255:10-255:11
+        [debug] z @ test/test_expect_test.ml:253:10-253:11
           => 2
-        [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+        [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
           x = 5
-          [debug] z @ test/test_expect_test.ml:255:10-255:11
+          [debug] z @ test/test_expect_test.ml:253:10-253:11
             => 2
-          [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+          [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
             x = 4
-            [debug] z @ test/test_expect_test.ml:255:10-255:11
+            [debug] z @ test/test_expect_test.ml:253:10-253:11
               => 1
-            [debug] loop_exceeded @ test/test_expect_test.ml:252:35-256:60
+            [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
               x = 3
-              [debug] z @ test/test_expect_test.ml:255:10-255:11
-                z = <max_nesting_depth exceeded>
+              [debug] z @ test/test_expect_test.ml:253:10-253:11
+                => 1
+              [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
+                x = 2
+                [debug] z @ test/test_expect_test.ml:253:10-253:11
+                  z = <max_nesting_depth exceeded>
     |}]
 ```
 
@@ -317,30 +321,30 @@ Similarly, `max_num_children` raises a failure when the given number of logs wit
   [%expect
     {|
     Raised exception: ppx_minidebug: max_num_children exceeded
-    [debug] _bar @ test/test_expect_test.ml:299:21-299:25
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+    [debug] _bar @ test/test_expect_test.ml:301:21-301:25
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         => 0
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         => 2
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         => 4
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         => 6
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         => 8
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         => 10
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         => 12
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         => 14
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         => 16
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         => 18
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         => 20
-      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
+      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
         _baz = <max_num_children exceeded>
     |}]
 ```
@@ -1049,8 +1053,6 @@ The test suite example:
         [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
           x = 5
           [debug] z @ test/test_expect_test.ml:153:8-153:9
-            => 2
-          [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
             => 2
           => 4
         => 6
