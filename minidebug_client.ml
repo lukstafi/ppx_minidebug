@@ -344,13 +344,18 @@ module Renderer = struct
             Buffer.add_string buf "\n"
         | Some _, true, [ result_child ] when result_child.entry.header_entry_id = None ->
             (* Scope node with single value result in values_first_mode: combine on one line *)
-            (* Format: [type] message = result_value <time> @ location *)
+            (* Format: [type] message => result.message result_value <time> @ location *)
             Buffer.add_string buf
               (Printf.sprintf "[%s] %s" entry.entry_type entry.message);
 
             (* Add result value *)
             (match result_child.entry.data with
-            | Some data -> Buffer.add_string buf (Printf.sprintf " = %s" data)
+            | Some data
+              when result_child.entry.message <> ""
+                   && result_child.entry.message <> entry.message ->
+                Buffer.add_string buf
+                  (Printf.sprintf " => %s = %s" result_child.entry.message data)
+            | Some data -> Buffer.add_string buf (Printf.sprintf " => %s" data)
             | None -> ());
 
             (* Elapsed time *)
@@ -368,11 +373,10 @@ module Renderer = struct
 
             Buffer.add_string buf "\n";
 
-            (* Children: render non-result children (result was already combined with header) *)
+            (* Children: render non-result children (result was already combined with
+               header) *)
             let child_indent = indent ^ "  " in
-            List.iter
-              (render_node ~indent:child_indent ~depth:(depth + 1))
-              non_results
+            List.iter (render_node ~indent:child_indent ~depth:(depth + 1)) non_results
         | Some _, _, _ ->
             (* Normal rendering mode *)
             (* Message and type *)
