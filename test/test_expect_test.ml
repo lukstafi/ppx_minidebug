@@ -1889,8 +1889,8 @@ let%expect_test "%log constant entries" =
       "log line"
     |}]
 
-(*
 let%expect_test "%log with type annotations" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
@@ -1906,22 +1906,20 @@ let%expect_test "%log with type annotations" =
     [%log (i : int) :: l]
   in
   let () = foo () in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    foo = ()
-    ├─"test/test_expect_test.ml":2501:21
-    ├─("This is like", 3, "or", 3.14, "above")
-    ├─("tau =", 6.28)
-    ├─[4; 1; 2; 3]
-    ├─[3; 1; 2; 3]
-    └─[3; 1; 2; 3]
+    [debug] foo => () @ test/test_expect_test.ml:1901:21-1906:25
+      ("This is like", 3, "or", 3.14, "above")
+      ("tau =", 6.28)
+      [4; 1; 2; 3]
+      [3; 1; 2; 3]
+      [3; 1; 2; 3]
     |}]
 
-*)
-
-(*
 let%expect_test "%log with default type assumption" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
@@ -1940,24 +1938,22 @@ let%expect_test "%log with default type assumption" =
     [%log (x2 s, 0) :: l]
   in
   let () = foo () in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    foo = ()
-    ├─"test/test_expect_test.ml":2527:21
-    ├─"2*3"
-    ├─("This is like", "3", "or", "3.14", "above")
-    ├─("tau =", "2*3.14")
-    └─[("2*3", 0); ("1", 1); ("2", 2); ("3", 3)]
+    [debug] foo => () @ test/test_expect_test.ml:1931:21-1938:25
+      "2*3"
+      ("This is like", "3", "or", "3.14", "above")
+      ("tau =", "2*3.14")
+      [("2*3", 0); ("1", 1); ("2", 2); ("3", 3)]
     |}]
 
-*)
-
-(*
 let%expect_test "%log track while-loop" =
+  let run_id = next_run () in
   (* $MDX part-begin=track_while_loop_example *)
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
   in
   let%track_sexp result =
@@ -1972,45 +1968,44 @@ let%expect_test "%log track while-loop" =
     done;
     !j
   in
-  print_endline @@ Int.to_string result;
+  let () = print_endline @@ Int.to_string result in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":2553:17: result
-    └─"test/test_expect_test.ml":2556:4: while:test_expect_test:2556
-      ├─"test/test_expect_test.ml":2557:6: <while loop>
-      │ ├─(1 i= 0)
-      │ ├─(2 i= 1)
-      │ └─(3 j= 1)
-      ├─"test/test_expect_test.ml":2557:6: <while loop>
-      │ ├─(1 i= 1)
-      │ ├─(2 i= 2)
-      │ └─(3 j= 3)
-      ├─"test/test_expect_test.ml":2557:6: <while loop>
-      │ ├─(1 i= 2)
-      │ ├─(2 i= 3)
-      │ └─(3 j= 6)
-      ├─"test/test_expect_test.ml":2557:6: <while loop>
-      │ ├─(1 i= 3)
-      │ ├─(2 i= 4)
-      │ └─(3 j= 10)
-      ├─"test/test_expect_test.ml":2557:6: <while loop>
-      │ ├─(1 i= 4)
-      │ ├─(2 i= 5)
-      │ └─(3 j= 15)
-      └─"test/test_expect_test.ml":2557:6: <while loop>
-        ├─(1 i= 5)
-        ├─(2 i= 6)
-        └─(3 j= 21)
     21
+    [track] result @ test/test_expect_test.ml:1959:17-1959:23
+      [track] while:test_expect_test:1962 @ test/test_expect_test.ml:1962:4-1968:8
+        [track] <while loop> @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 0)
+          (2 i= 1)
+          (3 j= 1)
+        [track] <while loop> @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 1)
+          (2 i= 2)
+          (3 j= 3)
+        [track] <while loop> @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 2)
+          (2 i= 3)
+          (3 j= 6)
+        [track] <while loop> @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 3)
+          (2 i= 4)
+          (3 j= 10)
+        [track] <while loop> @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 4)
+          (2 i= 5)
+          (3 j= 15)
+        [track] <while loop> @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 5)
+          (2 i= 6)
+          (3 j= 21)
     |}]
 (* $MDX part-end *)
 
-*)
-
-(*
 let%expect_test "%log runtime log levels while-loop" =
   (* $MDX part-begin=log_runtime_log_levels_while_loop_example *)
+  let rt log_level run_name = Minidebug_db.debug_db_file ~log_level ~run_name db_file in
   let%track_rt_sexp result () : int =
     let i = ref 0 in
     let j = ref 0 in
@@ -2027,187 +2022,127 @@ let%expect_test "%log runtime log levels while-loop" =
   print_endline
   @@ Int.to_string
        (result
-          Minidebug_runtime.(
-            forget_printbox
-            @@ debug ~values_first_mode:false ~run_name:"Everything" ())
+          (rt 9 "Everything")
           ());
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db (latest_run ());
   print_endline
   @@ Int.to_string
        (result
-          Minidebug_runtime.(
-            forget_printbox
-            @@ debug ~values_first_mode:false ~log_level:0 ~run_name:"Nothing" ())
+          (rt 0 "Nothing")
           ());
+  let latest_run_after_nothing =
+    Minidebug_client.Client.open_db db_file |>
+    Minidebug_client.Client.get_latest_run |>
+    Option.get in
+  print_endline @@ "latest_run_after_nothing: " ^ Option.get latest_run_after_nothing.run_name;
   print_endline
   @@ Int.to_string
        (result
-          Minidebug_runtime.(
-            forget_printbox @@ debug ~log_level:1 ~run_name:"Error" ())
+          (rt 1 "Error")
           ());
   (* $MDX part-end *)
+  Minidebug_client.Client.show_trace db (latest_run ());
   print_endline
   @@ Int.to_string
        (result
-          Minidebug_runtime.(
-            forget_printbox @@ debug ~log_level:2 ~run_name:"Warning" ())
+          (rt 2 "Warning")
           ());
-  [%expect
-    {|
-    BEGIN DEBUG SESSION Everything
-    "test/test_expect_test.ml":2601:27: Everything result
-    ├─"test/test_expect_test.ml":2604:4: Everything while:test_expect_test:2604
-    │ ├─"test/test_expect_test.ml":2606:6: Everything <while loop>
-    │ │ ├─"test/test_expect_test.ml":2606:21: Everything then:test_expect_test:2606
-    │ │ │ └─(ERROR: 1 i= 0)
-    │ │ ├─(WARNING: 2 i= 1)
-    │ │ ├─"test/test_expect_test.ml":2609:11: Everything fun:test_expect_test:2609
-    │ │ └─(INFO: 3 j= 1)
-    │ ├─"test/test_expect_test.ml":2606:6: Everything <while loop>
-    │ │ ├─"test/test_expect_test.ml":2606:21: Everything then:test_expect_test:2606
-    │ │ │ └─(ERROR: 1 i= 1)
-    │ │ ├─(WARNING: 2 i= 2)
-    │ │ ├─"test/test_expect_test.ml":2609:11: Everything fun:test_expect_test:2609
-    │ │ └─(INFO: 3 j= 3)
-    │ ├─"test/test_expect_test.ml":2606:6: Everything <while loop>
-    │ │ ├─"test/test_expect_test.ml":2606:64: Everything else:test_expect_test:2606
-    │ │ ├─(WARNING: 2 i= 3)
-    │ │ ├─"test/test_expect_test.ml":2609:11: Everything fun:test_expect_test:2609
-    │ │ └─(INFO: 3 j= 6)
-    │ ├─"test/test_expect_test.ml":2606:6: Everything <while loop>
-    │ │ ├─"test/test_expect_test.ml":2606:64: Everything else:test_expect_test:2606
-    │ │ ├─(WARNING: 2 i= 4)
-    │ │ ├─"test/test_expect_test.ml":2609:11: Everything fun:test_expect_test:2609
-    │ │ └─(INFO: 3 j= 10)
-    │ ├─"test/test_expect_test.ml":2606:6: Everything <while loop>
-    │ │ ├─"test/test_expect_test.ml":2606:64: Everything else:test_expect_test:2606
-    │ │ ├─(WARNING: 2 i= 5)
-    │ │ ├─"test/test_expect_test.ml":2609:11: Everything fun:test_expect_test:2609
-    │ │ └─(INFO: 3 j= 15)
-    │ └─"test/test_expect_test.ml":2606:6: Everything <while loop>
-    │   ├─"test/test_expect_test.ml":2606:64: Everything else:test_expect_test:2606
-    │   ├─(WARNING: 2 i= 6)
-    │   ├─"test/test_expect_test.ml":2609:11: Everything fun:test_expect_test:2609
-    │   └─(INFO: 3 j= 21)
-    └─result = 21
+  Minidebug_client.Client.show_trace db (latest_run ());
+  [%expect {|
     21
+    latest_run: Everything
+    [track] result => 21 @ test/test_expect_test.ml:2009:27-2020:6
+      [track] while:test_expect_test:2012 @ test/test_expect_test.ml:2012:4-2019:8
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] then:test_expect_test:2014 @ test/test_expect_test.ml:2014:21-2014:58
+            (ERROR: 1 i= 0)
+          (WARNING: 2 i= 1)
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
+          (INFO: 3 j= 1)
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] then:test_expect_test:2014 @ test/test_expect_test.ml:2014:21-2014:58
+            (ERROR: 1 i= 1)
+          (WARNING: 2 i= 2)
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
+          (INFO: 3 j= 3)
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] else:test_expect_test:2014 @ test/test_expect_test.ml:2014:64-2014:66
+          (WARNING: 2 i= 3)
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
+          (INFO: 3 j= 6)
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] else:test_expect_test:2014 @ test/test_expect_test.ml:2014:64-2014:66
+          (WARNING: 2 i= 4)
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
+          (INFO: 3 j= 10)
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] else:test_expect_test:2014 @ test/test_expect_test.ml:2014:64-2014:66
+          (WARNING: 2 i= 5)
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
+          (INFO: 3 j= 15)
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] else:test_expect_test:2014 @ test/test_expect_test.ml:2014:64-2014:66
+          (WARNING: 2 i= 6)
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
+          (INFO: 3 j= 21)
     21
-
-    BEGIN DEBUG SESSION Error
-    result = 21
-    ├─"test/test_expect_test.ml":2601:27
-    └─Error while:test_expect_test:2604
-      ├─"test/test_expect_test.ml":2604:4
-      ├─Error <while loop>
-      │ ├─"test/test_expect_test.ml":2606:6
-      │ ├─Error then:test_expect_test:2606
-      │ │ ├─"test/test_expect_test.ml":2606:21
-      │ │ └─(ERROR: 1 i= 0)
-      │ ├─(WARNING: 2 i= 1)
-      │ ├─Error fun:test_expect_test:2609
-      │ │ └─"test/test_expect_test.ml":2609:11
-      │ └─(INFO: 3 j= 1)
-      ├─Error <while loop>
-      │ ├─"test/test_expect_test.ml":2606:6
-      │ ├─Error then:test_expect_test:2606
-      │ │ ├─"test/test_expect_test.ml":2606:21
-      │ │ └─(ERROR: 1 i= 1)
-      │ ├─(WARNING: 2 i= 2)
-      │ ├─Error fun:test_expect_test:2609
-      │ │ └─"test/test_expect_test.ml":2609:11
-      │ └─(INFO: 3 j= 3)
-      ├─Error <while loop>
-      │ ├─"test/test_expect_test.ml":2606:6
-      │ ├─Error else:test_expect_test:2606
-      │ │ └─"test/test_expect_test.ml":2606:64
-      │ ├─(WARNING: 2 i= 3)
-      │ ├─Error fun:test_expect_test:2609
-      │ │ └─"test/test_expect_test.ml":2609:11
-      │ └─(INFO: 3 j= 6)
-      ├─Error <while loop>
-      │ ├─"test/test_expect_test.ml":2606:6
-      │ ├─Error else:test_expect_test:2606
-      │ │ └─"test/test_expect_test.ml":2606:64
-      │ ├─(WARNING: 2 i= 4)
-      │ ├─Error fun:test_expect_test:2609
-      │ │ └─"test/test_expect_test.ml":2609:11
-      │ └─(INFO: 3 j= 10)
-      ├─Error <while loop>
-      │ ├─"test/test_expect_test.ml":2606:6
-      │ ├─Error else:test_expect_test:2606
-      │ │ └─"test/test_expect_test.ml":2606:64
-      │ ├─(WARNING: 2 i= 5)
-      │ ├─Error fun:test_expect_test:2609
-      │ │ └─"test/test_expect_test.ml":2609:11
-      │ └─(INFO: 3 j= 15)
-      └─Error <while loop>
-        ├─"test/test_expect_test.ml":2606:6
-        ├─Error else:test_expect_test:2606
-        │ └─"test/test_expect_test.ml":2606:64
-        ├─(WARNING: 2 i= 6)
-        ├─Error fun:test_expect_test:2609
-        │ └─"test/test_expect_test.ml":2609:11
-        └─(INFO: 3 j= 21)
+    latest_run_after_nothing: Everything
     21
-
-    BEGIN DEBUG SESSION Warning
-    result = 21
-    ├─"test/test_expect_test.ml":2601:27
-    └─Warning while:test_expect_test:2604
-      ├─"test/test_expect_test.ml":2604:4
-      ├─Warning <while loop>
-      │ ├─"test/test_expect_test.ml":2606:6
-      │ ├─Warning then:test_expect_test:2606
-      │ │ ├─"test/test_expect_test.ml":2606:21
-      │ │ └─(ERROR: 1 i= 0)
-      │ ├─(WARNING: 2 i= 1)
-      │ ├─Warning fun:test_expect_test:2609
-      │ │ └─"test/test_expect_test.ml":2609:11
-      │ └─(INFO: 3 j= 1)
-      ├─Warning <while loop>
-      │ ├─"test/test_expect_test.ml":2606:6
-      │ ├─Warning then:test_expect_test:2606
-      │ │ ├─"test/test_expect_test.ml":2606:21
-      │ │ └─(ERROR: 1 i= 1)
-      │ ├─(WARNING: 2 i= 2)
-      │ ├─Warning fun:test_expect_test:2609
-      │ │ └─"test/test_expect_test.ml":2609:11
-      │ └─(INFO: 3 j= 3)
-      ├─Warning <while loop>
-      │ ├─"test/test_expect_test.ml":2606:6
-      │ ├─Warning else:test_expect_test:2606
-      │ │ └─"test/test_expect_test.ml":2606:64
-      │ ├─(WARNING: 2 i= 3)
-      │ ├─Warning fun:test_expect_test:2609
-      │ │ └─"test/test_expect_test.ml":2609:11
-      │ └─(INFO: 3 j= 6)
-      ├─Warning <while loop>
-      │ ├─"test/test_expect_test.ml":2606:6
-      │ ├─Warning else:test_expect_test:2606
-      │ │ └─"test/test_expect_test.ml":2606:64
-      │ ├─(WARNING: 2 i= 4)
-      │ ├─Warning fun:test_expect_test:2609
-      │ │ └─"test/test_expect_test.ml":2609:11
-      │ └─(INFO: 3 j= 10)
-      ├─Warning <while loop>
-      │ ├─"test/test_expect_test.ml":2606:6
-      │ ├─Warning else:test_expect_test:2606
-      │ │ └─"test/test_expect_test.ml":2606:64
-      │ ├─(WARNING: 2 i= 5)
-      │ ├─Warning fun:test_expect_test:2609
-      │ │ └─"test/test_expect_test.ml":2609:11
-      │ └─(INFO: 3 j= 15)
-      └─Warning <while loop>
-        ├─"test/test_expect_test.ml":2606:6
-        ├─Warning else:test_expect_test:2606
-        │ └─"test/test_expect_test.ml":2606:64
-        ├─(WARNING: 2 i= 6)
-        ├─Warning fun:test_expect_test:2609
-        │ └─"test/test_expect_test.ml":2609:11
-        └─(INFO: 3 j= 21)
+    latest_run: Error
+    [track] result => 21 @ test/test_expect_test.ml:2009:27-2020:6
+      [track] while:test_expect_test:2012 @ test/test_expect_test.ml:2012:4-2019:8
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] then:test_expect_test:2014 @ test/test_expect_test.ml:2014:21-2014:58
+            (ERROR: 1 i= 0)
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] then:test_expect_test:2014 @ test/test_expect_test.ml:2014:21-2014:58
+            (ERROR: 1 i= 1)
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] else:test_expect_test:2014 @ test/test_expect_test.ml:2014:64-2014:66
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] else:test_expect_test:2014 @ test/test_expect_test.ml:2014:64-2014:66
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] else:test_expect_test:2014 @ test/test_expect_test.ml:2014:64-2014:66
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] else:test_expect_test:2014 @ test/test_expect_test.ml:2014:64-2014:66
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
     21
+    latest_run: Warning
+    [track] result => 21 @ test/test_expect_test.ml:2009:27-2020:6
+      [track] while:test_expect_test:2012 @ test/test_expect_test.ml:2012:4-2019:8
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] then:test_expect_test:2014 @ test/test_expect_test.ml:2014:21-2014:58
+            (ERROR: 1 i= 0)
+          (WARNING: 2 i= 1)
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] then:test_expect_test:2014 @ test/test_expect_test.ml:2014:21-2014:58
+            (ERROR: 1 i= 1)
+          (WARNING: 2 i= 2)
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] else:test_expect_test:2014 @ test/test_expect_test.ml:2014:64-2014:66
+          (WARNING: 2 i= 3)
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] else:test_expect_test:2014 @ test/test_expect_test.ml:2014:64-2014:66
+          (WARNING: 2 i= 4)
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] else:test_expect_test:2014 @ test/test_expect_test.ml:2014:64-2014:66
+          (WARNING: 2 i= 5)
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
+        [track] <while loop> @ test/test_expect_test.ml:2014:6-2018:42
+          [track] else:test_expect_test:2014 @ test/test_expect_test.ml:2014:64-2014:66
+          (WARNING: 2 i= 6)
+          [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
     |}]
-
-*)
 
 (*
 let%expect_test "%log compile time log levels while-loop" =

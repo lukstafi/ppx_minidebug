@@ -477,7 +477,7 @@ Explicit logging statements also help with tracking the execution, since they ca
 
 {@ocaml file=../test/test_expect_test.ml,part=track_while_loop_example[
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
   in
   let%track_sexp result =
@@ -492,37 +492,38 @@ Explicit logging statements also help with tracking the execution, since they ca
     done;
     !j
   in
-  print_endline @@ Int.to_string result;
+  let () = print_endline @@ Int.to_string result in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":2553:17: result
-    └─"test/test_expect_test.ml":2556:4: while:test_expect_test:2556
-      ├─"test/test_expect_test.ml":2557:6: <while loop>
-      │ ├─(1 i= 0)
-      │ ├─(2 i= 1)
-      │ └─(3 j= 1)
-      ├─"test/test_expect_test.ml":2557:6: <while loop>
-      │ ├─(1 i= 1)
-      │ ├─(2 i= 2)
-      │ └─(3 j= 3)
-      ├─"test/test_expect_test.ml":2557:6: <while loop>
-      │ ├─(1 i= 2)
-      │ ├─(2 i= 3)
-      │ └─(3 j= 6)
-      ├─"test/test_expect_test.ml":2557:6: <while loop>
-      │ ├─(1 i= 3)
-      │ ├─(2 i= 4)
-      │ └─(3 j= 10)
-      ├─"test/test_expect_test.ml":2557:6: <while loop>
-      │ ├─(1 i= 4)
-      │ ├─(2 i= 5)
-      │ └─(3 j= 15)
-      └─"test/test_expect_test.ml":2557:6: <while loop>
-        ├─(1 i= 5)
-        ├─(2 i= 6)
-        └─(3 j= 21)
     21
+    [track] result @ test/test_expect_test.ml:1959:17-1959:23
+      [track] while:test_expect_test:1962 @ test/test_expect_test.ml:1962:4-1968:8
+        [track] <while loop> @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 0)
+          (2 i= 1)
+          (3 j= 1)
+        [track] <while loop> @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 1)
+          (2 i= 2)
+          (3 j= 3)
+        [track] <while loop> @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 2)
+          (2 i= 3)
+          (3 j= 6)
+        [track] <while loop> @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 3)
+          (2 i= 4)
+          (3 j= 10)
+        [track] <while loop> @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 4)
+          (2 i= 5)
+          (3 j= 15)
+        [track] <while loop> @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 5)
+          (2 i= 6)
+          (3 j= 21)
     |}]
 ]}
 
@@ -575,6 +576,7 @@ The [%diagn_] extension points further restrict logging to explicit logs only. E
 At runtime creation, the level can be set via the [~log_level] parameter, or via [Debug_runtime.log_level := ...] later on, also for the flushing backend. The following example also illustrates the [_rt_] runtime-passing entry points:
 
 {@ocaml file=../test/test_expect_test.ml,part=log_runtime_log_levels_while_loop_example[
+  let rt log_level run_name = Minidebug_db.debug_db_file ~log_level ~run_name db_file in
   let%track_rt_sexp result () : int =
     let i = ref 0 in
     let j = ref 0 in
@@ -591,22 +593,24 @@ At runtime creation, the level can be set via the [~log_level] parameter, or via
   print_endline
   @@ Int.to_string
        (result
-          Minidebug_runtime.(
-            forget_printbox
-            @@ debug ~values_first_mode:false ~run_name:"Everything" ())
+          (rt 9 "Everything")
           ());
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db (latest_run ());
   print_endline
   @@ Int.to_string
        (result
-          Minidebug_runtime.(
-            forget_printbox
-            @@ debug ~values_first_mode:false ~log_level:0 ~run_name:"Nothing" ())
+          (rt 0 "Nothing")
           ());
+  let latest_run_after_nothing =
+    Minidebug_client.Client.open_db db_file |>
+    Minidebug_client.Client.get_latest_run |>
+    Option.get in
+  print_endline @@ "latest_run_after_nothing: " ^ Option.get latest_run_after_nothing.run_name;
   print_endline
   @@ Int.to_string
        (result
-          Minidebug_runtime.(
-            forget_printbox @@ debug ~log_level:1 ~run_name:"Error" ())
+          (rt 1 "Error")
           ());
 ]}
 
