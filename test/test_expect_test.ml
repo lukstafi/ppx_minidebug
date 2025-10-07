@@ -152,7 +152,7 @@ let%expect_test "%debug_show disabled subtree" =
   let%debug_show rec loop_changes (x : int) : int =
     let z : int = (x - 1) / 2 in
     (* The call [x = 2] is not printed because it is a descendant of the no-debug call [x
-       = 4]. The effect of no_debug_if is retroactive. *)
+       = 4]. The whole subtree is not printed. *)
     let res = if x <= 0 then 0 else z + loop_changes (z + (x / 2)) in
     Debug_runtime.no_debug_if (x <> 6 && x <> 2 && (z + 1) * 2 = x);
     res
@@ -497,13 +497,13 @@ let%expect_test "%track_show track for-loop, time spans" =
   Minidebug_client.Client.show_trace db ~values_first_mode:false ~show_times:true run_id;
   let output = [%expect.output] in
   let output =
-    Str.global_replace (Str.regexp {|[0-9]+?[0-9]+.[0-9]+[0-9]+μs|}) "N.NNμs" output
+    Str.global_replace (Str.regexp {|[0-9]+?[0-9]+.[0-9]+[0-9]+\(μ\|m\|n\)s|}) "N.NNμs" output
   in
   print_endline output;
   [%expect
     {|
-    [track] _bar @ test/test_expect_test.ml:485:21-485:25 <1.40ms>
-      [track] for:test_expect_test:488 @ test/test_expect_test.ml:488:10-491:14 <1.27ms>
+    [track] _bar @ test/test_expect_test.ml:485:21-485:25 <N.NNμs>
+      [track] for:test_expect_test:488 @ test/test_expect_test.ml:488:10-491:14 <N.NNμs>
         [track] <for i> @ test/test_expect_test.ml:488:14-488:15 <N.NNμs>
           i = 0
           [track] _baz @ test/test_expect_test.ml:489:16-489:20 <N.NNμs>
@@ -1422,7 +1422,7 @@ let%expect_test
   in
   let output = [%expect.output] in
   let output =
-    Str.global_replace (Str.regexp {|[0-9]+?[0-9]+.[0-9]+[0-9]+μs|}) "N.NNμs" output
+    Str.global_replace (Str.regexp {|[0-9]+?[0-9]+.[0-9]+[0-9]+\(μ\|m\|n\)s|}) "N.NNμs" output
   in
   print_endline output;
   [%expect

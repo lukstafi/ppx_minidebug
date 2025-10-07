@@ -1031,7 +1031,7 @@ The test suite example:
   let%debug_show rec loop_changes (x : int) : int =
     let z : int = (x - 1) / 2 in
     (* The call [x = 2] is not printed because it is a descendant of the no-debug call [x
-       = 4]. The effect of no_debug_if is retroactive. *)
+       = 4]. The whole subtree is not printed. *)
     let res = if x <= 0 then 0 else z + loop_changes (z + (x / 2)) in
     Debug_runtime.no_debug_if (x <> 6 && x <> 2 && (z + 1) * 2 = x);
     res
