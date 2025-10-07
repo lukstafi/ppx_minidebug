@@ -185,11 +185,7 @@ let (_ : int) = foo [ 1; 5; 3; 4 ]</code></pre><p>This produces:</p><pre class="
 
 let%debug_show rec loop_exceeded (x : int) : int =
   let z : int = (x - 1) / 2 in
-  if x &lt;= 0 then 0 else z + loop_exceeded (z + (x / 2))</code></pre><p>Since starting with ppx_minidebug 3.0 we stream logs to a database, this functionality is much less useful -- the growing log tree can be queried while the program is still running.</p><h3 id="tracking:-control-flow-branches,-anonymous-and-insufficiently-annotated-functions"><a href="#tracking:-control-flow-branches,-anonymous-and-insufficiently-annotated-functions" class="anchor"></a>Tracking: control flow branches, anonymous and insufficiently annotated functions</h3><p>Using the <code>%track_</code>-prefix rather than <code>%debug_</code>-prefix to start a debug scope, or using the <code>%debug_trace</code> extension point inside a debug scope, enables more elaborate tracking of the execution path. It logs which <code>if</code>, <code>match</code>, <code>function</code> branch is taken. It logs the nesting and loop index of <code>for</code> loops, and the nesting of <code>while</code> loops. It logs functions even if the return type is not annotated, including anonymous functions; in particular, it logs type-annotated arguments of anonymous functions. To selectively disable these logs, use <code>%debug_notrace</code>. Note that it disables the logs on a lexical scope, not just on the annotated syntax node (e.g. a specific <code>if</code> or <code>match</code> expression).</p><p>If you get fewer logs than you expected, try converting <code>%debug_</code> to <code>%track_</code>.</p><p>Example that also illustrates disabling tracing:</p><pre class="language-ocaml"><code>  let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
-    fun () -&gt; rt
-  in
-  let%track_show track_branches (x : int) : int =
+  if x &lt;= 0 then 0 else z + loop_exceeded (z + (x / 2))</code></pre><p>Since starting with ppx_minidebug 3.0 we stream logs to a database, this functionality is much less useful -- the growing log tree can be queried while the program is still running.</p><h3 id="tracking:-control-flow-branches,-anonymous-and-insufficiently-annotated-functions"><a href="#tracking:-control-flow-branches,-anonymous-and-insufficiently-annotated-functions" class="anchor"></a>Tracking: control flow branches, anonymous and insufficiently annotated functions</h3><p>Using the <code>%track_</code>-prefix rather than <code>%debug_</code>-prefix to start a debug scope, or using the <code>%debug_trace</code> extension point inside a debug scope, enables more elaborate tracking of the execution path. It logs which <code>if</code>, <code>match</code>, <code>function</code> branch is taken. It logs the nesting and loop index of <code>for</code> loops, and the nesting of <code>while</code> loops. It logs functions even if the return type is not annotated, including anonymous functions; in particular, it logs type-annotated arguments of anonymous functions. To selectively disable these logs, use <code>%debug_notrace</code>. Note that it disables the logs on a lexical scope, not just on the annotated syntax node (e.g. a specific <code>if</code> or <code>match</code> expression).</p><p>If you get fewer logs than you expected, try converting <code>%debug_</code> to <code>%track_</code>.</p><p>Example that also illustrates disabling tracing:</p><pre class="language-ocaml"><code>  let%track_show track_branches (x : int) : int =
     if x &lt; 6 then
       match%debug_notrace x with
       | 0 -&gt; 1
@@ -211,25 +207,26 @@ let%debug_show rec loop_exceeded (x : int) : int =
       print_endline @@ Int.to_string @@ track_branches 3
     with _ -&gt; print_endline &quot;Raised exception.&quot;
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    &quot;test/test_expect_test.ml&quot;:1016:32: track_branches
-    ├─x = 8
-    ├─&quot;test/test_expect_test.ml&quot;:1025:6: else:test_expect_test:1025
-    │ └─&quot;test/test_expect_test.ml&quot;:1029:10: &lt;match -- branch 2&gt;
-    │   └─&quot;test/test_expect_test.ml&quot;:1029:14: result
-    │     ├─&quot;test/test_expect_test.ml&quot;:1029:44: then:test_expect_test:1029
-    │     └─result = 8
-    └─track_branches = 8
     8
-    &quot;test/test_expect_test.ml&quot;:1016:32: track_branches
-    ├─x = 3
-    ├─&quot;test/test_expect_test.ml&quot;:1018:6: then:test_expect_test:1018
-    │ └─&quot;test/test_expect_test.ml&quot;:1022:14: result
-    │   └─result = 3
-    └─track_branches = 3
     3
+    [track] track_branches @ test/test_expect_test.ml:717:32-731:16
+      x = 8
+      [track] else:test_expect_test:726 @ test/test_expect_test.ml:726:6-731:16
+        [track] &lt;match -- branch 2&gt; @ test/test_expect_test.ml:730:10-731:16
+          [track] result @ test/test_expect_test.ml:730:14-730:20
+            [track] then:test_expect_test:730 @ test/test_expect_test.ml:730:44-730:45
+            =&gt; 8
+      =&gt; 8
+    [track] track_branches @ test/test_expect_test.ml:717:32-731:16
+      x = 3
+      [track] then:test_expect_test:719 @ test/test_expect_test.ml:719:6-724:16
+        [debug] result @ test/test_expect_test.ml:723:14-723:20
+          =&gt; 3
+      =&gt; 3
     |}]</code></pre><p>Another example:</p><pre class="language-ocaml"><code>  let%track_show anonymous (x : int) =
     Array.fold_left ( + ) 0 @@ Array.init (x + 1) (fun (i : int) -&gt; i)
   in
