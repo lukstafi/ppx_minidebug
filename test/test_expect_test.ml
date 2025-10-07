@@ -864,10 +864,10 @@ let%expect_test "%debug_show un-annotated toplevel fun" =
       "We do log this function"
     |}]
 
-(*
 let%expect_test "%debug_show nested un-annotated toplevel fun" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
   in
   let%debug_show wrapper () =
@@ -887,22 +887,21 @@ let%expect_test "%debug_show nested un-annotated toplevel fun" =
     print_endline @@ Int.to_string @@ anonymous 3;
     print_endline @@ Int.to_string @@ followup 3
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1163:25: wrapper
-    "test/test_expect_test.ml":1164:29: anonymous
-    └─"We do log this function"
     6
     6
+    [debug] wrapper @ test/test_expect_test.ml:873:25-883:25
+    [debug] anonymous @ test/test_expect_test.ml:874:29-877:75
+      "We do log this function"
     |}]
 
-*)
-
-(*
-let%expect_test "%track_show no return type anonymous fun" =
+let%expect_test "%track_show no return type anonymous fun 1" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
   in
   let%debug_show anonymous (x : int) =
@@ -912,14 +911,21 @@ let%expect_test "%track_show no return type anonymous fun" =
     try print_endline @@ Int.to_string @@ anonymous 3
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1194:27: anonymous
-    └─x = 3
     6
-    |}];
+    [debug] anonymous @ test/test_expect_test.ml:907:27-908:70
+      x = 3
+    |}]
 
+let%expect_test "%track_show no return type anonymous fun 2" =
+  let run_id = next_run () in
+  let _get_local_debug_runtime =
+    let rt = Minidebug_db.debug_db_file db_file in
+    fun () -> rt
+  in
   (* $MDX part-begin=track_anonymous_example *)
   let%track_show anonymous (x : int) =
     Array.fold_left ( + ) 0 @@ Array.init (x + 1) (fun (i : int) -> i)
@@ -928,28 +934,28 @@ let%expect_test "%track_show no return type anonymous fun" =
     try print_endline @@ Int.to_string @@ anonymous 3
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    "test/test_expect_test.ml":1210:27: anonymous
-    ├─x = 3
-    ├─"test/test_expect_test.ml":1211:50: fun:test_expect_test:1211
-    │ └─i = 0
-    ├─"test/test_expect_test.ml":1211:50: fun:test_expect_test:1211
-    │ └─i = 1
-    ├─"test/test_expect_test.ml":1211:50: fun:test_expect_test:1211
-    │ └─i = 2
-    └─"test/test_expect_test.ml":1211:50: fun:test_expect_test:1211
-      └─i = 3
     6
+    [track] anonymous @ test/test_expect_test.ml:930:27-931:70
+      x = 3
+      [track] fun:test_expect_test:931 @ test/test_expect_test.ml:931:50-931:70
+        i = 0
+      [track] fun:test_expect_test:931 @ test/test_expect_test.ml:931:50-931:70
+        i = 1
+      [track] fun:test_expect_test:931 @ test/test_expect_test.ml:931:50-931:70
+        i = 2
+      [track] fun:test_expect_test:931 @ test/test_expect_test.ml:931:50-931:70
+        i = 3
     |}]
 (* $MDX part-end *)
 
-*)
-
-(*
 let%expect_test "%track_show anonymous fun, num children exceeded" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
   in
   let%track_show rec loop_exceeded (x : int) : int =
@@ -966,142 +972,87 @@ let%expect_test "%track_show anonymous fun, num children exceeded" =
     try print_endline @@ Int.to_string @@ loop_exceeded 3
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1237:35: loop_exceeded
-    ├─x = 3
-    └─"test/test_expect_test.ml":1243:11: fun:test_expect_test:1243
-      ├─i = 0
-      ├─"test/test_expect_test.ml":1244:17: z
-      │ └─z = 1
-      └─"test/test_expect_test.ml":1245:35: else:test_expect_test:1245
-        └─"test/test_expect_test.ml":1237:35: loop_exceeded
-          ├─x = 2
-          └─"test/test_expect_test.ml":1243:11: fun:test_expect_test:1243
-            ├─i = 0
-            ├─"test/test_expect_test.ml":1244:17: z
-            │ └─z = 0
-            └─"test/test_expect_test.ml":1245:35: else:test_expect_test:1245
-              └─"test/test_expect_test.ml":1237:35: loop_exceeded
-                ├─x = 1
-                └─"test/test_expect_test.ml":1243:11: fun:test_expect_test:1243
-                  ├─i = 0
-                  ├─"test/test_expect_test.ml":1244:17: z
-                  │ └─z = 0
-                  └─"test/test_expect_test.ml":1245:35: else:test_expect_test:1245
-                    └─"test/test_expect_test.ml":1237:35: loop_exceeded
-                      ├─x = 0
-                      ├─"test/test_expect_test.ml":1243:11: fun:test_expect_test:1243
-                      │ ├─i = 0
-                      │ ├─"test/test_expect_test.ml":1244:17: z
-                      │ │ └─z = 0
-                      │ └─"test/test_expect_test.ml":1245:28: then:test_expect_test:1245
-                      ├─"test/test_expect_test.ml":1243:11: fun:test_expect_test:1243
-                      │ ├─i = 1
-                      │ ├─"test/test_expect_test.ml":1244:17: z
-                      │ │ └─z = 1
-                      │ └─"test/test_expect_test.ml":1245:28: then:test_expect_test:1245
-                      ├─"test/test_expect_test.ml":1243:11: fun:test_expect_test:1243
-                      │ ├─i = 2
-                      │ ├─"test/test_expect_test.ml":1244:17: z
-                      │ │ └─z = 2
-                      │ └─"test/test_expect_test.ml":1245:28: then:test_expect_test:1245
-                      ├─"test/test_expect_test.ml":1243:11: fun:test_expect_test:1243
-                      │ ├─i = 3
-                      │ ├─"test/test_expect_test.ml":1244:17: z
-                      │ │ └─z = 3
-                      │ └─"test/test_expect_test.ml":1245:28: then:test_expect_test:1245
-                      ├─"test/test_expect_test.ml":1243:11: fun:test_expect_test:1243
-                      │ ├─i = 4
-                      │ ├─"test/test_expect_test.ml":1244:17: z
-                      │ │ └─z = 4
-                      │ └─"test/test_expect_test.ml":1245:28: then:test_expect_test:1245
-                      ├─"test/test_expect_test.ml":1243:11: fun:test_expect_test:1243
-                      │ ├─i = 5
-                      │ ├─"test/test_expect_test.ml":1244:17: z
-                      │ │ └─z = 5
-                      │ └─"test/test_expect_test.ml":1245:28: then:test_expect_test:1245
-                      ├─"test/test_expect_test.ml":1243:11: fun:test_expect_test:1243
-                      │ ├─i = 6
-                      │ ├─"test/test_expect_test.ml":1244:17: z
-                      │ │ └─z = 6
-                      │ └─"test/test_expect_test.ml":1245:28: then:test_expect_test:1245
-                      ├─"test/test_expect_test.ml":1243:11: fun:test_expect_test:1243
-                      │ ├─i = 7
-                      │ ├─"test/test_expect_test.ml":1244:17: z
-                      │ │ └─z = 7
-                      │ └─"test/test_expect_test.ml":1245:28: then:test_expect_test:1245
-                      ├─"test/test_expect_test.ml":1243:11: fun:test_expect_test:1243
-                      │ ├─i = 8
-                      │ ├─"test/test_expect_test.ml":1244:17: z
-                      │ │ └─z = 8
-                      │ └─"test/test_expect_test.ml":1245:28: then:test_expect_test:1245
-                      ├─"test/test_expect_test.ml":1243:11: fun:test_expect_test:1243
-                      │ ├─i = 9
-                      │ ├─"test/test_expect_test.ml":1244:17: z
-                      │ │ └─z = 9
-                      │ └─"test/test_expect_test.ml":1245:28: then:test_expect_test:1245
-                      └─fun:test_expect_test:1243 = <max_num_children exceeded>
     Raised exception: ppx_minidebug: max_num_children exceeded
-    |}]
-
-*)
-
-(*
-let%expect_test "%track_show anonymous fun, truncated children" =
-  let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false ~truncate_children:2 db_file in
-    fun () -> rt
-  in
-  let%track_show rec loop_exceeded (x : int) : int =
-    Array.fold_left ( + ) 0
-    @@ Array.init
-         (30 / (x + 1))
-         (fun (i : int) ->
-           let z : int = i + ((x - 1) / 2) in
-           if x <= 0 then i else i + loop_exceeded (z + (x / 2) - i))
-  in
-  let () =
-    try print_endline @@ Int.to_string @@ loop_exceeded 3
-    with Failure s -> print_endline @@ "Raised exception: " ^ s
-  in
-  [%expect
-    {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1335:35: loop_exceeded
-    ├─<earlier entries truncated>
-    ├─"test/test_expect_test.ml":1339:9: fun:test_expect_test:1339
-    │ ├─<earlier entries truncated>
-    │ ├─"test/test_expect_test.ml":1340:15: z
-    │ │ └─z = 7
-    │ └─"test/test_expect_test.ml":1341:33: else:test_expect_test:1341
-    │   └─"test/test_expect_test.ml":1335:35: loop_exceeded
-    │     ├─<earlier entries truncated>
-    │     ├─"test/test_expect_test.ml":1339:9: fun:test_expect_test:1339
-    │     │ ├─<earlier entries truncated>
-    │     │ ├─"test/test_expect_test.ml":1340:15: z
-    │     │ │ └─z = 9
-    │     │ └─"test/test_expect_test.ml":1341:33: else:test_expect_test:1341
-    │     │   └─"test/test_expect_test.ml":1335:35: loop_exceeded
-    │     │     ├─<earlier entries truncated>
-    │     │     ├─"test/test_expect_test.ml":1339:9: fun:test_expect_test:1339
-    │     │     │ ├─<earlier entries truncated>
-    │     │     │ ├─"test/test_expect_test.ml":1340:15: z
-    │     │     │ │ └─z = 14
-    │     │     │ └─"test/test_expect_test.ml":1341:33: else:test_expect_test:1341
-    │     │     │   └─"test/test_expect_test.ml":1335:35: loop_exceeded
-    │     │     │     ├─<earlier entries truncated>
-    │     │     │     ├─"test/test_expect_test.ml":1339:9: fun:test_expect_test:1339
-    │     │     │     │ ├─<earlier entries truncated>
-    │     │     │     │ ├─"test/test_expect_test.ml":1340:15: z
-    │     │     │     │ │ └─z = 29
-    │     │     │     │ └─"test/test_expect_test.ml":1341:26: then:test_expect_test:1341
-    │     │     │     └─loop_exceeded = 435
-    │     │     └─loop_exceeded = 6630
-    │     └─loop_exceeded = 66345
-    └─loop_exceeded = 464436
-    464436
+    [track] loop_exceeded @ test/test_expect_test.ml:961:35-969:72
+      x = 3
+      [track] fun:test_expect_test:967 @ test/test_expect_test.ml:967:11-969:71
+        i = 0
+        [track] z @ test/test_expect_test.ml:968:17-968:18
+          => 1
+        [track] else:test_expect_test:969 @ test/test_expect_test.ml:969:35-969:70
+          [track] loop_exceeded @ test/test_expect_test.ml:961:35-969:72
+            x = 2
+            [track] fun:test_expect_test:967 @ test/test_expect_test.ml:967:11-969:71
+              i = 0
+              [track] z @ test/test_expect_test.ml:968:17-968:18
+                => 0
+              [track] else:test_expect_test:969 @ test/test_expect_test.ml:969:35-969:70
+                [track] loop_exceeded @ test/test_expect_test.ml:961:35-969:72
+                  x = 1
+                  [track] fun:test_expect_test:967 @ test/test_expect_test.ml:967:11-969:71
+                    i = 0
+                    [track] z @ test/test_expect_test.ml:968:17-968:18
+                      => 0
+                    [track] else:test_expect_test:969 @ test/test_expect_test.ml:969:35-969:70
+                      [track] loop_exceeded @ test/test_expect_test.ml:961:35-969:72
+                        x = 0
+                        [track] fun:test_expect_test:967 @ test/test_expect_test.ml:967:11-969:71
+                          i = 0
+                          [track] z @ test/test_expect_test.ml:968:17-968:18
+                            => 0
+                          [track] then:test_expect_test:969 @ test/test_expect_test.ml:969:28-969:29
+                        [track] fun:test_expect_test:967 @ test/test_expect_test.ml:967:11-969:71
+                          i = 1
+                          [track] z @ test/test_expect_test.ml:968:17-968:18
+                            => 1
+                          [track] then:test_expect_test:969 @ test/test_expect_test.ml:969:28-969:29
+                        [track] fun:test_expect_test:967 @ test/test_expect_test.ml:967:11-969:71
+                          i = 2
+                          [track] z @ test/test_expect_test.ml:968:17-968:18
+                            => 2
+                          [track] then:test_expect_test:969 @ test/test_expect_test.ml:969:28-969:29
+                        [track] fun:test_expect_test:967 @ test/test_expect_test.ml:967:11-969:71
+                          i = 3
+                          [track] z @ test/test_expect_test.ml:968:17-968:18
+                            => 3
+                          [track] then:test_expect_test:969 @ test/test_expect_test.ml:969:28-969:29
+                        [track] fun:test_expect_test:967 @ test/test_expect_test.ml:967:11-969:71
+                          i = 4
+                          [track] z @ test/test_expect_test.ml:968:17-968:18
+                            => 4
+                          [track] then:test_expect_test:969 @ test/test_expect_test.ml:969:28-969:29
+                        [track] fun:test_expect_test:967 @ test/test_expect_test.ml:967:11-969:71
+                          i = 5
+                          [track] z @ test/test_expect_test.ml:968:17-968:18
+                            => 5
+                          [track] then:test_expect_test:969 @ test/test_expect_test.ml:969:28-969:29
+                        [track] fun:test_expect_test:967 @ test/test_expect_test.ml:967:11-969:71
+                          i = 6
+                          [track] z @ test/test_expect_test.ml:968:17-968:18
+                            => 6
+                          [track] then:test_expect_test:969 @ test/test_expect_test.ml:969:28-969:29
+                        [track] fun:test_expect_test:967 @ test/test_expect_test.ml:967:11-969:71
+                          i = 7
+                          [track] z @ test/test_expect_test.ml:968:17-968:18
+                            => 7
+                          [track] then:test_expect_test:969 @ test/test_expect_test.ml:969:28-969:29
+                        [track] fun:test_expect_test:967 @ test/test_expect_test.ml:967:11-969:71
+                          i = 8
+                          [track] z @ test/test_expect_test.ml:968:17-968:18
+                            => 8
+                          [track] then:test_expect_test:969 @ test/test_expect_test.ml:969:28-969:29
+                        [track] fun:test_expect_test:967 @ test/test_expect_test.ml:967:11-969:71
+                          i = 9
+                          [track] z @ test/test_expect_test.ml:968:17-968:18
+                            => 9
+                          [track] then:test_expect_test:969 @ test/test_expect_test.ml:969:28-969:29
+                        [track] fun:test_expect_test:967 @ test/test_expect_test.ml:967:11-969:71
+                          i = 10
+                          fun:test_expect_test:967 = <max_num_children exceeded>
     |}]
 
 module type T = sig
@@ -1110,12 +1061,10 @@ module type T = sig
   val c : c
 end
 
-*)
-
-(*
 let%expect_test "%debug_show function with abstract type" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
   in
   let%debug_show foo (type d) (module D : T with type c = d) ~a (c : int) : int =
@@ -1133,16 +1082,15 @@ let%expect_test "%debug_show function with abstract type" =
            ~a:3 1
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1395:21: foo
-    ├─c = 1
-    └─foo = 2
     2
+    [debug] foo @ test/test_expect_test.ml:1070:21-1071:47
+      c = 1
+      => 2
     |}]
-
-*)
 
 (*
 let%expect_test "%debug_show PrintBox values_first_mode to stdout with exception" =
