@@ -536,6 +536,13 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
           let run_id = get_run_id () in
           let entry_id = top.entry_id in
 
+          (* Delete the entry and all its descendants from the database.
+             Note: The entry remains on the stack, so subsequent log_value and close_log
+             calls will continue to execute. Any values logged after this point become
+             "orphaned" (no header to attach to) and are unreachable by the tree renderer.
+             This is acceptable as they don't appear in output and cleaning them up would
+             add complexity. The main DB size issue is content-addressed value storage. *)
+
           (* Iteratively collect all descendants using BFS *)
           let descendant_ids = ref [] in
           let to_process = ref [entry_id] in

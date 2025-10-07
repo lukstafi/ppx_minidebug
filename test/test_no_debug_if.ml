@@ -33,7 +33,7 @@ let () =
   let result1 = compute 5 10 in
   Printf.printf "compute(5, 10) = %d\n" result1;
 
-  (* This should discard parameter logs but keep the entry *)
+  (* This should discard all logs for this call (header + values removed from DB) *)
   let result2 = compute (-3) 7 in
   Printf.printf "compute(-3, 7) = %d\n" result2;
 
