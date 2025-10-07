@@ -773,11 +773,14 @@ let () =
     foo-3 &lt;function -- branch 0&gt; () begin &quot;test/test_expect_test.ml&quot;:3957:8:
      &quot;inside bar&quot;
     foo-3 &lt;function -- branch 0&gt; () end
-    |}]</code></pre><p>Another similar feature is the extension points <code>%debug_rt_sexp</code>, <code>%track_rt_sexp</code>, etc. They add a first-class module argument to a function, and unpack the argument as <code>module Debug_runtime</code>. At present, passing of the runtime instance to functions needs to be done manually. Note that only the function attached to the <code>_rt_</code> extension point is modified.</p><p>Example from the test suite:</p><pre class="language-ocaml"><code>  let%track_rt_show foo l : int = match (l : int list) with [] -&gt; 7 | y :: _ -&gt; y * 2 in
+    |}]</code></pre><p>Another similar feature is the extension points <code>%debug_rt_sexp</code>, <code>%track_rt_sexp</code>, etc. They add a first-class module argument to a function, and unpack the argument as <code>module Debug_runtime</code>. At present, passing of the runtime instance to functions needs to be done manually. Note that only the function attached to the <code>_rt_</code> extension point is modified.</p><p>Example from the test suite:</p><pre class="language-ocaml"><code>  let rt run_name = Minidebug_db.debug_db_file ~run_name db_file in
+  let%track_rt_show foo l : int = match (l : int list) with [] -&gt; 7 | y :: _ -&gt; y * 2 in
   let () =
     print_endline @@ Int.to_string
-    @@ foo Minidebug_runtime.(forget_printbox @@ debug ~run_name:&quot;foo-1&quot; ()) [ 7 ]
+    @@ foo (rt &quot;foo-1&quot;) [ 7 ]
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:true (latest_run ());
   let%track_rt_show baz : int list -&gt; int = function
     | [] -&gt; 7
     | [ y ] -&gt; y * 2
@@ -786,36 +789,30 @@ let () =
   in
   let () =
     print_endline @@ Int.to_string
-    @@ baz Minidebug_runtime.(forget_printbox @@ debug ~run_name:&quot;baz-1&quot; ()) [ 4 ]
+    @@ baz (rt &quot;baz-1&quot;) [ 4 ]
   in
+  Minidebug_client.Client.show_trace db ~values_first_mode:true (latest_run ());
   let () =
     print_endline @@ Int.to_string
     @@ baz
-         Minidebug_runtime.(forget_printbox @@ debug ~run_name:&quot;baz-2&quot; ())
+         (rt &quot;baz-2&quot;)
          [ 4; 5; 6 ]
   in
+  Minidebug_client.Client.show_trace db ~values_first_mode:true (latest_run ());
   [%expect
     {|
-    BEGIN DEBUG SESSION foo-1
-    foo = 14
-    ├─&quot;test/test_expect_test.ml&quot;:2335:24
-    └─foo-1 &lt;match -- branch 1&gt; :: (y, _)
-      ├─&quot;test/test_expect_test.ml&quot;:2335:80
-      └─y = 7
     14
-
-    BEGIN DEBUG SESSION baz-1
-    baz = 8
-    ├─&quot;test/test_expect_test.ml&quot;:2342:15
-    ├─baz-1 &lt;function -- branch 1&gt; :: (y, [])
-    └─y = 4
+    latest_run: foo-1
+    [track] foo =&gt; 14 @ test/test_expect_test.ml:1738:24-1738:85
+      [track] &lt;match -- branch 1&gt; :: (y, _) @ test/test_expect_test.ml:1738:80-1738:85
+        y = 7
     8
-
-    BEGIN DEBUG SESSION baz-2
-    baz = 10
-    ├─&quot;test/test_expect_test.ml&quot;:2344:21
-    ├─baz-2 &lt;function -- branch 3&gt; :: (y, :: (z, _))
-    ├─y = 4
-    └─z = 5
+    latest_run: baz-1
+    [track] &lt;function -- branch 1&gt; :: (y, []) =&gt; baz = 8 @ test/test_expect_test.ml:1747:15-1747:20
+      y = 4
     10
+    latest_run: baz-2
+    [track] &lt;function -- branch 3&gt; :: (y, :: (z, _)) =&gt; baz = 10 @ test/test_expect_test.ml:1749:21-1749:30
+      y = 4
+      z = 5
     |}]</code></pre></div></body></html>
