@@ -134,11 +134,19 @@ CREATE INDEX idx_value_hash ON value_atoms(value_hash);
 CREATE INDEX idx_value_type ON value_atoms(value_type);
 
 -- Main trace entries (references values via IDs)
-CREATE TABLE entries (
+CREATE TABLE entry_parents (
   run_id INTEGER NOT NULL,
   entry_id INTEGER NOT NULL,
-  seq_num INTEGER NOT NULL DEFAULT 0,  -- Discriminates scope vs value rows
   parent_id INTEGER,             -- NULL for top-level entries
+  PRIMARY KEY (run_id, entry_id),
+  FOREIGN KEY (run_id) REFERENCES runs(run_id)
+);
+
+CREATE TABLE entries (
+  run_id INTEGER NOT NULL,
+  entry_id INTEGER NOT NULL,     -- Parent scope ID (all children share same entry_id)
+  seq_id INTEGER NOT NULL,       -- Position within parent's children list (0, 1, 2...)
+  header_entry_id INTEGER,       -- NULL for values, points to new scope for headers
   depth INTEGER NOT NULL,
 
   -- References to interned values (deduplication)
@@ -151,43 +159,45 @@ CREATE TABLE entries (
 
   -- Timing
   elapsed_start_ns INTEGER NOT NULL,
-  elapsed_end_ns INTEGER,        -- NULL until close_log (only for seq_num=0)
+  elapsed_end_ns INTEGER,        -- NULL until close_log (only for headers)
 
   -- Metadata
   is_result BOOLEAN DEFAULT FALSE,
   track_or_explicit TEXT,        -- 'Diagn', 'Debug', 'Track'
 
-  PRIMARY KEY (run_id, entry_id, seq_num),
+  PRIMARY KEY (run_id, entry_id, seq_id),
   FOREIGN KEY (run_id) REFERENCES runs(run_id)
 );
-CREATE INDEX idx_parent ON entries(run_id, parent_id);
+CREATE INDEX idx_entries_header ON entries(run_id, header_entry_id);
 CREATE INDEX idx_depth ON entries(run_id, depth);
 CREATE INDEX idx_message ON entries(message_value_id);
 ```
 
-**Key Design: `seq_num` Discriminates Row Types**
+**Key Design: Unified Chronological Ordering**
 
-The composite primary key `(run_id, entry_id, seq_num)` allows multiple rows per logical entry:
+The schema uses `entry_id` to group all children of a parent scope, and `seq_id` for chronological position:
 
-- **`seq_num = 0`**: Scope entry (function call, let binding) created by `open_log`
-  - Contains: message (function name), location, timing (start/end)
-  - Represents non-leaf tree nodes
+- **`entry_id`**: Parent scope ID that all children (headers and values) share
+  - Root entries have `entry_id = 0` (virtual root)
+  - All children of scope X have `entry_id = X`
 
-- **`seq_num > 0`**: Parameter/intermediate values created by `log_value_*`
-  - Contains: message (parameter name like "x"), data (parameter value)
-  - `seq_num` increments: 1, 2, 3... for multiple parameters
-  - Represents leaf tree nodes
+- **`seq_id`**: Pure positional indicator (0, 1, 2...) within parent's children
+  - No overloading for type discrimination
+  - Provides unified chronological ordering for all child types
 
-- **`seq_num = -1`**: Result value created by `log_value_*` with `is_result=true`
-  - Contains: data (function return value)
-  - Represents the final result leaf node
+- **`header_entry_id`**: Discriminates row types
+  - **NULL**: Value row (parameter or result, distinguished by `is_result`)
+  - **Non-NULL**: Header row opening a new scope (value points to new scope's ID)
 
-Example for `let%debug_sexp foo (x : int) (y : int) : int list`:
+Example for `let%debug_sexp foo (x : int) (y : int) : int list` nested in scope 10:
 ```
-(run_id=1, entry_id=42, seq_num=0)  → scope: "foo" @ location
-(run_id=1, entry_id=42, seq_num=1)  → param: "x" = 7
-(run_id=1, entry_id=42, seq_num=2)  → param: "y" = 8
-(run_id=1, entry_id=42, seq_num=-1) → result: => (7 8 16)
+entry_parents: (entry_id=42, parent_id=10)  → foo's parent relationship
+
+entries:
+(run_id=1, entry_id=10, seq_id=0, header_entry_id=42)  → header opening scope 42
+(run_id=1, entry_id=42, seq_id=0, header_entry_id=NULL) → param: "x" = 7
+(run_id=1, entry_id=42, seq_id=1, header_entry_id=NULL) → param: "y" = 8
+(run_id=1, entry_id=42, seq_id=2, header_entry_id=NULL) → result: => (7 8 16)
 ```
 
 This matches the original design philosophy:

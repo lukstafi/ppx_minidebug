@@ -84,35 +84,47 @@ val debug_db :
 - `value_type`: Type of value (message, location, value, result)
 - `size_bytes`: Size of value in bytes
 
-**entries** - Trace entries (composite key allows multiple values per scope)
+**entry_parents** - Entry parent relationships
 - `run_id`: Foreign key to runs table
-- `entry_id`: Entry identifier (unique within run for scopes)
-- `seq_num`: Sequence number discriminating row type:
-  - `0` = scope entry (function/let binding created by `open_log`)
-  - `1, 2, 3...` = parameter values (created by `log_value_*`)
-  - `-1` = result value (created by `log_value_*` with `is_result=true`)
-- `parent_id`: Parent entry ID (NULL for top-level, self for values)
-- `depth`: Nesting depth (scope depth + 1 for values)
+- `entry_id`: Entry identifier (unique within run)
+- `parent_id`: Parent entry ID (NULL for top-level entries)
+
+**Primary Key:** `(run_id, entry_id)` ensures one parent per entry.
+
+**entries** - Trace entries (composite key allows chronological ordering of children)
+- `run_id`: Foreign key to runs table
+- `entry_id`: Parent scope ID (all children of a scope share the same entry_id)
+- `seq_id`: Chronological position within parent's children (0, 1, 2...)
+- `header_entry_id`: Discriminates row type:
+  - `NULL` = value row (parameter or result)
+  - Non-NULL = header row opening a new scope (points to new scope's entry_id)
+- `depth`: Nesting depth
 - `message_value_id`: Foreign key to value_atoms (function name or parameter name)
-- `location_value_id`: Foreign key to value_atoms (source location, only for seq_num=0)
-- `data_value_id`: Foreign key to value_atoms (logged value, only for seq_num!=0)
+- `location_value_id`: Foreign key to value_atoms (source location, only for headers)
+- `data_value_id`: Foreign key to value_atoms (logged value, only for values)
 - `structure_value_id`: Foreign key to value_atoms (sexp structure, future use)
 - `elapsed_start_ns`: Entry start time in nanoseconds
-- `elapsed_end_ns`: Entry end time in nanoseconds (NULL until close_log, only for seq_num=0)
+- `elapsed_end_ns`: Entry end time in nanoseconds (NULL until close_log, only for headers)
 - `is_result`: Boolean indicating if this is a result value
 - `log_level`: Log level of the entry
-- `entry_type`: Entry type (diagn, debug, track for scopes; "value" for logged values)
+- `entry_type`: Entry type (diagn, debug, track for headers; "value" for values)
 
-**Primary Key:** `(run_id, entry_id, seq_num)` allows multiple rows per logical entry.
+**Primary Key:** `(run_id, entry_id, seq_id)` provides unique position for each child.
 
-**Example:** For `let%debug_sexp foo (x : int) (y : int) : int list = [x; y; 2*y]` called as `foo 7 8`:
+**Example:** For `let%debug_sexp foo (x : int) (y : int) : int list = [x; y; 2*y]` with entry_id=42, nested in scope 10:
 
-| run_id | entry_id | seq_num | message | location | data | is_result |
-|--------|----------|---------|---------|----------|------|-----------|
-| 1 | 42 | 0 | "foo" | "test.ml:10:15" | NULL | false |
-| 1 | 42 | 1 | "x" | NULL | "7" | false |
-| 1 | 42 | 2 | "y" | NULL | "8" | false |
-| 1 | 42 | -1 | "" | NULL | "(7 8 16)" | true |
+entry_parents table:
+| run_id | entry_id | parent_id |
+|--------|----------|-----------|
+| 1 | 42 | 10 |
+
+entries table:
+| run_id | entry_id | seq_id | header_entry_id | message | location | data | is_result |
+|--------|----------|--------|-----------------|---------|----------|------|-----------|
+| 1 | 10 | 5 | 42 | "foo" | "test.ml:10:15" | NULL | false |
+| 1 | 42 | 0 | NULL | "x" | NULL | "7" | false |
+| 1 | 42 | 1 | NULL | "y" | NULL | "8" | false |
+| 1 | 42 | 2 | NULL | "" | NULL | "(7 8 16)" | true |
 
 Rendered as:
 ```
