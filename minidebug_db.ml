@@ -154,14 +154,31 @@ module ValueIntern = struct
     Sqlite3.finalize t.lookup_stmt |> ignore
 end
 
+(** Extended config module type with boxify parameters *)
+module type Db_config = sig
+  include Minidebug_runtime.Shared_config
+  val boxify_sexp_from_size : int
+  val max_inline_sexp_size : int
+  val max_inline_sexp_length : int
+end
+
 (** Database backend implementing Debug_runtime interface *)
-module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
+module DatabaseBackend (Log_to : Db_config) :
   Minidebug_runtime.Debug_runtime = struct
   open Log_to
 
   let log_level = ref init_log_level
   let max_nesting_depth = ref None
   let max_num_children = ref None
+
+  (** Calculate the size of a sexp (number of atoms) *)
+  let sexp_size sexp =
+    let open Sexplib0.Sexp in
+    let rec loop = function
+      | Atom _ -> 1
+      | List l -> List.fold_left ( + ) 0 (List.map loop l)
+    in
+    loop sexp
 
   type entry_info = {
     entry_id : int;
@@ -181,6 +198,7 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
   let stack : entry_info list ref = ref []
   let hidden_entries = ref []
   let root_seq_counter = ref 0  (* Counter for root-level entries *)
+  let boxify_entry_id_counter = ref 0  (* Counter for synthetic entry_ids from boxify *)
 
   (** Initialize database connection *)
   let initialize_database filename =
@@ -359,6 +377,130 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
     open_log ~fname:"" ~start_lnum:0 ~start_colnum:0 ~end_lnum:0 ~end_colnum:0 ~message
       ~entry_id ~log_level log_type
 
+  (** Generate a fresh synthetic entry_id for boxified values *)
+  let get_boxify_entry_id () =
+    decr boxify_entry_id_counter;
+    !boxify_entry_id_counter
+
+  (** Helper to insert a value entry into the database *)
+  let insert_value_entry ~entry_id ~seq_id ~depth ~message ~content_str ~is_result =
+    let db = get_db () in
+    let run_id = get_run_id () in
+    let intern = get_intern () in
+
+    (* Intern the message (parameter/result name) *)
+    let message_value_id = ValueIntern.intern intern ~value_type:"message" message in
+
+    (* Intern value content *)
+    let value_type = if is_result then "result" else "value" in
+    let data_value_id = ValueIntern.intern intern ~value_type content_str in
+
+    (* Get elapsed time *)
+    let elapsed_start = Mtime_clock.elapsed () in
+    let elapsed_ns =
+      match Int64.unsigned_to_int @@ Mtime.Span.to_uint64_ns elapsed_start with
+      | None -> 0
+      | Some ns -> ns
+    in
+
+    (* Insert value row into entries table *)
+    let stmt =
+      Sqlite3.prepare db
+        "INSERT INTO entries (run_id, entry_id, seq_id, header_entry_id, depth, message_value_id, \
+         data_value_id, elapsed_start_ns, elapsed_end_ns, is_result, log_level, entry_type) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    in
+    Sqlite3.bind_int stmt 1 run_id |> ignore;
+    Sqlite3.bind_int stmt 2 entry_id |> ignore;
+    Sqlite3.bind_int stmt 3 seq_id |> ignore;
+    Sqlite3.bind stmt 4 Sqlite3.Data.NULL |> ignore;  (* header_entry_id is NULL for values *)
+    Sqlite3.bind_int stmt 5 depth |> ignore;
+    Sqlite3.bind_int stmt 6 message_value_id |> ignore;
+    Sqlite3.bind_int stmt 7 data_value_id |> ignore;
+    Sqlite3.bind_int stmt 8 elapsed_ns |> ignore;
+    Sqlite3.bind_int stmt 9 elapsed_ns |> ignore;
+    Sqlite3.bind_int stmt 10 (if is_result then 1 else 0) |> ignore;
+    Sqlite3.bind_int stmt 11 1 |> ignore;  (* log_level *)
+    Sqlite3.bind_text stmt 12 "value" |> ignore;
+
+    (match Sqlite3.step stmt with
+    | Sqlite3.Rc.DONE -> ()
+    | rc ->
+        let err_msg = Printf.sprintf
+          "Failed to insert value row: %s (entry_id=%d, seq_id=%d, depth=%d, message=%S, content=%S)"
+          (Sqlite3.Rc.to_string rc) entry_id seq_id depth message content_str in
+        Sqlite3.finalize stmt |> ignore;
+        failwith err_msg);
+    Sqlite3.finalize stmt |> ignore
+
+  (** Boxify a sexp: split it into multiple database entries with synthetic entry_ids.
+      Returns a list of (synthetic_entry_id, seq_id, depth, message, content_str) tuples. *)
+  let boxify ~descr ~depth ~parent_entry_id sexp =
+    let open Sexplib0.Sexp in
+    (* Start seq_id from the parent's current num_children to avoid collisions *)
+    let starting_seq =
+      match List.find_opt (fun e -> e.entry_id = parent_entry_id) !stack with
+      | Some parent_entry -> parent_entry.num_children
+      | None -> 0
+    in
+    let parent_seq = ref starting_seq in
+    let get_next_seq () =
+      let s = !parent_seq in
+      incr parent_seq;
+      s
+    in
+
+    let rec loop ~depth sexp =
+      if sexp_size sexp < boxify_sexp_from_size then
+        (* Small enough - return as single entry *)
+        let content = Sexplib0.Sexp.to_string_mach sexp in
+        [(parent_entry_id, get_next_seq (), depth, "", content)]
+      else
+        match sexp with
+        | Atom s ->
+            [(parent_entry_id, get_next_seq (), depth, "", s)]
+        | List [] -> []
+        | List [ s ] -> loop ~depth:(depth + 1) s
+        | List (Atom s :: body) ->
+            (* Create a synthetic scope for this subtree *)
+            let _synthetic_id = get_boxify_entry_id () in
+            (* Insert header entry *)
+            let entries_ref = ref [(parent_entry_id, get_next_seq (), depth, s, "")] in
+            (* Recursively process body *)
+            List.iter (fun child ->
+              let child_entries = loop ~depth:(depth + 1) child in
+              entries_ref := !entries_ref @ child_entries
+            ) body;
+            !entries_ref
+        | List l ->
+            (* Process each element of the list *)
+            List.concat (List.map (loop ~depth:(depth + 1)) l)
+    in
+
+    (* Handle the initial descr wrapping *)
+    match (sexp, descr) with
+    | (Atom s | List [ Atom s ]), Some d ->
+        [(parent_entry_id, get_next_seq (), depth, d, s)]
+    | (Atom s | List [ Atom s ]), None ->
+        [(parent_entry_id, get_next_seq (), depth, "", s)]
+    | List [], Some d ->
+        [(parent_entry_id, get_next_seq (), depth, d, "")]
+    | List [], None -> []
+    | List l, _ ->
+        let str =
+          if sexp_size sexp < min boxify_sexp_from_size max_inline_sexp_size
+          then Sexplib0.Sexp.to_string_hum sexp
+          else ""
+        in
+        if String.length str > 0 && String.length str < max_inline_sexp_length then
+          let msg = match descr with None -> "" | Some d -> d in
+          let content = match descr with None -> str | Some d -> d ^ " = " ^ str in
+          [(parent_entry_id, get_next_seq (), depth, msg, content)]
+        else
+          (* Need to boxify - add descr as header if present *)
+          let body_sexp = List ((match descr with None -> [] | Some d -> [ Atom (d ^ " =") ]) @ l) in
+          loop ~depth:(depth + 1) body_sexp
+
   let log_value_common ~descr ~entry_id ~log_level:_ ~is_result content_str =
     if List.mem entry_id !hidden_entries then ()
     else
@@ -421,13 +563,32 @@ module DatabaseBackend (Log_to : Minidebug_runtime.Shared_config) :
 
   let log_value_sexp ?descr ~entry_id ~log_level ~is_result v =
     if not (check_log_level log_level) then ()
+    else if List.mem entry_id !hidden_entries then ()
     else
       (* Force the lazy value to get actual content *)
       let sexp = Lazy.force v in
       if sexp = Sexplib0.Sexp.List [] then ()
-      else
+      else if boxify_sexp_from_size >= 0 && sexp_size sexp >= boxify_sexp_from_size then (
+        (* Boxify: split into multiple entries *)
+        let depth =
+          match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
+          | Some parent_entry -> parent_entry.depth + 1
+          | None -> List.length !stack
+        in
+        let entries = boxify ~descr ~depth ~parent_entry_id:entry_id sexp in
+        List.iter (fun (eid, seq, d, msg, content) ->
+          if content <> "" then
+            insert_value_entry ~entry_id:eid ~seq_id:seq ~depth:d ~message:msg
+              ~content_str:content ~is_result
+        ) entries;
+        (* Update parent's num_children counter *)
+        (match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
+        | Some parent_entry -> parent_entry.num_children <- parent_entry.num_children + List.length entries
+        | None -> ())
+      ) else (
         let content = Sexplib0.Sexp.to_string_mach sexp in
         log_value_common ~descr ~entry_id ~log_level ~is_result content
+      )
 
   let log_value_pp ?descr ~entry_id ~log_level ~pp ~is_result v =
     if not (check_log_level log_level) then ()
@@ -641,8 +802,10 @@ end
 let db_config ?(time_tagged = Minidebug_runtime.Not_tagged)
     ?(elapsed_times = Minidebug_runtime.Not_reported)
     ?(location_format = Minidebug_runtime.Beg_pos) ?(print_entry_ids = false)
-    ?(verbose_entry_ids = false) ?(run_name = "") ?(log_level = 9) ?path_filter
-    db_filename : (module Minidebug_runtime.Shared_config) =
+    ?(verbose_entry_ids = false) ?(run_name = "") ?(log_level = 9)
+    ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_size = 20)
+    ?(max_inline_sexp_length = 80) ?path_filter
+    db_filename : (module Db_config) =
   let module Config = struct
     let refresh_ch () = false
     let debug_ch () = stdout (* Unused for database backend *)
@@ -661,6 +824,9 @@ let db_config ?(time_tagged = Minidebug_runtime.Not_tagged)
     let toc_entry = Minidebug_runtime.And []
     let init_log_level = log_level
     let path_filter = path_filter
+    let boxify_sexp_from_size = boxify_sexp_from_size
+    let max_inline_sexp_size = max_inline_sexp_size
+    let max_inline_sexp_length = max_inline_sexp_length
   end in
   (module Config)
 
@@ -669,22 +835,28 @@ let debug_db_file ?(time_tagged = Minidebug_runtime.Not_tagged)
     ?(elapsed_times = Minidebug_runtime.Not_reported)
     ?(location_format = Minidebug_runtime.Beg_pos) ?(print_entry_ids = false)
     ?(verbose_entry_ids = false) ?(run_name = "") ?(for_append = true)
-    ?(log_level = 9) ?path_filter filename =
+    ?(log_level = 9) ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_size = 20)
+    ?(max_inline_sexp_length = 80) ?path_filter filename =
   let _ = for_append in (* Ignore for database backend *)
   let config =
     db_config ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
-      ~verbose_entry_ids ~run_name ~log_level ?path_filter filename
+      ~verbose_entry_ids ~run_name ~log_level ~boxify_sexp_from_size
+      ~max_inline_sexp_size ~max_inline_sexp_length ?path_filter filename
   in
-  let module Config = (val config : Minidebug_runtime.Shared_config) in
-  (module DatabaseBackend (Config) : Minidebug_runtime.Debug_runtime)
+  let module Config = (val config : Db_config) in
+  let module Backend = DatabaseBackend (Config) in
+  (module Backend : Minidebug_runtime.Debug_runtime)
 
 (** Factory function for database runtime with channel (uses filename from config) *)
 let debug_db ?(debug_ch = stdout) ?(time_tagged = Minidebug_runtime.Not_tagged)
     ?(elapsed_times = Minidebug_runtime.Not_reported)
     ?(location_format = Minidebug_runtime.Beg_pos) ?(print_entry_ids = false)
-    ?(verbose_entry_ids = false) ?(run_name = "") ?(log_level = 9) ?path_filter () =
+    ?(verbose_entry_ids = false) ?(run_name = "") ?(log_level = 9)
+    ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_size = 20)
+    ?(max_inline_sexp_length = 80) ?path_filter () =
   (* For database backend, we ignore debug_ch and create a file-based config *)
   let _ = debug_ch in
   let filename = "debug" in
   debug_db_file ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
-    ~verbose_entry_ids ~run_name ~for_append:true ~log_level ?path_filter filename
+    ~verbose_entry_ids ~run_name ~for_append:true ~log_level ~boxify_sexp_from_size
+    ~max_inline_sexp_size ~max_inline_sexp_length ?path_filter filename

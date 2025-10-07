@@ -30,8 +30,16 @@ module ValueIntern : sig
   (** Finalize prepared statements *)
 end
 
+(** Extended config module type with boxify parameters *)
+module type Db_config = sig
+  include Minidebug_runtime.Shared_config
+  val boxify_sexp_from_size : int
+  val max_inline_sexp_size : int
+  val max_inline_sexp_length : int
+end
+
 (** Database backend implementing Debug_runtime interface *)
-module DatabaseBackend : functor (_ : Minidebug_runtime.Shared_config) ->
+module DatabaseBackend : functor (_ : Db_config) ->
   Minidebug_runtime.Debug_runtime
 
 (** Factory function to create a database runtime that writes to a file *)
@@ -44,6 +52,9 @@ val debug_db_file :
   ?run_name:string ->
   ?for_append:bool ->
   ?log_level:int ->
+  ?boxify_sexp_from_size:int ->
+  ?max_inline_sexp_size:int ->
+  ?max_inline_sexp_length:int ->
   ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->
   string ->
   (module Minidebug_runtime.Debug_runtime)
@@ -58,6 +69,9 @@ val debug_db :
   ?verbose_entry_ids:bool ->
   ?run_name:string ->
   ?log_level:int ->
+  ?boxify_sexp_from_size:int ->
+  ?max_inline_sexp_size:int ->
+  ?max_inline_sexp_length:int ->
   ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->
   unit ->
   (module Minidebug_runtime.Debug_runtime)

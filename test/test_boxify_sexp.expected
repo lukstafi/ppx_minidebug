@@ -1,0 +1,10 @@
+=== Test boxify with small threshold (boxify_sexp_from_size=2) ===
+[debug] test_boxify @ test/test_boxify_sexp.ml:11:29-14:51
+  "This is the first log line"
+  2
+  "log line"
+  3
+  or
+  3.14
+  "log line"
+Test complete.

@@ -1636,8 +1636,8 @@ let%expect_test "%debug_show debug type info" =
     |}]
 (* $MDX part-end *)
 
-(*
 let%expect_test "%track_show options values_first_mode" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
@@ -1657,38 +1657,29 @@ let%expect_test "%track_show options values_first_mode" =
     | Some (y, z) -> y + z
   in
   let () = print_endline @@ Int.to_string @@ zoo (Some (4, 5)) in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:true run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    foo = 14
-    ├─"test/test_expect_test.ml":2241:21
-    └─<match -- branch 1> Some y
-      ├─"test/test_expect_test.ml":2242:54
-      └─y = 7
     14
-    bar = 14
-    ├─"test/test_expect_test.ml":2245:21
-    ├─l = (Some 7)
-    └─<match -- branch 1> Some y
-      └─"test/test_expect_test.ml":2246:39
     14
-    baz = 8
-    ├─"test/test_expect_test.ml":2249:74
-    ├─<function -- branch 1> Some y
-    └─y = 4
     8
-    zoo = 9
-    ├─"test/test_expect_test.ml":2253:21
-    ├─<function -- branch 1> Some (y, z)
-    ├─y = 4
-    └─z = 5
     9
+    [track] foo => 14 @ test/test_expect_test.ml:1645:21-1646:59
+      [track] <match -- branch 1> Some y @ test/test_expect_test.ml:1646:54-1646:59
+        y = 7
+    [track] bar => 14 @ test/test_expect_test.ml:1649:21-1650:44
+      l = (Some 7)
+      [track] <match -- branch 1> Some y @ test/test_expect_test.ml:1650:39-1650:44
+    [track] <function -- branch 1> Some y => baz = 8 @ test/test_expect_test.ml:1653:74-1653:79
+      y = 4
+    [track] <function -- branch 1> Some (y, z) => zoo = 9 @ test/test_expect_test.ml:1657:21-1657:26
+      y = 4
+      z = 5
     |}]
 
-*)
-
-(*
 let%expect_test "%track_show list values_first_mode" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
@@ -1706,50 +1697,51 @@ let%expect_test "%track_show list values_first_mode" =
   let () = print_endline @@ Int.to_string @@ baz [ 4 ] in
   let () = print_endline @@ Int.to_string @@ baz [ 4; 5 ] in
   let () = print_endline @@ Int.to_string @@ baz [ 4; 5; 6 ] in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:true run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    foo = 14
-    ├─"test/test_expect_test.ml":2286:21
-    └─<match -- branch 1> :: (y, _)
-      ├─"test/test_expect_test.ml":2286:77
-      └─y = 7
     14
-    bar = 14
-    ├─"test/test_expect_test.ml":2288:21
-    ├─l = [7]
-    └─<match -- branch 1> :: (y, _)
-      └─"test/test_expect_test.ml":2288:77
     14
-    baz = 8
-    ├─"test/test_expect_test.ml":2292:15
-    ├─<function -- branch 1> :: (y, [])
-    └─y = 4
     8
-    baz = 9
-    ├─"test/test_expect_test.ml":2293:18
-    ├─<function -- branch 2> :: (y, :: (z, []))
-    ├─y = 4
-    └─z = 5
     9
-    baz = 10
-    ├─"test/test_expect_test.ml":2294:21
-    ├─<function -- branch 3> :: (y, :: (z, _))
-    ├─y = 4
-    └─z = 5
     10
+    [track] foo => 14 @ test/test_expect_test.ml:1687:21-1687:82
+      [track] <match -- branch 1> :: (y, _) @ test/test_expect_test.ml:1687:77-1687:82
+        y = 7
+    [track] bar => 14 @ test/test_expect_test.ml:1689:21-1689:82
+      l = [7]
+      [track] <match -- branch 1> :: (y, _) @ test/test_expect_test.ml:1689:77-1689:82
+    [track] <function -- branch 1> :: (y, []) => baz = 8 @ test/test_expect_test.ml:1693:15-1693:20
+      y = 4
+    [track] <function -- branch 2> :: (y, :: (z, [])) => baz = 9 @ test/test_expect_test.ml:1694:18-1694:23
+      y = 4
+      z = 5
+    [track] <function -- branch 3> :: (y, :: (z, _)) => baz = 10 @ test/test_expect_test.ml:1695:21-1695:30
+      y = 4
+      z = 5
     |}]
 
-*)
-
-(*
+let latest_run () =
+  let run_id = next_run () in
+  let result =
+    Minidebug_client.Client.open_db db_file |>
+    Minidebug_client.Client.get_latest_run |>
+    Option.get in
+  print_endline @@ "latest_run: " ^ Option.get result.run_name;
+  assert (result.run_id = run_id);
+  result.run_id
+  
 let%expect_test "%track_rt_show list runtime passing" =
   (* $MDX part-begin=track_rt_show_list_runtime_passing *)
+  let rt run_name = Minidebug_db.debug_db_file ~run_name db_file in
   let%track_rt_show foo l : int = match (l : int list) with [] -> 7 | y :: _ -> y * 2 in
   let () =
     print_endline @@ Int.to_string
-    @@ foo Minidebug_runtime.(forget_printbox @@ debug ~run_name:"foo-1" ()) [ 7 ]
+    @@ foo (rt "foo-1") [ 7 ]
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:true (latest_run ());
   let%track_rt_show baz : int list -> int = function
     | [] -> 7
     | [ y ] -> y * 2
@@ -1758,81 +1750,67 @@ let%expect_test "%track_rt_show list runtime passing" =
   in
   let () =
     print_endline @@ Int.to_string
-    @@ baz Minidebug_runtime.(forget_printbox @@ debug ~run_name:"baz-1" ()) [ 4 ]
+    @@ baz (rt "baz-1") [ 4 ]
   in
+  Minidebug_client.Client.show_trace db ~values_first_mode:true (latest_run ());
   let () =
     print_endline @@ Int.to_string
     @@ baz
-         Minidebug_runtime.(forget_printbox @@ debug ~run_name:"baz-2" ())
+         (rt "baz-2")
          [ 4; 5; 6 ]
   in
+  Minidebug_client.Client.show_trace db ~values_first_mode:true (latest_run ());
   [%expect
     {|
-    BEGIN DEBUG SESSION foo-1
-    foo = 14
-    ├─"test/test_expect_test.ml":2335:24
-    └─foo-1 <match -- branch 1> :: (y, _)
-      ├─"test/test_expect_test.ml":2335:80
-      └─y = 7
     14
-
-    BEGIN DEBUG SESSION baz-1
-    baz = 8
-    ├─"test/test_expect_test.ml":2342:15
-    ├─baz-1 <function -- branch 1> :: (y, [])
-    └─y = 4
+    latest_run: foo-1
+    [track] foo => 14 @ test/test_expect_test.ml:1738:24-1738:85
+      [track] <match -- branch 1> :: (y, _) @ test/test_expect_test.ml:1738:80-1738:85
+        y = 7
     8
-
-    BEGIN DEBUG SESSION baz-2
-    baz = 10
-    ├─"test/test_expect_test.ml":2344:21
-    ├─baz-2 <function -- branch 3> :: (y, :: (z, _))
-    ├─y = 4
-    └─z = 5
+    latest_run: baz-1
+    [track] <function -- branch 1> :: (y, []) => baz = 8 @ test/test_expect_test.ml:1747:15-1747:20
+      y = 4
     10
+    latest_run: baz-2
+    [track] <function -- branch 3> :: (y, :: (z, _)) => baz = 10 @ test/test_expect_test.ml:1749:21-1749:30
+      y = 4
+      z = 5
     |}]
 (* $MDX part-end *)
 
-*)
-
-(*
 let%expect_test "%track_rt_show procedure runtime passing" =
+  let rt run_name = Minidebug_db.debug_db_file ~run_name db_file in
   let%track_rt_show bar () = (fun () -> ()) () in
-  let () = bar (Minidebug_runtime.debug_flushing ~run_name:"bar-1" ()) () in
-  let () = bar (Minidebug_runtime.debug_flushing ~run_name:"bar-2" ()) () in
+  let () = bar (rt "bar-1") () in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db (latest_run ());
+  let () = bar (rt "bar-2") () in
+  Minidebug_client.Client.show_trace db (latest_run ());
   let%track_rt_show foo () =
     let () = () in
     ()
   in
-  let () = foo (Minidebug_runtime.debug_flushing ~run_name:"foo-1" ()) () in
-  let () = foo (Minidebug_runtime.debug_flushing ~run_name:"foo-2" ()) () in
+  let () = foo (rt "foo-1") () in
+  Minidebug_client.Client.show_trace db (latest_run ());
+  let () = foo (rt "foo-2") () in
+  Minidebug_client.Client.show_trace db (latest_run ());
   [%expect
     {|
-    BEGIN DEBUG SESSION bar-1
-    bar-1 bar begin "test/test_expect_test.ml":2384:24:
-     bar-1 fun:test_expect_test:2384 begin "test/test_expect_test.ml":2384:29:
-     bar-1 fun:test_expect_test:2384 end
-    bar-1 bar end
-
-    BEGIN DEBUG SESSION bar-2
-    bar-2 bar begin "test/test_expect_test.ml":2384:24:
-     bar-2 fun:test_expect_test:2384 begin "test/test_expect_test.ml":2384:29:
-     bar-2 fun:test_expect_test:2384 end
-    bar-2 bar end
-
-    BEGIN DEBUG SESSION foo-1
-    foo-1 foo begin "test/test_expect_test.ml":2387:24:
-    foo-1 foo end
-
-    BEGIN DEBUG SESSION foo-2
-    foo-2 foo begin "test/test_expect_test.ml":2387:24:
-    foo-2 foo end
+    latest_run: bar-1
+    [track] bar @ test/test_expect_test.ml:1784:24-1784:46
+      [track] fun:test_expect_test:1784 @ test/test_expect_test.ml:1784:29-1784:43
+    latest_run: bar-2
+    [track] bar @ test/test_expect_test.ml:1784:24-1784:46
+      [track] fun:test_expect_test:1784 @ test/test_expect_test.ml:1784:29-1784:43
+    latest_run: foo-1
+    [track] foo @ test/test_expect_test.ml:1790:24-1792:6
+    latest_run: foo-2
+    [track] foo @ test/test_expect_test.ml:1790:24-1792:6
     |}]
 
-*)
-
-(*
 let%expect_test "%track_rt_show nested procedure runtime passing" =
+  let rt run_name = Minidebug_db.debug_db_file ~run_name db_file in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
@@ -1846,46 +1824,34 @@ let%expect_test "%track_rt_show nested procedure runtime passing" =
     (foo, bar)
   in
   let foo, bar = rt_test () in
-  let () = foo (Minidebug_runtime.debug_flushing ~run_name:"foo-1" ()) () in
-  let () = foo (Minidebug_runtime.debug_flushing ~run_name:"foo-2" ()) () in
-  let () = bar (Minidebug_runtime.debug_flushing ~run_name:"bar-1" ()) () in
-  let () = bar (Minidebug_runtime.debug_flushing ~run_name:"bar-2" ()) () in
+  let db = Minidebug_client.Client.open_db db_file in
+  let () = foo (rt "foo-1") () in
+  Minidebug_client.Client.show_trace db (latest_run ());
+  let () = foo (rt "foo-2") () in
+  Minidebug_client.Client.show_trace db (latest_run ());
+  let () = bar (rt "bar-1") () in
+  Minidebug_client.Client.show_trace db (latest_run ());
+  let () = bar (rt "bar-2") () in
+  Minidebug_client.Client.show_trace db (latest_run ());
   [%expect
     {|
-    BEGIN DEBUG SESSION
-
-    BEGIN DEBUG SESSION foo-1
-    foo-1 foo begin "test/test_expect_test.ml":2420:26:
-    foo-1 foo end
-
-    BEGIN DEBUG SESSION foo-2
-    foo-2 foo begin "test/test_expect_test.ml":2420:26:
-    foo-2 foo end
-
-    BEGIN DEBUG SESSION bar-1
-    bar-1 bar begin "test/test_expect_test.ml":2419:26:
-     bar-1 fun:test_expect_test:2419 begin "test/test_expect_test.ml":2419:31:
-     bar-1 fun:test_expect_test:2419 end
-    bar-1 bar end
-
-    BEGIN DEBUG SESSION bar-2
-    bar-2 bar begin "test/test_expect_test.ml":2419:26:
-     bar-2 fun:test_expect_test:2419 begin "test/test_expect_test.ml":2419:31:
-     bar-2 fun:test_expect_test:2419 end
-    bar-2 bar end
+    latest_run: foo-1
+    [track] foo @ test/test_expect_test.ml:1820:26-1822:8
+    latest_run: foo-2
+    [track] foo @ test/test_expect_test.ml:1820:26-1822:8
+    latest_run: bar-1
+    [track] bar @ test/test_expect_test.ml:1819:26-1819:48
+      [track] fun:test_expect_test:1819 @ test/test_expect_test.ml:1819:31-1819:45
+    latest_run: bar-2
+    [track] bar @ test/test_expect_test.ml:1819:26-1819:48
+      [track] fun:test_expect_test:1819 @ test/test_expect_test.ml:1819:31-1819:45
     |}]
 
-*)
-
-(*
 let%expect_test "%log constant entries" =
-  let boxify_sexp_from = ref 20 in
-  let update_config config =
-    config.Minidebug_runtime.boxify_sexp_from_size <- !boxify_sexp_from
-  in
+  let run_id1 = next_run () in
+  let rt1 = Minidebug_db.debug_db_file ~boxify_sexp_from_size:20 db_file in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file db_file in
-    fun () -> rt
+    fun () -> rt1
   in
   let%debug_show foo () : unit =
     [%log "This is the first log line"];
@@ -1893,35 +1859,35 @@ let%expect_test "%log constant entries" =
     [%log "This is the", 3, "or", 3.14, "log line"]
   in
   let () = foo () in
-  boxify_sexp_from := 2;
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id1;
+  let run_id2 = next_run () in
+  let rt2 = Minidebug_db.debug_db_file ~boxify_sexp_from_size:2 db_file in
+  let _get_local_debug_runtime =
+    fun () -> rt2
+  in
   let%debug_sexp bar () : unit =
     [%log "This is the first log line"];
     [%log [ "This is the"; "2"; "log line" ]];
     [%log "This is the", 3, "or", 3.14, "log line"]
   in
   let () = bar () in
+  Minidebug_client.Client.show_trace db run_id2;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    foo = ()
-    ├─"test/test_expect_test.ml":2462:21
-    ├─"This is the first log line"
-    ├─["This is the"; "2"; "log line"]
-    └─("This is the", 3, "or", 3.14, "log line")
-    bar
-    ├─"test/test_expect_test.ml":2469:21
-    ├─This is the first log line
-    ├─This is the
-    │ ├─2
-    │ └─log line
-    └─This is the
-      ├─3
-      ├─or
-      ├─3.14
-      └─log line
+    [debug] foo => () @ test/test_expect_test.ml:1856:21-1859:51
+      "This is the first log line"
+      ["This is the"; "2"; "log line"]
+      ("This is the", 3, "or", 3.14, "log line")
+    [debug] bar @ test/test_expect_test.ml:1869:21-1872:51
+      "This is the first log line"
+      2
+      "log line"
+      3
+      or
+      3.14
+      "log line"
     |}]
-
-*)
 
 (*
 let%expect_test "%log with type annotations" =

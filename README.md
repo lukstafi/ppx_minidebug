@@ -1539,11 +1539,14 @@ Example from the test suite:
 
 <!-- $MDX file=test/test_expect_test.ml,part=track_rt_show_list_runtime_passing -->
 ```ocaml
+  let rt run_name = Minidebug_db.debug_db_file ~run_name db_file in
   let%track_rt_show foo l : int = match (l : int list) with [] -> 7 | y :: _ -> y * 2 in
   let () =
     print_endline @@ Int.to_string
-    @@ foo Minidebug_runtime.(forget_printbox @@ debug ~run_name:"foo-1" ()) [ 7 ]
+    @@ foo (rt "foo-1") [ 7 ]
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:true (latest_run ());
   let%track_rt_show baz : int list -> int = function
     | [] -> 7
     | [ y ] -> y * 2
@@ -1552,37 +1555,31 @@ Example from the test suite:
   in
   let () =
     print_endline @@ Int.to_string
-    @@ baz Minidebug_runtime.(forget_printbox @@ debug ~run_name:"baz-1" ()) [ 4 ]
+    @@ baz (rt "baz-1") [ 4 ]
   in
+  Minidebug_client.Client.show_trace db ~values_first_mode:true (latest_run ());
   let () =
     print_endline @@ Int.to_string
     @@ baz
-         Minidebug_runtime.(forget_printbox @@ debug ~run_name:"baz-2" ())
+         (rt "baz-2")
          [ 4; 5; 6 ]
   in
+  Minidebug_client.Client.show_trace db ~values_first_mode:true (latest_run ());
   [%expect
     {|
-    BEGIN DEBUG SESSION foo-1
-    foo = 14
-    ├─"test/test_expect_test.ml":2335:24
-    └─foo-1 <match -- branch 1> :: (y, _)
-      ├─"test/test_expect_test.ml":2335:80
-      └─y = 7
     14
-
-    BEGIN DEBUG SESSION baz-1
-    baz = 8
-    ├─"test/test_expect_test.ml":2342:15
-    ├─baz-1 <function -- branch 1> :: (y, [])
-    └─y = 4
+    latest_run: foo-1
+    [track] foo => 14 @ test/test_expect_test.ml:1738:24-1738:85
+      [track] <match -- branch 1> :: (y, _) @ test/test_expect_test.ml:1738:80-1738:85
+        y = 7
     8
-
-    BEGIN DEBUG SESSION baz-2
-    baz = 10
-    ├─"test/test_expect_test.ml":2344:21
-    ├─baz-2 <function -- branch 3> :: (y, :: (z, _))
-    ├─y = 4
-    └─z = 5
+    latest_run: baz-1
+    [track] <function -- branch 1> :: (y, []) => baz = 8 @ test/test_expect_test.ml:1747:15-1747:20
+      y = 4
     10
+    latest_run: baz-2
+    [track] <function -- branch 3> :: (y, :: (z, _)) => baz = 10 @ test/test_expect_test.ml:1749:21-1749:30
+      y = 4
+      z = 5
     |}]
 ```

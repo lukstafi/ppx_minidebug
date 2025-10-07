@@ -141,6 +141,13 @@
  (action
   (diff debugger_sexp.expected.log debugger_sexp.log)))
 
+(test
+ (name test_boxify_sexp)
+ (modules test_boxify_sexp)
+ (libraries sexplib0 minidebug_db minidebug_client)
+ (preprocess
+  (pps ppx_minidebug ppx_sexp_conv)))
+
 (executable
  (name test_debug_pp)
  (modules test_debug_pp)
