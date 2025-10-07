@@ -370,11 +370,10 @@
  (preprocess
   (pps ppx_minidebug ppx_sexp_conv)))
 
-(executable
+(test
  (name test_values_first)
  (modules test_values_first)
- (libraries minidebug_db)
- (modes exe)
+ (libraries minidebug_db minidebug_client)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
 

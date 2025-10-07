@@ -1092,8 +1092,8 @@ let%expect_test "%debug_show function with abstract type" =
       => 2
     |}]
 
-(*
 let%expect_test "%debug_show PrintBox values_first_mode to stdout with exception" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
@@ -1107,53 +1107,36 @@ let%expect_test "%debug_show PrintBox values_first_mode to stdout with exception
     try print_endline @@ Int.to_string @@ loop_truncated 7
     with _ -> print_endline "Raised exception."
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:true run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    loop_truncated
-    ├─"test/test_expect_test.ml":1421:36
-    ├─x = 7
-    ├─z = 3
-    │ └─"test/test_expect_test.ml":1422:8
-    └─loop_truncated
-      ├─"test/test_expect_test.ml":1421:36
-      ├─x = 6
-      ├─z = 2
-      │ └─"test/test_expect_test.ml":1422:8
-      └─loop_truncated
-        ├─"test/test_expect_test.ml":1421:36
-        ├─x = 5
-        ├─z = 2
-        │ └─"test/test_expect_test.ml":1422:8
-        └─loop_truncated
-          ├─"test/test_expect_test.ml":1421:36
-          ├─x = 4
-          ├─z = 1
-          │ └─"test/test_expect_test.ml":1422:8
-          └─loop_truncated
-            ├─"test/test_expect_test.ml":1421:36
-            ├─x = 3
-            ├─z = 1
-            │ └─"test/test_expect_test.ml":1422:8
-            └─loop_truncated
-              ├─"test/test_expect_test.ml":1421:36
-              ├─x = 2
-              ├─z = 0
-              │ └─"test/test_expect_test.ml":1422:8
-              └─loop_truncated
-                ├─"test/test_expect_test.ml":1421:36
-                ├─x = 1
-                ├─z = 0
-                │ └─"test/test_expect_test.ml":1422:8
-                └─loop_truncated
-                  ├─"test/test_expect_test.ml":1421:36
-                  ├─x = 0
-                  └─z = 0
-                    └─"test/test_expect_test.ml":1422:8
     Raised exception.
+    [debug] loop_truncated @ test/test_expect_test.ml:1101:36-1104:36
+      x = 7
+      [debug] z = 3 @ test/test_expect_test.ml:1102:8-1102:9
+      [debug] loop_truncated @ test/test_expect_test.ml:1101:36-1104:36
+        x = 6
+        [debug] z = 2 @ test/test_expect_test.ml:1102:8-1102:9
+        [debug] loop_truncated @ test/test_expect_test.ml:1101:36-1104:36
+          x = 5
+          [debug] z = 2 @ test/test_expect_test.ml:1102:8-1102:9
+          [debug] loop_truncated @ test/test_expect_test.ml:1101:36-1104:36
+            x = 4
+            [debug] z = 1 @ test/test_expect_test.ml:1102:8-1102:9
+            [debug] loop_truncated @ test/test_expect_test.ml:1101:36-1104:36
+              x = 3
+              [debug] z = 1 @ test/test_expect_test.ml:1102:8-1102:9
+              [debug] loop_truncated @ test/test_expect_test.ml:1101:36-1104:36
+                x = 2
+                [debug] z = 0 @ test/test_expect_test.ml:1102:8-1102:9
+                [debug] loop_truncated @ test/test_expect_test.ml:1101:36-1104:36
+                  x = 1
+                  [debug] z = 0 @ test/test_expect_test.ml:1102:8-1102:9
+                  [debug] loop_truncated @ test/test_expect_test.ml:1101:36-1104:36
+                    x = 0
+                    [debug] z = 0 @ test/test_expect_test.ml:1102:8-1102:9
     |}]
-
-*)
 
 (*
 let%expect_test

@@ -5,9 +5,9 @@ module CFormat = Format
 (** Query layer for database access *)
 module Query = struct
   type entry = {
-    entry_id : int;  (* parent scope ID for all rows *)
-    seq_id : int;  (* position in parent's children list *)
-    header_entry_id : int option;  (* NULL for values, points to new scope for headers *)
+    entry_id : int; (* parent scope ID for all rows *)
+    seq_id : int; (* position in parent's children list *)
+    header_entry_id : int option; (* NULL for values, points to new scope for headers *)
     depth : int;
     message : string;
     location : string option;
@@ -37,20 +37,27 @@ module Query = struct
 
   (** Get all runs from database *)
   let get_runs db =
-    let stmt = Sqlite3.prepare db "SELECT run_id, timestamp, elapsed_ns, command_line, run_name FROM runs ORDER BY run_id DESC" in
+    let stmt =
+      Sqlite3.prepare db
+        "SELECT run_id, timestamp, elapsed_ns, command_line, run_name FROM runs ORDER BY \
+         run_id DESC"
+    in
     let runs = ref [] in
     let rec loop () =
       match Sqlite3.step stmt with
       | Sqlite3.Rc.ROW ->
-          let run = {
-            run_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
-            timestamp = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 1);
-            elapsed_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 2);
-            command_line = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 3);
-            run_name = (match Sqlite3.column stmt 4 with
-              | Sqlite3.Data.TEXT s -> Some s
-              | _ -> None);
-          } in
+          let run =
+            {
+              run_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+              timestamp = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 1);
+              elapsed_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 2);
+              command_line = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 3);
+              run_name =
+                (match Sqlite3.column stmt 4 with
+                | Sqlite3.Data.TEXT s -> Some s
+                | _ -> None);
+            }
+          in
           runs := run :: !runs;
           loop ()
       | _ -> ()
@@ -64,8 +71,8 @@ module Query = struct
     let stmt = Sqlite3.prepare db "SELECT MAX(run_id) FROM runs" in
     let run_id =
       match Sqlite3.step stmt with
-      | Sqlite3.Rc.ROW ->
-          (match Sqlite3.column stmt 0 with
+      | Sqlite3.Rc.ROW -> (
+          match Sqlite3.column stmt 0 with
           | Sqlite3.Data.INT id -> Some (Int64.to_int id)
           | _ -> None)
       | _ -> None
@@ -75,7 +82,8 @@ module Query = struct
 
   (** Get entries for a specific run *)
   let get_entries db ~run_id ?parent_id ?max_depth () =
-    let base_query = {|
+    let base_query =
+      {|
       SELECT
         e.entry_id,
         e.seq_id,
@@ -94,18 +102,22 @@ module Query = struct
       LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
       LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
       WHERE e.run_id = ?
-    |} in
+    |}
+    in
 
-    let query = match parent_id, max_depth with
+    let query =
+      match (parent_id, max_depth) with
       | None, None -> base_query ^ " ORDER BY e.entry_id, e.seq_id"
       | Some _, None -> base_query ^ " AND e.entry_id = ? ORDER BY e.entry_id, e.seq_id"
       | None, Some _ -> base_query ^ " AND e.depth <= ? ORDER BY e.entry_id, e.seq_id"
-      | Some _, Some _ -> base_query ^ " AND e.entry_id = ? AND e.depth <= ? ORDER BY e.entry_id, e.seq_id"
+      | Some _, Some _ ->
+          base_query
+          ^ " AND e.entry_id = ? AND e.depth <= ? ORDER BY e.entry_id, e.seq_id"
     in
 
     let stmt = Sqlite3.prepare db query in
     Sqlite3.bind_int stmt 1 run_id |> ignore;
-    (match parent_id, max_depth with
+    (match (parent_id, max_depth) with
     | None, None -> ()
     | Some pid, None -> Sqlite3.bind_int stmt 2 pid |> ignore
     | None, Some d -> Sqlite3.bind_int stmt 2 d |> ignore
@@ -117,28 +129,34 @@ module Query = struct
     let rec loop () =
       match Sqlite3.step stmt with
       | Sqlite3.Rc.ROW ->
-          let entry = {
-            entry_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
-            seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
-            header_entry_id = (match Sqlite3.column stmt 2 with
-              | Sqlite3.Data.INT id -> Some (Int64.to_int id)
-              | _ -> None);
-            depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
-            message = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 4);
-            location = (match Sqlite3.column stmt 5 with
-              | Sqlite3.Data.TEXT s -> Some s
-              | _ -> None);
-            data = (match Sqlite3.column stmt 6 with
-              | Sqlite3.Data.TEXT s -> Some s
-              | _ -> None);
-            elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
-            elapsed_end_ns = (match Sqlite3.column stmt 8 with
-              | Sqlite3.Data.INT ns -> Some (Int64.to_int ns)
-              | _ -> None);
-            is_result = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 9) = 1;
-            log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
-            entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
-          } in
+          let entry =
+            {
+              entry_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+              seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
+              header_entry_id =
+                (match Sqlite3.column stmt 2 with
+                | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+                | _ -> None);
+              depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
+              message = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 4);
+              location =
+                (match Sqlite3.column stmt 5 with
+                | Sqlite3.Data.TEXT s -> Some s
+                | _ -> None);
+              data =
+                (match Sqlite3.column stmt 6 with
+                | Sqlite3.Data.TEXT s -> Some s
+                | _ -> None);
+              elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
+              elapsed_end_ns =
+                (match Sqlite3.column stmt 8 with
+                | Sqlite3.Data.INT ns -> Some (Int64.to_int ns)
+                | _ -> None);
+              is_result = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 9) = 1;
+              log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
+              entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
+            }
+          in
           entries := entry :: !entries;
           loop ()
       | _ -> ()
@@ -149,12 +167,15 @@ module Query = struct
 
   (** Get database statistics *)
   let get_stats db db_path =
-    let stmt = Sqlite3.prepare db {|
+    let stmt =
+      Sqlite3.prepare db
+        {|
       SELECT
         (SELECT COUNT(*) FROM entries) as total_entries,
         (SELECT COUNT(*) FROM value_atoms) as total_values,
         (SELECT COUNT(DISTINCT value_hash) FROM value_atoms) as unique_values
-    |} in
+    |}
+    in
 
     let stats =
       match Sqlite3.step stmt with
@@ -164,7 +185,8 @@ module Query = struct
           let unique_values = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 2) in
           let dedup_percentage =
             if total_values = 0 then 0.0
-            else 100.0 *. (1.0 -. (float_of_int unique_values /. float_of_int total_values))
+            else
+              100.0 *. (1.0 -. (float_of_int unique_values /. float_of_int total_values))
           in
           let size_kb =
             try
@@ -179,13 +201,14 @@ module Query = struct
             dedup_percentage;
             database_size_kb = size_kb;
           }
-      | _ -> {
-          total_entries = 0;
-          total_values = 0;
-          unique_values = 0;
-          dedup_percentage = 0.0;
-          database_size_kb = 0;
-        }
+      | _ ->
+          {
+            total_entries = 0;
+            total_values = 0;
+            unique_values = 0;
+            dedup_percentage = 0.0;
+            database_size_kb = 0;
+          }
     in
     Sqlite3.finalize stmt |> ignore;
     stats
@@ -194,72 +217,82 @@ module Query = struct
   let search_entries db ~run_id ~pattern =
     let entries = get_entries db ~run_id () in
     let re = Re.compile (Re.Pcre.re pattern) in
-    List.filter (fun entry ->
-      Re.execp re entry.message ||
-      (match entry.location with Some loc -> Re.execp re loc | None -> false) ||
-      (match entry.data with Some d -> Re.execp re d | None -> false)
-    ) entries
+    List.filter
+      (fun entry ->
+        Re.execp re entry.message
+        || (match entry.location with Some loc -> Re.execp re loc | None -> false)
+        || match entry.data with Some d -> Re.execp re d | None -> false)
+      entries
 end
 
 (** Tree renderer for terminal output *)
 module Renderer = struct
-  type tree_node = {
-    entry : Query.entry;
-    children : tree_node list;
-  }
+  type tree_node = { entry : Query.entry; children : tree_node list }
 
   (** Build tree structure from flat entry list *)
   let build_tree entries =
     (* Separate headers from values/results *)
-    let headers, _values = List.partition (fun e -> e.Query.header_entry_id <> None) entries in
+    let headers, _values =
+      List.partition (fun e -> e.Query.header_entry_id <> None) entries
+    in
 
     (* Build tree recursively *)
     let rec build_node header_entry_id =
       (* Find the header row for this scope *)
-      let header_opt = List.find_opt (fun e ->
-        match e.Query.header_entry_id with
-        | Some hid -> hid = header_entry_id
-        | None -> false
-      ) headers in
+      let header =
+        List.find
+          (fun e ->
+            match e.Query.header_entry_id with
+            | Some hid -> hid = header_entry_id
+            | None -> false)
+          headers
+      in
 
-      match header_opt with
-      | None -> { entry = List.hd headers; children = [] }  (* Fallback - shouldn't happen *)
-      | Some header ->
-          (* Get all children of this scope *)
-          let children_entries =
-            List.filter (fun e ->
-              (* All children (headers and values) have entry_id = this scope's ID *)
-              e.Query.entry_id = header_entry_id
-            ) entries
-          in
+      (* Get all children of this scope *)
+      let children_entries =
+        List.filter
+          (fun e ->
+            (* All children (headers and values) have entry_id = this scope's ID *)
+            e.Query.entry_id = header_entry_id)
+          entries
+      in
 
-          (* Sort by seq_id *)
-          let sorted_children_entries = List.sort (fun a b ->
-            compare a.Query.seq_id b.Query.seq_id
-          ) children_entries in
+      (* Sort by seq_id *)
+      let sorted_children_entries =
+        List.sort (fun a b -> compare a.Query.seq_id b.Query.seq_id) children_entries
+      in
 
-          (* Build child nodes *)
-          let children = List.map (fun child ->
+      (* Build child nodes *)
+      let children =
+        List.map
+          (fun child ->
             match child.Query.header_entry_id with
-            | Some sub_scope_id -> build_node sub_scope_id  (* Recursively build subscope *)
-            | None -> { entry = child; children = [] }  (* Leaf value *)
-          ) sorted_children_entries in
+            | Some sub_scope_id ->
+                build_node sub_scope_id (* Recursively build subscope *)
+            | None -> { entry = child; children = [] }
+            (* Leaf value *))
+          sorted_children_entries
+      in
 
-          { entry = header; children }
+      { entry = header; children }
     in
 
-    (* Find root entries (entry_id = 0, which means they're children of the virtual root) *)
+    (* Find root entries (entry_id = 0, which means they're children of the virtual
+       root) *)
     let root_headers = List.filter (fun e -> e.Query.entry_id = 0) headers in
 
     (* Sort roots by seq_id *)
-    let sorted_roots = List.sort (fun a b -> compare a.Query.seq_id b.Query.seq_id) root_headers in
+    let sorted_roots =
+      List.sort (fun a b -> compare a.Query.seq_id b.Query.seq_id) root_headers
+    in
 
     (* Build tree for each root *)
-    List.map (fun root ->
-      match root.Query.header_entry_id with
-      | Some hid -> build_node hid
-      | None -> { entry = root; children = [] }
-    ) sorted_roots
+    List.map
+      (fun root ->
+        match root.Query.header_entry_id with
+        | Some hid -> build_node hid
+        | None -> { entry = root; children = [] })
+      sorted_roots
 
   (** Format elapsed time *)
   let format_elapsed_ns ns =
@@ -275,17 +308,15 @@ module Renderer = struct
     | None -> None
 
   (** Render tree to string with indentation *)
-  let render_tree ?(show_entry_ids=false) ?(show_times=false) ?(max_depth=None) ?(values_first_mode=false) trees =
+  let render_tree ?(show_entry_ids = false) ?(show_times = false) ?(max_depth = None)
+      ?(values_first_mode = false) trees =
     let buf = Buffer.create 1024 in
 
     let rec render_node ~indent ~depth node =
       let entry = node.entry in
-      let skip = match max_depth with
-        | Some d -> depth > d
-        | None -> false
-      in
+      let skip = match max_depth with Some d -> depth > d | None -> false in
 
-      if not skip then begin
+      if not skip then (
         (* Indentation *)
         Buffer.add_string buf indent;
 
@@ -293,96 +324,113 @@ module Renderer = struct
         if show_entry_ids then
           Buffer.add_string buf (Printf.sprintf "{#%d} " entry.entry_id);
 
-        (* Check if this is a value node (header_entry_id = None) *)
-        if entry.header_entry_id = None then begin
-          (* Value node: display as "name = value" or "=> value" *)
-          if entry.is_result then
-            Buffer.add_string buf "=> "
-          else if String.empty = entry.message then ()
-          else
-            Buffer.add_string buf (Printf.sprintf "%s = " entry.message);
+        (* Split children for values_first_mode *)
+        let results, non_results =
+          if values_first_mode then
+            List.partition (fun child -> child.entry.is_result) node.children
+          else ([], node.children)
+        in
 
-          (match entry.data with
-          | Some data -> Buffer.add_string buf data
-          | None -> ());
+        (* Determine rendering mode *)
+        match (entry.header_entry_id, values_first_mode, results) with
+        | None, _, _ ->
+            (* Value node: display as "name = value" or "=> value" *)
+            if entry.is_result then Buffer.add_string buf "=> "
+            else if String.empty = entry.message then ()
+            else Buffer.add_string buf (Printf.sprintf "%s = " entry.message);
 
-          Buffer.add_string buf "\n"
-        end else if values_first_mode && entry.is_result then begin
-          (* In values_first_mode, result becomes the header *)
-          (match entry.data with
-          | Some data ->
-              Buffer.add_string buf data;
-              (* Elapsed time after result value *)
-              if show_times then
-                (match elapsed_time entry with
-                | Some elapsed -> Buffer.add_string buf (Printf.sprintf " <%s>" (format_elapsed_ns elapsed))
-                | None -> ());
-              Buffer.add_string buf "\n";
+            (match entry.data with Some data -> Buffer.add_string buf data | None -> ());
 
-              (* Location becomes a child item *)
-              (match entry.location with
-              | Some loc ->
-                  Buffer.add_string buf (indent ^ "  ");
-                  Buffer.add_string buf (Printf.sprintf "@ %s" loc);
-                  Buffer.add_string buf "\n"
-              | None -> ());
+            Buffer.add_string buf "\n"
+        | Some _, true, [ result_child ] when result_child.entry.header_entry_id = None ->
+            (* Scope node with single value result in values_first_mode: combine on one line *)
+            (* Format: [type] message = result_value <time> @ location *)
+            Buffer.add_string buf
+              (Printf.sprintf "[%s] %s" entry.entry_type entry.message);
 
-              (* Message as child item *)
-              Buffer.add_string buf (indent ^ "  ");
-              Buffer.add_string buf (Printf.sprintf "[%s] %s" entry.entry_type entry.message);
-              Buffer.add_string buf "\n"
-          | None ->
-              (* No result data, fall back to normal rendering *)
-              Buffer.add_string buf (Printf.sprintf "[%s] %s" entry.entry_type entry.message);
-              (match entry.location with
-              | Some loc -> Buffer.add_string buf (Printf.sprintf " @ %s" loc)
-              | None -> ());
-              if show_times then
-                (match elapsed_time entry with
-                | Some elapsed -> Buffer.add_string buf (Printf.sprintf " <%s>" (format_elapsed_ns elapsed))
-                | None -> ());
-              Buffer.add_string buf "\n");
-        end else begin
-          (* Normal rendering mode *)
-          (* Message and type *)
-          Buffer.add_string buf (Printf.sprintf "[%s] %s"
-            entry.entry_type entry.message);
-
-          (* Location *)
-          (match entry.location with
-          | Some loc -> Buffer.add_string buf (Printf.sprintf " @ %s" loc)
-          | None -> ());
-
-          (* Elapsed time *)
-          if show_times then
-            (match elapsed_time entry with
-            | Some elapsed -> Buffer.add_string buf (Printf.sprintf " <%s>" (format_elapsed_ns elapsed))
+            (* Add result value *)
+            (match result_child.entry.data with
+            | Some data -> Buffer.add_string buf (Printf.sprintf " = %s" data)
             | None -> ());
 
-          Buffer.add_string buf "\n";
+            (* Elapsed time *)
+            (if show_times then
+               match elapsed_time entry with
+               | Some elapsed ->
+                   Buffer.add_string buf
+                     (Printf.sprintf " <%s>" (format_elapsed_ns elapsed))
+               | None -> ());
 
-          (* Data (if present) *)
-          (match entry.data with
-          | Some data when not entry.is_result ->
-              Buffer.add_string buf (indent ^ "  ");
-              Buffer.add_string buf data;
-              Buffer.add_string buf "\n"
-          | _ -> ());
-
-          (* Result (if present) *)
-          if entry.is_result then
-            (match entry.data with
-            | Some data ->
-                Buffer.add_string buf (indent ^ "  => ");
-                Buffer.add_string buf data;
-                Buffer.add_string buf "\n"
+            (* Location *)
+            (match entry.location with
+            | Some loc -> Buffer.add_string buf (Printf.sprintf " @ %s" loc)
             | None -> ());
-        end;
 
-        (* Children *)
-        let child_indent = indent ^ "  " in
-        List.iter (render_node ~indent:child_indent ~depth:(depth + 1)) node.children
-      end
+            Buffer.add_string buf "\n";
+
+            (* Children: render non-result children (result was already combined with header) *)
+            let child_indent = indent ^ "  " in
+            List.iter
+              (render_node ~indent:child_indent ~depth:(depth + 1))
+              non_results
+        | Some _, _, _ ->
+            (* Normal rendering mode *)
+            (* Message and type *)
+            (Buffer.add_string buf
+               (Printf.sprintf "[%s] %s" entry.entry_type entry.message);
+
+             (* Location *)
+             (match entry.location with
+             | Some loc -> Buffer.add_string buf (Printf.sprintf " @ %s" loc)
+             | None -> ());
+
+             (* Elapsed time *)
+             (if show_times then
+                match elapsed_time entry with
+                | Some elapsed ->
+                    Buffer.add_string buf
+                      (Printf.sprintf " <%s>" (format_elapsed_ns elapsed))
+                | None -> ());
+
+             Buffer.add_string buf "\n";
+
+             (* Data (if present) *)
+             (match entry.data with
+             | Some data when not entry.is_result ->
+                 Buffer.add_string buf (indent ^ "  ");
+                 Buffer.add_string buf data;
+                 Buffer.add_string buf "\n"
+             | _ -> ());
+
+             (* Result (if present) *)
+             if entry.is_result then
+               match entry.data with
+               | Some data ->
+                   Buffer.add_string buf (indent ^ "  => ");
+                   Buffer.add_string buf data;
+                   Buffer.add_string buf "\n"
+               | None -> ());
+
+            (* Children *)
+            let child_indent = indent ^ "  " in
+            if values_first_mode then
+              match (entry.header_entry_id, results) with
+              | Some _, [ result_child ] when result_child.entry.header_entry_id = None ->
+                  (* Single value result was combined with header, skip it *)
+                  List.iter
+                    (render_node ~indent:child_indent ~depth:(depth + 1))
+                    non_results
+              | Some _, _ ->
+                  (* Multiple results or result is a header: render results first *)
+                  List.iter (render_node ~indent:child_indent ~depth:(depth + 1)) results;
+                  List.iter
+                    (render_node ~indent:child_indent ~depth:(depth + 1))
+                    non_results
+              | None, _ -> assert (node.children = [])
+            else
+              List.iter
+                (render_node ~indent:child_indent ~depth:(depth + 1))
+                node.children)
     in
 
     List.iter (render_node ~indent:"" ~depth:0) trees;
@@ -398,7 +446,8 @@ module Renderer = struct
       Buffer.add_string buf (Printf.sprintf "%s" entry.message);
 
       (match elapsed_time entry with
-      | Some elapsed -> Buffer.add_string buf (Printf.sprintf " <%s>" (format_elapsed_ns elapsed))
+      | Some elapsed ->
+          Buffer.add_string buf (Printf.sprintf " <%s>" (format_elapsed_ns elapsed))
       | None -> ());
 
       Buffer.add_string buf "\n";
@@ -413,21 +462,16 @@ end
 
 (** Main client interface *)
 module Client = struct
-  type t = {
-    db : Sqlite3.db;
-    db_path : string;
-  }
+  type t = { db : Sqlite3.db; db_path : string }
 
   let open_db db_path =
     let db = Sqlite3.db_open ~mode:`READONLY db_path in
     { db; db_path }
 
-  let close t =
-    Sqlite3.db_close t.db |> ignore
+  let close t = Sqlite3.db_close t.db |> ignore
 
   (** List all runs *)
-  let list_runs t =
-    Query.get_runs t.db
+  let list_runs t = Query.get_runs t.db
 
   (** Get latest run *)
   let get_latest_run t =
@@ -446,8 +490,7 @@ module Client = struct
         Printf.printf "Timestamp: %s\n" run.timestamp;
         Printf.printf "Command: %s\n" run.command_line;
         Printf.printf "Elapsed: %s\n\n" (Renderer.format_elapsed_ns run.elapsed_ns)
-    | None ->
-        Printf.printf "Run #%d not found\n" run_id
+    | None -> Printf.printf "Run #%d not found\n" run_id
 
   (** Show database statistics *)
   let show_stats t =
@@ -461,10 +504,13 @@ module Client = struct
     Printf.printf "Database size: %d KB\n" stats.database_size_kb
 
   (** Show trace tree for a run *)
-  let show_trace t ?(show_entry_ids=false) ?(show_times=false) ?(max_depth=None) ?(values_first_mode=false) run_id =
+  let show_trace t ?(show_entry_ids = false) ?(show_times = false) ?(max_depth = None)
+      ?(values_first_mode = false) run_id =
     let entries = Query.get_entries t.db ~run_id () in
     let trees = Renderer.build_tree entries in
-    let output = Renderer.render_tree ~show_entry_ids ~show_times ~max_depth ~values_first_mode trees in
+    let output =
+      Renderer.render_tree ~show_entry_ids ~show_times ~max_depth ~values_first_mode trees
+    in
     print_string output
 
   (** Show compact trace (function names only) *)
@@ -477,17 +523,15 @@ module Client = struct
   (** Search entries *)
   let search t ~run_id ~pattern =
     let entries = Query.search_entries t.db ~run_id ~pattern in
-    Printf.printf "Found %d matching entries for pattern '%s':\n\n" (List.length entries) pattern;
-    List.iter (fun entry ->
-      Printf.printf "{#%d} [%s] %s" entry.Query.entry_id entry.entry_type entry.message;
-      (match entry.location with
-      | Some loc -> Printf.printf " @ %s" loc
-      | None -> ());
-      Printf.printf "\n";
-      (match entry.data with
-      | Some data -> Printf.printf "  %s\n" data
-      | None -> ())
-    ) entries
+    Printf.printf "Found %d matching entries for pattern '%s':\n\n" (List.length entries)
+      pattern;
+    List.iter
+      (fun entry ->
+        Printf.printf "{#%d} [%s] %s" entry.Query.entry_id entry.entry_type entry.message;
+        (match entry.location with Some loc -> Printf.printf " @ %s" loc | None -> ());
+        Printf.printf "\n";
+        match entry.data with Some data -> Printf.printf "  %s\n" data | None -> ())
+      entries
 
   (** Export trace to markdown *)
   let export_markdown t ~run_id ~output_file =
@@ -504,7 +548,8 @@ module Client = struct
         Printf.fprintf oc "# Trace Run #%d\n\n" r.run_id;
         Printf.fprintf oc "- **Timestamp**: %s\n" r.timestamp;
         Printf.fprintf oc "- **Command**: `%s`\n" r.command_line;
-        Printf.fprintf oc "- **Elapsed**: %s\n\n" (Renderer.format_elapsed_ns r.elapsed_ns)
+        Printf.fprintf oc "- **Elapsed**: %s\n\n"
+          (Renderer.format_elapsed_ns r.elapsed_ns)
     | None -> ());
 
     Printf.fprintf oc "## Execution Trace\n\n";
@@ -530,11 +575,10 @@ module Client = struct
       | _ -> ());
 
       (* Result *)
-      if entry.is_result then
-        (match entry.data with
-        | Some data ->
-            Printf.fprintf oc "%s  **=>** `%s`\n" indent data
-        | None -> ());
+      (if entry.is_result then
+         match entry.data with
+         | Some data -> Printf.fprintf oc "%s  **=>** `%s`\n" indent data
+         | None -> ());
 
       List.iter (render_node ~depth:(depth + 1)) node.Renderer.children
     in

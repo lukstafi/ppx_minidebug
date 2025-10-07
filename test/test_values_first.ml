@@ -11,10 +11,12 @@ let%debug_show rec factorial (n : int) : int =
 let%debug_show add (x : int) (y : int) : int = x + y
 
 let%debug_show compute (a : int) (b : int) : int =
-  let sum = add a b in
-  let result = factorial sum in
-  result
+  let sum : int = add a b in
+  factorial sum
 
 let () =
   let _ = compute 3 2 in
+  let db = Minidebug_client.Client.open_db "test_values_first.db" in
+  Minidebug_client.Client.show_trace db ~values_first_mode:true
+    (Minidebug_client.Client.get_latest_run db |> Option.get).run_id;
   ()
