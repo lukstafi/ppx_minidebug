@@ -234,19 +234,21 @@ let%debug_show rec loop_exceeded (x : int) : int =
     try print_endline @@ Int.to_string @@ anonymous 3
     with Failure s -&gt; print_endline @@ &quot;Raised exception: &quot; ^ s
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    &quot;test/test_expect_test.ml&quot;:1210:27: anonymous
-    ├─x = 3
-    ├─&quot;test/test_expect_test.ml&quot;:1211:50: fun:test_expect_test:1211
-    │ └─i = 0
-    ├─&quot;test/test_expect_test.ml&quot;:1211:50: fun:test_expect_test:1211
-    │ └─i = 1
-    ├─&quot;test/test_expect_test.ml&quot;:1211:50: fun:test_expect_test:1211
-    │ └─i = 2
-    └─&quot;test/test_expect_test.ml&quot;:1211:50: fun:test_expect_test:1211
-      └─i = 3
     6
+    [track] anonymous @ test/test_expect_test.ml:930:27-931:70
+      x = 3
+      [track] fun:test_expect_test:931 @ test/test_expect_test.ml:931:50-931:70
+        i = 0
+      [track] fun:test_expect_test:931 @ test/test_expect_test.ml:931:50-931:70
+        i = 1
+      [track] fun:test_expect_test:931 @ test/test_expect_test.ml:931:50-931:70
+        i = 2
+      [track] fun:test_expect_test:931 @ test/test_expect_test.ml:931:50-931:70
+        i = 3
     |}]</code></pre><p>To disable, rather than enhance, debugging for a piece of code, you can use the <code>%diagn_</code> extension points.</p><p>Explicit logging statements also help with tracking the execution, since they can be placed anywhere within a debug scope. Example from the test suite:</p><pre class="language-ocaml"><code>  let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
     fun () -&gt; rt
