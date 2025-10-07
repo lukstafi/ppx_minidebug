@@ -250,7 +250,7 @@ let%debug_show rec loop_exceeded (x : int) : int =
       [track] fun:test_expect_test:931 @ test/test_expect_test.ml:931:50-931:70
         i = 3
     |}]</code></pre><p>To disable, rather than enhance, debugging for a piece of code, you can use the <code>%diagn_</code> extension points.</p><p>Explicit logging statements also help with tracking the execution, since they can be placed anywhere within a debug scope. Example from the test suite:</p><pre class="language-ocaml"><code>  let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -&gt; rt
   in
   let%track_sexp result =
@@ -265,37 +265,38 @@ let%debug_show rec loop_exceeded (x : int) : int =
     done;
     !j
   in
-  print_endline @@ Int.to_string result;
+  let () = print_endline @@ Int.to_string result in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    &quot;test/test_expect_test.ml&quot;:2553:17: result
-    └─&quot;test/test_expect_test.ml&quot;:2556:4: while:test_expect_test:2556
-      ├─&quot;test/test_expect_test.ml&quot;:2557:6: &lt;while loop&gt;
-      │ ├─(1 i= 0)
-      │ ├─(2 i= 1)
-      │ └─(3 j= 1)
-      ├─&quot;test/test_expect_test.ml&quot;:2557:6: &lt;while loop&gt;
-      │ ├─(1 i= 1)
-      │ ├─(2 i= 2)
-      │ └─(3 j= 3)
-      ├─&quot;test/test_expect_test.ml&quot;:2557:6: &lt;while loop&gt;
-      │ ├─(1 i= 2)
-      │ ├─(2 i= 3)
-      │ └─(3 j= 6)
-      ├─&quot;test/test_expect_test.ml&quot;:2557:6: &lt;while loop&gt;
-      │ ├─(1 i= 3)
-      │ ├─(2 i= 4)
-      │ └─(3 j= 10)
-      ├─&quot;test/test_expect_test.ml&quot;:2557:6: &lt;while loop&gt;
-      │ ├─(1 i= 4)
-      │ ├─(2 i= 5)
-      │ └─(3 j= 15)
-      └─&quot;test/test_expect_test.ml&quot;:2557:6: &lt;while loop&gt;
-        ├─(1 i= 5)
-        ├─(2 i= 6)
-        └─(3 j= 21)
     21
+    [track] result @ test/test_expect_test.ml:1959:17-1959:23
+      [track] while:test_expect_test:1962 @ test/test_expect_test.ml:1962:4-1968:8
+        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 0)
+          (2 i= 1)
+          (3 j= 1)
+        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 1)
+          (2 i= 2)
+          (3 j= 3)
+        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 2)
+          (2 i= 3)
+          (3 j= 6)
+        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 3)
+          (2 i= 4)
+          (3 j= 10)
+        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 4)
+          (2 i= 5)
+          (3 j= 15)
+        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1963:6-1967:32
+          (1 i= 5)
+          (2 i= 6)
+          (3 j= 21)
     |}]</code></pre><h3 id="using-as-a-logging-framework"><a href="#using-as-a-logging-framework" class="anchor"></a>Using as a logging framework</h3><p><code>ppx_minidebug</code> can be used as a logging framework: its annotations can be stored permamently with the source code, rather than shyly added for a brief period of debugging. To allow this, there needs to be a mechanism of logging levels -- otherwise the system is slowed down too much, or even if performance is not an issue, the user is overwhelmed with the amount of logs. <code>ppx_minidebug</code> addresses these issues in a flexible way, by offering restriction of log levels both at compile time and at runtime.</p><p>The <code>%diagn_</code> extension points (short for &quot;diagnostic&quot;) are tailored for the &quot;logging framework&quot; use-case. Within the scope of a <code>%diagn_</code> extension point, only explicit logs are generated. Therefore, one can freely add type annotations without generating debug logs. As a side-effect, <code>%diagn_</code> annotations can be used to disable debugging for pieces of code where we need type annotations for code reasons, but do not have serialization/printing functions for the types.</p><p>In the <code>PrintBox</code> backend, logs accumulate until the current toplevel log scope is closed. This is unfortunate in the logging framework context, where promptly informing the user using the logs might be important. To remedy this, <code>PrintBox_runtime</code> offers the setting <code>snapshot_every_sec</code>. When set, if sufficient time has passed since the last output, the backend will output the whole current toplevel log scope. If possible, the previous snapshot of the same log scope is erased, to not duplicate information. The underlying mechanism is available as [snapshot] in the generic interface; it does nothing in the flushing backend. [snapshot] is useful when there's a risk of a &quot;premature&quot; exit of the debugged program or thread.</p><p>The log levels are integers intended to be within the range 0-9, where 0 means no logging at all. They can be provided explicitly by all extension entry points and all explicit logging extensions. When omitted, the log level of the enclosing log entry is used; the default for a top-level log entry is log level 1. The syntax for logging at a compile-time given level is by example: <code>%debug2_sexp</code> (log at level 2), <code>%log3</code> (log at level 3), <code>%log1_resut</code> (log result at level 1), <code>%diagn3_sexp</code> (log at level 3) etc.</p><p>The <code>%diagn_</code> extension points further restrict logging to explicit logs only. Example from the test suite:</p><pre class="language-ocaml"><code>  let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
     fun () -&gt; rt
@@ -326,7 +327,8 @@ let%debug_show rec loop_exceeded (x : int) : int =
     ├─&quot;test/test_expect_test.ml&quot;:3304:21
     └─(&quot;foo baz, f squared&quot;, 49)
     91
-    |}]</code></pre><p>At runtime creation, the level can be set via the <code>~log_level</code> parameter, or via <code>Debug_runtime.log_level := ...</code> later on, also for the flushing backend. The following example also illustrates the <code>_rt_</code> runtime-passing entry points:</p><pre class="language-ocaml"><code>  let%track_rt_sexp result () : int =
+    |}]</code></pre><p>At runtime creation, the level can be set via the <code>~log_level</code> parameter, or via <code>Debug_runtime.log_level := ...</code> later on, also for the flushing backend. The following example also illustrates the <code>_rt_</code> runtime-passing entry points:</p><pre class="language-ocaml"><code>  let rt log_level run_name = Minidebug_db.debug_db_file ~log_level ~run_name db_file in
+  let%track_rt_sexp result () : int =
     let i = ref 0 in
     let j = ref 0 in
     while !i &lt; 6 do
@@ -342,22 +344,24 @@ let%debug_show rec loop_exceeded (x : int) : int =
   print_endline
   @@ Int.to_string
        (result
-          Minidebug_runtime.(
-            forget_printbox
-            @@ debug ~values_first_mode:false ~run_name:&quot;Everything&quot; ())
+          (rt 9 &quot;Everything&quot;)
           ());
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db (latest_run ());
   print_endline
   @@ Int.to_string
        (result
-          Minidebug_runtime.(
-            forget_printbox
-            @@ debug ~values_first_mode:false ~log_level:0 ~run_name:&quot;Nothing&quot; ())
+          (rt 0 &quot;Nothing&quot;)
           ());
+  let latest_run_after_nothing =
+    Minidebug_client.Client.open_db db_file |&gt;
+    Minidebug_client.Client.get_latest_run |&gt;
+    Option.get in
+  print_endline @@ &quot;latest_run_after_nothing: &quot; ^ Option.get latest_run_after_nothing.run_name;
   print_endline
   @@ Int.to_string
        (result
-          Minidebug_runtime.(
-            forget_printbox @@ debug ~log_level:1 ~run_name:&quot;Error&quot; ())
+          (rt 1 &quot;Error&quot;)
           ());</code></pre><p>But there is a more convenient approach. Both at compile time (constant) and at runtime (integer expression), the level can be set for a scope with <code>%log_level</code>, or globally with <code>%global_debug_log_level</code>. (<code>%log_level</code> is not registered to minimize incompatibility with other logging frameworks.) The (default) compile-time level can also be set silently via the environment variable <code>PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL</code> (unsafe). The extensions <code>%global_debug_log_level</code>, <code>%log_level</code> set the compile time log level only when used with an integer literal, otherwise they are limited to setting the runtime log level.</p><p>For example:</p><pre class="language-ocaml"><code>let _get_local_debug_runtime =
   let rt = Minidebug_db.debug_db_file &quot;debugger_log_prefixed&quot; in
   fun () -&gt; rt
