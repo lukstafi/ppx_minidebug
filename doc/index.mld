@@ -997,28 +997,23 @@ The overall test produces:
 {@include file=../test/test_path_filter.expected[
 === Test 1: Whitelist by file (logs from test_path_filter.ml) ===
 Result: 30
-[debug] compute_value @ test/test_path_filter.ml:14:31-16:9
+[debug] compute_value => 30 @ test/test_path_filter.ml:14:31-16:9
   x = 5
-  [debug] y @ test/test_path_filter.ml:15:8-15:9
-    y => 15
-  compute_value => 30
+  [debug] y => 15 @ test/test_path_filter.ml:15:8-15:9
 
 === Test 2: Whitelist by function (only compute_* functions) ===
 Results: 30, 6
-[debug] compute_sum @ test/test_path_filter.ml:36:29-38:9
+[debug] compute_sum => 30 @ test/test_path_filter.ml:36:29-38:9
   x = 5
-  compute_sum => 30
 
 === Test 3: Blacklist (blocks test_path_filter.ml) ===
 Result: 30
 
 === Test 4: No filter (shows all logs) ===
 Result: 30
-[debug] compute_nofilter @ test/test_path_filter.ml:71:34-73:9
+[debug] compute_nofilter => 30 @ test/test_path_filter.ml:71:34-73:9
   x = 5
-  [debug] y @ test/test_path_filter.ml:72:8-72:9
-    y => 15
-  compute_nofilter => 30
+  [debug] y => 15 @ test/test_path_filter.ml:72:8-72:9
 ]}
 
 This is useful for focusing on specific parts of your codebase during debugging, or for excluding noisy test utilities from production debug logs.
@@ -1142,19 +1137,16 @@ As a help in debugging whether the right type information got propagated, we off
       let g : 'a. 'a -> int -> 'a -> 'a -> int = fun _a b _c _d -> b * 2 in
       let () = print_endline @@ Int.to_string @@ f 'a' 6 in
       print_endline @@ Int.to_string @@ g 'a' 6 'b' 'c']];
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    f : int = 7
-    ├─"test/test_expect_test.ml":2219:37
-    ├─f : int
-    └─b : int = 6
     7
-    g : int = 12
-    ├─"test/test_expect_test.ml":2220:49
-    ├─g : int
-    └─b : int = 6
     12
+    [debug] f : int => 7 @ test/test_expect_test.ml:1622:37-1622:54
+      b : int = 6
+    [debug] g : int => 12 @ test/test_expect_test.ml:1623:49-1623:72
+      b : int = 6
     |}]
 ]}
 

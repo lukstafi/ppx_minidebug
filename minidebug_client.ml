@@ -509,7 +509,7 @@ module Client = struct
 
   (** Show trace tree for a run *)
   let show_trace t ?(show_entry_ids = false) ?(show_times = false) ?(max_depth = None)
-      ?(values_first_mode = false) run_id =
+      ?(values_first_mode = true) run_id =
     let entries = Query.get_entries t.db ~run_id () in
     let trees = Renderer.build_tree entries in
     let output =

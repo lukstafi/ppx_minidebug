@@ -27,7 +27,7 @@ let%expect_test "%debug_show, `as` alias and show_times" =
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
   let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db ~show_times:true run_id;
+  Minidebug_client.Client.show_trace db ~show_times:true ~values_first_mode:false run_id;
   let output = [%expect.output] in
   let output =
     Str.global_replace (Str.regexp {|<[0-9.]+\(μs\|ms\|s\)>|}) "<TIME>" output
@@ -66,7 +66,7 @@ let%expect_test "%debug_show with run name" =
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
   let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db run_id;
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   let runs = Minidebug_client.Client.list_runs db in
   let run = List.find (fun r -> r.Minidebug_client.Query.run_id = run_id) runs in
   Printf.printf "\nRun #%d has name: %s\n" run.run_id
@@ -1358,24 +1358,27 @@ let%expect_test "%debug_show records" =
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
   let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true run_id;
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
     336
     109
-    [debug] bar => 336 @ test/test_expect_test.ml:1349:21-1352:15
+    [debug] bar @ test/test_expect_test.ml:1349:21-1352:15
       first = 7
       second = 42
       [debug] {first=a; second=b} @ test/test_expect_test.ml:1350:8-1350:45
         a => 7
         b => 45
-      [debug] y => 8 @ test/test_expect_test.ml:1351:8-1351:9
-    [debug] baz => 109 @ test/test_expect_test.ml:1355:21-1357:28
+      [debug] y @ test/test_expect_test.ml:1351:8-1351:9
+        y => 8
+      bar => 336
+    [debug] baz @ test/test_expect_test.ml:1355:21-1357:28
       first = 7
       second = 42
       [debug] {first; second} @ test/test_expect_test.ml:1356:8-1356:37
         first => 8
         second => 45
+      baz => 109
     |}]
 
 let%expect_test "%debug_show tuples" =
@@ -1398,26 +1401,26 @@ let%expect_test "%debug_show tuples" =
   let () = print_endline @@ Int.to_string r1 in
   let () = print_endline @@ Int.to_string r2 in
   let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db run_id;
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
     336
     339
     109
-    [debug] bar @ test/test_expect_test.ml:1387:21-1389:14
+    [debug] bar @ test/test_expect_test.ml:1390:21-1392:14
       first = 7
       second = 42
-      [debug] y @ test/test_expect_test.ml:1388:8-1388:9
+      [debug] y @ test/test_expect_test.ml:1391:8-1391:9
         y => 8
       bar => 336
-    [debug] (r1, r2) @ test/test_expect_test.ml:1397:17-1397:23
-      [debug] baz @ test/test_expect_test.ml:1392:21-1395:35
+    [debug] (r1, r2) @ test/test_expect_test.ml:1400:17-1400:23
+      [debug] baz @ test/test_expect_test.ml:1395:21-1398:35
         first = 7
         second = 42
-        [debug] (y, z) @ test/test_expect_test.ml:1393:8-1393:14
+        [debug] (y, z) @ test/test_expect_test.ml:1396:8-1396:14
           y => 8
           z => 3
-        [debug] (a, b) @ test/test_expect_test.ml:1394:8-1394:28
+        [debug] (a, b) @ test/test_expect_test.ml:1397:8-1397:28
           a => 8
           b => 45
         baz => (339, 109)
@@ -1448,17 +1451,17 @@ let%expect_test "%debug_show records values_first_mode" =
     {|
     336
     109
-    [debug] bar => 336 @ test/test_expect_test.ml:1434:21-1437:15
+    [debug] bar => 336 @ test/test_expect_test.ml:1437:21-1440:15
       first = 7
       second = 42
-      [debug] {first=a; second=b} @ test/test_expect_test.ml:1435:8-1435:45
+      [debug] {first=a; second=b} @ test/test_expect_test.ml:1438:8-1438:45
         a => 7
         b => 45
-      [debug] y => 8 @ test/test_expect_test.ml:1436:8-1436:9
-    [debug] baz => 109 @ test/test_expect_test.ml:1440:21-1442:28
+      [debug] y => 8 @ test/test_expect_test.ml:1439:8-1439:9
+    [debug] baz => 109 @ test/test_expect_test.ml:1443:21-1445:28
       first = 7
       second = 42
-      [debug] {first; second} @ test/test_expect_test.ml:1441:8-1441:37
+      [debug] {first; second} @ test/test_expect_test.ml:1444:8-1444:37
         first => 8
         second => 45
     |}]
@@ -1489,20 +1492,20 @@ let%expect_test "%debug_show tuples values_first_mode" =
     336
     339
     109
-    [debug] bar => 336 @ test/test_expect_test.ml:1472:21-1474:14
+    [debug] bar => 336 @ test/test_expect_test.ml:1475:21-1477:14
       first = 7
       second = 42
-      [debug] y => 8 @ test/test_expect_test.ml:1473:8-1473:9
-    [debug] (r1, r2) @ test/test_expect_test.ml:1482:17-1482:23
+      [debug] y => 8 @ test/test_expect_test.ml:1476:8-1476:9
+    [debug] (r1, r2) @ test/test_expect_test.ml:1485:17-1485:23
       r1 => 339
       r2 => 109
-      [debug] baz => (339, 109) @ test/test_expect_test.ml:1477:21-1480:35
+      [debug] baz => (339, 109) @ test/test_expect_test.ml:1480:21-1483:35
         first = 7
         second = 42
-        [debug] (y, z) @ test/test_expect_test.ml:1478:8-1478:14
+        [debug] (y, z) @ test/test_expect_test.ml:1481:8-1481:14
           y => 8
           z => 3
-        [debug] (a, b) @ test/test_expect_test.ml:1479:8-1479:28
+        [debug] (a, b) @ test/test_expect_test.ml:1482:8-1482:28
           a => 8
           b => 45
     |}]
@@ -1541,15 +1544,15 @@ let%expect_test "%track_show variants values_first_mode" =
     5
     6
     3
-    [track] bar => 16 @ test/test_expect_test.ml:1520:21-1522:9
+    [track] bar => 16 @ test/test_expect_test.ml:1523:21-1525:9
       x = 7
-      [track] y => 8 @ test/test_expect_test.ml:1521:8-1521:9
-    [track] <function -- branch 0> Left x => baz = 5 @ test/test_expect_test.ml:1526:24-1526:29
+      [track] y => 8 @ test/test_expect_test.ml:1524:8-1524:9
+    [track] <function -- branch 0> Left x => baz = 5 @ test/test_expect_test.ml:1529:24-1529:29
       x = 4
-    [track] <function -- branch 1> Right Two y => baz = 6 @ test/test_expect_test.ml:1527:31-1527:36
+    [track] <function -- branch 1> Right Two y => baz = 6 @ test/test_expect_test.ml:1530:31-1530:36
       y = 3
-    [track] foo => 3 @ test/test_expect_test.ml:1530:21-1531:82
-      [track] <match -- branch 2> @ test/test_expect_test.ml:1531:81-1531:82
+    [track] foo => 3 @ test/test_expect_test.ml:1533:21-1534:82
+      [track] <match -- branch 2> @ test/test_expect_test.ml:1534:81-1534:82
     |}]
 
 let%expect_test "%debug_show tuples merge type info" =
@@ -1567,22 +1570,22 @@ let%expect_test "%debug_show tuples merge type info" =
   let () = print_endline @@ Int.to_string r1 in
   let () = print_endline @@ Int.to_string r2 in
   let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true run_id;
+  Minidebug_client.Client.show_trace db run_id;
   (* Note the missing value of [b]: the nested-in-expression type is not propagated. *)
   [%expect
     {|
     339
     109
-    [debug] (r1, r2) @ test/test_expect_test.ml:1566:17-1566:38
+    [debug] (r1, r2) @ test/test_expect_test.ml:1569:17-1569:38
       r1 => 339
       r2 => 109
-      [debug] baz => (339, 109) @ test/test_expect_test.ml:1561:21-1564:35
+      [debug] baz => (339, 109) @ test/test_expect_test.ml:1564:21-1567:35
         first = 7
         second = 42
-        [debug] (y, z) @ test/test_expect_test.ml:1562:8-1562:29
+        [debug] (y, z) @ test/test_expect_test.ml:1565:8-1565:29
           y => 8
           z => 3
-        [debug] (a, b) => a = 8 @ test/test_expect_test.ml:1563:8-1563:20
+        [debug] (a, b) => a = 8 @ test/test_expect_test.ml:1566:8-1566:20
     |}]
 
 let%expect_test "%debug_show decompose multi-argument function type" =
@@ -1596,19 +1599,19 @@ let%expect_test "%debug_show decompose multi-argument function type" =
   let () = print_endline @@ Int.to_string @@ f 'a' 6 in
   let () = print_endline @@ Int.to_string @@ g 'a' 6 'b' 'c' in
   let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true run_id;
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
     7
     12
-    [debug] f => 7 @ test/test_expect_test.ml:1594:44-1594:61
+    [debug] f => 7 @ test/test_expect_test.ml:1597:44-1597:61
       b = 6
-    [debug] g => 12 @ test/test_expect_test.ml:1595:56-1595:79
+    [debug] g => 12 @ test/test_expect_test.ml:1598:56-1598:79
       b = 6
     |}]
 
-(*
 let%expect_test "%debug_show debug type info" =
+  let run_id = next_run () in
   (* $MDX part-begin=debug_type_info *)
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
@@ -1620,23 +1623,18 @@ let%expect_test "%debug_show debug type info" =
       let g : 'a. 'a -> int -> 'a -> 'a -> int = fun _a b _c _d -> b * 2 in
       let () = print_endline @@ Int.to_string @@ f 'a' 6 in
       print_endline @@ Int.to_string @@ g 'a' 6 'b' 'c']];
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    f : int = 7
-    ├─"test/test_expect_test.ml":2219:37
-    ├─f : int
-    └─b : int = 6
     7
-    g : int = 12
-    ├─"test/test_expect_test.ml":2220:49
-    ├─g : int
-    └─b : int = 6
     12
+    [debug] f : int => 7 @ test/test_expect_test.ml:1622:37-1622:54
+      b : int = 6
+    [debug] g : int => 12 @ test/test_expect_test.ml:1623:49-1623:72
+      b : int = 6
     |}]
 (* $MDX part-end *)
-
-*)
 
 (*
 let%expect_test "%track_show options values_first_mode" =

@@ -112,8 +112,8 @@ module Client : sig
     ?values_first_mode:bool ->
     int ->
     unit
-  (** Print full trace tree for a run. When [values_first_mode] is true,
-      result values become headers with location/message as children. *)
+  (** Print full trace tree for a run. When [values_first_mode] is true
+      (default), result values become headers with location/message as children. *)
 
   val show_compact_trace : t -> int -> unit
   (** Print compact trace (function names only) *)
