@@ -298,6 +298,7 @@ module Renderer = struct
           (* Value node: display as "name = value" or "=> value" *)
           if entry.is_result then
             Buffer.add_string buf "=> "
+          else if String.empty = entry.message then ()
           else
             Buffer.add_string buf (Printf.sprintf "%s = " entry.message);
 

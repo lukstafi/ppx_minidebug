@@ -707,13 +707,13 @@ let%expect_test "%track_show PrintBox tracking <function>" =
     [track] <function -- branch 5> x @ test/test_expect_test.ml:692:11-692:14
     |}]
 
-(*
 let%expect_test "%track_show PrintBox tracking with debug_notrace" =
-  (* $MDX part-begin=track_notrace_example *)
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
   in
+  (* $MDX part-begin=track_notrace_example *)
   let%track_show track_branches (x : int) : int =
     if x < 6 then
       match%debug_notrace x with
@@ -736,35 +736,34 @@ let%expect_test "%track_show PrintBox tracking with debug_notrace" =
       print_endline @@ Int.to_string @@ track_branches 3
     with _ -> print_endline "Raised exception."
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1016:32: track_branches
-    ├─x = 8
-    ├─"test/test_expect_test.ml":1025:6: else:test_expect_test:1025
-    │ └─"test/test_expect_test.ml":1029:10: <match -- branch 2>
-    │   └─"test/test_expect_test.ml":1029:14: result
-    │     ├─"test/test_expect_test.ml":1029:44: then:test_expect_test:1029
-    │     └─result = 8
-    └─track_branches = 8
     8
-    "test/test_expect_test.ml":1016:32: track_branches
-    ├─x = 3
-    ├─"test/test_expect_test.ml":1018:6: then:test_expect_test:1018
-    │ └─"test/test_expect_test.ml":1022:14: result
-    │   └─result = 3
-    └─track_branches = 3
     3
+    [track] track_branches @ test/test_expect_test.ml:717:32-731:16
+      x = 8
+      [track] else:test_expect_test:726 @ test/test_expect_test.ml:726:6-731:16
+        [track] <match -- branch 2> @ test/test_expect_test.ml:730:10-731:16
+          [track] result @ test/test_expect_test.ml:730:14-730:20
+            [track] then:test_expect_test:730 @ test/test_expect_test.ml:730:44-730:45
+            => 8
+      => 8
+    [track] track_branches @ test/test_expect_test.ml:717:32-731:16
+      x = 3
+      [track] then:test_expect_test:719 @ test/test_expect_test.ml:719:6-724:16
+        [debug] result @ test/test_expect_test.ml:723:14-723:20
+          => 3
+      => 3
     |}]
 (* $MDX part-end *)
 
-*)
-
-(*
 let%expect_test "%track_show PrintBox not tracking anonymous functions with debug_notrace"
     =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
   in
   let%track_show track_foo (x : int) : int =
@@ -773,27 +772,23 @@ let%expect_test "%track_show PrintBox not tracking anonymous functions with debu
     (fun (z : int) -> ignore z) x;
     w
   in
-  let () =
-    try print_endline @@ Int.to_string @@ track_foo 8
-    with _ -> print_endline "Raised exception."
-  in
+  let () = try print_endline @@ Int.to_string @@ track_foo 8 with _ -> print_endline "Raised exception." in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1065:27: track_foo
-    ├─x = 8
-    ├─"test/test_expect_test.ml":1068:4: fun:test_expect_test:1068
-    │ └─z = 8
-    └─track_foo = 8
     8
+    [track] track_foo @ test/test_expect_test.ml:769:27-773:5
+      x = 8
+      [track] fun:test_expect_test:772 @ test/test_expect_test.ml:772:4-772:31
+        z = 8
+      => 8
     |}]
 
-*)
-
-(*
 let%expect_test "respect scope of nested extension points" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
   in
   let%track_show track_branches (x : int) : int =
@@ -818,32 +813,31 @@ let%expect_test "respect scope of nested extension points" =
       print_endline @@ Int.to_string @@ track_branches 3
     with _ -> print_endline "Raised exception."
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1090:32: track_branches
-    ├─x = 8
-    ├─"test/test_expect_test.ml":1099:6: else:test_expect_test:1099
-    │ └─"test/test_expect_test.ml":1103:25: result
-    │   ├─"test/test_expect_test.ml":1103:55: then:test_expect_test:1103
-    │   └─result = 8
-    └─track_branches = 8
     8
-    "test/test_expect_test.ml":1090:32: track_branches
-    ├─x = 3
-    ├─"test/test_expect_test.ml":1092:6: then:test_expect_test:1092
-    │ └─"test/test_expect_test.ml":1096:25: result
-    │   └─result = 3
-    └─track_branches = 3
     3
+    [track] track_branches @ test/test_expect_test.ml:794:32-808:16
+      x = 8
+      [track] else:test_expect_test:803 @ test/test_expect_test.ml:803:6-808:16
+        [track] result @ test/test_expect_test.ml:807:25-807:31
+          [track] then:test_expect_test:807 @ test/test_expect_test.ml:807:55-807:56
+          => 8
+      => 8
+    [track] track_branches @ test/test_expect_test.ml:794:32-808:16
+      x = 3
+      [track] then:test_expect_test:796 @ test/test_expect_test.ml:796:6-801:16
+        [debug] result @ test/test_expect_test.ml:800:25-800:31
+          => 3
+      => 3
     |}]
 
-*)
-
-(*
 let%expect_test "%debug_show un-annotated toplevel fun" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
   in
   let%debug_show anonymous x =
@@ -860,16 +854,15 @@ let%expect_test "%debug_show un-annotated toplevel fun" =
     print_endline @@ Int.to_string @@ anonymous 3;
     print_endline @@ Int.to_string @@ followup 3
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":1136:27: anonymous
-    └─"We do log this function"
     6
     6
+    [debug] anonymous @ test/test_expect_test.ml:843:27-846:73
+      "We do log this function"
     |}]
-
-*)
 
 (*
 let%expect_test "%debug_show nested un-annotated toplevel fun" =
