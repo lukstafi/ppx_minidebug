@@ -1195,8 +1195,10 @@ let traverse_expression =
 
     method! expression context orig_exp =
       let callback context e = self#expression context e in
+      let nested = { context with toplevel_kind = Nested } in
+      let callback_nested e = self#expression nested e in
       let track_cases ?ret_descr ?ret_typ ?arg_typ kind =
-        List.mapi (debug_case context callback ?ret_descr ?ret_typ ?arg_typ kind)
+        List.mapi (debug_case nested callback ?ret_descr ?ret_typ ?arg_typ kind)
       in
       let orig_exp, ret_typ =
         match orig_exp with
@@ -1257,7 +1259,7 @@ let traverse_expression =
                 Pexp_let
                   ( rec_flag,
                     bindings,
-                    callback { context with toplevel_kind = Nested } body );
+                    callback nested body );
             }
         | Pexp_extension ({ loc = _; txt }, PStr [%str [%e? body]])
           when Hashtbl.mem entry_rules txt ->
@@ -1447,7 +1449,7 @@ let traverse_expression =
               exp with
               pexp_desc =
                 Pexp_match
-                  (callback context expr, track_cases ~arg_typ ?ret_typ "match" cases);
+                  (callback_nested expr, track_cases ~arg_typ ?ret_typ "match" cases);
             }
         | Pexp_match (expr, cases)
           when context.track_or_explicit = `Track && (not @@ is_comptime_nothing context)
@@ -1455,7 +1457,7 @@ let traverse_expression =
             {
               exp with
               pexp_desc =
-                Pexp_match (callback context expr, track_cases ?ret_typ "match" cases);
+                Pexp_match (callback_nested expr, track_cases ?ret_typ "match" cases);
             }
         | Pexp_function ([], constr, Pfunction_cases (cases, _, _))
           when context.track_or_explicit = `Track && (not @@ is_comptime_nothing context)
@@ -1487,7 +1489,7 @@ let traverse_expression =
               let log_count_before = !global_log_count in
               let loc = then_.pexp_loc in
               let message = "then:" ^ loc_to_name loc in
-              let then_ = callback context then_ in
+              let then_ = callback_nested then_ in
               let then_' =
                 let log_open =
                   open_log ~message ~loc ~log_level:context.entry_log_level
@@ -1525,7 +1527,7 @@ let traverse_expression =
             in
             let else_ =
               let log_count_before = !global_log_count in
-              let else_ = Option.map (callback context) else_ in
+              let else_ = Option.map callback_nested else_ in
               let else_' =
                 Option.map
                   (fun else_ ->
@@ -1566,7 +1568,7 @@ let traverse_expression =
               then else_
               else else_'
             in
-            { exp with pexp_desc = Pexp_ifthenelse (callback context if_, then_, else_) }
+            { exp with pexp_desc = Pexp_ifthenelse (callback_nested if_, then_, else_) }
         | Pexp_for (pat, from, to_, dir, body)
           when context.track_or_explicit = `Track && (not @@ is_comptime_nothing context)
           ->
@@ -1590,7 +1592,7 @@ let traverse_expression =
                   ~log_level:context.entry_log_level (pat2expr pat)
               in
               entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~header
-                ~preamble ~entry:(callback context body)
+                ~preamble ~entry:(callback_nested body)
                 ~result:[%pat? ()]
                 ~log_result:[%expr ()] ()
             in
@@ -1641,7 +1643,7 @@ let traverse_expression =
                   ~log_level:context.entry_log_level context.track_or_explicit
               in
               entry_with_interrupts context ~loc ~descr_loc ~log_count_before ~preamble
-                ~entry:(callback context body)
+                ~entry:(callback_nested body)
                 ~result:[%pat? ()]
                 ~log_result:[%expr ()] ()
             in
@@ -1678,7 +1680,7 @@ let traverse_expression =
             if context.track_or_explicit = `Diagn && log_count_before = !global_log_count
             then { exp with pexp_desc }
             else transformed
-        | _ -> super#expression { context with toplevel_kind = Nested } exp
+        | _ -> super#expression nested exp
       in
       let unpacked_runtime, exp =
         match (orig_exp.pexp_desc, context.toplevel_kind) with
