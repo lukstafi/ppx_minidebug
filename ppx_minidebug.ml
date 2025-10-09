@@ -677,11 +677,15 @@ let unpack_runtime toplevel_opt_arg exp =
     | Nested | Runtime_outer -> exp
     | Runtime_local ->
         [%expr
-          let module Debug_runtime = (val _get_local_debug_runtime ()) in
+          let module Debug_runtime =
+            (val _get_local_debug_runtime () : Minidebug_runtime.Debug_runtime)
+          in
           [%e exp]]
     | Runtime_passing ->
         [%expr
-          let module Debug_runtime = (val _debug_runtime) in
+          let module Debug_runtime =
+            (val _debug_runtime : Minidebug_runtime.Debug_runtime)
+          in
           [%e exp]]
   in
   result
@@ -1253,14 +1257,7 @@ let traverse_expression =
           when context.toplevel_kind <> Nested || not (context.track_or_explicit = `Diagn)
           ->
             let bindings = List.map (debug_binding context callback) bindings in
-            {
-              exp with
-              pexp_desc =
-                Pexp_let
-                  ( rec_flag,
-                    bindings,
-                    callback nested body );
-            }
+            { exp with pexp_desc = Pexp_let (rec_flag, bindings, callback nested body) }
         | Pexp_extension ({ loc = _; txt }, PStr [%str [%e? body]])
           when Hashtbl.mem entry_rules txt ->
             let r = Hashtbl.find entry_rules txt in
@@ -1791,7 +1788,9 @@ let global_interrupts =
             init_context := { !init_context with interrupts = true };
             A.pstr_eval ~loc
               [%expr
-                let module Debug_runtime = (val _get_local_debug_runtime ()) in
+                let module Debug_runtime =
+                  (val _get_local_debug_runtime () : Minidebug_runtime.Debug_runtime)
+                in
                 Debug_runtime.max_nesting_depth := Some [%e max_nesting_depth];
                 Debug_runtime.max_num_children := Some [%e max_num_children]]
               attrs
