@@ -129,8 +129,12 @@ module ValueIntern = struct
     match Sqlite3.step t.lookup_stmt with
     | Sqlite3.Rc.ROW ->
         (* Value already exists, return its ID *)
-        Sqlite3.Data.to_int_exn (Sqlite3.column t.lookup_stmt 0)
+        let value_id = Sqlite3.Data.to_int_exn (Sqlite3.column t.lookup_stmt 0) in
+        Sqlite3.reset t.lookup_stmt |> ignore;  (* Reset to release locks *)
+        value_id
     | _ ->
+        Sqlite3.reset t.lookup_stmt |> ignore;  (* Reset before insert *)
+
         (* Insert new value *)
         Sqlite3.reset t.insert_stmt |> ignore;
         Sqlite3.bind_text t.insert_stmt 1 hash |> ignore;
@@ -140,13 +144,17 @@ module ValueIntern = struct
         (match Sqlite3.step t.insert_stmt with
         | Sqlite3.Rc.DONE -> ()
         | _ -> failwith "Failed to insert value");
+        Sqlite3.reset t.insert_stmt |> ignore;  (* Reset to release locks *)
 
         (* Get the ID of the newly inserted or existing value *)
         Sqlite3.reset t.lookup_stmt |> ignore;
         Sqlite3.bind_text t.lookup_stmt 1 hash |> ignore;
-        (match Sqlite3.step t.lookup_stmt with
-        | Sqlite3.Rc.ROW -> Sqlite3.Data.to_int_exn (Sqlite3.column t.lookup_stmt 0)
-        | _ -> failwith "Failed to retrieve value_id after insert")
+        let value_id = match Sqlite3.step t.lookup_stmt with
+          | Sqlite3.Rc.ROW -> Sqlite3.Data.to_int_exn (Sqlite3.column t.lookup_stmt 0)
+          | _ -> failwith "Failed to retrieve value_id after insert"
+        in
+        Sqlite3.reset t.lookup_stmt |> ignore;  (* Reset to release locks *)
+        value_id
 
   (** Finalize prepared statements *)
   let finalize t =
@@ -203,6 +211,7 @@ module DatabaseBackend (Log_to : Db_config) :
   (** Initialize database connection *)
   let initialize_database filename =
     let db_handle = Sqlite3.db_open filename in
+    Sqlite3.busy_timeout db_handle 5000;  (* Retry for up to 5 seconds on BUSY *)
     Schema.initialize_db db_handle;
     db := Some db_handle;
     db_path := Some filename;
@@ -553,7 +562,7 @@ module DatabaseBackend (Log_to : Db_config) :
 
       (match Sqlite3.step stmt with
       | Sqlite3.Rc.DONE -> ()
-      | _ -> failwith "Failed to insert value row");
+      | rc -> failwith ("Failed to insert value row: " ^ Sqlite3.Rc.to_string rc));
       Sqlite3.finalize stmt |> ignore;
 
       (* Increment parent's num_children counter *)
@@ -660,9 +669,17 @@ module DatabaseBackend (Log_to : Db_config) :
             Sqlite3.bind_int stmt 3 parent_id |> ignore;
             Sqlite3.bind_int stmt 4 entry_id |> ignore;
 
-            (match Sqlite3.step stmt with
-            | Sqlite3.Rc.DONE -> ()
-            | _ -> failwith "Failed to update entry end time");
+            (* Retry the update with exponential backoff if busy *)
+            let rec retry_step attempts delay =
+              Sqlite3.reset stmt |> ignore;
+              match Sqlite3.step stmt with
+              | Sqlite3.Rc.DONE -> ()
+              | Sqlite3.Rc.BUSY when attempts > 0 ->
+                  Unix.sleepf delay;
+                  retry_step (attempts - 1) (min (delay *. 1.5) 0.1)  (* Cap at 100ms *)
+              | rc -> failwith ("Failed to update entry end time: " ^ Sqlite3.Rc.to_string rc)
+            in
+            retry_step 50 0.001;  (* Start with 1ms delay *)
             Sqlite3.finalize stmt |> ignore
         | None -> ());
 

@@ -260,8 +260,6 @@
  (action
   (diff debugger_log_prefixed.expected.log debugger_log_prefixed.log)))
 
-
-
 (executable
  (name test_debug_time_spans)
  (modules test_debug_time_spans)
@@ -383,6 +381,13 @@
  (libraries minidebug_db minidebug_client)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
+
+(test
+ (name test_comptime_log_level_rt_passing)
+ (modules test_comptime_log_level_rt_passing)
+ (libraries sexplib0 minidebug_db minidebug_client)
+ (preprocess
+  (pps ppx_minidebug ppx_sexp_conv)))
 
 (executable
  (name test_no_debug_if)
