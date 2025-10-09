@@ -2144,8 +2144,8 @@ let%expect_test "%log runtime log levels while-loop" =
           [track] fun:test_expect_test:2017 @ test/test_expect_test.ml:2017:11-2017:46
     |}]
 
-(*
 let%expect_test "%log compile time log levels while-loop" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
@@ -2201,187 +2201,68 @@ let%expect_test "%log compile time log levels while-loop" =
   print_endline @@ Int.to_string @@ everything ();
   print_endline @@ Int.to_string @@ nothing ();
   print_endline @@ Int.to_string @@ warning ();
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    everything = 21
-    ├─"test/test_expect_test.ml":2799:28
-    └─while:test_expect_test:2804
-      ├─"test/test_expect_test.ml":2804:6
-      ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2806:8
-      │ ├─then:test_expect_test:2806
-      │ │ ├─"test/test_expect_test.ml":2806:23
-      │ │ └─(ERROR: 1 i= 0)
-      │ ├─(WARNING: 2 i= 1)
-      │ ├─fun:test_expect_test:2809
-      │ │ └─"test/test_expect_test.ml":2809:13
-      │ └─(INFO: 3 j= 1)
-      ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2806:8
-      │ ├─then:test_expect_test:2806
-      │ │ ├─"test/test_expect_test.ml":2806:23
-      │ │ └─(ERROR: 1 i= 1)
-      │ ├─(WARNING: 2 i= 2)
-      │ ├─fun:test_expect_test:2809
-      │ │ └─"test/test_expect_test.ml":2809:13
-      │ └─(INFO: 3 j= 3)
-      ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2806:8
-      │ ├─else:test_expect_test:2806
-      │ │ └─"test/test_expect_test.ml":2806:66
-      │ ├─(WARNING: 2 i= 3)
-      │ ├─fun:test_expect_test:2809
-      │ │ └─"test/test_expect_test.ml":2809:13
-      │ └─(INFO: 3 j= 6)
-      ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2806:8
-      │ ├─else:test_expect_test:2806
-      │ │ └─"test/test_expect_test.ml":2806:66
-      │ ├─(WARNING: 2 i= 4)
-      │ ├─fun:test_expect_test:2809
-      │ │ └─"test/test_expect_test.ml":2809:13
-      │ └─(INFO: 3 j= 10)
-      ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2806:8
-      │ ├─else:test_expect_test:2806
-      │ │ └─"test/test_expect_test.ml":2806:66
-      │ ├─(WARNING: 2 i= 5)
-      │ ├─fun:test_expect_test:2809
-      │ │ └─"test/test_expect_test.ml":2809:13
-      │ └─(INFO: 3 j= 15)
-      └─<while loop>
-        ├─"test/test_expect_test.ml":2806:8
-        ├─else:test_expect_test:2806
-        │ └─"test/test_expect_test.ml":2806:66
-        ├─(WARNING: 2 i= 6)
-        ├─fun:test_expect_test:2809
-        │ └─"test/test_expect_test.ml":2809:13
-        └─(INFO: 3 j= 21)
     21
-    nothing = 21
-    └─"test/test_expect_test.ml":2814:25
     21
-    warning = 21
-    ├─"test/test_expect_test.ml":2830:25
-    └─while:test_expect_test:2835
-      ├─"test/test_expect_test.ml":2835:6
-      ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2837:8
-      │ ├─(ERROR: 1 i= 0)
-      │ └─(WARNING: 2 i= 1)
-      ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2837:8
-      │ ├─(ERROR: 1 i= 1)
-      │ └─(WARNING: 2 i= 2)
-      ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2837:8
-      │ └─(WARNING: 2 i= 3)
-      ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2837:8
-      │ └─(WARNING: 2 i= 4)
-      ├─<while loop>
-      │ ├─"test/test_expect_test.ml":2837:8
-      │ └─(WARNING: 2 i= 5)
-      └─<while loop>
-        ├─"test/test_expect_test.ml":2837:8
-        └─(WARNING: 2 i= 6)
     21
+    [track] everything => 21 @ test/test_expect_test.ml:2153:28-2166:9
+      [track] while:test_expect_test:2158 @ test/test_expect_test.ml:2158:6-2165:10
+        [track] <while loop> @ test/test_expect_test.ml:2160:8-2164:44
+          [track] then:test_expect_test:2160 @ test/test_expect_test.ml:2160:23-2160:60
+            (ERROR: 1 i= 0)
+          (WARNING: 2 i= 1)
+          [track] fun:test_expect_test:2163 @ test/test_expect_test.ml:2163:13-2163:48
+          (INFO: 3 j= 1)
+        [track] <while loop> @ test/test_expect_test.ml:2160:8-2164:44
+          [track] then:test_expect_test:2160 @ test/test_expect_test.ml:2160:23-2160:60
+            (ERROR: 1 i= 1)
+          (WARNING: 2 i= 2)
+          [track] fun:test_expect_test:2163 @ test/test_expect_test.ml:2163:13-2163:48
+          (INFO: 3 j= 3)
+        [track] <while loop> @ test/test_expect_test.ml:2160:8-2164:44
+          [track] else:test_expect_test:2160 @ test/test_expect_test.ml:2160:66-2160:68
+          (WARNING: 2 i= 3)
+          [track] fun:test_expect_test:2163 @ test/test_expect_test.ml:2163:13-2163:48
+          (INFO: 3 j= 6)
+        [track] <while loop> @ test/test_expect_test.ml:2160:8-2164:44
+          [track] else:test_expect_test:2160 @ test/test_expect_test.ml:2160:66-2160:68
+          (WARNING: 2 i= 4)
+          [track] fun:test_expect_test:2163 @ test/test_expect_test.ml:2163:13-2163:48
+          (INFO: 3 j= 10)
+        [track] <while loop> @ test/test_expect_test.ml:2160:8-2164:44
+          [track] else:test_expect_test:2160 @ test/test_expect_test.ml:2160:66-2160:68
+          (WARNING: 2 i= 5)
+          [track] fun:test_expect_test:2163 @ test/test_expect_test.ml:2163:13-2163:48
+          (INFO: 3 j= 15)
+        [track] <while loop> @ test/test_expect_test.ml:2160:8-2164:44
+          [track] else:test_expect_test:2160 @ test/test_expect_test.ml:2160:66-2160:68
+          (WARNING: 2 i= 6)
+          [track] fun:test_expect_test:2163 @ test/test_expect_test.ml:2163:13-2163:48
+          (INFO: 3 j= 21)
+    [track] nothing => 21 @ test/test_expect_test.ml:2168:25-2182:9
+    [track] warning => 21 @ test/test_expect_test.ml:2184:25-2199:9
+      [track] while:test_expect_test:2189 @ test/test_expect_test.ml:2189:6-2198:10
+        [track] <while loop> @ test/test_expect_test.ml:2191:8-2197:47
+          (ERROR: 1 i= 0)
+          (WARNING: 2 i= 1)
+        [track] <while loop> @ test/test_expect_test.ml:2191:8-2197:47
+          (ERROR: 1 i= 1)
+          (WARNING: 2 i= 2)
+        [track] <while loop> @ test/test_expect_test.ml:2191:8-2197:47
+          (WARNING: 2 i= 3)
+        [track] <while loop> @ test/test_expect_test.ml:2191:8-2197:47
+          (WARNING: 2 i= 4)
+        [track] <while loop> @ test/test_expect_test.ml:2191:8-2197:47
+          (WARNING: 2 i= 5)
+        [track] <while loop> @ test/test_expect_test.ml:2191:8-2197:47
+          (WARNING: 2 i= 6)
     |}]
 
-*)
-
-(*
-let%expect_test "%log compile time log levels runtime-passing while-loop" =
-  let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~run_name:"TOPLEVEL" db_file in
-    fun () -> rt
-  in
-  (* Compile-time log level restrictions cannot be undone, since the logging code is not
-     generated. *)
-  let%debug_sexp () =
-    ([%log_level
-       0;
-       let%track_rt_sexp nothing () : int =
-         let i = ref 0 in
-         let j = ref 0 in
-         while !i < 6 do
-           (* Intentional empty but not omitted else-branch. *)
-           if !i < 2 then [%log1 "ERROR:", 1, "i=", (!i : int)] else ();
-           incr i;
-           [%log2 "WARNING:", 2, "i=", (!i : int)];
-           j := (fun { contents } -> !j + contents) i;
-           [%log3 "INFO:", 3, "j=", (!j : int)]
-         done;
-         !j
-       in
-       print_endline @@ Int.to_string
-       @@ nothing
-            Minidebug_runtime.(forget_printbox @@ debug ~run_name:"nothing" ())
-            ()]);
-    [%log_level
-      2;
-      let%track_rt_sexp warning () : int =
-        let i = ref 0 in
-        let j = ref 0 in
-        while !i < 6 do
-          (* Reduce the debugging noise. *)
-          [%diagn_sexp
-            (* Intentional empty but not omitted else-branch. *)
-            if !i < 2 then [%log1 "ERROR:", 1, "i=", (!i : int)] else ();
-            incr i;
-            [%log2 "WARNING:", 2, "i=", (!i : int)];
-            j := (fun { contents } -> !j + contents) i;
-            [%log3 "INFO:", 3, "j=", (!j : int)]]
-        done;
-        !j
-      in
-      print_endline @@ Int.to_string
-      @@ warning
-           Minidebug_runtime.(forget_printbox @@ debug ~run_name:"warning" ())
-           ()]
-  in
-  [%expect
-    {|
-    BEGIN DEBUG SESSION TOPLEVEL
-
-    BEGIN DEBUG SESSION nothing
-    21
-
-    BEGIN DEBUG SESSION warning
-    warning = 21
-    ├─"test/test_expect_test.ml":2966:32
-    └─warning while:test_expect_test:2969
-      ├─"test/test_expect_test.ml":2969:8
-      ├─warning <while loop>
-      │ └─"test/test_expect_test.ml":2971:10
-      ├─warning <while loop>
-      │ └─"test/test_expect_test.ml":2971:10
-      ├─warning <while loop>
-      │ └─"test/test_expect_test.ml":2971:10
-      ├─warning <while loop>
-      │ └─"test/test_expect_test.ml":2971:10
-      ├─warning <while loop>
-      │ └─"test/test_expect_test.ml":2971:10
-      └─warning <while loop>
-        └─"test/test_expect_test.ml":2971:10
-    21
-    TOPLEVEL ()
-    ├─"test/test_expect_test.ml":2944:17
-    ├─(ERROR: 1 i= 0)
-    ├─(WARNING: 2 i= 1)
-    ├─(ERROR: 1 i= 1)
-    ├─(WARNING: 2 i= 2)
-    ├─(WARNING: 2 i= 3)
-    ├─(WARNING: 2 i= 4)
-    ├─(WARNING: 2 i= 5)
-    └─(WARNING: 2 i= 6)
-    |}]
-
-*)
-
-(*
 let%expect_test "%log track while-loop result" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
@@ -2400,52 +2281,44 @@ let%expect_test "%log track while-loop result" =
     !j
   in
   print_endline @@ Int.to_string result;
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
     21
-    ├─"test/test_expect_test.ml":3025:17
-    └─while:test_expect_test:3028
-      ├─"test/test_expect_test.ml":3028:4
-      ├─(3 j= 1)
-      │ ├─"test/test_expect_test.ml":3029:6
-      │ ├─<while loop>
-      │ ├─(1 i= 0)
-      │ └─(2 i= 1)
-      ├─(3 j= 3)
-      │ ├─"test/test_expect_test.ml":3029:6
-      │ ├─<while loop>
-      │ ├─(1 i= 1)
-      │ └─(2 i= 2)
-      ├─(3 j= 6)
-      │ ├─"test/test_expect_test.ml":3029:6
-      │ ├─<while loop>
-      │ ├─(1 i= 2)
-      │ └─(2 i= 3)
-      ├─(3 j= 10)
-      │ ├─"test/test_expect_test.ml":3029:6
-      │ ├─<while loop>
-      │ ├─(1 i= 3)
-      │ └─(2 i= 4)
-      ├─(3 j= 15)
-      │ ├─"test/test_expect_test.ml":3029:6
-      │ ├─<while loop>
-      │ ├─(1 i= 4)
-      │ └─(2 i= 5)
-      └─(3 j= 21)
-        ├─"test/test_expect_test.ml":3029:6
-        ├─<while loop>
-        ├─(1 i= 5)
-        └─(2 i= 6)
-    21
+    [track] result @ test/test_expect_test.ml:2270:17-2270:23
+      [track] while:test_expect_test:2273 @ test/test_expect_test.ml:2273:4-2279:8
+        [track] <while loop> @ test/test_expect_test.ml:2274:6-2278:39
+          (1 i= 0)
+          (2 i= 1)
+          => => (3 j= 1)
+        [track] <while loop> @ test/test_expect_test.ml:2274:6-2278:39
+          (1 i= 1)
+          (2 i= 2)
+          => => (3 j= 3)
+        [track] <while loop> @ test/test_expect_test.ml:2274:6-2278:39
+          (1 i= 2)
+          (2 i= 3)
+          => => (3 j= 6)
+        [track] <while loop> @ test/test_expect_test.ml:2274:6-2278:39
+          (1 i= 3)
+          (2 i= 4)
+          => => (3 j= 10)
+        [track] <while loop> @ test/test_expect_test.ml:2274:6-2278:39
+          (1 i= 4)
+          (2 i= 5)
+          => => (3 j= 15)
+        [track] <while loop> @ test/test_expect_test.ml:2274:6-2278:39
+          (1 i= 5)
+          (2 i= 6)
+          => => (3 j= 21)
+      => => 21
     |}]
 
-*)
-
-(*
 let%expect_test "%log without scope" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false ~print_entry_ids:true db_file in
+    let rt = Minidebug_db.debug_db_file ~print_entry_ids:true db_file in
     fun () -> rt
   in
   let i = 3 in
@@ -2465,24 +2338,17 @@ let%expect_test "%log without scope" =
         [%log (i : int) :: l]
   in
   let () = !foo () in
-  [%expect
-    {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":3090:17: _bar {#1}
-    └─_bar = ()
-    {orphaned from #1}
-    └─("This is like", 3, "or", 3.14, "above")
-    {orphaned from #1}
-    └─("tau =", 6.28)
-    {orphaned from #1}
-    └─[4; 1; 2; 3]
-    {orphaned from #1}
-    └─[3; 1; 2; 3]
-    {orphaned from #1}
-    └─[3; 1; 2; 3]
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
+  [%expect {|
+    [debug] _bar @ test/test_expect_test.ml:2331:17-2331:21
+      _bar => ()
+      ("This is like", 3, "or", 3.14, "above")
+      ("tau =", 6.28)
+      [4; 1; 2; 3]
+      [3; 1; 2; 3]
+      [3; 1; 2; 3]
     |}]
-
-*)
 
 (*
 let%expect_test "%log without scope values_first_mode" =
@@ -2644,8 +2510,8 @@ let%expect_test "%log with print_entry_ids, verbose_entry_ids in HTML, values_fi
 
 *)
 
-(*
 let%expect_test "%diagn_show ignores type annots" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
@@ -2666,22 +2532,20 @@ let%expect_test "%diagn_show ignores type annots" =
     print_endline @@ Int.to_string @@ baz { first = 7; second = 42 }
   in
   ignore toplevel;
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
     336
     109
-    toplevel
-    ├─"test/test_expect_test.ml":3267:17
-    ├─("for bar, b-3", 42)
-    └─("for baz, f squared", 64)
+    [diagn] toplevel @ test/test_expect_test.ml:2519:17-2519:25
+      ("for bar, b-3", 42)
+      ("for baz, f squared", 64)
     |}]
 
-*)
-
-(*
 let%expect_test "%diagn_show ignores non-empty bindings" =
   (* $MDX part-begin=diagn_show_ignores_bindings *)
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
@@ -2701,24 +2565,21 @@ let%expect_test "%diagn_show ignores non-empty bindings" =
     foo { first; second }
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    bar
-    ├─"test/test_expect_test.ml":3297:21
-    └─("for bar, b-3", 42)
     336
-    baz
-    ├─"test/test_expect_test.ml":3304:21
-    └─("foo baz, f squared", 49)
     91
+    [diagn] bar @ test/test_expect_test.ml:2553:21-2557:15
+      ("for bar, b-3", 42)
+    [diagn] baz @ test/test_expect_test.ml:2560:21-2565:25
+      ("foo baz, f squared", 49)
     |}]
 (* $MDX part-end *)
 
-*)
-
-(*
 let%expect_test "%diagn_show no logs" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
@@ -2734,16 +2595,15 @@ let%expect_test "%diagn_show no logs" =
     foo { first; second }
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect {|
-    BEGIN DEBUG SESSION
     336
     91
     |}]
 
-*)
-
-(*
 let%expect_test "%debug_show log level compile time" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
@@ -2772,31 +2632,18 @@ let%expect_test "%debug_show log level compile time" =
       print_endline @@ Int.to_string @@ bar { first = 7; second = 42 };
       print_endline @@ Int.to_string @@ baz { first = 7; second = 42 }]
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
     336
     336
     109
-    ()
-    ├─"test/test_expect_test.ml":3347:18
-    └─baz = 109
-      ├─"test/test_expect_test.ml":3362:26
-      ├─first = 7
-      ├─second = 42
-      ├─{first; second}
-      │ ├─"test/test_expect_test.ml":3363:12
-      │ └─<values>
-      │   ├─first = 8
-      │   └─second = 45
-      └─("for baz, f squared", 64)
     |}]
 
-*)
-
-(*
 let%expect_test "%debug_show log level runtime" =
   (* $MDX part-begin=debug_show_log_level_runtime *)
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file ~log_level:2 db_file in
     fun () -> rt
@@ -2823,26 +2670,15 @@ let%expect_test "%debug_show log level runtime" =
     print_endline @@ Int.to_string @@ bar { first = 7; second = 42 };
     print_endline @@ Int.to_string @@ baz { first = 7; second = 42 }
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
     336
     336
-    baz = 109
-    ├─"test/test_expect_test.ml":3407:24
-    ├─first = 7
-    ├─second = 42
-    ├─{first; second}
-    │ ├─"test/test_expect_test.ml":3408:10
-    │ └─<values>
-    │   ├─first = 8
-    │   └─second = 45
-    └─("for baz, f squared", 64)
     109
     |}]
 (* $MDX part-end *)
-
-*)
 
 (*
 let%expect_test "%debug_show PrintBox snapshot" =
@@ -3393,13 +3229,15 @@ let%expect_test "%debug_show skip module bindings" =
 
 *)
 
-(*
 let%expect_test "%track_show procedure runtime prefixes" =
   (* $MDX part-begin=track_show_procedure_runtime_prefixes *)
   let i = ref 0 in
+  let run_ids = ref [] in
   let _get_local_debug_runtime () =
     let rt = Minidebug_db.debug_db_file ~run_name:("foo-" ^ string_of_int !i) db_file in
-    fun () -> rt
+    let run_id = next_run () in
+    run_ids := run_id :: !run_ids;
+    rt
   in
   let%track_show foo () =
     let () = () in
@@ -3415,74 +3253,51 @@ let%expect_test "%track_show procedure runtime prefixes" =
     foo ();
     bar ()
   done;
+  let db = Minidebug_client.Client.open_db db_file in
+  List.iter (fun run_id -> Minidebug_client.Client.show_trace db run_id) (List.rev !run_ids);
   [%expect
     {|
-    BEGIN DEBUG SESSION foo-1
-    foo-1 foo begin "test/test_expect_test.ml":3951:21:
-     "inside foo"
-    foo-1 foo end
-
-    BEGIN DEBUG SESSION foo-1
-    foo-1 <function -- branch 0> () begin "test/test_expect_test.ml":3957:8:
-     "inside bar"
-    foo-1 <function -- branch 0> () end
-
-    BEGIN DEBUG SESSION foo-2
-    foo-2 foo begin "test/test_expect_test.ml":3951:21:
-     "inside foo"
-    foo-2 foo end
-
-    BEGIN DEBUG SESSION foo-2
-    foo-2 <function -- branch 0> () begin "test/test_expect_test.ml":3957:8:
-     "inside bar"
-    foo-2 <function -- branch 0> () end
-
-    BEGIN DEBUG SESSION foo-3
-    foo-3 foo begin "test/test_expect_test.ml":3951:21:
-     "inside foo"
-    foo-3 foo end
-
-    BEGIN DEBUG SESSION foo-3
-    foo-3 <function -- branch 0> () begin "test/test_expect_test.ml":3957:8:
-     "inside bar"
-    foo-3 <function -- branch 0> () end
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:3248:8-3249:27
+      "inside bar"
+    [track] foo @ test/test_expect_test.ml:3242:21-3244:23
+      "inside foo"
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:3248:8-3249:27
+      "inside bar"
+    [track] foo @ test/test_expect_test.ml:3242:21-3244:23
+      "inside foo"
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:3248:8-3249:27
+      "inside bar"
     |}]
 (* $MDX part-end *)
 
-*)
-
-(*
 let%expect_test "%track_rt_show expression runtime passing" =
+  let run_id1 = next_run () in
   [%track_rt_show
     [%log_block
       "test A";
       [%log "line A"]]]
     (Minidebug_db.debug_db_file ~run_name:"t1" db_file);
+  let run_id2 = next_run () in
   [%track_rt_show
     [%log_block
       "test B";
       [%log "line B"]]]
     (Minidebug_db.debug_db_file ~run_name:"t2" db_file);
+  let _run_id3 = next_run () in
   [%track_rt_show
     [%log_block
       "test C";
       [%log "line C"]]]
     Minidebug_db.(
-      debug_db_file ~values_first_mode:false ~run_name:"t3" ~log_level:0 db_file);
+      debug_db_file ~run_name:"t3" ~log_level:0 db_file);
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id1;
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id2;
   [%expect
     {|
-    BEGIN DEBUG SESSION t1
-    t1 test A begin
-     "line A"
-    t1 test A end
-
-    BEGIN DEBUG SESSION t2
-    t2 test B begin
-     "line B"
-    t2 test B end
+    [track] test B @ :0:0-0:0
+      "line B"
     |}]
-
-*)
 
 (*
 let%expect_test "%debug_show tuples values_first_mode highlighted" =
@@ -3940,8 +3755,8 @@ let%expect_test "%log_block compile-time nothing dynamic scope" =
 
 *)
 
-(*
 let%expect_test "%log compile time log levels while-loop dynamic scope" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
@@ -3978,129 +3793,14 @@ let%expect_test "%log compile time log levels while-loop dynamic scope" =
   print_endline @@ Int.to_string @@ everything ();
   print_endline @@ Int.to_string @@ nothing ();
   print_endline @@ Int.to_string @@ warning ();
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    everything = 21
-    ├─"test/test_expect_test.ml":4487:28
-    └─loop
-      ├─"test/test_expect_test.ml":4474:22
-      └─while:test_expect_test:4477
-        ├─"test/test_expect_test.ml":4477:4
-        ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4479:6
-        │ ├─then:test_expect_test:4479
-        │ │ ├─"test/test_expect_test.ml":4479:21
-        │ │ └─(ERROR: 1 i= 0)
-        │ ├─(WARNING: 2 i= 1)
-        │ ├─fun:test_expect_test:4482
-        │ │ └─"test/test_expect_test.ml":4482:11
-        │ └─(INFO: 3 j= 1)
-        ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4479:6
-        │ ├─then:test_expect_test:4479
-        │ │ ├─"test/test_expect_test.ml":4479:21
-        │ │ └─(ERROR: 1 i= 1)
-        │ ├─(WARNING: 2 i= 2)
-        │ ├─fun:test_expect_test:4482
-        │ │ └─"test/test_expect_test.ml":4482:11
-        │ └─(INFO: 3 j= 3)
-        ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4479:6
-        │ ├─else:test_expect_test:4479
-        │ │ └─"test/test_expect_test.ml":4479:64
-        │ ├─(WARNING: 2 i= 3)
-        │ ├─fun:test_expect_test:4482
-        │ │ └─"test/test_expect_test.ml":4482:11
-        │ └─(INFO: 3 j= 6)
-        ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4479:6
-        │ ├─else:test_expect_test:4479
-        │ │ └─"test/test_expect_test.ml":4479:64
-        │ ├─(WARNING: 2 i= 4)
-        │ ├─fun:test_expect_test:4482
-        │ │ └─"test/test_expect_test.ml":4482:11
-        │ └─(INFO: 3 j= 10)
-        ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4479:6
-        │ ├─else:test_expect_test:4479
-        │ │ └─"test/test_expect_test.ml":4479:64
-        │ ├─(WARNING: 2 i= 5)
-        │ ├─fun:test_expect_test:4482
-        │ │ └─"test/test_expect_test.ml":4482:11
-        │ └─(INFO: 3 j= 15)
-        └─<while loop>
-          ├─"test/test_expect_test.ml":4479:6
-          ├─else:test_expect_test:4479
-          │ └─"test/test_expect_test.ml":4479:64
-          ├─(WARNING: 2 i= 6)
-          ├─fun:test_expect_test:4482
-          │ └─"test/test_expect_test.ml":4482:11
-          └─(INFO: 3 j= 21)
     21
-    nothing = 21
-    └─"test/test_expect_test.ml":4492:25
     21
-    warning = 21
-    ├─"test/test_expect_test.ml":4498:25
-    └─loop
-      ├─"test/test_expect_test.ml":4474:22
-      └─while:test_expect_test:4477
-        ├─"test/test_expect_test.ml":4477:4
-        ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4479:6
-        │ ├─then:test_expect_test:4479
-        │ │ ├─"test/test_expect_test.ml":4479:21
-        │ │ └─(ERROR: 1 i= 0)
-        │ ├─(WARNING: 2 i= 1)
-        │ ├─fun:test_expect_test:4482
-        │ │ └─"test/test_expect_test.ml":4482:11
-        │ └─(INFO: 3 j= 1)
-        ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4479:6
-        │ ├─then:test_expect_test:4479
-        │ │ ├─"test/test_expect_test.ml":4479:21
-        │ │ └─(ERROR: 1 i= 1)
-        │ ├─(WARNING: 2 i= 2)
-        │ ├─fun:test_expect_test:4482
-        │ │ └─"test/test_expect_test.ml":4482:11
-        │ └─(INFO: 3 j= 3)
-        ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4479:6
-        │ ├─else:test_expect_test:4479
-        │ │ └─"test/test_expect_test.ml":4479:64
-        │ ├─(WARNING: 2 i= 3)
-        │ ├─fun:test_expect_test:4482
-        │ │ └─"test/test_expect_test.ml":4482:11
-        │ └─(INFO: 3 j= 6)
-        ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4479:6
-        │ ├─else:test_expect_test:4479
-        │ │ └─"test/test_expect_test.ml":4479:64
-        │ ├─(WARNING: 2 i= 4)
-        │ ├─fun:test_expect_test:4482
-        │ │ └─"test/test_expect_test.ml":4482:11
-        │ └─(INFO: 3 j= 10)
-        ├─<while loop>
-        │ ├─"test/test_expect_test.ml":4479:6
-        │ ├─else:test_expect_test:4479
-        │ │ └─"test/test_expect_test.ml":4479:64
-        │ ├─(WARNING: 2 i= 5)
-        │ ├─fun:test_expect_test:4482
-        │ │ └─"test/test_expect_test.ml":4482:11
-        │ └─(INFO: 3 j= 15)
-        └─<while loop>
-          ├─"test/test_expect_test.ml":4479:6
-          ├─else:test_expect_test:4479
-          │ └─"test/test_expect_test.ml":4479:64
-          ├─(WARNING: 2 i= 6)
-          ├─fun:test_expect_test:4482
-          │ └─"test/test_expect_test.ml":4482:11
-          └─(INFO: 3 j= 21)
     21
     |}]
-
-*)
 
 (*
 let%expect_test "%debug_show comparing differences across runs" =

@@ -207,6 +207,7 @@ module DatabaseBackend (Log_to : Db_config) :
   let hidden_entries = ref []
   let root_seq_counter = ref 0  (* Counter for root-level entries *)
   let boxify_entry_id_counter = ref 0  (* Counter for synthetic entry_ids from boxify *)
+  let orphaned_seq_counters = ref []  (* Per-entry_id counters for orphaned logs: (entry_id * seq_counter) list *)
 
   (** Initialize database connection *)
   let initialize_database filename =
@@ -521,7 +522,35 @@ module DatabaseBackend (Log_to : Db_config) :
       let depth, seq_id =
         match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
         | Some parent_entry -> parent_entry.depth + 1, parent_entry.num_children
-        | None -> List.length !stack, 0  (* Fallback *)
+        | None ->
+            (* Orphaned log: entry not on stack.
+               Query database for max seq_id to avoid conflicts with existing values/results *)
+            let seq = match List.assoc_opt entry_id !orphaned_seq_counters with
+              | Some counter ->
+                  let s = !counter in
+                  incr counter;
+                  s
+              | None ->
+                  (* Find the maximum seq_id already used for this entry_id *)
+                  let max_seq_stmt =
+                    Sqlite3.prepare db
+                      "SELECT COALESCE(MAX(seq_id), -1) FROM entries WHERE run_id = ? AND entry_id = ?"
+                  in
+                  Sqlite3.bind_int max_seq_stmt 1 run_id |> ignore;
+                  Sqlite3.bind_int max_seq_stmt 2 entry_id |> ignore;
+                  let max_seq = match Sqlite3.step max_seq_stmt with
+                    | Sqlite3.Rc.ROW -> Sqlite3.Data.to_int_exn (Sqlite3.column max_seq_stmt 0)
+                    | _ -> -1
+                  in
+                  Sqlite3.reset max_seq_stmt |> ignore;
+                  Sqlite3.finalize max_seq_stmt |> ignore;
+
+                  let start_seq = max_seq + 1 in
+                  let counter = ref (start_seq + 1) in
+                  orphaned_seq_counters := (entry_id, counter) :: !orphaned_seq_counters;
+                  start_seq
+            in
+            List.length !stack, seq
       in
 
       (* Intern the message (parameter/result name) *)
@@ -562,7 +591,10 @@ module DatabaseBackend (Log_to : Db_config) :
 
       (match Sqlite3.step stmt with
       | Sqlite3.Rc.DONE -> ()
-      | rc -> failwith ("Failed to insert value row: " ^ Sqlite3.Rc.to_string rc));
+      | rc ->
+          let err_msg = Sqlite3.errmsg db in
+          failwith (Printf.sprintf "Failed to insert value row: %s (error: %s, entry_id=%d, seq_id=%d)"
+            (Sqlite3.Rc.to_string rc) err_msg entry_id seq_id));
       Sqlite3.finalize stmt |> ignore;
 
       (* Increment parent's num_children counter *)
