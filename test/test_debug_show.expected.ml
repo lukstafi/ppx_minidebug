@@ -1,7 +1,9 @@
 let _get_local_debug_runtime =
   let rt = Minidebug_db.debug_db_file "debugger_show" in fun () -> rt
 let foo (x : int) =
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+  let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     (let __entry_id = Debug_runtime.get_entry_id () in
      (Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:5
         ~start_colnum:19 ~end_lnum:7 ~end_colnum:17 ~message:"foo"
@@ -46,7 +48,9 @@ type t = {
   first: int ;
   second: int }[@@deriving show]
 let bar (x : t) =
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+  let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     (let __entry_id = Debug_runtime.get_entry_id () in
      (Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:13
         ~start_colnum:19 ~end_lnum:15 ~end_colnum:14 ~message:"bar"
@@ -88,7 +92,9 @@ let bar (x : t) =
            raise e)) : int)
 let () = ignore @@ (bar { first = 7; second = 42 })
 let baz (x : t) =
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+  let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     (let __entry_id = Debug_runtime.get_entry_id () in
      (Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:19
         ~start_colnum:19 ~end_lnum:21 ~end_colnum:20 ~message:"baz"
@@ -130,7 +136,9 @@ let baz (x : t) =
            raise e)) : int)
 let () = ignore @@ (baz { first = 7; second = 42 })
 let rec loop (depth : int) (x : t) =
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+  let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     (let __entry_id = Debug_runtime.get_entry_id () in
      ((Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:25
          ~start_colnum:24 ~end_lnum:31 ~end_colnum:9 ~message:"loop"
@@ -209,7 +217,9 @@ let rec loop (depth : int) (x : t) =
            raise e)) : int)
 let () = ignore @@ (loop 0 { first = 7; second = 42 })
 let simple_thunk (x : string) () =
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+  let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     (let __entry_id = Debug_runtime.get_entry_id () in
      (Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:38
         ~start_colnum:28 ~end_lnum:38 ~end_colnum:83 ~message:"simple_thunk"
@@ -231,7 +241,9 @@ let simple_thunk (x : string) () =
            raise e)) : unit)
 let () = simple_thunk "hello" ()
 let nested_fun (x : int) y =
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+  let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     (let __entry_id = Debug_runtime.get_entry_id () in
      (Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:43
         ~start_colnum:26 ~end_lnum:43 ~end_colnum:75 ~message:"nested_fun"
@@ -253,7 +265,9 @@ let nested_fun (x : int) y =
            raise e)) : unit)
 let () = nested_fun 5 10
 let cascade (x : int) y z =
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+  let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     (let __entry_id = Debug_runtime.get_entry_id () in
      (Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:48
         ~start_colnum:23 ~end_lnum:48 ~end_colnum:82 ~message:"cascade"
@@ -275,7 +289,9 @@ let cascade (x : int) y z =
            raise e)) : int)
 let () = ignore @@ (cascade 1 2 3)
 let parallel_update (x : int) (y : int) =
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+  let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     (let __entry_id = Debug_runtime.get_entry_id () in
      ((Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:53
          ~start_colnum:31 ~end_lnum:55 ~end_colnum:28
@@ -299,7 +315,9 @@ let parallel_update (x : int) (y : int) =
            raise e)) : unit -> unit)
 let () = parallel_update 10 20 ()
 let complex_case (type buffer_ptr) (x : int) (y : buffer_ptr -> int) =
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+  let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     (let __entry_id = Debug_runtime.get_entry_id () in
      ((Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:60
          ~start_colnum:28 ~end_lnum:62 ~end_colnum:29 ~message:"complex_case"

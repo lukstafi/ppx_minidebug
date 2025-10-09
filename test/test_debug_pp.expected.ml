@@ -5,7 +5,9 @@ type t = {
   second: int }[@@deriving show]
 type num = int[@@deriving show]
 let bar (x : t) =
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+  let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     (let __entry_id = Debug_runtime.get_entry_id () in
      (Debug_runtime.open_log ~fname:"test_debug_pp.ml" ~start_lnum:8
         ~start_colnum:17 ~end_lnum:10 ~end_colnum:14 ~message:"bar"
@@ -47,7 +49,9 @@ let bar (x : t) =
            raise e)) : num)
 let () = ignore @@ (bar { first = 7; second = 42 })
 let baz (x : t) =
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+  let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     (let __entry_id = Debug_runtime.get_entry_id () in
      (Debug_runtime.open_log ~fname:"test_debug_pp.ml" ~start_lnum:14
         ~start_colnum:17 ~end_lnum:16 ~end_colnum:20 ~message:"baz"
@@ -89,7 +93,9 @@ let baz (x : t) =
            raise e)) : num)
 let () = ignore @@ (baz { first = 7; second = 42 })
 let rec loop (depth : num) (x : t) =
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+  let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     (let __entry_id = Debug_runtime.get_entry_id () in
      ((Debug_runtime.open_log ~fname:"test_debug_pp.ml" ~start_lnum:20
          ~start_colnum:22 ~end_lnum:26 ~end_colnum:9 ~message:"loop"

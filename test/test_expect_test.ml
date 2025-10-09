@@ -2350,8 +2350,8 @@ let%expect_test "%log without scope" =
       [3; 1; 2; 3]
     |}]
 
-(*
 let%expect_test "%log without scope values_first_mode" =
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file ~print_entry_ids:true db_file in
     fun () -> rt
@@ -2370,28 +2370,27 @@ let%expect_test "%log without scope values_first_mode" =
         [%log (i : int) :: l]
   in
   let () = !foo () in
+  let () = !foo () in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db ~values_first_mode:true run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    _bar = ()
-    └─"test/test_expect_test.ml":3125:17 {#1}
-    ("This is like", 3, "or", 3.14, "above")
-    └─{orphaned from #1}
-    ("tau =", 6.28)
-    └─{orphaned from #1}
-    [4; 1; 2; 3]
-    └─{orphaned from #1}
-    [3; 1; 2; 3]
-    └─{orphaned from #1}
-    [3; 1; 2; 3]
-    └─{orphaned from #1}
+    [debug] _bar => () @ test/test_expect_test.ml:2363:17-2363:21
+      ("This is like", 3, "or", 3.14, "above")
+      ("tau =", 6.28)
+      [4; 1; 2; 3]
+      [3; 1; 2; 3]
+      [3; 1; 2; 3]
+      ("This is like", 3, "or", 3.14, "above")
+      ("tau =", 6.28)
+      [4; 1; 2; 3]
+      [3; 1; 2; 3]
+      [3; 1; 2; 3]
     |}]
 
-*)
-
-(*
 let%expect_test "%log with print_entry_ids, mixed up scopes" =
   (* $MDX part-begin=log_with_print_entry_ids_mixed_up_scopes *)
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file ~print_entry_ids:true db_file in
     fun () -> rt
@@ -2423,35 +2422,26 @@ let%expect_test "%log with print_entry_ids, mixed up scopes" =
   in
   let%debug_show _foobar : unit = !foo1 () in
   let () = !foo2 () in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    bar = ()
-    └─"test/test_expect_test.ml":3163:21 {#1}
-    baz = ()
-    └─"test/test_expect_test.ml":3170:21 {#2}
-    bar = ()
-    └─"test/test_expect_test.ml":3163:21 {#3}
-    _foobar = ()
-    ├─"test/test_expect_test.ml":3182:17 {#4}
-    ├─("This is like", 3, "or", 3.14, "above")
-    ├─("tau =", 6.28)
-    ├─[3; 1; 2; 3]
-    ├─[3; 1; 2; 3]
-    ├─("This is like", 3, "or", 3.14, "above")
-    └─("tau =", 6.28)
-    [3; 1; 2; 3]
-    └─{orphaned from #2}
-    [3; 1; 2; 3]
-    └─{orphaned from #2}
-    ("This is like", 3, "or", 3.14, "above")
-    └─{orphaned from #1}
-    ("tau =", 6.28)
-    └─{orphaned from #1}
+    [debug] bar => () @ test/test_expect_test.ml:2404:21-2409:19
+      ("This is like", 3, "or", 3.14, "above")
+      ("tau =", 6.28)
+      ("This is like", 3, "or", 3.14, "above")
+      ("tau =", 6.28)
+    [debug] baz => () @ test/test_expect_test.ml:2411:21-2416:19
+      [3; 1; 2; 3]
+      [3; 1; 2; 3]
+      [3; 1; 2; 3]
+      [3; 1; 2; 3]
+    [debug] bar => () @ test/test_expect_test.ml:2404:21-2409:19
+      ("This is like", 3, "or", 3.14, "above")
+      ("tau =", 6.28)
+    [debug] _foobar => () @ test/test_expect_test.ml:2423:17-2423:24
     |}]
 (* $MDX part-end *)
-
-*)
 
 (*
 let%expect_test "%log with print_entry_ids, verbose_entry_ids in HTML, values_first_mode"
@@ -2538,7 +2528,7 @@ let%expect_test "%diagn_show ignores type annots" =
     {|
     336
     109
-    [diagn] toplevel @ test/test_expect_test.ml:2519:17-2519:25
+    [diagn] toplevel @ test/test_expect_test.ml:2509:17-2509:25
       ("for bar, b-3", 42)
       ("for baz, f squared", 64)
     |}]
@@ -2571,9 +2561,9 @@ let%expect_test "%diagn_show ignores non-empty bindings" =
     {|
     336
     91
-    [diagn] bar @ test/test_expect_test.ml:2553:21-2557:15
+    [diagn] bar @ test/test_expect_test.ml:2543:21-2547:15
       ("for bar, b-3", 42)
-    [diagn] baz @ test/test_expect_test.ml:2560:21-2565:25
+    [diagn] baz @ test/test_expect_test.ml:2550:21-2555:25
       ("foo baz, f squared", 49)
     |}]
 (* $MDX part-end *)
@@ -3257,15 +3247,15 @@ let%expect_test "%track_show procedure runtime prefixes" =
   List.iter (fun run_id -> Minidebug_client.Client.show_trace db run_id) (List.rev !run_ids);
   [%expect
     {|
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:3248:8-3249:27
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:3238:8-3239:27
       "inside bar"
-    [track] foo @ test/test_expect_test.ml:3242:21-3244:23
+    [track] foo @ test/test_expect_test.ml:3232:21-3234:23
       "inside foo"
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:3248:8-3249:27
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:3238:8-3239:27
       "inside bar"
-    [track] foo @ test/test_expect_test.ml:3242:21-3244:23
+    [track] foo @ test/test_expect_test.ml:3232:21-3234:23
       "inside foo"
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:3248:8-3249:27
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:3238:8-3239:27
       "inside bar"
     |}]
 (* $MDX part-end *)

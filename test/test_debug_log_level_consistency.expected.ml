@@ -16,7 +16,9 @@ let _get_local_debug_runtime =
               ("' at compile time, '" ^ (runtime_log_level ^ "' at runtime"))))
   with | Stdlib.Not_found -> ()
 let foo (x : int) =
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+  let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     (let __entry_id = Debug_runtime.get_entry_id () in
      (Debug_runtime.open_log ~fname:"test_debug_log_level_consistency.ml"
         ~start_lnum:7 ~start_colnum:19 ~end_lnum:9 ~end_colnum:17

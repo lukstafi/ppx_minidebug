@@ -1,11 +1,15 @@
 let _get_local_debug_runtime =
   let rt = Minidebug_db.debug_db_file "debugger_interrupts" in fun () -> rt
-;;let module Debug_runtime = (val _get_local_debug_runtime ()) in
+;;let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     Debug_runtime.max_nesting_depth := (Some 5);
     Debug_runtime.max_num_children := (Some 10)
 ;;()
 let rec loop_exceeded (x : int) =
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+  let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     (let __entry_id = Debug_runtime.get_entry_id () in
      if Debug_runtime.exceeds_max_children ()
      then
@@ -121,7 +125,9 @@ let () =
   try print_endline @@ (Int.to_string @@ (loop_exceeded 17))
   with | _ -> print_endline "Raised exception."
 let bar () =
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+  let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     (let __entry_id = Debug_runtime.get_entry_id () in
      if Debug_runtime.exceeds_max_children ()
      then

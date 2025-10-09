@@ -2,7 +2,9 @@ let _get_local_debug_runtime =
   let rt = Minidebug_db.debug_db_file "debugger_log_prefixed" in fun () -> rt
 ;;()
 let rec loop_exceeded (x : int) =
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+  let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     (let __entry_id = Debug_runtime.get_entry_id () in
      (Debug_runtime.open_log ~fname:"test_debug_log_prefixed.ml"
         ~start_lnum:8 ~start_colnum:33 ~end_lnum:14 ~end_colnum:55
@@ -30,7 +32,9 @@ let () =
   try print_endline @@ (Int.to_string @@ (loop_exceeded 7))
   with | _ -> print_endline "Raised exception."
 let bar () =
-  let module Debug_runtime = (val _get_local_debug_runtime ()) in
+  let module Debug_runtime = (val
+    (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
+    in
     (let __entry_id = Debug_runtime.get_entry_id () in
      Debug_runtime.open_log ~fname:"test_debug_log_prefixed.ml"
        ~start_lnum:21 ~start_colnum:19 ~end_lnum:26 ~end_colnum:6

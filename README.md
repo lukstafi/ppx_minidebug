@@ -523,6 +523,7 @@ The `%diagn_` extension points further restrict logging to explicit logs only. E
 
 <!-- $MDX file=test/test_expect_test.ml,part=diagn_show_ignores_bindings -->
 ```ocaml
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
@@ -542,17 +543,16 @@ The `%diagn_` extension points further restrict logging to explicit logs only. E
     foo { first; second }
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    bar
-    ├─"test/test_expect_test.ml":3297:21
-    └─("for bar, b-3", 42)
     336
-    baz
-    ├─"test/test_expect_test.ml":3304:21
-    └─("foo baz, f squared", 49)
     91
+    [diagn] bar @ test/test_expect_test.ml:2543:21-2547:15
+      ("for bar, b-3", 42)
+    [diagn] baz @ test/test_expect_test.ml:2550:21-2555:25
+      ("foo baz, f squared", 49)
     |}]
 ```
 
@@ -633,6 +633,7 @@ Another example from the test suite, notice how the log level of `%log1` overrid
 
 <!-- $MDX file=test/test_expect_test.ml,part=debug_show_log_level_runtime -->
 ```ocaml
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file ~log_level:2 db_file in
     fun () -> rt
@@ -659,21 +660,12 @@ Another example from the test suite, notice how the log level of `%log1` overrid
     print_endline @@ Int.to_string @@ bar { first = 7; second = 42 };
     print_endline @@ Int.to_string @@ baz { first = 7; second = 42 }
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
     336
     336
-    baz = 109
-    ├─"test/test_expect_test.ml":3407:24
-    ├─first = 7
-    ├─second = 42
-    ├─{first; second}
-    │ ├─"test/test_expect_test.ml":3408:10
-    │ └─<values>
-    │   ├─first = 8
-    │   └─second = 45
-    └─("for baz, f squared", 64)
     109
     |}]
 ```
@@ -861,12 +853,11 @@ We track lexical scoping: every log has access to the `entry_id` number of the l
 Lexical scopes are computations: bindings, functions, tracked code branches (even if not annotated
 with an extension point, but always within some `ppx_minidebug` registered extension point). There is
 also dynamic scoping: which entry a particular log actually ends up belonging in. We do not
-expose the (lexical) entry id of an individual log, except when the log "wandered" out of all dynamic
-scopes, or you passed `~verbose_entry_ids:true` when creating a runtime. To be able to locate where such log originates from, pass `~print_entry_ids:true` when creating
-the runtime, and look for the path line with the log's entry id. When the backend is HTML or Markdown, the entry id is a hyperlink to the anchor of the entry. Example from the test suite:
+expose the (lexical) entry id except when passing `~verbose_entry_ids:true` to the renderer. Unlike with the static artifacts versions ppx_minidebug 2.x, the DB based backend retroactively adds logs to closed entries -- we no longer have the problem of orphaned entries. Example from the test suite:
 
 <!-- $MDX file=test/test_expect_test.ml,part=log_with_print_entry_ids_mixed_up_scopes -->
 ```ocaml
+  let run_id = next_run () in
   let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file ~print_entry_ids:true db_file in
     fun () -> rt
@@ -898,31 +889,24 @@ the runtime, and look for the path line with the log's entry id. When the backen
   in
   let%debug_show _foobar : unit = !foo1 () in
   let () = !foo2 () in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    bar = ()
-    └─"test/test_expect_test.ml":3163:21 {#1}
-    baz = ()
-    └─"test/test_expect_test.ml":3170:21 {#2}
-    bar = ()
-    └─"test/test_expect_test.ml":3163:21 {#3}
-    _foobar = ()
-    ├─"test/test_expect_test.ml":3182:17 {#4}
-    ├─("This is like", 3, "or", 3.14, "above")
-    ├─("tau =", 6.28)
-    ├─[3; 1; 2; 3]
-    ├─[3; 1; 2; 3]
-    ├─("This is like", 3, "or", 3.14, "above")
-    └─("tau =", 6.28)
-    [3; 1; 2; 3]
-    └─{orphaned from #2}
-    [3; 1; 2; 3]
-    └─{orphaned from #2}
-    ("This is like", 3, "or", 3.14, "above")
-    └─{orphaned from #1}
-    ("tau =", 6.28)
-    └─{orphaned from #1}
+    [debug] bar => () @ test/test_expect_test.ml:2404:21-2409:19
+      ("This is like", 3, "or", 3.14, "above")
+      ("tau =", 6.28)
+      ("This is like", 3, "or", 3.14, "above")
+      ("tau =", 6.28)
+    [debug] baz => () @ test/test_expect_test.ml:2411:21-2416:19
+      [3; 1; 2; 3]
+      [3; 1; 2; 3]
+      [3; 1; 2; 3]
+      [3; 1; 2; 3]
+    [debug] bar => () @ test/test_expect_test.ml:2404:21-2409:19
+      ("This is like", 3, "or", 3.14, "above")
+      ("tau =", 6.28)
+    [debug] _foobar => () @ test/test_expect_test.ml:2423:17-2423:24
     |}]
 ```
 
@@ -1485,9 +1469,12 @@ Example from the test suite:
 <!-- $MDX file=test/test_expect_test.ml,part=track_show_procedure_runtime_prefixes -->
 ```ocaml
   let i = ref 0 in
+  let run_ids = ref [] in
   let _get_local_debug_runtime () =
     let rt = Minidebug_db.debug_db_file ~run_name:("foo-" ^ string_of_int !i) db_file in
-    fun () -> rt
+    let run_id = next_run () in
+    run_ids := run_id :: !run_ids;
+    rt
   in
   let%track_show foo () =
     let () = () in
@@ -1503,37 +1490,20 @@ Example from the test suite:
     foo ();
     bar ()
   done;
+  let db = Minidebug_client.Client.open_db db_file in
+  List.iter (fun run_id -> Minidebug_client.Client.show_trace db run_id) (List.rev !run_ids);
   [%expect
     {|
-    BEGIN DEBUG SESSION foo-1
-    foo-1 foo begin "test/test_expect_test.ml":3951:21:
-     "inside foo"
-    foo-1 foo end
-
-    BEGIN DEBUG SESSION foo-1
-    foo-1 <function -- branch 0> () begin "test/test_expect_test.ml":3957:8:
-     "inside bar"
-    foo-1 <function -- branch 0> () end
-
-    BEGIN DEBUG SESSION foo-2
-    foo-2 foo begin "test/test_expect_test.ml":3951:21:
-     "inside foo"
-    foo-2 foo end
-
-    BEGIN DEBUG SESSION foo-2
-    foo-2 <function -- branch 0> () begin "test/test_expect_test.ml":3957:8:
-     "inside bar"
-    foo-2 <function -- branch 0> () end
-
-    BEGIN DEBUG SESSION foo-3
-    foo-3 foo begin "test/test_expect_test.ml":3951:21:
-     "inside foo"
-    foo-3 foo end
-
-    BEGIN DEBUG SESSION foo-3
-    foo-3 <function -- branch 0> () begin "test/test_expect_test.ml":3957:8:
-     "inside bar"
-    foo-3 <function -- branch 0> () end
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:3238:8-3239:27
+      "inside bar"
+    [track] foo @ test/test_expect_test.ml:3232:21-3234:23
+      "inside foo"
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:3238:8-3239:27
+      "inside bar"
+    [track] foo @ test/test_expect_test.ml:3232:21-3234:23
+      "inside foo"
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:3238:8-3239:27
+      "inside bar"
     |}]
 ```
 
