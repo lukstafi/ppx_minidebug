@@ -1,0 +1,21 @@
+21
+21
+run: warning 
+[track] warning => 21 @ test/test_comptime_log_level_rt_passing.ml:32:32-45:10
+  [track] while:test_comptime_log_level_rt_passing:35 @ test/test_comptime_log_level_rt_passing.ml:35:8-44:12
+    [track] <while loop> @ test/test_comptime_log_level_rt_passing.ml:37:10-43:49
+      (ERROR: 1 i= 0)
+      (WARNING: 2 i= 1)
+    [track] <while loop> @ test/test_comptime_log_level_rt_passing.ml:37:10-43:49
+      (ERROR: 1 i= 1)
+      (WARNING: 2 i= 2)
+    [track] <while loop> @ test/test_comptime_log_level_rt_passing.ml:37:10-43:49
+      (WARNING: 2 i= 3)
+    [track] <while loop> @ test/test_comptime_log_level_rt_passing.ml:37:10-43:49
+      (WARNING: 2 i= 4)
+    [track] <while loop> @ test/test_comptime_log_level_rt_passing.ml:37:10-43:49
+      (WARNING: 2 i= 5)
+    [track] <while loop> @ test/test_comptime_log_level_rt_passing.ml:37:10-43:49
+      (WARNING: 2 i= 6)
+run: TOPLEVEL 
+[debug] () @ test/test_comptime_log_level_rt_passing.ml:13:17-13:19
