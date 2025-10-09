@@ -297,7 +297,8 @@ let%debug_show rec loop_exceeded (x : int) : int =
           (1 i= 5)
           (2 i= 6)
           (3 j= 21)
-    |}]</code></pre><h3 id="using-as-a-logging-framework"><a href="#using-as-a-logging-framework" class="anchor"></a>Using as a logging framework</h3><p><code>ppx_minidebug</code> can be used as a logging framework: its annotations can be stored permamently with the source code, rather than shyly added for a brief period of debugging. To allow this, there needs to be a mechanism of logging levels -- otherwise the system is slowed down too much, or even if performance is not an issue, the user is overwhelmed with the amount of logs. <code>ppx_minidebug</code> addresses these issues in a flexible way, by offering restriction of log levels both at compile time and at runtime.</p><p>The <code>%diagn_</code> extension points (short for &quot;diagnostic&quot;) are tailored for the &quot;logging framework&quot; use-case. Within the scope of a <code>%diagn_</code> extension point, only explicit logs are generated. Therefore, one can freely add type annotations without generating debug logs. As a side-effect, <code>%diagn_</code> annotations can be used to disable debugging for pieces of code where we need type annotations for code reasons, but do not have serialization/printing functions for the types.</p><p>In the <code>PrintBox</code> backend, logs accumulate until the current toplevel log scope is closed. This is unfortunate in the logging framework context, where promptly informing the user using the logs might be important. To remedy this, <code>PrintBox_runtime</code> offers the setting <code>snapshot_every_sec</code>. When set, if sufficient time has passed since the last output, the backend will output the whole current toplevel log scope. If possible, the previous snapshot of the same log scope is erased, to not duplicate information. The underlying mechanism is available as [snapshot] in the generic interface; it does nothing in the flushing backend. [snapshot] is useful when there's a risk of a &quot;premature&quot; exit of the debugged program or thread.</p><p>The log levels are integers intended to be within the range 0-9, where 0 means no logging at all. They can be provided explicitly by all extension entry points and all explicit logging extensions. When omitted, the log level of the enclosing log entry is used; the default for a top-level log entry is log level 1. The syntax for logging at a compile-time given level is by example: <code>%debug2_sexp</code> (log at level 2), <code>%log3</code> (log at level 3), <code>%log1_resut</code> (log result at level 1), <code>%diagn3_sexp</code> (log at level 3) etc.</p><p>The <code>%diagn_</code> extension points further restrict logging to explicit logs only. Example from the test suite:</p><pre class="language-ocaml"><code>  let _get_local_debug_runtime =
+    |}]</code></pre><h3 id="using-as-a-logging-framework"><a href="#using-as-a-logging-framework" class="anchor"></a>Using as a logging framework</h3><p><code>ppx_minidebug</code> can be used as a logging framework: its annotations can be stored permamently with the source code, rather than shyly added for a brief period of debugging. To allow this, there needs to be a mechanism of logging levels -- otherwise the system is slowed down too much, or even if performance is not an issue, the user is overwhelmed with the amount of logs. <code>ppx_minidebug</code> addresses these issues in a flexible way, by offering restriction of log levels both at compile time and at runtime.</p><p>The <code>%diagn_</code> extension points (short for &quot;diagnostic&quot;) are tailored for the &quot;logging framework&quot; use-case. Within the scope of a <code>%diagn_</code> extension point, only explicit logs are generated. Therefore, one can freely add type annotations without generating debug logs. As a side-effect, <code>%diagn_</code> annotations can be used to disable debugging for pieces of code where we need type annotations for code reasons, but do not have serialization/printing functions for the types.</p><p>In the <code>PrintBox</code> backend, logs accumulate until the current toplevel log scope is closed. This is unfortunate in the logging framework context, where promptly informing the user using the logs might be important. To remedy this, <code>PrintBox_runtime</code> offers the setting <code>snapshot_every_sec</code>. When set, if sufficient time has passed since the last output, the backend will output the whole current toplevel log scope. If possible, the previous snapshot of the same log scope is erased, to not duplicate information. The underlying mechanism is available as [snapshot] in the generic interface; it does nothing in the flushing backend. [snapshot] is useful when there's a risk of a &quot;premature&quot; exit of the debugged program or thread.</p><p>The log levels are integers intended to be within the range 0-9, where 0 means no logging at all. They can be provided explicitly by all extension entry points and all explicit logging extensions. When omitted, the log level of the enclosing log entry is used; the default for a top-level log entry is log level 1. The syntax for logging at a compile-time given level is by example: <code>%debug2_sexp</code> (log at level 2), <code>%log3</code> (log at level 3), <code>%log1_resut</code> (log result at level 1), <code>%diagn3_sexp</code> (log at level 3) etc.</p><p>The <code>%diagn_</code> extension points further restrict logging to explicit logs only. Example from the test suite:</p><pre class="language-ocaml"><code>  let run_id = next_run () in
+  let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
     fun () -&gt; rt
   in
@@ -316,17 +317,16 @@ let%debug_show rec loop_exceeded (x : int) : int =
     foo { first; second }
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    bar
-    ├─&quot;test/test_expect_test.ml&quot;:3297:21
-    └─(&quot;for bar, b-3&quot;, 42)
     336
-    baz
-    ├─&quot;test/test_expect_test.ml&quot;:3304:21
-    └─(&quot;foo baz, f squared&quot;, 49)
     91
+    [diagn] bar @ test/test_expect_test.ml:2543:21-2547:15
+      (&quot;for bar, b-3&quot;, 42)
+    [diagn] baz @ test/test_expect_test.ml:2550:21-2555:25
+      (&quot;foo baz, f squared&quot;, 49)
     |}]</code></pre><p>At runtime creation, the level can be set via the <code>~log_level</code> parameter, or via <code>Debug_runtime.log_level := ...</code> later on, also for the flushing backend. The following example also illustrates the <code>_rt_</code> runtime-passing entry points:</p><pre class="language-ocaml"><code>  let rt log_level run_name = Minidebug_db.debug_db_file ~log_level ~run_name db_file in
   let%track_rt_sexp result () : int =
     let i = ref 0 in
@@ -374,7 +374,8 @@ let%diagn_show rec loop_exceeded (x : int) : int =
     [%log3 &quot;this is detail&quot;];
     (x - 1) / 2
   in
-  if x &lt;= 0 then 0 else z + loop_exceeded (z + (x / 2))</code></pre><p>This will not emit logging code that is above the stated log level. Note that the compile-time pruning of logging happens independently of the runtime log level! This gives more flexibility but can lead to confusing situations.</p><p>Currently <code>%log_level</code> adjusts the log level both in the lexical scope and the dynamic scope. These functionalities could in principle be separated.</p><p>You can set the compile time log level by setting the environment variable <code>PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL</code> -- this provides a default that will be overriden by all the other configuration options. This approach is error prone since all your projects and files will share the same configuration, and there is no consistency checking; use at your own risk. Some errors can be avoided by adding <code>(preprocessor_deps (env_var PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL))</code> in dune files.</p><p>There's also a way to compile the code adaptively, using any shell environment variable: <code>[%%global_debug_log_level_from_env_var &quot;environment_variable_name&quot;]</code>. The variable name is case-sensitive, the values should be integers. I recommend configuring this in every affected file, otherwise the behavior is unspecified.</p><p>With <code>[%%global_debug_log_level_from_env_var &quot;environment_variable_name&quot;]</code>, the generated code will check that the compile-time adaptive pruning matches the runtime value of the environment variable. If that's an obstacle, use <code>%%global_debug_log_level_from_env_var_unsafe</code> which will not perform the check. Using <code>%%global_debug_log_level_from_env_var_unsafe</code> or <code>PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL</code> can be prone to workflow bugs where different parts of a codebase are compiled with different log levels, leading to confusing behavior. In any case, I recommend adding a dependency on the environment variable to the <code>dune</code> file: for libraries, that would be <code>(preprocessor_deps (env_var environment_variable_name))</code>.</p><p>Another example from the test suite, notice how the log level of <code>%log1</code> overrides the parent log level of <code>%debug3_show</code>:</p><pre class="language-ocaml"><code>  let _get_local_debug_runtime =
+  if x &lt;= 0 then 0 else z + loop_exceeded (z + (x / 2))</code></pre><p>This will not emit logging code that is above the stated log level. Note that the compile-time pruning of logging happens independently of the runtime log level! This gives more flexibility but can lead to confusing situations.</p><p>Currently <code>%log_level</code> adjusts the log level both in the lexical scope and the dynamic scope. These functionalities could in principle be separated.</p><p>You can set the compile time log level by setting the environment variable <code>PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL</code> -- this provides a default that will be overriden by all the other configuration options. This approach is error prone since all your projects and files will share the same configuration, and there is no consistency checking; use at your own risk. Some errors can be avoided by adding <code>(preprocessor_deps (env_var PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL))</code> in dune files.</p><p>There's also a way to compile the code adaptively, using any shell environment variable: <code>[%%global_debug_log_level_from_env_var &quot;environment_variable_name&quot;]</code>. The variable name is case-sensitive, the values should be integers. I recommend configuring this in every affected file, otherwise the behavior is unspecified.</p><p>With <code>[%%global_debug_log_level_from_env_var &quot;environment_variable_name&quot;]</code>, the generated code will check that the compile-time adaptive pruning matches the runtime value of the environment variable. If that's an obstacle, use <code>%%global_debug_log_level_from_env_var_unsafe</code> which will not perform the check. Using <code>%%global_debug_log_level_from_env_var_unsafe</code> or <code>PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL</code> can be prone to workflow bugs where different parts of a codebase are compiled with different log levels, leading to confusing behavior. In any case, I recommend adding a dependency on the environment variable to the <code>dune</code> file: for libraries, that would be <code>(preprocessor_deps (env_var environment_variable_name))</code>.</p><p>Another example from the test suite, notice how the log level of <code>%log1</code> overrides the parent log level of <code>%debug3_show</code>:</p><pre class="language-ocaml"><code>  let run_id = next_run () in
+  let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file ~log_level:2 db_file in
     fun () -&gt; rt
   in
@@ -400,21 +401,12 @@ let%diagn_show rec loop_exceeded (x : int) : int =
     print_endline @@ Int.to_string @@ bar { first = 7; second = 42 };
     print_endline @@ Int.to_string @@ baz { first = 7; second = 42 }
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
     336
     336
-    baz = 109
-    ├─&quot;test/test_expect_test.ml&quot;:3407:24
-    ├─first = 7
-    ├─second = 42
-    ├─{first; second}
-    │ ├─&quot;test/test_expect_test.ml&quot;:3408:10
-    │ └─&lt;values&gt;
-    │   ├─first = 8
-    │   └─second = 45
-    └─(&quot;for baz, f squared&quot;, 64)
     109
     |}]</code></pre><p>The extension point <code>%log_result</code> lets you benefit from the <code>values_first_mode</code> setting even when using only explicit logs. Conveying more information in headers lets you explore logs more quickly.</p><p>The extension point <code>%log_printbox</code> lets you embed a <code>PrintBox.t</code> in the logs directly. Example from the test suite:</p><pre class="language-ocaml"><code>  let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
@@ -555,7 +547,8 @@ let%debug_sexp _test_at_log_level_3 : unit = test_at_log_level 3</code></pre><p>
         [%log3 &quot;INFO:&quot;, 3, &quot;j=&quot;, (!j : int)]]
     done;
     !j
-  in</code></pre><h3 id="lexical-scopes-vs.-dynamic-scopes"><a href="#lexical-scopes-vs.-dynamic-scopes" class="anchor"></a>Lexical scopes vs. dynamic scopes</h3><p>We track lexical scoping: every log has access to the <code>entry_id</code> number of the lexical scope it is in. Lexical scopes are computations: bindings, functions, tracked code branches (even if not annotated with an extension point, but always within some <code>ppx_minidebug</code> registered extension point). There is also dynamic scoping: which entry a particular log actually ends up belonging in. We do not expose the (lexical) entry id of an individual log, except when the log &quot;wandered&quot; out of all dynamic scopes, or you passed <code>~verbose_entry_ids:true</code> when creating a runtime. To be able to locate where such log originates from, pass <code>~print_entry_ids:true</code> when creating the runtime, and look for the path line with the log's entry id. When the backend is HTML or Markdown, the entry id is a hyperlink to the anchor of the entry. Example from the test suite:</p><pre class="language-ocaml"><code>  let _get_local_debug_runtime =
+  in</code></pre><h3 id="lexical-scopes-vs.-dynamic-scopes"><a href="#lexical-scopes-vs.-dynamic-scopes" class="anchor"></a>Lexical scopes vs. dynamic scopes</h3><p>We track lexical scoping: every log has access to the `entry_id` number of the lexical scope it is in. Lexical scopes are computations: bindings, functions, tracked code branches (even if not annotated with an extension point, but always within some `ppx_minidebug` registered extension point). There is also dynamic scoping: which entry a particular log actually ends up belonging in. We do not expose the (lexical) entry id except when passing <code>~verbose_entry_ids:true</code> to the renderer. Unlike with the static artifacts versions ppx_minidebug 2.x, the DB based backend retroactively adds logs to closed entries -- we no longer have the problem of orphaned entries. Example from the test suite:</p><pre class="language-ocaml"><code>  let run_id = next_run () in
+  let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file ~print_entry_ids:true db_file in
     fun () -&gt; rt
   in
@@ -586,31 +579,24 @@ let%debug_sexp _test_at_log_level_3 : unit = test_at_log_level 3</code></pre><p>
   in
   let%debug_show _foobar : unit = !foo1 () in
   let () = !foo2 () in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    bar = ()
-    └─&quot;test/test_expect_test.ml&quot;:3163:21 {#1}
-    baz = ()
-    └─&quot;test/test_expect_test.ml&quot;:3170:21 {#2}
-    bar = ()
-    └─&quot;test/test_expect_test.ml&quot;:3163:21 {#3}
-    _foobar = ()
-    ├─&quot;test/test_expect_test.ml&quot;:3182:17 {#4}
-    ├─(&quot;This is like&quot;, 3, &quot;or&quot;, 3.14, &quot;above&quot;)
-    ├─(&quot;tau =&quot;, 6.28)
-    ├─[3; 1; 2; 3]
-    ├─[3; 1; 2; 3]
-    ├─(&quot;This is like&quot;, 3, &quot;or&quot;, 3.14, &quot;above&quot;)
-    └─(&quot;tau =&quot;, 6.28)
-    [3; 1; 2; 3]
-    └─{orphaned from #2}
-    [3; 1; 2; 3]
-    └─{orphaned from #2}
-    (&quot;This is like&quot;, 3, &quot;or&quot;, 3.14, &quot;above&quot;)
-    └─{orphaned from #1}
-    (&quot;tau =&quot;, 6.28)
-    └─{orphaned from #1}
+    [debug] bar =&gt; () @ test/test_expect_test.ml:2404:21-2409:19
+      (&quot;This is like&quot;, 3, &quot;or&quot;, 3.14, &quot;above&quot;)
+      (&quot;tau =&quot;, 6.28)
+      (&quot;This is like&quot;, 3, &quot;or&quot;, 3.14, &quot;above&quot;)
+      (&quot;tau =&quot;, 6.28)
+    [debug] baz =&gt; () @ test/test_expect_test.ml:2411:21-2416:19
+      [3; 1; 2; 3]
+      [3; 1; 2; 3]
+      [3; 1; 2; 3]
+      [3; 1; 2; 3]
+    [debug] bar =&gt; () @ test/test_expect_test.ml:2404:21-2409:19
+      (&quot;This is like&quot;, 3, &quot;or&quot;, 3.14, &quot;above&quot;)
+      (&quot;tau =&quot;, 6.28)
+    [debug] _foobar =&gt; () @ test/test_expect_test.ml:2423:17-2423:24
     |}]</code></pre><p><code>~verbose_entry_ids:true</code> tags all logs with entry ids, it shouldn't be needed in regular use.</p><h3 id="reducing-the-size-of-generated-logs"><a href="#reducing-the-size-of-generated-logs" class="anchor"></a>Reducing the size of generated logs</h3><p>Summary of possibilities:</p><ul><li>log levels</li><li><code>path_filter</code> - filter by file path and/or function/binding name</li><li><code>no_debug_if</code></li><li><code>prune_upto</code></li><li><code>truncate_children</code></li><li><code>split_files_after</code></li><li>HTML browsers can handle really large files (less luck with Markdown).</li></ul><p>The log levels discussed in the previous section certainly reduce the amount generated, but they either help too little or they remove logs too indiscriminately for use in a debugging context. Dynamically controlling the runtime log level is one option, but there are some other options.</p><h4 id="path-filtering"><a href="#path-filtering" class="anchor"></a>Path filtering</h4><p>You can filter logs at runtime based on source file paths and function/binding names using the <code>path_filter</code> parameter. The filter is applied to the string <code>&quot;fname/message&quot;</code> where <code>fname</code> is the source file path and <code>message</code> is the function or binding name.</p><p>Examples:</p><pre class="language-ocaml"><code>  (* Test 1: Whitelist by file - only logs from files matching &quot;test_path_filter.ml&quot; *)
   let _get_local_debug_runtime =
     let rt =
@@ -728,9 +714,12 @@ let () =
     [debug] g : int =&gt; 12 @ test/test_expect_test.ml:1623:49-1623:72
       b : int = 6
     |}]</code></pre><p>You can also use at the module level: <code>[%%global_debug_type_info true]</code>, prior to the code of interest.</p><p>Explicit logging with <code>%log</code> (and <code>%log_result</code>) has different but related restrictions compared to logging of let or argument bindings. We reconstruct the type of the expression from partial type information, where in addition to type annotations we take into account: string, int and float literals, tuple, array, list, and <code>lazy</code> expresssions. We do not analyze applications, nor constructors other than &quot;nil&quot; <code>[]</code> and &quot;cons&quot; <code>::</code> for lists. When a type is unknown, for the whole expression and for a tuple element we assume the type <code>string</code>. We don't assume string for direct subexpressions of arrays, lists, and <code>lazy</code>.</p><h3 id="dealing-with-concurrent-execution"><a href="#dealing-with-concurrent-execution" class="anchor"></a>Dealing with concurrent execution</h3><p>With version 2.2.0, the default safety of using ppx_minidebug in a multithreaded context improved significantly. That's because the most convenient runtime builders (<code>local_runtime</code> etc.) use thread-local storage to provide local debug runtimes. They either log to different files, or use prefixes on logs. When using one of the lower-level debug runtime builders, or when using fibers or other non-system multithreading solutions, you need to be careful.</p><p>We offer three helpers for dealing with multiple debug runtimes.</p><p>The default extension points <code>%debug_sexp</code>, <code>%track_sexp</code>, etc. call a function <code>_get_local_debug_runtime ()</code> and unpack the argument as <code>module Debug_runtime</code> (in a function body). The feature helps using a runtime instance dedicated to a thread or domain, since for example <code>_get_local_debug_runtime</code> can retrieve the runtime using <code>Domain.DLS</code>. (The runtime builders <code>local_runtime</code> and <code>local_runtime_flushing</code> use <a href="https://ocaml.org/p/thread-local-storage/latest"><code>Thread_local_storage</code></a>.) To avoid surprises, in case of directly annotated functions, this feature unpacks a <code>Debug_runtime</code> inside the function body, so that we get the appropriate runtime for the dynamic local scope.</p><p>There is an optional runtime instance-level setting <code>global_prefix</code>, which adds the given information to all log headers (and all logs with <code>prefix_all_logs</code>) coming from the instance. The runtime builders <code>prefixed_runtime</code> and <code>prefixed_runtime_flushing</code> use <code>Thread.id (Thread.self ())</code> in the prefixes.</p><p>Example from the test suite:</p><pre class="language-ocaml"><code>  let i = ref 0 in
+  let run_ids = ref [] in
   let _get_local_debug_runtime () =
     let rt = Minidebug_db.debug_db_file ~run_name:(&quot;foo-&quot; ^ string_of_int !i) db_file in
-    fun () -&gt; rt
+    let run_id = next_run () in
+    run_ids := run_id :: !run_ids;
+    rt
   in
   let%track_show foo () =
     let () = () in
@@ -746,37 +735,20 @@ let () =
     foo ();
     bar ()
   done;
+  let db = Minidebug_client.Client.open_db db_file in
+  List.iter (fun run_id -&gt; Minidebug_client.Client.show_trace db run_id) (List.rev !run_ids);
   [%expect
     {|
-    BEGIN DEBUG SESSION foo-1
-    foo-1 foo begin &quot;test/test_expect_test.ml&quot;:3951:21:
-     &quot;inside foo&quot;
-    foo-1 foo end
-
-    BEGIN DEBUG SESSION foo-1
-    foo-1 &lt;function -- branch 0&gt; () begin &quot;test/test_expect_test.ml&quot;:3957:8:
-     &quot;inside bar&quot;
-    foo-1 &lt;function -- branch 0&gt; () end
-
-    BEGIN DEBUG SESSION foo-2
-    foo-2 foo begin &quot;test/test_expect_test.ml&quot;:3951:21:
-     &quot;inside foo&quot;
-    foo-2 foo end
-
-    BEGIN DEBUG SESSION foo-2
-    foo-2 &lt;function -- branch 0&gt; () begin &quot;test/test_expect_test.ml&quot;:3957:8:
-     &quot;inside bar&quot;
-    foo-2 &lt;function -- branch 0&gt; () end
-
-    BEGIN DEBUG SESSION foo-3
-    foo-3 foo begin &quot;test/test_expect_test.ml&quot;:3951:21:
-     &quot;inside foo&quot;
-    foo-3 foo end
-
-    BEGIN DEBUG SESSION foo-3
-    foo-3 &lt;function -- branch 0&gt; () begin &quot;test/test_expect_test.ml&quot;:3957:8:
-     &quot;inside bar&quot;
-    foo-3 &lt;function -- branch 0&gt; () end
+    [track] &lt;function -- branch 0&gt; () @ test/test_expect_test.ml:3238:8-3239:27
+      &quot;inside bar&quot;
+    [track] foo @ test/test_expect_test.ml:3232:21-3234:23
+      &quot;inside foo&quot;
+    [track] &lt;function -- branch 0&gt; () @ test/test_expect_test.ml:3238:8-3239:27
+      &quot;inside bar&quot;
+    [track] foo @ test/test_expect_test.ml:3232:21-3234:23
+      &quot;inside foo&quot;
+    [track] &lt;function -- branch 0&gt; () @ test/test_expect_test.ml:3238:8-3239:27
+      &quot;inside bar&quot;
     |}]</code></pre><p>Another similar feature is the extension points <code>%debug_rt_sexp</code>, <code>%track_rt_sexp</code>, etc. They add a first-class module argument to a function, and unpack the argument as <code>module Debug_runtime</code>. At present, passing of the runtime instance to functions needs to be done manually. Note that only the function attached to the <code>_rt_</code> extension point is modified.</p><p>Example from the test suite:</p><pre class="language-ocaml"><code>  let rt run_name = Minidebug_db.debug_db_file ~run_name db_file in
   let%track_rt_show foo l : int = match (l : int list) with [] -&gt; 7 | y :: _ -&gt; y * 2 in
   let () =
