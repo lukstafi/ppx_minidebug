@@ -8,15 +8,15 @@
     - [Highlighting search terms](#highlighting-search-terms)
     - [Highlighting differences between runs](#highlighting-differences-between-runs)
     - [Overview of runtime creating helpers](#overview-of-runtime-creating-helpers)
-    - [Hyperlinks to source locations](#hyperlinks-to-source-locations)
-    - [values_first_mode](#values_first_mode)
   - [Usage](#usage)
-    - [Breaking infinite recursion with max_nesting_depth and looping with max_num_children; flushing-based traces](#breaking-infinite-recursion-with-max_nesting_depth-and-looping-with-max_num_children-flushing-based-traces)
+    - [Breaking infinite recursion with max_nesting_depth and looping with max_num_children](#breaking-infinite-recursion-with-max_nesting_depth-and-looping-with-max_num_children)
     - [Tracking: control flow branches, anonymous and insufficiently annotated functions](#tracking-control-flow-branches-anonymous-and-insufficiently-annotated-functions)
     - [Using as a logging framework](#using-as-a-logging-framework)
       - [Specifying the level to log at via a runtime expression](#specifying-the-level-to-log-at-via-a-runtime-expression)
     - [Lexical scopes vs. dynamic scopes](#lexical-scopes-vs-dynamic-scopes)
     - [Reducing the size of generated logs](#reducing-the-size-of-generated-logs)
+      - [Path filtering](#path-filtering)
+      - [Dynamic subtree filtering](#dynamic-subtree-filtering)
     - [Navigating large logs](#navigating-large-logs)
     - [Providing the necessary type information](#providing-the-necessary-type-information)
     - [Dealing with concurrent execution](#dealing-with-concurrent-execution)
@@ -862,7 +862,7 @@ We track lexical scoping: every log has access to the `entry_id` number of the l
 Lexical scopes are computations: bindings, functions, tracked code branches (even if not annotated
 with an extension point, but always within some `ppx_minidebug` registered extension point). There is
 also dynamic scoping: which entry a particular log actually ends up belonging in. We do not
-expose the (lexical) entry id except when passing `~verbose_entry_ids:true` to the renderer. Unlike with the static artifacts versions ppx_minidebug 2.x, the DB based backend retroactively adds logs to closed entries -- we no longer have the problem of orphaned entries. Example from the test suite:
+expose the (lexical) entry id except when passing `~verbose_entry_ids:true` to the renderer. Unlike with the static artifacts versions ppx_minidebug 2.x, if a log's entry is not in the lexical scope, the DB based backend adds that log to its entry in the DB -- even retroactively for closed logs. Thus we no longer have the problem of orphaned entries. Example from the test suite:
 
 <!-- $MDX file=test/test_expect_test.ml,part=log_with_print_entry_ids_mixed_up_scopes -->
 ```ocaml
@@ -921,6 +921,8 @@ expose the (lexical) entry id except when passing `~verbose_entry_ids:true` to t
 
 `~verbose_entry_ids:true` tags all logs with entry ids, it shouldn't be needed in regular use.
 
+ To allow dynamically constructing log trees, when the log's entry is in lexical scope, we add the log at the top of the entry stack, even if it is a sub-entry of the log's entry. For details, see the example for [%log_entry].
+ 
 ### Reducing the size of generated logs
 
 Summary of possibilities:

@@ -872,9 +872,7 @@ We track lexical scoping: every log has access to the `entry_id` number of the l
 Lexical scopes are computations: bindings, functions, tracked code branches (even if not annotated
 with an extension point, but always within some `ppx_minidebug` registered extension point). There is
 also dynamic scoping: which entry a particular log actually ends up belonging in. We do not
-expose the (lexical) entry id except when passing [~verbose_entry_ids:true] to the renderer.
-Unlike with the static artifacts versions ppx_minidebug 2.x, the DB based backend retroactively adds
-logs to closed entries -- we no longer have the problem of orphaned entries. Example from the test suite:
+expose the (lexical) entry id except when passing [~verbose_entry_ids:true] to the renderer. Unlike with the static artifacts versions ppx_minidebug 2.x, if a log's entry is not in the lexical scope, the DB based backend adds that log to its entry in the DB -- even retroactively for closed logs. Thus we no longer have the problem of orphaned entries. Example from the test suite:
 
 {@ocaml file=../test/test_expect_test.ml,part=log_with_print_entry_ids_mixed_up_scopes[
   let run_id = next_run () in
@@ -931,6 +929,8 @@ logs to closed entries -- we no longer have the problem of orphaned entries. Exa
 ]}
 
 [~verbose_entry_ids:true] tags all logs with entry ids, it shouldn't be needed in regular use.
+ 
+ To allow dynamically constructing log trees, when the log's entry is in lexical scope, we add the log at the top of the entry stack, even if it is a sub-entry of the log's entry. For details, see the example for [%log_entry].
 
 {2 Reducing the size of generated logs}
 
