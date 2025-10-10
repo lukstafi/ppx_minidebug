@@ -22,10 +22,10 @@ Version 3.0.0 transitions from static file generation (PrintBox/Flushing) to dat
 - Promote new test expectations: `dune promote`
   - For promotion to work, tests need to run, here this means the diffing rules need to run
   - So this requires e.g. `dune runtest` before, or can be combined into `dune test --auto-promote`
-- Run a specific test executable: `dune exec test/test_debug_sexp.exe`
-- Run a specific `test` stanza: `dune build @runtest-test_path_filter`
-- Run an inline test suite, use `@runtest-<library name>`: `dune build @runtest-test_inline_tests`
-  - Note that the inline test library name is different than the file / module name `test_expect_test`
+- Run a specific `executable` stanza: to run `test_debug_sexp.ml`, do: `dune exec test/test_debug_sexp.exe`
+- Run a specific `test` stanza: to run the test `test_path_filter.ml`, do: `dune build @runtest-test_path_filter`
+- Run an inline test suite, use `@runtest-<library name>`: to run `test_expect_test.ml`, do: `dune build @runtest-test_inline_tests`
+  - In `test/dune`, the inline test library name `test_inline_tests` is different than the file / module name
 
 ## Key Architecture Insights
 
