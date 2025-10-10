@@ -177,8 +177,8 @@ module type Debug_runtime = sig
   val no_debug_if : bool -> unit
   (** When passed true within the scope of a log subtree, discards past logs of this
       subtree: the current log entry and its subtrees. Currently, does not do anything
-      when passed false ([no_debug_if false] does {e not} re-enable the log).
-      Since the entry header is deleted, the whole subtree will not be rendered. *)
+      when passed false ([no_debug_if false] does {e not} re-enable the log). Since the
+      entry header is deleted, the whole subtree will not be rendered. *)
 
   val log_level : int ref
   (** The runtime log level.

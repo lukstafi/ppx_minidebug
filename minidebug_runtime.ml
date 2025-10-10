@@ -2273,8 +2273,8 @@ let local_runtime ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
     ?toc_flame_graph ?flame_graph_separation ?highlight_terms ?exclude_on_path ?prune_upto
     ?truncate_children ?for_append ?boxify_sexp_from_size ?max_inline_sexp_length ?backend
     ?hyperlink ?toc_specific_hyperlink ?values_first_mode ?log_level ?snapshot_every_sec
-    ?prev_run_file ?diff_ignore_pattern ?max_distance_factor ?entry_id_pairs ?update_config
-    ?path_filter filename_stem =
+    ?prev_run_file ?diff_ignore_pattern ?max_distance_factor ?entry_id_pairs
+    ?update_config ?path_filter filename_stem =
   let get_thread_id () = Thread.id (Thread.self ()) in
   let get_debug () : (module PrintBox_runtime) =
     let filename =
@@ -2319,7 +2319,8 @@ let prefixed_runtime ?debug_ch ?time_tagged ?elapsed_times ?location_format
     ?print_entry_ids ?verbose_entry_ids ?global_prefix ?table_of_contents_ch ?toc_entry
     ?highlight_terms ?exclude_on_path ?prune_upto ?truncate_children ?values_first_mode
     ?boxify_sexp_from_size ?max_inline_sexp_length ?backend ?hyperlink
-    ?toc_specific_hyperlink ?log_level ?snapshot_every_sec ?update_config ?path_filter () =
+    ?toc_specific_hyperlink ?log_level ?snapshot_every_sec ?update_config ?path_filter ()
+    =
   let get_thread_id () = Thread.id (Thread.self ()) in
   let get_debug () : (module PrintBox_runtime) =
     let global_prefix =

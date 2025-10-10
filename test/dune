@@ -131,7 +131,8 @@
  (action
   (progn
    (run %{dep:test_debug_sexp.exe})
-   (with-stdout-to debugger_sexp.log
+   (with-stdout-to
+    debugger_sexp.log
     (pipe-stdout
      (run %{dep:../bin/minidebug_view.exe} debugger_sexp.db show)
      (run %{dep:../bin/filter_test_output.exe}))))))
@@ -162,7 +163,8 @@
  (action
   (progn
    (run %{dep:test_debug_pp.exe})
-   (with-stdout-to debugger_pp.log
+   (with-stdout-to
+    debugger_pp.log
     (pipe-stdout
      (run %{dep:../bin/minidebug_view.exe} debugger_pp.db show)
      (run %{dep:../bin/filter_test_output.exe}))))))
@@ -186,7 +188,8 @@
  (action
   (progn
    (run %{dep:test_debug_show.exe})
-   (with-stdout-to debugger_show.log
+   (with-stdout-to
+    debugger_show.log
     (pipe-stdout
      (run %{dep:../bin/minidebug_view.exe} debugger_show.db show)
      (run %{dep:../bin/filter_test_output.exe}))))))
@@ -218,7 +221,8 @@
  (action
   (progn
    (run %{dep:test_debug_interrupts.exe})
-   (with-stdout-to debugger_interrupts.log
+   (with-stdout-to
+    debugger_interrupts.log
     (pipe-stdout
      (run %{dep:../bin/minidebug_view.exe} debugger_interrupts.db show)
      (run %{dep:../bin/filter_test_output.exe}))))))
@@ -250,7 +254,8 @@
  (action
   (progn
    (run %{dep:test_debug_log_prefixed.exe})
-   (with-stdout-to debugger_log_prefixed.log
+   (with-stdout-to
+    debugger_log_prefixed.log
     (pipe-stdout
      (run %{dep:../bin/minidebug_view.exe} debugger_log_prefixed.db show)
      (run %{dep:../bin/filter_test_output.exe}))))))
@@ -274,9 +279,14 @@
  (action
   (progn
    (run %{dep:test_debug_time_spans.exe})
-   (with-stdout-to debugger_time_spans.log
+   (with-stdout-to
+    debugger_time_spans.log
     (pipe-stdout
-     (run %{dep:../bin/minidebug_view.exe} debugger_time_spans.db show --times)
+     (run
+      %{dep:../bin/minidebug_view.exe}
+      debugger_time_spans.db
+      show
+      --times)
      (run %{dep:../bin/filter_test_output.exe}))))))
 
 (rule
@@ -291,7 +301,6 @@
  (libraries minidebug_db minidebug_client str)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show ppx_sexp_conv ppx_expect)))
-
 
 (executable
  (name debug_diffs_align)
@@ -410,7 +419,8 @@
  (action
   (progn
    (run %{dep:test_no_debug_if.exe})
-   (with-stdout-to debugger_no_debug_if.log
+   (with-stdout-to
+    debugger_no_debug_if.log
     (pipe-stdout
      (run %{dep:../bin/minidebug_view.exe} debugger_no_debug_if.db show)
      (run %{dep:../bin/filter_test_output.exe}))))))

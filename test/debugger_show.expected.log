@@ -395,17 +395,17 @@ Command: ./test_debug_show.exe
 [debug] simple_thunk @ test/test_debug_show.ml:38:28-38:83
   x = "hello"
   simple_thunk => ()
-[debug] nested_fun @ test/test_debug_show.ml:43:26-43:75
+[debug] nested_fun @ test/test_debug_show.ml:42:26-42:75
   x = 5
   nested_fun => ()
-[debug] cascade @ test/test_debug_show.ml:48:23-48:82
+[debug] cascade @ test/test_debug_show.ml:46:23-46:82
   x = 1
   cascade => 6
-[debug] parallel_update @ test/test_debug_show.ml:53:31-55:28
+[debug] parallel_update @ test/test_debug_show.ml:50:31-52:28
   x = 10
   y = 20
   parallel_update => <fun>
-[debug] complex_case @ test/test_debug_show.ml:60:28-62:29
+[debug] complex_case @ test/test_debug_show.ml:57:28-60:29
   x = 5
   y = <fun>
   complex_case => <fun>

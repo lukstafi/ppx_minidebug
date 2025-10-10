@@ -1,6 +1,7 @@
 (** CLI tool for viewing ppx_minidebug database traces *)
 
-let usage_msg = {|minidebug_view - View ppx_minidebug database traces
+let usage_msg =
+  {|minidebug_view - View ppx_minidebug database traces
 
 USAGE:
   minidebug_view <database> <command> [options]
@@ -55,18 +56,21 @@ type options = {
 let parse_args () =
   let args = Array.to_list Sys.argv in
   match args with
-  | [] | [_] ->
+  | [] | [ _ ] ->
       Printf.eprintf "Error: Missing database argument\n%s\n" usage_msg;
       exit 1
   | _ :: db_path :: rest ->
       let cmd_ref = ref Help in
-      let opts = ref {
-        show_entry_ids = false;
-        show_times = false;
-        max_depth = None;
-        run_id = None;
-        values_first_mode = false;
-      } in
+      let opts =
+        ref
+          {
+            show_entry_ids = false;
+            show_times = false;
+            max_depth = None;
+            run_id = None;
+            values_first_mode = false;
+          }
+      in
 
       let rec parse_rest = function
         | [] -> ()
@@ -76,16 +80,16 @@ let parse_args () =
         | "stats" :: rest ->
             cmd_ref := Stats;
             parse_rest rest
-        | "show" :: rest ->
-            (match rest with
+        | "show" :: rest -> (
+            match rest with
             | id :: rest' when String.length id > 0 && id.[0] <> '-' ->
                 cmd_ref := Show (Some (int_of_string id));
                 parse_rest rest'
             | _ ->
                 cmd_ref := Show None;
                 parse_rest rest)
-        | "compact" :: rest ->
-            (match rest with
+        | "compact" :: rest -> (
+            match rest with
             | id :: rest' when String.length id > 0 && id.[0] <> '-' ->
                 cmd_ref := Compact (Some (int_of_string id));
                 parse_rest rest'
@@ -98,23 +102,22 @@ let parse_args () =
         | "export" :: file :: rest ->
             cmd_ref := Export file;
             parse_rest rest
-        | "--help" :: _ | "-h" :: _ ->
-            cmd_ref := Help
-        | opt :: rest when String.starts_with ~prefix:"--" opt ->
-            (match String.split_on_char '=' opt with
-            | ["--run"; id] ->
+        | "--help" :: _ | "-h" :: _ -> cmd_ref := Help
+        | opt :: rest when String.starts_with ~prefix:"--" opt -> (
+            match String.split_on_char '=' opt with
+            | [ "--run"; id ] ->
                 opts := { !opts with run_id = Some (int_of_string id) };
                 parse_rest rest
-            | ["--max-depth"; d] ->
+            | [ "--max-depth"; d ] ->
                 opts := { !opts with max_depth = Some (int_of_string d) };
                 parse_rest rest
-            | ["--entry-ids"] ->
+            | [ "--entry-ids" ] ->
                 opts := { !opts with show_entry_ids = true };
                 parse_rest rest
-            | ["--times"] ->
+            | [ "--times" ] ->
                 opts := { !opts with show_times = true };
                 parse_rest rest
-            | ["--values-first"] ->
+            | [ "--values-first" ] ->
                 opts := { !opts with values_first_mode = true };
                 parse_rest rest
             | _ ->
@@ -131,15 +134,13 @@ let parse_args () =
 let () =
   let db_path, cmd, opts = parse_args () in
 
-  if cmd = Help then begin
+  if cmd = Help then (
     print_endline usage_msg;
-    exit 0
-  end;
+    exit 0);
 
-  if not (Sys.file_exists db_path) then begin
+  if not (Sys.file_exists db_path) then (
     Printf.eprintf "Error: Database file '%s' not found\n" db_path;
-    exit 1
-  end;
+    exit 1);
 
   let client = Minidebug_client.Client.open_db db_path in
 
@@ -148,43 +149,39 @@ let () =
     | List ->
         let runs = Minidebug_client.Client.list_runs client in
         Printf.printf "Runs in %s:\n\n" db_path;
-        List.iter (fun run ->
-          Printf.printf "Run #%d - %s" run.Minidebug_client.Query.run_id run.timestamp;
-          (match run.run_name with
-          | Some name -> Printf.printf " [%s]" name
-          | None -> ());
-          Printf.printf "\n";
-          Printf.printf "  Command: %s\n" run.command_line;
-          Printf.printf "  Elapsed: %s\n\n"
-            (Minidebug_client.Renderer.format_elapsed_ns run.elapsed_ns)
-        ) runs
-
-    | Stats ->
-        Minidebug_client.Client.show_stats client
-
+        List.iter
+          (fun run ->
+            Printf.printf "Run #%d - %s" run.Minidebug_client.Query.run_id run.timestamp;
+            (match run.run_name with
+            | Some name -> Printf.printf " [%s]" name
+            | None -> ());
+            Printf.printf "\n";
+            Printf.printf "  Command: %s\n" run.command_line;
+            Printf.printf "  Elapsed: %s\n\n"
+              (Minidebug_client.Renderer.format_elapsed_ns run.elapsed_ns))
+          runs
+    | Stats -> Minidebug_client.Client.show_stats client
     | Show run_id_opt ->
-        let run_id = match run_id_opt, opts.run_id with
+        let run_id =
+          match (run_id_opt, opts.run_id) with
           | Some id, _ | _, Some id -> id
-          | None, None ->
-              (match Minidebug_client.Client.get_latest_run client with
+          | None, None -> (
+              match Minidebug_client.Client.get_latest_run client with
               | Some run -> run.run_id
               | None ->
                   Printf.eprintf "Error: No runs found in database\n";
                   exit 1)
         in
         Minidebug_client.Client.show_run_summary client run_id;
-        Minidebug_client.Client.show_trace client
-          ~show_entry_ids:opts.show_entry_ids
-          ~show_times:opts.show_times
-          ~max_depth:opts.max_depth
-          ~values_first_mode:opts.values_first_mode
-          run_id
-
+        Minidebug_client.Client.show_trace client ~show_entry_ids:opts.show_entry_ids
+          ~show_times:opts.show_times ~max_depth:opts.max_depth
+          ~values_first_mode:opts.values_first_mode run_id
     | Compact run_id_opt ->
-        let run_id = match run_id_opt, opts.run_id with
+        let run_id =
+          match (run_id_opt, opts.run_id) with
           | Some id, _ | _, Some id -> id
-          | None, None ->
-              (match Minidebug_client.Client.get_latest_run client with
+          | None, None -> (
+              match Minidebug_client.Client.get_latest_run client with
               | Some run -> run.run_id
               | None ->
                   Printf.eprintf "Error: No runs found in database\n";
@@ -192,31 +189,30 @@ let () =
         in
         Minidebug_client.Client.show_run_summary client run_id;
         Minidebug_client.Client.show_compact_trace client run_id
-
     | Search pattern ->
-        let run_id = match opts.run_id with
+        let run_id =
+          match opts.run_id with
           | Some id -> id
-          | None ->
-              (match Minidebug_client.Client.get_latest_run client with
+          | None -> (
+              match Minidebug_client.Client.get_latest_run client with
               | Some run -> run.run_id
               | None ->
                   Printf.eprintf "Error: No runs found in database\n";
                   exit 1)
         in
         Minidebug_client.Client.search client ~run_id ~pattern
-
     | Export file ->
-        let run_id = match opts.run_id with
+        let run_id =
+          match opts.run_id with
           | Some id -> id
-          | None ->
-              (match Minidebug_client.Client.get_latest_run client with
+          | None -> (
+              match Minidebug_client.Client.get_latest_run client with
               | Some run -> run.run_id
               | None ->
                   Printf.eprintf "Error: No runs found in database\n";
                   exit 1)
         in
         Minidebug_client.Client.export_markdown client ~run_id ~output_file:file
-
     | Help ->
         print_endline usage_msg;
         exit 0

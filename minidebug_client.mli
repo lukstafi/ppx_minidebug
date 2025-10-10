@@ -3,9 +3,9 @@
 (** Query layer for database access *)
 module Query : sig
   type entry = {
-    entry_id : int;  (* parent scope ID for all rows *)
-    seq_id : int;  (* position in parent's children list *)
-    header_entry_id : int option;  (* NULL for values, points to new scope for headers *)
+    entry_id : int; (* parent scope ID for all rows *)
+    seq_id : int; (* position in parent's children list *)
+    header_entry_id : int option; (* NULL for values, points to new scope for headers *)
     depth : int;
     message : string;
     location : string option;
@@ -40,12 +40,7 @@ module Query : sig
   (** Get the ID of the most recent run *)
 
   val get_entries :
-    Sqlite3.db ->
-    run_id:int ->
-    ?parent_id:int ->
-    ?max_depth:int ->
-    unit ->
-    entry list
+    Sqlite3.db -> run_id:int -> ?parent_id:int -> ?max_depth:int -> unit -> entry list
   (** Get entries for a specific run, optionally filtered by parent_id and max_depth *)
 
   val get_stats : Sqlite3.db -> string -> stats
@@ -57,10 +52,7 @@ end
 
 (** Tree renderer for terminal output *)
 module Renderer : sig
-  type tree_node = {
-    entry : Query.entry;
-    children : tree_node list;
-  }
+  type tree_node = { entry : Query.entry; children : tree_node list }
 
   val build_tree : Query.entry list -> tree_node list
   (** Build tree structure from flat entry list *)
@@ -75,8 +67,8 @@ module Renderer : sig
     ?values_first_mode:bool ->
     tree_node list ->
     string
-  (** Render tree to string with full details. When [values_first_mode] is true,
-      result values become headers with location/message as children. *)
+  (** Render tree to string with full details. When [values_first_mode] is true, result
+      values become headers with location/message as children. *)
 
   val render_compact : tree_node list -> string
   (** Render compact summary (just function calls) *)
@@ -112,8 +104,8 @@ module Client : sig
     ?values_first_mode:bool ->
     int ->
     unit
-  (** Print full trace tree for a run. When [values_first_mode] is true
-      (default), result values become headers with location/message as children. *)
+  (** Print full trace tree for a run. When [values_first_mode] is true (default), result
+      values become headers with location/message as children. *)
 
   val show_compact_trace : t -> int -> unit
   (** Print compact trace (function names only) *)

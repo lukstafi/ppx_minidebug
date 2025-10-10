@@ -245,8 +245,8 @@ let nested_fun (x : int) y =
     (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
     in
     (let __entry_id = Debug_runtime.get_entry_id () in
-     (Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:43
-        ~start_colnum:26 ~end_lnum:43 ~end_colnum:75 ~message:"nested_fun"
+     (Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:42
+        ~start_colnum:26 ~end_lnum:42 ~end_colnum:75 ~message:"nested_fun"
         ~entry_id:__entry_id ~log_level:1 `Debug;
       Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
         ~log_level:1 ~is_result:false (lazy (([%show : int]) x)));
@@ -256,11 +256,11 @@ let nested_fun (x : int) y =
           (Debug_runtime.log_value_show ?descr:(Some "nested_fun")
              ~entry_id:__entry_id ~log_level:1 ~is_result:true
              (lazy (([%show : unit]) __res));
-           Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:43
+           Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:42
              ~entry_id:__entry_id;
            __res)
       | exception e ->
-          (Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:43
+          (Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:42
              ~entry_id:__entry_id;
            raise e)) : unit)
 let () = nested_fun 5 10
@@ -269,8 +269,8 @@ let cascade (x : int) y z =
     (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
     in
     (let __entry_id = Debug_runtime.get_entry_id () in
-     (Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:48
-        ~start_colnum:23 ~end_lnum:48 ~end_colnum:82 ~message:"cascade"
+     (Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:46
+        ~start_colnum:23 ~end_lnum:46 ~end_colnum:82 ~message:"cascade"
         ~entry_id:__entry_id ~log_level:1 `Debug;
       Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
         ~log_level:1 ~is_result:false (lazy (([%show : int]) x)));
@@ -280,11 +280,11 @@ let cascade (x : int) y z =
           (Debug_runtime.log_value_show ?descr:(Some "cascade")
              ~entry_id:__entry_id ~log_level:1 ~is_result:true
              (lazy (([%show : int]) __res));
-           Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:48
+           Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:46
              ~entry_id:__entry_id;
            __res)
       | exception e ->
-          (Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:48
+          (Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:46
              ~entry_id:__entry_id;
            raise e)) : int)
 let () = ignore @@ (cascade 1 2 3)
@@ -293,8 +293,8 @@ let parallel_update (x : int) (y : int) =
     (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
     in
     (let __entry_id = Debug_runtime.get_entry_id () in
-     ((Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:53
-         ~start_colnum:31 ~end_lnum:55 ~end_colnum:28
+     ((Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:50
+         ~start_colnum:31 ~end_lnum:52 ~end_colnum:28
          ~message:"parallel_update" ~entry_id:__entry_id ~log_level:1 `Debug;
        Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
          ~log_level:1 ~is_result:false (lazy (([%show : int]) x)));
@@ -306,11 +306,11 @@ let parallel_update (x : int) (y : int) =
           (Debug_runtime.log_value_show ?descr:(Some "parallel_update")
              ~entry_id:__entry_id ~log_level:1 ~is_result:true
              (lazy (([%show : unit -> unit]) __res));
-           Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:53
+           Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:50
              ~entry_id:__entry_id;
            __res)
       | exception e ->
-          (Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:53
+          (Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:50
              ~entry_id:__entry_id;
            raise e)) : unit -> unit)
 let () = parallel_update 10 20 ()
@@ -319,8 +319,8 @@ let complex_case (type buffer_ptr) (x : int) (y : buffer_ptr -> int) =
     (_get_local_debug_runtime () : (module Minidebug_runtime.Debug_runtime)))
     in
     (let __entry_id = Debug_runtime.get_entry_id () in
-     ((Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:60
-         ~start_colnum:28 ~end_lnum:62 ~end_colnum:29 ~message:"complex_case"
+     ((Debug_runtime.open_log ~fname:"test_debug_show.ml" ~start_lnum:57
+         ~start_colnum:28 ~end_lnum:60 ~end_colnum:29 ~message:"complex_case"
          ~entry_id:__entry_id ~log_level:1 `Debug;
        Debug_runtime.log_value_show ?descr:(Some "x") ~entry_id:__entry_id
          ~log_level:1 ~is_result:false (lazy (([%show : int]) x)));
@@ -335,11 +335,11 @@ let complex_case (type buffer_ptr) (x : int) (y : buffer_ptr -> int) =
           (Debug_runtime.log_value_show ?descr:(Some "complex_case")
              ~entry_id:__entry_id ~log_level:1 ~is_result:true
              (lazy (([%show : unit -> unit]) __res));
-           Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:60
+           Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:57
              ~entry_id:__entry_id;
            __res)
       | exception e ->
-          (Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:60
+          (Debug_runtime.close_log ~fname:"test_debug_show.ml" ~start_lnum:57
              ~entry_id:__entry_id;
            raise e)) : unit -> unit)
 let () = complex_case 5 (fun _ -> 10) ()

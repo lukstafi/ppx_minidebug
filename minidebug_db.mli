@@ -1,7 +1,7 @@
 (** Database-backed tracing runtime for ppx_minidebug.
 
-    This module provides a database backend for storing debug traces with content-addressed
-    deduplication. *)
+    This module provides a database backend for storing debug traces with
+    content-addressed deduplication. *)
 
 (** Schema management and database initialization *)
 module Schema : sig
@@ -33,16 +33,15 @@ end
 (** Extended config module type with boxify parameters *)
 module type Db_config = sig
   include Minidebug_runtime.Shared_config
+
   val boxify_sexp_from_size : int
   val max_inline_sexp_size : int
   val max_inline_sexp_length : int
 end
 
 (** Database backend implementing Debug_runtime interface *)
-module DatabaseBackend : functor (_ : Db_config) ->
-  Minidebug_runtime.Debug_runtime
+module DatabaseBackend : functor (_ : Db_config) -> Minidebug_runtime.Debug_runtime
 
-(** Factory function to create a database runtime that writes to a file *)
 val debug_db_file :
   ?time_tagged:Minidebug_runtime.time_tagged ->
   ?elapsed_times:Minidebug_runtime.elapsed_times ->
@@ -58,8 +57,8 @@ val debug_db_file :
   ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->
   string ->
   (module Minidebug_runtime.Debug_runtime)
+(** Factory function to create a database runtime that writes to a file *)
 
-(** Factory function to create a database runtime (defaults to "debug.db" filename) *)
 val debug_db :
   ?debug_ch:out_channel ->
   ?time_tagged:Minidebug_runtime.time_tagged ->
@@ -75,3 +74,4 @@ val debug_db :
   ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->
   unit ->
   (module Minidebug_runtime.Debug_runtime)
+(** Factory function to create a database runtime (defaults to "debug.db" filename) *)
