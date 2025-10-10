@@ -272,29 +272,29 @@ The setting `max_nesting_depth` terminates a computation when the given log nest
   [%expect
     {|
     Raised exception.
-    [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
+    [debug] loop_exceeded @ test/test_expect_test.ml:260:35-264:60
       x = 7
-      [debug] z @ test/test_expect_test.ml:253:10-253:11
+      [debug] z @ test/test_expect_test.ml:263:10-263:11
         z => 3
-      [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
+      [debug] loop_exceeded @ test/test_expect_test.ml:260:35-264:60
         x = 6
-        [debug] z @ test/test_expect_test.ml:253:10-253:11
+        [debug] z @ test/test_expect_test.ml:263:10-263:11
           z => 2
-        [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
+        [debug] loop_exceeded @ test/test_expect_test.ml:260:35-264:60
           x = 5
-          [debug] z @ test/test_expect_test.ml:253:10-253:11
+          [debug] z @ test/test_expect_test.ml:263:10-263:11
             z => 2
-          [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
+          [debug] loop_exceeded @ test/test_expect_test.ml:260:35-264:60
             x = 4
-            [debug] z @ test/test_expect_test.ml:253:10-253:11
+            [debug] z @ test/test_expect_test.ml:263:10-263:11
               z => 1
-            [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
+            [debug] loop_exceeded @ test/test_expect_test.ml:260:35-264:60
               x = 3
-              [debug] z @ test/test_expect_test.ml:253:10-253:11
+              [debug] z @ test/test_expect_test.ml:263:10-263:11
                 z => 1
-              [debug] loop_exceeded @ test/test_expect_test.ml:250:35-254:60
+              [debug] loop_exceeded @ test/test_expect_test.ml:260:35-264:60
                 x = 2
-                [debug] z @ test/test_expect_test.ml:253:10-253:11
+                [debug] z @ test/test_expect_test.ml:263:10-263:11
                   z = <max_nesting_depth exceeded>
     |}]
 ```
@@ -321,30 +321,30 @@ Similarly, `max_num_children` raises a failure when the given number of logs wit
   [%expect
     {|
     Raised exception: ppx_minidebug: max_num_children exceeded
-    [debug] _bar @ test/test_expect_test.ml:301:21-301:25
-      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
+    [debug] _bar @ test/test_expect_test.ml:311:21-311:25
+      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
         _baz => 0
-      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
+      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
         _baz => 2
-      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
+      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
         _baz => 4
-      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
+      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
         _baz => 6
-      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
+      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
         _baz => 8
-      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
+      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
         _baz => 10
-      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
+      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
         _baz => 12
-      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
+      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
         _baz => 14
-      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
+      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
         _baz => 16
-      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
+      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
         _baz => 18
-      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
+      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
         _baz => 20
-      [debug] _baz @ test/test_expect_test.ml:305:16-305:20
+      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
         _baz = <max_num_children exceeded>
     |}]
 ```
@@ -406,18 +406,18 @@ Example that also illustrates disabling tracing:
     {|
     8
     3
-    [track] track_branches @ test/test_expect_test.ml:717:32-731:16
+    [track] track_branches @ test/test_expect_test.ml:727:32-741:16
       x = 8
-      [track] else:test_expect_test:726 @ test/test_expect_test.ml:726:6-731:16
-        [track] <match -- branch 2> @ test/test_expect_test.ml:730:10-731:16
-          [track] result @ test/test_expect_test.ml:730:14-730:20
-            [track] then:test_expect_test:730 @ test/test_expect_test.ml:730:44-730:45
+      [track] else:test_expect_test:736 @ test/test_expect_test.ml:736:6-741:16
+        [track] <match -- branch 2> @ test/test_expect_test.ml:740:10-741:16
+          [track] result @ test/test_expect_test.ml:740:14-740:20
+            [track] then:test_expect_test:740 @ test/test_expect_test.ml:740:44-740:45
             result => 8
       track_branches => 8
-    [track] track_branches @ test/test_expect_test.ml:717:32-731:16
+    [track] track_branches @ test/test_expect_test.ml:727:32-741:16
       x = 3
-      [track] then:test_expect_test:719 @ test/test_expect_test.ml:719:6-724:16
-        [debug] result @ test/test_expect_test.ml:723:14-723:20
+      [track] then:test_expect_test:729 @ test/test_expect_test.ml:729:6-734:16
+        [debug] result @ test/test_expect_test.ml:733:14-733:20
           result => 3
       track_branches => 3
     |}]
@@ -439,15 +439,15 @@ Another example:
   [%expect
     {|
     6
-    [track] anonymous @ test/test_expect_test.ml:930:27-931:70
+    [track] anonymous @ test/test_expect_test.ml:940:27-941:70
       x = 3
-      [track] fun:test_expect_test:931 @ test/test_expect_test.ml:931:50-931:70
+      [track] fun:test_expect_test:941 @ test/test_expect_test.ml:941:50-941:70
         i = 0
-      [track] fun:test_expect_test:931 @ test/test_expect_test.ml:931:50-931:70
+      [track] fun:test_expect_test:941 @ test/test_expect_test.ml:941:50-941:70
         i = 1
-      [track] fun:test_expect_test:931 @ test/test_expect_test.ml:931:50-931:70
+      [track] fun:test_expect_test:941 @ test/test_expect_test.ml:941:50-941:70
         i = 2
-      [track] fun:test_expect_test:931 @ test/test_expect_test.ml:931:50-931:70
+      [track] fun:test_expect_test:941 @ test/test_expect_test.ml:941:50-941:70
         i = 3
     |}]
 ```
@@ -549,9 +549,9 @@ The `%diagn_` extension points further restrict logging to explicit logs only. E
     {|
     336
     91
-    [diagn] bar @ test/test_expect_test.ml:2543:21-2547:15
+    [diagn] bar @ test/test_expect_test.ml:2486:21-2490:15
       ("for bar, b-3", 42)
-    [diagn] baz @ test/test_expect_test.ml:2550:21-2555:25
+    [diagn] baz @ test/test_expect_test.ml:2493:21-2498:25
       ("foo baz, f squared", 49)
     |}]
 ```
@@ -667,6 +667,13 @@ Another example from the test suite, notice how the log level of `%log1` overrid
     336
     336
     109
+    [debug] baz => 109 @ test/test_expect_test.ml:2617:24-2620:30
+      first = 7
+      second = 42
+      [debug] {first; second} @ test/test_expect_test.ml:2618:10-2618:39
+        first => 8
+        second => 45
+      ("for baz, f squared", 64)
     |}]
 ```
 
@@ -696,48 +703,48 @@ The extension point `%log_printbox` lets you embed a `PrintBox.t` in the logs di
         @@ init_grid ~line:5 ~col:5 (fun ~line ~col -> PrintBox.sprintf "%d/%d" line col))]
   in
   let () = foo () in
-  [%expect
-    {|
-    BEGIN DEBUG SESSION
-    foo = ()
-    ├─"test/test_expect_test.ml":3536:21
-    ├─0/0│0/1│0/2│0/3│0/4
-    │ ───┼───┼───┼───┼───
-    │ 1/0│1/1│1/2│1/3│1/4
-    │ ───┼───┼───┼───┼───
-    │ 2/0│2/1│2/2│2/3│2/4
-    │ ───┼───┼───┼───┼───
-    │ 3/0│3/1│3/2│3/3│3/4
-    │ ───┼───┼───┼───┼───
-    │ 4/0│4/1│4/2│4/3│4/4
-    ├─"No bars but pad:"
-    ├─
-    │  0/0  0/1  0/2  0/3  0/4
-    │
-    │
-    │  1/0  1/1  1/2  1/3  1/4
-    │
-    │
-    │  2/0  2/1  2/2  2/3  2/4
-    │
-    │
-    │  3/0  3/1  3/2  3/3  3/4
-    │
-    │
-    │  4/0  4/1  4/2  4/3  4/4
-    │
-    ├─"Now with a frame:"
-    └─┬───┬───┬───┬───┬───┐
-      │0/0│0/1│0/2│0/3│0/4│
-      ├───┼───┼───┼───┼───┤
-      │1/0│1/1│1/2│1/3│1/4│
-      ├───┼───┼───┼───┼───┤
-      │2/0│2/1│2/2│2/3│2/4│
-      ├───┼───┼───┼───┼───┤
-      │3/0│3/1│3/2│3/3│3/4│
-      ├───┼───┼───┼───┼───┤
-      │4/0│4/1│4/2│4/3│4/4│
-      └───┴───┴───┴───┴───┘
+  let run_id = latest_run () in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db run_id;
+  [%expect {|
+    latest_run: (no-name)
+    [debug] foo => () @ test/test_expect_test.ml:2680:21-2693:91
+      0/0│0/1│0/2│0/3│0/4
+    ───┼───┼───┼───┼───
+    1/0│1/1│1/2│1/3│1/4
+    ───┼───┼───┼───┼───
+    2/0│2/1│2/2│2/3│2/4
+    ───┼───┼───┼───┼───
+    3/0│3/1│3/2│3/3│3/4
+    ───┼───┼───┼───┼───
+    4/0│4/1│4/2│4/3│4/4
+      "No bars but pad:"
+
+     0/0  0/1  0/2  0/3  0/4
+
+
+     1/0  1/1  1/2  1/3  1/4
+
+
+     2/0  2/1  2/2  2/3  2/4
+
+
+     3/0  3/1  3/2  3/3  3/4
+
+
+     4/0  4/1  4/2  4/3  4/4
+      "Now with a frame:"
+      ┌───┬───┬───┬───┬───┐
+    │0/0│0/1│0/2│0/3│0/4│
+    ├───┼───┼───┼───┼───┤
+    │1/0│1/1│1/2│1/3│1/4│
+    ├───┼───┼───┼───┼───┤
+    │2/0│2/1│2/2│2/3│2/4│
+    ├───┼───┼───┼───┼───┤
+    │3/0│3/1│3/2│3/3│3/4│
+    ├───┼───┼───┼───┼───┤
+    │4/0│4/1│4/2│4/3│4/4│
+    └───┴───┴───┴───┴───┘
     |}]
 ```
 
@@ -746,7 +753,7 @@ The extension point `%log_entry` lets you shape arbitrary log tree structures. T
 <!-- $MDX file=test/test_expect_test.ml,part=log_entry -->
 ```ocaml
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~values_first_mode:false db_file in
+    let rt = Minidebug_db.debug_db_file db_file in
     fun () -> rt
   in
   let%diagn_show _logging_logic : unit =
@@ -785,19 +792,21 @@ The extension point `%log_entry` lets you shape arbitrary log tree structures. T
            "postscript";
          ]
   in
+  let db = Minidebug_client.Client.open_db db_file in
+  Minidebug_client.Client.show_trace db (latest_run ());
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":3671:17: _logging_logic
-    ├─"preamble"
-    ├─header 1
-    │ ├─"log 1"
-    │ ├─nested header
-    │ │ └─"log 2"
-    │ └─"log 3"
-    ├─header 2
-    │ └─"log 4"
-    └─"postscript"
+    latest_run: (no-name)
+    [diagn] _logging_logic @ test/test_expect_test.ml:2747:17-2747:31
+      "preamble"
+      [diagn] header 1 @ :0:0-0:0
+        [diagn] nested header @ :0:0-0:0
+      "log 1"
+      "log 2"
+      "log 3"
+      [diagn] header 2 @ :0:0-0:0
+      "log 4"
+      "postscript"
     |}]
 ```
 
@@ -1024,17 +1033,17 @@ The test suite example:
   [%expect
     {|
     9
-    [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+    [debug] loop_changes @ test/test_expect_test.ml:162:34-168:7
       x = 7
-      [debug] z @ test/test_expect_test.ml:153:8-153:9
+      [debug] z @ test/test_expect_test.ml:163:8-163:9
         z => 3
-      [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+      [debug] loop_changes @ test/test_expect_test.ml:162:34-168:7
         x = 6
-        [debug] z @ test/test_expect_test.ml:153:8-153:9
+        [debug] z @ test/test_expect_test.ml:163:8-163:9
           z => 2
-        [debug] loop_changes @ test/test_expect_test.ml:152:34-158:7
+        [debug] loop_changes @ test/test_expect_test.ml:162:34-168:7
           x = 5
-          [debug] z @ test/test_expect_test.ml:153:8-153:9
+          [debug] z @ test/test_expect_test.ml:163:8-163:9
             z => 2
           loop_changes => 4
         loop_changes => 6
@@ -1443,9 +1452,9 @@ As a help in debugging whether the right type information got propagated, we off
     {|
     7
     12
-    [debug] f : int => 7 @ test/test_expect_test.ml:1622:37-1622:54
+    [debug] f : int => 7 @ test/test_expect_test.ml:1632:37-1632:54
       b : int = 6
-    [debug] g : int => 12 @ test/test_expect_test.ml:1623:49-1623:72
+    [debug] g : int => 12 @ test/test_expect_test.ml:1633:49-1633:72
       b : int = 6
     |}]
 ```
@@ -1494,15 +1503,17 @@ Example from the test suite:
   List.iter (fun run_id -> Minidebug_client.Client.show_trace db run_id) (List.rev !run_ids);
   [%expect
     {|
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:3238:8-3239:27
-      "inside bar"
-    [track] foo @ test/test_expect_test.ml:3232:21-3234:23
+    [track] foo @ test/test_expect_test.ml:2839:21-2841:23
       "inside foo"
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:3238:8-3239:27
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:2845:8-2846:27
       "inside bar"
-    [track] foo @ test/test_expect_test.ml:3232:21-3234:23
+    [track] foo @ test/test_expect_test.ml:2839:21-2841:23
       "inside foo"
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:3238:8-3239:27
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:2845:8-2846:27
+      "inside bar"
+    [track] foo @ test/test_expect_test.ml:2839:21-2841:23
+      "inside foo"
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:2845:8-2846:27
       "inside bar"
     |}]
 ```
