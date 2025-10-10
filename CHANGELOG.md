@@ -1,3 +1,17 @@
+# [3.0.0] -- current
+
+### Added
+
+- TODO
+
+### Changed
+
+- TODO
+
+### Fixed
+
+- TODO
+
 ## [2.4.0] -- 2025-10-03
 
 ### Added
