@@ -921,8 +921,8 @@ expose the (lexical) entry id except when passing `~verbose_entry_ids:true` to t
 
 `~verbose_entry_ids:true` tags all logs with entry ids, it shouldn't be needed in regular use.
 
- To allow dynamically constructing log trees, when the log's entry is in lexical scope, we add the log at the top of the entry stack, even if it is a sub-entry of the log's entry. For details, see the example for [%log_entry].
- 
+ To allow dynamically constructing log trees, when the log's entry is in lexical scope, we add the log at the top of the entry stack, even if it is a sub-entry of the log's entry. For details, see the example for `%log_entry`.
+
 ### Reducing the size of generated logs
 
 Summary of possibilities:
@@ -1505,17 +1505,17 @@ Example from the test suite:
   List.iter (fun run_id -> Minidebug_client.Client.show_trace db run_id) (List.rev !run_ids);
   [%expect
     {|
-    [track] foo @ test/test_expect_test.ml:2839:21-2841:23
+    [track] foo @ test/test_expect_test.ml:2836:21-2838:23
       "inside foo"
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:2845:8-2846:27
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:2842:8-2843:27
       "inside bar"
-    [track] foo @ test/test_expect_test.ml:2839:21-2841:23
+    [track] foo @ test/test_expect_test.ml:2836:21-2838:23
       "inside foo"
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:2845:8-2846:27
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:2842:8-2843:27
       "inside bar"
-    [track] foo @ test/test_expect_test.ml:2839:21-2841:23
+    [track] foo @ test/test_expect_test.ml:2836:21-2838:23
       "inside foo"
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:2845:8-2846:27
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:2842:8-2843:27
       "inside bar"
     |}]
 ```
