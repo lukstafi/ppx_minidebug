@@ -748,17 +748,17 @@ let () =
   List.iter (fun run_id -&gt; Minidebug_client.Client.show_trace db run_id) (List.rev !run_ids);
   [%expect
     {|
-    [track] foo @ test/test_expect_test.ml:2839:21-2841:23
+    [track] foo @ test/test_expect_test.ml:2836:21-2838:23
       &quot;inside foo&quot;
-    [track] &lt;function -- branch 0&gt; () @ test/test_expect_test.ml:2845:8-2846:27
+    [track] &lt;function -- branch 0&gt; () @ test/test_expect_test.ml:2842:8-2843:27
       &quot;inside bar&quot;
-    [track] foo @ test/test_expect_test.ml:2839:21-2841:23
+    [track] foo @ test/test_expect_test.ml:2836:21-2838:23
       &quot;inside foo&quot;
-    [track] &lt;function -- branch 0&gt; () @ test/test_expect_test.ml:2845:8-2846:27
+    [track] &lt;function -- branch 0&gt; () @ test/test_expect_test.ml:2842:8-2843:27
       &quot;inside bar&quot;
-    [track] foo @ test/test_expect_test.ml:2839:21-2841:23
+    [track] foo @ test/test_expect_test.ml:2836:21-2838:23
       &quot;inside foo&quot;
-    [track] &lt;function -- branch 0&gt; () @ test/test_expect_test.ml:2845:8-2846:27
+    [track] &lt;function -- branch 0&gt; () @ test/test_expect_test.ml:2842:8-2843:27
       &quot;inside bar&quot;
     |}]</code></pre><p>Another similar feature is the extension points <code>%debug_rt_sexp</code>, <code>%track_rt_sexp</code>, etc. They add a first-class module argument to a function, and unpack the argument as <code>module Debug_runtime</code>. At present, passing of the runtime instance to functions needs to be done manually. Note that only the function attached to the <code>_rt_</code> extension point is modified.</p><p>Example from the test suite:</p><pre class="language-ocaml"><code>  let rt run_name = Minidebug_db.debug_db_file ~run_name db_file in
   let%track_rt_show foo l : int = match (l : int list) with [] -&gt; 7 | y :: _ -&gt; y * 2 in
