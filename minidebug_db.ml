@@ -518,14 +518,20 @@ module DatabaseBackend (Log_to : Db_config) :
       let run_id = get_run_id () in
       let intern = get_intern () in
 
-      (* Get depth and seq_id from the entry's stack info *)
-      let depth, seq_id =
-        match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
-        | Some parent_entry -> parent_entry.depth + 1, parent_entry.num_children
-        | None ->
-            (* Orphaned log: entry not on stack.
-               Query database for max seq_id to avoid conflicts with existing values/results *)
-            let seq = match List.assoc_opt entry_id !orphaned_seq_counters with
+      (* Use stack top for dynamic scoping (supports %log_entry).
+         If entry_id is in the stack, we're inside a valid scope, so use stack top.
+         If entry_id is NOT in stack, treat as orphaned. *)
+      let depth, seq_id, parent_entry_id =
+        if List.exists (fun e -> e.entry_id = entry_id) !stack then
+          (* entry_id is somewhere in the stack, use dynamic scoping (stack top) *)
+          match !stack with
+          | parent_entry :: _ ->
+              parent_entry.depth + 1, parent_entry.num_children, parent_entry.entry_id
+          | [] -> assert false  (* Can't happen since we just checked stack is non-empty *)
+        else
+          (* entry_id not in stack - orphaned log.
+             Query database for max seq_id to avoid conflicts with existing values/results *)
+          let seq = match List.assoc_opt entry_id !orphaned_seq_counters with
               | Some counter ->
                   let s = !counter in
                   incr counter;
@@ -550,7 +556,7 @@ module DatabaseBackend (Log_to : Db_config) :
                   orphaned_seq_counters := (entry_id, counter) :: !orphaned_seq_counters;
                   start_seq
             in
-            List.length !stack, seq
+            List.length !stack, seq, entry_id  (* Use the passed entry_id for orphaned logs *)
       in
 
       (* Intern the message (parameter/result name) *)
@@ -577,7 +583,7 @@ module DatabaseBackend (Log_to : Db_config) :
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
       in
       Sqlite3.bind_int stmt 1 run_id |> ignore;
-      Sqlite3.bind_int stmt 2 entry_id |> ignore;  (* entry_id is the parent scope *)
+      Sqlite3.bind_int stmt 2 parent_entry_id |> ignore;  (* entry_id is the parent scope *)
       Sqlite3.bind_int stmt 3 seq_id |> ignore;
       Sqlite3.bind stmt 4 Sqlite3.Data.NULL |> ignore;  (* header_entry_id is NULL for values *)
       Sqlite3.bind_int stmt 5 depth |> ignore;
@@ -594,13 +600,13 @@ module DatabaseBackend (Log_to : Db_config) :
       | rc ->
           let err_msg = Sqlite3.errmsg db in
           failwith (Printf.sprintf "Failed to insert value row: %s (error: %s, entry_id=%d, seq_id=%d)"
-            (Sqlite3.Rc.to_string rc) err_msg entry_id seq_id));
+            (Sqlite3.Rc.to_string rc) err_msg parent_entry_id seq_id));
       Sqlite3.finalize stmt |> ignore;
 
       (* Increment parent's num_children counter *)
-      (match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
-      | Some parent_entry -> parent_entry.num_children <- parent_entry.num_children + 1
-      | None -> ())
+      (match !stack with
+      | parent_entry :: _ -> parent_entry.num_children <- parent_entry.num_children + 1
+      | [] -> ())
 
   let log_value_sexp ?descr ~entry_id ~log_level ~is_result v =
     if not (check_log_level log_level) then ()

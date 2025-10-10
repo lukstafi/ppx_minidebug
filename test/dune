@@ -389,6 +389,13 @@
  (preprocess
   (pps ppx_minidebug ppx_sexp_conv)))
 
+(test
+ (name test_programmatic_log_entry)
+ (modules test_programmatic_log_entry)
+ (libraries minidebug_db minidebug_client)
+ (preprocess
+  (pps ppx_minidebug ppx_deriving.show)))
+
 (executable
  (name test_no_debug_if)
  (modules test_no_debug_if)

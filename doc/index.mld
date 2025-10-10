@@ -812,12 +812,12 @@ The extension point [%log_entry] lets you shape arbitrary log tree structures. T
     [diagn] _logging_logic @ test/test_expect_test.ml:2747:17-2747:31
       "preamble"
       [diagn] header 1 @ :0:0-0:0
+        "log 1"
         [diagn] nested header @ :0:0-0:0
-      "log 1"
-      "log 2"
-      "log 3"
+          "log 2"
+        "log 3"
       [diagn] header 2 @ :0:0-0:0
-      "log 4"
+        "log 4"
       "postscript"
     |}]
 ]}

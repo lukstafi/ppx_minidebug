@@ -1,0 +1,10 @@
+[diagn] _logging_logic @ test/test_programmatic_log_entry.ml:8:17-8:31
+  "preamble"
+  [diagn] header 1 @ :0:0-0:0
+    "log 1"
+    [diagn] nested header @ :0:0-0:0
+      "log 2"
+    "log 3"
+  [diagn] header 2 @ :0:0-0:0
+    "log 4"
+  "postscript"

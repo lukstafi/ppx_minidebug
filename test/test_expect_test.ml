@@ -2784,17 +2784,17 @@ let%expect_test "%log_entry" =
   Minidebug_client.Client.show_trace db (latest_run ());
   [%expect
     {|
-    BEGIN DEBUG SESSION
-    "test/test_expect_test.ml":3671:17: _logging_logic
-    ├─"preamble"
-    ├─header 1
-    │ ├─"log 1"
-    │ ├─nested header
-    │ │ └─"log 2"
-    │ └─"log 3"
-    ├─header 2
-    │ └─"log 4"
-    └─"postscript"
+    latest_run: (no-name)
+    [diagn] _logging_logic @ test/test_expect_test.ml:2747:17-2747:31
+      "preamble"
+      [diagn] header 1 @ :0:0-0:0
+        "log 1"
+        [diagn] nested header @ :0:0-0:0
+          "log 2"
+        "log 3"
+      [diagn] header 2 @ :0:0-0:0
+        "log 4"
+      "postscript"
     |}]
 (* $MDX part-end *)
 
