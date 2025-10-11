@@ -213,18 +213,18 @@ let%debug_show rec loop_exceeded (x : int) : int =
     {|
     8
     3
-    [track] track_branches @ test/test_expect_test.ml:727:32-741:16
+    [track] track_branches @ test/test_expect_test.ml:728:32-742:16
       x = 8
-      [track] else:test_expect_test:736 @ test/test_expect_test.ml:736:6-741:16
-        [track] &lt;match -- branch 2&gt; @ test/test_expect_test.ml:740:10-741:16
-          [track] result @ test/test_expect_test.ml:740:14-740:20
-            [track] then:test_expect_test:740 @ test/test_expect_test.ml:740:44-740:45
+      [track] else:test_expect_test:737 @ test/test_expect_test.ml:737:6-742:16
+        [track] &lt;match -- branch 2&gt; @ test/test_expect_test.ml:741:10-742:16
+          [track] result @ test/test_expect_test.ml:741:14-741:20
+            [track] then:test_expect_test:741 @ test/test_expect_test.ml:741:44-741:45
             result =&gt; 8
       track_branches =&gt; 8
-    [track] track_branches @ test/test_expect_test.ml:727:32-741:16
+    [track] track_branches @ test/test_expect_test.ml:728:32-742:16
       x = 3
-      [track] then:test_expect_test:729 @ test/test_expect_test.ml:729:6-734:16
-        [debug] result @ test/test_expect_test.ml:733:14-733:20
+      [track] then:test_expect_test:730 @ test/test_expect_test.ml:730:6-735:16
+        [debug] result @ test/test_expect_test.ml:734:14-734:20
           result =&gt; 3
       track_branches =&gt; 3
     |}]</code></pre><p>Another example:</p><pre class="language-ocaml"><code>  let%track_show anonymous (x : int) =
@@ -239,15 +239,15 @@ let%debug_show rec loop_exceeded (x : int) : int =
   [%expect
     {|
     6
-    [track] anonymous @ test/test_expect_test.ml:940:27-941:70
+    [track] anonymous @ test/test_expect_test.ml:944:27-945:70
       x = 3
-      [track] fun:test_expect_test:941 @ test/test_expect_test.ml:941:50-941:70
+      [track] fun:test_expect_test:945 @ test/test_expect_test.ml:945:50-945:70
         i = 0
-      [track] fun:test_expect_test:941 @ test/test_expect_test.ml:941:50-941:70
+      [track] fun:test_expect_test:945 @ test/test_expect_test.ml:945:50-945:70
         i = 1
-      [track] fun:test_expect_test:941 @ test/test_expect_test.ml:941:50-941:70
+      [track] fun:test_expect_test:945 @ test/test_expect_test.ml:945:50-945:70
         i = 2
-      [track] fun:test_expect_test:941 @ test/test_expect_test.ml:941:50-941:70
+      [track] fun:test_expect_test:945 @ test/test_expect_test.ml:945:50-945:70
         i = 3
     |}]</code></pre><p>To disable, rather than enhance, debugging for a piece of code, you can use the <code>%diagn_</code> extension points.</p><p>Explicit logging statements also help with tracking the execution, since they can be placed anywhere within a debug scope. Example from the test suite:</p><pre class="language-ocaml"><code>  let _get_local_debug_runtime =
     let rt = Minidebug_db.debug_db_file db_file in
@@ -271,29 +271,29 @@ let%debug_show rec loop_exceeded (x : int) : int =
   [%expect
     {|
     21
-    [track] result @ test/test_expect_test.ml:1959:17-1959:23
-      [track] while:test_expect_test:1962 @ test/test_expect_test.ml:1962:4-1968:8
-        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1963:6-1967:32
+    [track] result @ test/test_expect_test.ml:1946:17-1946:23
+      [track] while:test_expect_test:1949 @ test/test_expect_test.ml:1949:4-1955:8
+        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1950:6-1954:32
           (1 i= 0)
           (2 i= 1)
           (3 j= 1)
-        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1963:6-1967:32
+        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1950:6-1954:32
           (1 i= 1)
           (2 i= 2)
           (3 j= 3)
-        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1963:6-1967:32
+        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1950:6-1954:32
           (1 i= 2)
           (2 i= 3)
           (3 j= 6)
-        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1963:6-1967:32
+        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1950:6-1954:32
           (1 i= 3)
           (2 i= 4)
           (3 j= 10)
-        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1963:6-1967:32
+        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1950:6-1954:32
           (1 i= 4)
           (2 i= 5)
           (3 j= 15)
-        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1963:6-1967:32
+        [track] &lt;while loop&gt; @ test/test_expect_test.ml:1950:6-1954:32
           (1 i= 5)
           (2 i= 6)
           (3 j= 21)
@@ -323,9 +323,9 @@ let%debug_show rec loop_exceeded (x : int) : int =
     {|
     336
     91
-    [diagn] bar @ test/test_expect_test.ml:2486:21-2490:15
+    [diagn] bar @ test/test_expect_test.ml:2460:21-2464:15
       (&quot;for bar, b-3&quot;, 42)
-    [diagn] baz @ test/test_expect_test.ml:2493:21-2498:25
+    [diagn] baz @ test/test_expect_test.ml:2467:21-2472:25
       (&quot;foo baz, f squared&quot;, 49)
     |}]</code></pre><p>At runtime creation, the level can be set via the <code>~log_level</code> parameter, or via <code>Debug_runtime.log_level := ...</code> later on, also for the flushing backend. The following example also illustrates the <code>_rt_</code> runtime-passing entry points:</p><pre class="language-ocaml"><code>  let rt log_level run_name = Minidebug_db.debug_db_file ~log_level ~run_name db_file in
   let%track_rt_sexp result () : int =
@@ -341,28 +341,17 @@ let%debug_show rec loop_exceeded (x : int) : int =
     done;
     !j
   in
-  print_endline
-  @@ Int.to_string
-       (result
-          (rt 9 &quot;Everything&quot;)
-          ());
+  print_endline @@ Int.to_string (result (rt 9 &quot;Everything&quot;) ());
   let db = Minidebug_client.Client.open_db db_file in
   Minidebug_client.Client.show_trace db (latest_run ());
-  print_endline
-  @@ Int.to_string
-       (result
-          (rt 0 &quot;Nothing&quot;)
-          ());
+  print_endline @@ Int.to_string (result (rt 0 &quot;Nothing&quot;) ());
   let latest_run_after_nothing =
-    Minidebug_client.Client.open_db db_file |&gt;
-    Minidebug_client.Client.get_latest_run |&gt;
-    Option.get in
-  print_endline @@ &quot;latest_run_after_nothing: &quot; ^ Option.get latest_run_after_nothing.run_name;
-  print_endline
-  @@ Int.to_string
-       (result
-          (rt 1 &quot;Error&quot;)
-          ());</code></pre><p>But there is a more convenient approach. Both at compile time (constant) and at runtime (integer expression), the level can be set for a scope with <code>%log_level</code>, or globally with <code>%global_debug_log_level</code>. (<code>%log_level</code> is not registered to minimize incompatibility with other logging frameworks.) The (default) compile-time level can also be set silently via the environment variable <code>PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL</code> (unsafe). The extensions <code>%global_debug_log_level</code>, <code>%log_level</code> set the compile time log level only when used with an integer literal, otherwise they are limited to setting the runtime log level.</p><p>For example:</p><pre class="language-ocaml"><code>let _get_local_debug_runtime =
+    Minidebug_client.Client.open_db db_file
+    |&gt; Minidebug_client.Client.get_latest_run |&gt; Option.get
+  in
+  print_endline @@ &quot;latest_run_after_nothing: &quot;
+  ^ Option.get latest_run_after_nothing.run_name;
+  print_endline @@ Int.to_string (result (rt 1 &quot;Error&quot;) ());</code></pre><p>But there is a more convenient approach. Both at compile time (constant) and at runtime (integer expression), the level can be set for a scope with <code>%log_level</code>, or globally with <code>%global_debug_log_level</code>. (<code>%log_level</code> is not registered to minimize incompatibility with other logging frameworks.) The (default) compile-time level can also be set silently via the environment variable <code>PPX_MINIDEBUG_DEFAULT_COMPILE_LOG_LEVEL</code> (unsafe). The extensions <code>%global_debug_log_level</code>, <code>%log_level</code> set the compile time log level only when used with an integer literal, otherwise they are limited to setting the runtime log level.</p><p>For example:</p><pre class="language-ocaml"><code>let _get_local_debug_runtime =
   let rt = Minidebug_db.debug_db_file &quot;debugger_log_prefixed&quot; in
   fun () -&gt; rt
 
@@ -408,10 +397,10 @@ let%diagn_show rec loop_exceeded (x : int) : int =
     336
     336
     109
-    [debug] baz =&gt; 109 @ test/test_expect_test.ml:2617:24-2620:30
+    [debug] baz =&gt; 109 @ test/test_expect_test.ml:2586:24-2589:30
       first = 7
       second = 42
-      [debug] {first; second} @ test/test_expect_test.ml:2618:10-2618:39
+      [debug] {first; second} @ test/test_expect_test.ml:2587:10-2587:39
         first =&gt; 8
         second =&gt; 45
       (&quot;for baz, f squared&quot;, 64)
@@ -438,9 +427,10 @@ let%diagn_show rec loop_exceeded (x : int) : int =
   let run_id = latest_run () in
   let db = Minidebug_client.Client.open_db db_file in
   Minidebug_client.Client.show_trace db run_id;
-  [%expect {|
+  [%expect
+    {|
     latest_run: (no-name)
-    [debug] foo =&gt; () @ test/test_expect_test.ml:2680:21-2693:91
+    [debug] foo =&gt; () @ test/test_expect_test.ml:2644:21-2657:91
       0/0│0/1│0/2│0/3│0/4
     ───┼───┼───┼───┼───
     1/0│1/1│1/2│1/3│1/4
@@ -522,7 +512,7 @@ let%diagn_show rec loop_exceeded (x : int) : int =
   [%expect
     {|
     latest_run: (no-name)
-    [diagn] _logging_logic @ test/test_expect_test.ml:2747:17-2747:31
+    [diagn] _logging_logic @ test/test_expect_test.ml:2712:17-2712:31
       &quot;preamble&quot;
       [diagn] header 1 @ :0:0-0:0
         &quot;log 1&quot;
@@ -592,20 +582,20 @@ let%debug_sexp _test_at_log_level_3 : unit = test_at_log_level 3</code></pre><p>
   Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    [debug] bar =&gt; () @ test/test_expect_test.ml:2404:21-2409:19
+    [debug] bar =&gt; () @ test/test_expect_test.ml:2378:21-2383:19
       (&quot;This is like&quot;, 3, &quot;or&quot;, 3.14, &quot;above&quot;)
       (&quot;tau =&quot;, 6.28)
       (&quot;This is like&quot;, 3, &quot;or&quot;, 3.14, &quot;above&quot;)
       (&quot;tau =&quot;, 6.28)
-    [debug] baz =&gt; () @ test/test_expect_test.ml:2411:21-2416:19
+    [debug] baz =&gt; () @ test/test_expect_test.ml:2385:21-2390:19
       [3; 1; 2; 3]
       [3; 1; 2; 3]
       [3; 1; 2; 3]
       [3; 1; 2; 3]
-    [debug] bar =&gt; () @ test/test_expect_test.ml:2404:21-2409:19
+    [debug] bar =&gt; () @ test/test_expect_test.ml:2378:21-2383:19
       (&quot;This is like&quot;, 3, &quot;or&quot;, 3.14, &quot;above&quot;)
       (&quot;tau =&quot;, 6.28)
-    [debug] _foobar =&gt; () @ test/test_expect_test.ml:2423:17-2423:24
+    [debug] _foobar =&gt; () @ test/test_expect_test.ml:2397:17-2397:24
     |}]</code></pre><p><code>~verbose_entry_ids:true</code> tags all logs with entry ids, it shouldn't be needed in regular use.</p><p>To allow dynamically constructing log trees, when the log's entry is in lexical scope, we add the log at the top of the entry stack, even if it is a sub-entry of the log's entry. For details, see the example for <code>%log_entry</code>.</p><h3 id="reducing-the-size-of-generated-logs"><a href="#reducing-the-size-of-generated-logs" class="anchor"></a>Reducing the size of generated logs</h3><p>Summary of possibilities:</p><ul><li>log levels</li><li><code>path_filter</code> - filter by file path and/or function/binding name</li><li><code>no_debug_if</code></li><li><code>prune_upto</code></li><li><code>truncate_children</code></li><li><code>split_files_after</code></li><li>HTML browsers can handle really large files (less luck with Markdown).</li></ul><p>The log levels discussed in the previous section certainly reduce the amount generated, but they either help too little or they remove logs too indiscriminately for use in a debugging context. Dynamically controlling the runtime log level is one option, but there are some other options.</p><h4 id="path-filtering"><a href="#path-filtering" class="anchor"></a>Path filtering</h4><p>You can filter logs at runtime based on source file paths and function/binding names using the <code>path_filter</code> parameter. The filter is applied to the string <code>&quot;fname/message&quot;</code> where <code>fname</code> is the source file path and <code>message</code> is the function or binding name.</p><p>Examples:</p><pre class="language-ocaml"><code>  (* Test 1: Whitelist by file - only logs from files matching &quot;test_path_filter.ml&quot; *)
   let _get_local_debug_runtime =
     let rt =
@@ -718,9 +708,9 @@ let () =
     {|
     7
     12
-    [debug] f : int =&gt; 7 @ test/test_expect_test.ml:1632:37-1632:54
+    [debug] f : int =&gt; 7 @ test/test_expect_test.ml:1634:37-1634:54
       b : int = 6
-    [debug] g : int =&gt; 12 @ test/test_expect_test.ml:1633:49-1633:72
+    [debug] g : int =&gt; 12 @ test/test_expect_test.ml:1635:49-1635:72
       b : int = 6
     |}]</code></pre><p>You can also use at the module level: <code>[%%global_debug_type_info true]</code>, prior to the code of interest.</p><p>Explicit logging with <code>%log</code> (and <code>%log_result</code>) has different but related restrictions compared to logging of let or argument bindings. We reconstruct the type of the expression from partial type information, where in addition to type annotations we take into account: string, int and float literals, tuple, array, list, and <code>lazy</code> expresssions. We do not analyze applications, nor constructors other than &quot;nil&quot; <code>[]</code> and &quot;cons&quot; <code>::</code> for lists. When a type is unknown, for the whole expression and for a tuple element we assume the type <code>string</code>. We don't assume string for direct subexpressions of arrays, lists, and <code>lazy</code>.</p><h3 id="dealing-with-concurrent-execution"><a href="#dealing-with-concurrent-execution" class="anchor"></a>Dealing with concurrent execution</h3><p>With version 2.2.0, the default safety of using ppx_minidebug in a multithreaded context improved significantly. That's because the most convenient runtime builders (<code>local_runtime</code> etc.) use thread-local storage to provide local debug runtimes. They either log to different files, or use prefixes on logs. When using one of the lower-level debug runtime builders, or when using fibers or other non-system multithreading solutions, you need to be careful.</p><p>We offer three helpers for dealing with multiple debug runtimes.</p><p>The default extension points <code>%debug_sexp</code>, <code>%track_sexp</code>, etc. call a function <code>_get_local_debug_runtime ()</code> and unpack the argument as <code>module Debug_runtime</code> (in a function body). The feature helps using a runtime instance dedicated to a thread or domain, since for example <code>_get_local_debug_runtime</code> can retrieve the runtime using <code>Domain.DLS</code>. (The runtime builders <code>local_runtime</code> and <code>local_runtime_flushing</code> use <a href="https://ocaml.org/p/thread-local-storage/latest"><code>Thread_local_storage</code></a>.) To avoid surprises, in case of directly annotated functions, this feature unpacks a <code>Debug_runtime</code> inside the function body, so that we get the appropriate runtime for the dynamic local scope.</p><p>There is an optional runtime instance-level setting <code>global_prefix</code>, which adds the given information to all log headers (and all logs with <code>prefix_all_logs</code>) coming from the instance. The runtime builders <code>prefixed_runtime</code> and <code>prefixed_runtime_flushing</code> use <code>Thread.id (Thread.self ())</code> in the prefixes.</p><p>Example from the test suite:</p><pre class="language-ocaml"><code>  let i = ref 0 in
   let run_ids = ref [] in
@@ -745,27 +735,26 @@ let () =
     bar ()
   done;
   let db = Minidebug_client.Client.open_db db_file in
-  List.iter (fun run_id -&gt; Minidebug_client.Client.show_trace db run_id) (List.rev !run_ids);
+  List.iter
+    (fun run_id -&gt; Minidebug_client.Client.show_trace db run_id)
+    (List.rev !run_ids);
   [%expect
     {|
-    [track] foo @ test/test_expect_test.ml:2836:21-2838:23
+    [track] foo @ test/test_expect_test.ml:2801:21-2803:23
       &quot;inside foo&quot;
-    [track] &lt;function -- branch 0&gt; () @ test/test_expect_test.ml:2842:8-2843:27
+    [track] &lt;function -- branch 0&gt; () @ test/test_expect_test.ml:2807:8-2808:27
       &quot;inside bar&quot;
-    [track] foo @ test/test_expect_test.ml:2836:21-2838:23
+    [track] foo @ test/test_expect_test.ml:2801:21-2803:23
       &quot;inside foo&quot;
-    [track] &lt;function -- branch 0&gt; () @ test/test_expect_test.ml:2842:8-2843:27
+    [track] &lt;function -- branch 0&gt; () @ test/test_expect_test.ml:2807:8-2808:27
       &quot;inside bar&quot;
-    [track] foo @ test/test_expect_test.ml:2836:21-2838:23
+    [track] foo @ test/test_expect_test.ml:2801:21-2803:23
       &quot;inside foo&quot;
-    [track] &lt;function -- branch 0&gt; () @ test/test_expect_test.ml:2842:8-2843:27
+    [track] &lt;function -- branch 0&gt; () @ test/test_expect_test.ml:2807:8-2808:27
       &quot;inside bar&quot;
     |}]</code></pre><p>Another similar feature is the extension points <code>%debug_rt_sexp</code>, <code>%track_rt_sexp</code>, etc. They add a first-class module argument to a function, and unpack the argument as <code>module Debug_runtime</code>. At present, passing of the runtime instance to functions needs to be done manually. Note that only the function attached to the <code>_rt_</code> extension point is modified.</p><p>Example from the test suite:</p><pre class="language-ocaml"><code>  let rt run_name = Minidebug_db.debug_db_file ~run_name db_file in
   let%track_rt_show foo l : int = match (l : int list) with [] -&gt; 7 | y :: _ -&gt; y * 2 in
-  let () =
-    print_endline @@ Int.to_string
-    @@ foo (rt &quot;foo-1&quot;) [ 7 ]
-  in
+  let () = print_endline @@ Int.to_string @@ foo (rt &quot;foo-1&quot;) [ 7 ] in
   let db = Minidebug_client.Client.open_db db_file in
   Minidebug_client.Client.show_trace db ~values_first_mode:true (latest_run ());
   let%track_rt_show baz : int list -&gt; int = function
@@ -774,32 +763,24 @@ let () =
     | [ y; z ] -&gt; y + z
     | y :: z :: _ -&gt; y + z + 1
   in
-  let () =
-    print_endline @@ Int.to_string
-    @@ baz (rt &quot;baz-1&quot;) [ 4 ]
-  in
+  let () = print_endline @@ Int.to_string @@ baz (rt &quot;baz-1&quot;) [ 4 ] in
   Minidebug_client.Client.show_trace db ~values_first_mode:true (latest_run ());
-  let () =
-    print_endline @@ Int.to_string
-    @@ baz
-         (rt &quot;baz-2&quot;)
-         [ 4; 5; 6 ]
-  in
+  let () = print_endline @@ Int.to_string @@ baz (rt &quot;baz-2&quot;) [ 4; 5; 6 ] in
   Minidebug_client.Client.show_trace db ~values_first_mode:true (latest_run ());
   [%expect
     {|
     14
     latest_run: foo-1
-    [track] foo =&gt; 14 @ test/test_expect_test.ml:1738:24-1738:85
-      [track] &lt;match -- branch 1&gt; :: (y, _) @ test/test_expect_test.ml:1738:80-1738:85
+    [track] foo =&gt; 14 @ test/test_expect_test.ml:1740:24-1740:85
+      [track] &lt;match -- branch 1&gt; :: (y, _) @ test/test_expect_test.ml:1740:80-1740:85
         y = 7
     8
     latest_run: baz-1
-    [track] &lt;function -- branch 1&gt; :: (y, []) =&gt; baz = 8 @ test/test_expect_test.ml:1747:15-1747:20
+    [track] &lt;function -- branch 1&gt; :: (y, []) =&gt; baz = 8 @ test/test_expect_test.ml:1746:15-1746:20
       y = 4
     10
     latest_run: baz-2
-    [track] &lt;function -- branch 3&gt; :: (y, :: (z, _)) =&gt; baz = 10 @ test/test_expect_test.ml:1749:21-1749:30
+    [track] &lt;function -- branch 3&gt; :: (y, :: (z, _)) =&gt; baz = 10 @ test/test_expect_test.ml:1748:21-1748:30
       y = 4
       z = 5
     |}]</code></pre></div></body></html>
