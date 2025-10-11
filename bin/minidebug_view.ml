@@ -11,20 +11,28 @@ COMMANDS:
   stats                   Show database statistics
   show [run_id]           Show trace tree (latest run if no ID given)
   compact [run_id]        Show compact trace (function names only)
+  roots [run_id]          Show root entries only (fast for large DBs)
   search <pattern>        Search entries by regex pattern
   export <file>           Export latest run to markdown
 
 OPTIONS:
-  --run=<id>              Specify run ID (for show, compact, search)
+  --run=<id>              Specify run ID (for show, compact, search, roots)
   --entry-ids             Show entry IDs in output
   --times                 Show elapsed times
   --max-depth=<n>         Limit tree depth
   --values-first          Show result values as headers (values-first mode)
+  --with-values           Include immediate children values (for roots command)
   --help                  Show this help message
 
 EXAMPLES:
   # Show latest trace
   minidebug_view trace.db show
+
+  # Show root entries only (efficient for large DBs)
+  minidebug_view trace.db roots --times
+
+  # Show root entries with their immediate children
+  minidebug_view trace.db roots --with-values --times
 
   # Show specific run with entry IDs and times
   minidebug_view trace.db show --run=1 --entry-ids --times
@@ -41,6 +49,7 @@ type command =
   | Stats
   | Show of int option
   | Compact of int option
+  | Roots of int option
   | Search of string
   | Export of string
   | Help
@@ -51,6 +60,7 @@ type options = {
   max_depth : int option;
   run_id : int option;
   values_first_mode : bool;
+  with_values : bool;
 }
 
 let parse_args () =
@@ -69,6 +79,7 @@ let parse_args () =
             max_depth = None;
             run_id = None;
             values_first_mode = false;
+            with_values = false;
           }
       in
 
@@ -96,6 +107,14 @@ let parse_args () =
             | _ ->
                 cmd_ref := Compact None;
                 parse_rest rest)
+        | "roots" :: rest -> (
+            match rest with
+            | id :: rest' when String.length id > 0 && id.[0] <> '-' ->
+                cmd_ref := Roots (Some (int_of_string id));
+                parse_rest rest'
+            | _ ->
+                cmd_ref := Roots None;
+                parse_rest rest)
         | "search" :: pattern :: rest ->
             cmd_ref := Search pattern;
             parse_rest rest
@@ -119,6 +138,9 @@ let parse_args () =
                 parse_rest rest
             | [ "--values-first" ] ->
                 opts := { !opts with values_first_mode = true };
+                parse_rest rest
+            | [ "--with-values" ] ->
+                opts := { !opts with with_values = true };
                 parse_rest rest
             | _ ->
                 Printf.eprintf "Unknown option: %s\n" opt;
@@ -189,6 +211,20 @@ let () =
         in
         Minidebug_client.Client.show_run_summary client run_id;
         Minidebug_client.Client.show_compact_trace client run_id
+    | Roots run_id_opt ->
+        let run_id =
+          match (run_id_opt, opts.run_id) with
+          | Some id, _ | _, Some id -> id
+          | None, None -> (
+              match Minidebug_client.Client.get_latest_run client with
+              | Some run -> run.run_id
+              | None ->
+                  Printf.eprintf "Error: No runs found in database\n";
+                  exit 1)
+        in
+        Minidebug_client.Client.show_run_summary client run_id;
+        Minidebug_client.Client.show_roots client ~show_times:opts.show_times
+          ~with_values:opts.with_values run_id
     | Search pattern ->
         let run_id =
           match opts.run_id with

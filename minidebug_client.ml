@@ -223,6 +223,100 @@ module Query = struct
         || (match entry.location with Some loc -> Re.execp re loc | None -> false)
         || match entry.data with Some d -> Re.execp re d | None -> false)
       entries
+
+  (** Get only root entries efficiently - roots are those with entry_id=0 *)
+  let get_root_entries db ~run_id ~with_values =
+    let query =
+      if with_values then
+        (* Get entries at depth 0 and 1 - roots and their immediate children *)
+        {|
+      SELECT
+        e.entry_id,
+        e.seq_id,
+        e.header_entry_id,
+        e.depth,
+        m.value_content as message,
+        l.value_content as location,
+        d.value_content as data,
+        e.elapsed_start_ns,
+        e.elapsed_end_ns,
+        e.is_result,
+        e.log_level,
+        e.entry_type
+      FROM entries e
+      JOIN value_atoms m ON e.message_value_id = m.value_id
+      LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
+      LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
+      WHERE e.run_id = ? AND e.depth <= 1
+      ORDER BY e.entry_id, e.seq_id
+    |}
+      else
+        (* Get only depth 0 headers *)
+        {|
+      SELECT
+        e.entry_id,
+        e.seq_id,
+        e.header_entry_id,
+        e.depth,
+        m.value_content as message,
+        l.value_content as location,
+        d.value_content as data,
+        e.elapsed_start_ns,
+        e.elapsed_end_ns,
+        e.is_result,
+        e.log_level,
+        e.entry_type
+      FROM entries e
+      JOIN value_atoms m ON e.message_value_id = m.value_id
+      LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
+      LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
+      WHERE e.run_id = ? AND e.entry_id = 0 AND e.header_entry_id IS NOT NULL
+      ORDER BY e.seq_id
+    |}
+    in
+
+    let stmt = Sqlite3.prepare db query in
+    Sqlite3.bind_int stmt 1 run_id |> ignore;
+
+    let entries = ref [] in
+    let rec loop () =
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW ->
+          let entry =
+            {
+              entry_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+              seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
+              header_entry_id =
+                (match Sqlite3.column stmt 2 with
+                | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+                | _ -> None);
+              depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
+              message = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 4);
+              location =
+                (match Sqlite3.column stmt 5 with
+                | Sqlite3.Data.TEXT s -> Some s
+                | _ -> None);
+              data =
+                (match Sqlite3.column stmt 6 with
+                | Sqlite3.Data.TEXT s -> Some s
+                | _ -> None);
+              elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
+              elapsed_end_ns =
+                (match Sqlite3.column stmt 8 with
+                | Sqlite3.Data.INT ns -> Some (Int64.to_int ns)
+                | _ -> None);
+              is_result = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 9) = 1;
+              log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
+              entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
+            }
+          in
+          entries := entry :: !entries;
+          loop ()
+      | _ -> ()
+    in
+    loop ();
+    Sqlite3.finalize stmt |> ignore;
+    List.rev !entries
 end
 
 (** Tree renderer for terminal output *)
@@ -462,6 +556,63 @@ module Renderer = struct
 
     List.iter (render_node ~indent:"") trees;
     Buffer.contents buf
+
+  (** Render root entries as a flat list *)
+  let render_roots ?(show_times = false) ?(with_values = false) (entries : Query.entry list) =
+    let buf = Buffer.create 1024 in
+
+    (* Separate headers and values *)
+    let headers = List.filter (fun (e : Query.entry) -> e.header_entry_id <> None) entries in
+    let values = List.filter (fun (e : Query.entry) -> e.header_entry_id = None) entries in
+
+    (* Sort headers by seq_id *)
+    let sorted_headers =
+      List.sort (fun (a : Query.entry) (b : Query.entry) -> compare a.seq_id b.seq_id) headers
+    in
+
+    List.iter
+      (fun (header : Query.entry) ->
+        (* Show entry type and message *)
+        Buffer.add_string buf (Printf.sprintf "[%s] %s" header.entry_type header.message);
+
+        (* Location *)
+        (match header.location with
+        | Some loc -> Buffer.add_string buf (Printf.sprintf " @ %s" loc)
+        | None -> ());
+
+        (* Elapsed time *)
+        (if show_times then
+           match elapsed_time header with
+           | Some elapsed ->
+               Buffer.add_string buf (Printf.sprintf " <%s>" (format_elapsed_ns elapsed))
+           | None -> ());
+
+        Buffer.add_string buf "\n";
+
+        (* Show immediate children values if requested *)
+        if with_values then
+          match header.header_entry_id with
+          | Some hid ->
+              let child_values =
+                List.filter (fun (v : Query.entry) -> v.entry_id = hid) values
+                |> List.sort (fun (a : Query.entry) (b : Query.entry) ->
+                       compare a.seq_id b.seq_id)
+              in
+              List.iter
+                (fun (child : Query.entry) ->
+                  Buffer.add_string buf "  ";
+                  if child.is_result then Buffer.add_string buf "=> "
+                  else if child.message <> "" then
+                    Buffer.add_string buf (child.message ^ " = ");
+                  (match child.data with
+                  | Some data -> Buffer.add_string buf data
+                  | None -> ());
+                  Buffer.add_string buf "\n")
+                child_values
+          | None -> ())
+      sorted_headers;
+
+    Buffer.contents buf
 end
 
 (** Main client interface *)
@@ -522,6 +673,12 @@ module Client = struct
     let entries = Query.get_entries t.db ~run_id () in
     let trees = Renderer.build_tree entries in
     let output = Renderer.render_compact trees in
+    print_string output
+
+  (** Show root entries efficiently *)
+  let show_roots t ?(show_times = false) ?(with_values = false) run_id =
+    let entries = Query.get_root_entries t.db ~run_id ~with_values in
+    let output = Renderer.render_roots ~show_times ~with_values entries in
     print_string output
 
   (** Search entries *)

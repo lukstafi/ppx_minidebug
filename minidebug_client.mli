@@ -48,6 +48,10 @@ module Query : sig
 
   val search_entries : Sqlite3.db -> run_id:int -> pattern:string -> entry list
   (** Search entries by regex pattern matching message, location, or data *)
+
+  val get_root_entries : Sqlite3.db -> run_id:int -> with_values:bool -> entry list
+  (** Get only root-level entries efficiently. When [with_values] is true, includes
+      immediate children values. Fast for large databases. *)
 end
 
 (** Tree renderer for terminal output *)
@@ -72,6 +76,11 @@ module Renderer : sig
 
   val render_compact : tree_node list -> string
   (** Render compact summary (just function calls) *)
+
+  val render_roots :
+    ?show_times:bool -> ?with_values:bool -> Query.entry list -> string
+  (** Render root entries as a flat list. When [with_values] is true, shows immediate
+      children values. *)
 end
 
 (** Main client interface *)
@@ -109,6 +118,10 @@ module Client : sig
 
   val show_compact_trace : t -> int -> unit
   (** Print compact trace (function names only) *)
+
+  val show_roots : t -> ?show_times:bool -> ?with_values:bool -> int -> unit
+  (** Print root entries efficiently. Fast for large databases. When [with_values] is
+      true, includes immediate children values. *)
 
   val search : t -> run_id:int -> pattern:string -> unit
   (** Search and print matching entries *)
