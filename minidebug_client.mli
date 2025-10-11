@@ -3,8 +3,8 @@
 (** Query layer for database access *)
 module Query : sig
   type entry = {
-    entry_id : int; (* parent scope ID for all rows *)
-    seq_id : int; (* position in parent's children list *)
+    entry_id : int; (* Scope ID - groups all rows for a scope *)
+    seq_id : int; (* Position within parent's children *)
     header_entry_id : int option; (* NULL for values, points to new scope for headers *)
     depth : int;
     message : string;
@@ -81,6 +81,22 @@ module Renderer : sig
     ?show_times:bool -> ?with_values:bool -> Query.entry list -> string
   (** Render root entries as a flat list. When [with_values] is true, shows immediate
       children values. *)
+
+  val elapsed_time : Query.entry -> int option
+  (** Calculate elapsed time for an entry in nanoseconds *)
+end
+
+(** Interactive TUI using Notty *)
+module Interactive : sig
+  val run : Sqlite3.db -> int -> unit
+  (** Launch interactive terminal UI for exploring a trace run.
+
+      Controls:
+      - [↑/↓] or [k/j]: Navigate up/down
+      - [Enter]: Expand/collapse current node
+      - [t]: Toggle time display
+      - [v]: Toggle values-first mode
+      - [q] or [Esc]: Quit *)
 end
 
 (** Main client interface *)

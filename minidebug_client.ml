@@ -5,8 +5,8 @@ module CFormat = Format
 (** Query layer for database access *)
 module Query = struct
   type entry = {
-    entry_id : int; (* parent scope ID for all rows *)
-    seq_id : int; (* position in parent's children list *)
+    entry_id : int; (* Scope ID - groups all rows for a scope *)
+    seq_id : int; (* Position within parent's children *)
     header_entry_id : int option; (* NULL for values, points to new scope for headers *)
     depth : int;
     message : string;
@@ -39,7 +39,7 @@ module Query = struct
   let get_runs db =
     let stmt =
       Sqlite3.prepare db
-        "SELECT run_id, timestamp, elapsed_ns, command_line, run_name FROM runs ORDER BY \
+        "SELECT run_id, timestamp, elapsed_ns, command_line FROM runs ORDER BY \
          run_id DESC"
     in
     let runs = ref [] in
@@ -52,10 +52,7 @@ module Query = struct
               timestamp = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 1);
               elapsed_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 2);
               command_line = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 3);
-              run_name =
-                (match Sqlite3.column stmt 4 with
-                | Sqlite3.Data.TEXT s -> Some s
-                | _ -> None);
+              run_name = None;
             }
           in
           runs := run :: !runs;
@@ -251,7 +248,7 @@ module Query = struct
       ORDER BY e.entry_id, e.seq_id
     |}
       else
-        (* Get only depth 0 headers *)
+        (* Get only headers at root level (entry_id=0, header_entry_id NOT NULL) *)
         {|
       SELECT
         e.entry_id,
@@ -325,7 +322,7 @@ module Renderer = struct
 
   (** Build tree structure from flat entry list *)
   let build_tree entries =
-    (* Separate headers from values/results *)
+    (* Separate headers from values *)
     let headers, _values =
       List.partition (fun e -> e.Query.header_entry_id <> None) entries
     in
@@ -342,12 +339,10 @@ module Renderer = struct
           headers
       in
 
-      (* Get all children of this scope *)
+      (* Get all children of this scope (all rows with entry_id = this scope's ID) *)
       let children_entries =
         List.filter
-          (fun e ->
-            (* All children (headers and values) have entry_id = this scope's ID *)
-            e.Query.entry_id = header_entry_id)
+          (fun e -> e.Query.entry_id = header_entry_id)
           entries
       in
 
@@ -426,17 +421,17 @@ module Renderer = struct
         in
 
         (* Determine rendering mode *)
-        match (entry.header_entry_id, values_first_mode, results) with
-        | None, _, _ ->
-            (* Value node: display as "name = value" or "=> value" *)
-            if entry.is_result then Buffer.add_string buf (entry.message ^ " => ")
-            else if String.empty = entry.message then ()
-            else Buffer.add_string buf (entry.message ^ " = ");
+        let has_children = node.children <> [] in
+        match (has_children, values_first_mode, results) with
+        | false, _, _ ->
+            (* Leaf node: display as "name = value" *)
+            if entry.message <> "" then
+              Buffer.add_string buf (entry.message ^ " = ");
 
             (match entry.data with Some data -> Buffer.add_string buf data | None -> ());
 
             Buffer.add_string buf "\n"
-        | Some _, true, [ result_child ] when result_child.entry.header_entry_id = None ->
+        | true, true, [ result_child ] when result_child.children = [] ->
             (* Scope node with single value result in values_first_mode: combine on one line *)
             (* Format: [type] message => result.message result_value <time> @ location *)
             Buffer.add_string buf
@@ -471,60 +466,50 @@ module Renderer = struct
                header) *)
             let child_indent = indent ^ "  " in
             List.iter (render_node ~indent:child_indent ~depth:(depth + 1)) non_results
-        | Some _, _, _ ->
-            (* Normal rendering mode *)
+        | true, _, _ ->
+            (* Normal rendering mode - scope with children *)
             (* Message and type *)
-            (Buffer.add_string buf
-               (Printf.sprintf "[%s] %s" entry.entry_type entry.message);
+            Buffer.add_string buf
+              (Printf.sprintf "[%s] %s" entry.entry_type entry.message);
 
-             (* Location *)
-             (match entry.location with
-             | Some loc -> Buffer.add_string buf (Printf.sprintf " @ %s" loc)
-             | None -> ());
+            (* Location *)
+            (match entry.location with
+            | Some loc -> Buffer.add_string buf (Printf.sprintf " @ %s" loc)
+            | None -> ());
 
-             (* Elapsed time *)
-             (if show_times then
-                match elapsed_time entry with
-                | Some elapsed ->
-                    Buffer.add_string buf
-                      (Printf.sprintf " <%s>" (format_elapsed_ns elapsed))
-                | None -> ());
-
-             Buffer.add_string buf "\n";
-
-             (* Data (if present) *)
-             (match entry.data with
-             | Some data when not entry.is_result ->
-                 Buffer.add_string buf (indent ^ "  ");
-                 Buffer.add_string buf data;
-                 Buffer.add_string buf "\n"
-             | _ -> ());
-
-             (* Result (if present) *)
-             if entry.is_result then
-               match entry.data with
-               | Some data ->
-                   Buffer.add_string buf (indent ^ "  => ");
-                   Buffer.add_string buf data;
-                   Buffer.add_string buf "\n"
+            (* Elapsed time *)
+            (if show_times then
+               match elapsed_time entry with
+               | Some elapsed ->
+                   Buffer.add_string buf
+                     (Printf.sprintf " <%s>" (format_elapsed_ns elapsed))
                | None -> ());
+
+            Buffer.add_string buf "\n";
+
+            (* Data (if present and not a leaf) *)
+            (match entry.data with
+            | Some data when has_children ->
+                Buffer.add_string buf (indent ^ "  ");
+                Buffer.add_string buf data;
+                Buffer.add_string buf "\n"
+            | _ -> ());
 
             (* Children *)
             let child_indent = indent ^ "  " in
             if values_first_mode then
-              match (entry.header_entry_id, results) with
-              | Some _, [ result_child ] when result_child.entry.header_entry_id = None ->
+              match results with
+              | [ result_child ] when result_child.children = [] ->
                   (* Single value result was combined with header, skip it *)
                   List.iter
                     (render_node ~indent:child_indent ~depth:(depth + 1))
                     non_results
-              | Some _, _ ->
+              | _ ->
                   (* Multiple results or result is a header: render results first *)
                   List.iter (render_node ~indent:child_indent ~depth:(depth + 1)) results;
                   List.iter
                     (render_node ~indent:child_indent ~depth:(depth + 1))
                     non_results
-              | None, _ -> assert (node.children = [])
             else
               List.iter
                 (render_node ~indent:child_indent ~depth:(depth + 1))
@@ -613,6 +598,244 @@ module Renderer = struct
       sorted_headers;
 
     Buffer.contents buf
+end
+
+(** Interactive TUI using Notty *)
+module Interactive = struct
+  open Notty
+  open Notty_unix
+
+  type view_state = {
+    db : Sqlite3.db;
+    run_id : int;
+    cursor : int; (* Current cursor position in visible items *)
+    scroll_offset : int; (* Top visible item index *)
+    expanded : (int, unit) Hashtbl.t; (* Set of expanded entry_ids *)
+    visible_items : visible_item array; (* Flattened view of tree *)
+    show_times : bool;
+    values_first : bool;
+  }
+
+  and visible_item = {
+    entry : Query.entry;
+    indent_level : int;
+    is_expandable : bool;
+    is_expanded : bool;
+  }
+
+  (** Flatten tree into visible items based on expansion state *)
+  let rec flatten_tree ~expanded ~depth items acc =
+    List.fold_left
+      (fun acc (item : Renderer.tree_node) ->
+        let entry = item.entry in
+        let is_expandable = entry.header_entry_id <> None in
+        let is_expanded = Hashtbl.mem expanded entry.entry_id in
+
+        let visible = {
+          entry;
+          indent_level = depth;
+          is_expandable;
+          is_expanded;
+        } in
+
+        let acc = visible :: acc in
+
+        (* Add children if expanded *)
+        if is_expanded then
+          flatten_tree ~expanded ~depth:(depth + 1) item.children acc
+        else acc)
+      acc items
+
+  (** Build visible items list from database *)
+  let build_visible_items db run_id expanded =
+    let entries = Query.get_entries db ~run_id () in
+    let trees = Renderer.build_tree entries in
+    let items = flatten_tree ~expanded ~depth:0 trees [] in
+    Array.of_list (List.rev items)
+
+  (** Render a single line *)
+  let render_line ~width ~is_selected ~show_times item =
+    let entry = item.entry in
+    let indent = String.make (item.indent_level * 2) ' ' in
+
+    (* Expansion indicator *)
+    let expansion_mark =
+      if item.is_expandable then
+        if item.is_expanded then "▼ " else "▶ "
+      else "  "
+    in
+
+    (* Entry content *)
+    let content =
+      match item.entry.header_entry_id with
+      | Some _ ->
+          (* Header/scope *)
+          Printf.sprintf "%s%s[%s] %s" indent expansion_mark
+            entry.entry_type entry.message
+      | None ->
+          (* Value *)
+          let value_str = match entry.data with Some d -> d | None -> "" in
+          if entry.is_result then
+            Printf.sprintf "%s  => %s" indent value_str
+          else
+            Printf.sprintf "%s  %s = %s" indent entry.message value_str
+    in
+
+    (* Time *)
+    let time_str =
+      if show_times then
+        match Renderer.elapsed_time entry with
+        | Some elapsed -> Printf.sprintf " <%s>" (Renderer.format_elapsed_ns elapsed)
+        | None -> ""
+      else ""
+    in
+
+    let full_text = content ^ time_str in
+    let truncated =
+      if String.length full_text > width then
+        String.sub full_text 0 (width - 3) ^ "..."
+      else
+        full_text
+    in
+
+    let attr = if is_selected then A.(bg lightblue ++ fg black) else A.empty in
+    I.string attr truncated
+
+  (** Render the full screen *)
+  let render_screen state term_height term_width =
+    let header_height = 2 in
+    let footer_height = 2 in
+    let content_height = term_height - header_height - footer_height in
+
+    (* Header *)
+    let header =
+      I.vcat [
+        I.string A.(fg lightcyan)
+          (Printf.sprintf "Run #%d | Items: %d | Times: %s | Values First: %s"
+            state.run_id
+            (Array.length state.visible_items)
+            (if state.show_times then "ON" else "OFF")
+            (if state.values_first then "ON" else "OFF"));
+        I.string A.(fg white) (String.make term_width '-');
+      ]
+    in
+
+    (* Content lines *)
+    let visible_start = state.scroll_offset in
+    let visible_end = min (visible_start + content_height) (Array.length state.visible_items) in
+
+    let content_lines = ref [] in
+    for i = visible_start to visible_end - 1 do
+      let is_selected = i = state.cursor in
+      let item = state.visible_items.(i) in
+      let line = render_line ~width:term_width ~is_selected ~show_times:state.show_times item in
+      content_lines := line :: !content_lines
+    done;
+
+    (* Pad if needed *)
+    let padding_lines = content_height - (visible_end - visible_start) in
+    for _ = 1 to padding_lines do
+      content_lines := I.string A.empty "" :: !content_lines
+    done;
+
+    let content = I.vcat (List.rev !content_lines) in
+
+    (* Footer *)
+    let footer =
+      I.vcat [
+        I.string A.(fg white) (String.make term_width '-');
+        I.string A.(fg lightcyan)
+          "[↑/↓] Navigate | [Enter] Expand/Collapse | [t] Toggle Times | [v] Values First | [q] Quit";
+      ]
+    in
+
+    I.vcat [ header; content; footer ]
+
+  (** Toggle expansion of current item *)
+  let toggle_expansion state =
+    if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
+      let item = state.visible_items.(state.cursor) in
+      if item.is_expandable then (
+        if Hashtbl.mem state.expanded item.entry.entry_id then
+          Hashtbl.remove state.expanded item.entry.entry_id
+        else
+          Hashtbl.add state.expanded item.entry.entry_id ();
+
+        (* Rebuild visible items *)
+        let new_visible = build_visible_items state.db state.run_id state.expanded in
+        { state with visible_items = new_visible }
+      ) else state
+    else state
+
+  (** Handle key events *)
+  let handle_key state key term_height =
+    let content_height = term_height - 4 in
+    match key with
+    | `ASCII 'q', _ | `Escape, _ -> None (* Quit *)
+
+    | `Arrow `Up, _ | `ASCII 'k', _ ->
+        let new_cursor = max 0 (state.cursor - 1) in
+        let new_scroll =
+          if new_cursor < state.scroll_offset then new_cursor
+          else state.scroll_offset
+        in
+        Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+
+    | `Arrow `Down, _ | `ASCII 'j', _ ->
+        let max_cursor = Array.length state.visible_items - 1 in
+        let new_cursor = min max_cursor (state.cursor + 1) in
+        let new_scroll =
+          if new_cursor >= state.scroll_offset + content_height then
+            new_cursor - content_height + 1
+          else state.scroll_offset
+        in
+        Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+
+    | `Enter, _ ->
+        Some (toggle_expansion state)
+
+    | `ASCII 't', _ ->
+        Some { state with show_times = not state.show_times }
+
+    | `ASCII 'v', _ ->
+        Some { state with values_first = not state.values_first }
+
+    | _ -> Some state
+
+  (** Main interactive loop *)
+  let run db run_id =
+    let expanded = Hashtbl.create 64 in
+    let visible_items = build_visible_items db run_id expanded in
+
+    let initial_state = {
+      db;
+      run_id;
+      cursor = 0;
+      scroll_offset = 0;
+      expanded;
+      visible_items;
+      show_times = true;
+      values_first = true;
+    } in
+
+    let term = Term.create () in
+
+    let rec loop state =
+      let (term_width, term_height) = Term.size term in
+      let image = render_screen state term_height term_width in
+      Term.image term image;
+
+      match Term.event term with
+      | `Key key ->
+          (match handle_key state key term_height with
+          | Some new_state -> loop new_state
+          | None -> ())
+      | `Resize _ -> loop state
+      | _ -> loop state
+    in
+
+    loop initial_state;
+    Term.release term
 end
 
 (** Main client interface *)

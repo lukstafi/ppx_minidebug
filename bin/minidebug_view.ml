@@ -10,6 +10,7 @@ COMMANDS:
   list                    List all runs in database
   stats                   Show database statistics
   show [run_id]           Show trace tree (latest run if no ID given)
+  interactive [run_id]    Interactive TUI for exploring trace (alias: tui)
   compact [run_id]        Show compact trace (function names only)
   roots [run_id]          Show root entries only (fast for large DBs)
   search <pattern>        Search entries by regex pattern
@@ -48,6 +49,7 @@ type command =
   | List
   | Stats
   | Show of int option
+  | Interactive of int option
   | Compact of int option
   | Roots of int option
   | Search of string
@@ -98,6 +100,14 @@ let parse_args () =
                 parse_rest rest'
             | _ ->
                 cmd_ref := Show None;
+                parse_rest rest)
+        | ("interactive" | "tui") :: rest -> (
+            match rest with
+            | id :: rest' when String.length id > 0 && id.[0] <> '-' ->
+                cmd_ref := Interactive (Some (int_of_string id));
+                parse_rest rest'
+            | _ ->
+                cmd_ref := Interactive None;
                 parse_rest rest)
         | "compact" :: rest -> (
             match rest with
@@ -198,6 +208,21 @@ let () =
         Minidebug_client.Client.show_trace client ~show_entry_ids:opts.show_entry_ids
           ~show_times:opts.show_times ~max_depth:opts.max_depth
           ~values_first_mode:opts.values_first_mode run_id
+    | Interactive run_id_opt ->
+        let run_id =
+          match (run_id_opt, opts.run_id) with
+          | Some id, _ | _, Some id -> id
+          | None, None -> (
+              match Minidebug_client.Client.get_latest_run client with
+              | Some run -> run.run_id
+              | None ->
+                  Printf.eprintf "Error: No runs found in database\n";
+                  exit 1)
+        in
+        (* Open a separate database connection for interactive mode *)
+        let db = Sqlite3.db_open ~mode:`READONLY db_path in
+        Minidebug_client.Interactive.run db run_id;
+        Sqlite3.db_close db |> ignore
     | Compact run_id_opt ->
         let run_id =
           match (run_id_opt, opts.run_id) with
