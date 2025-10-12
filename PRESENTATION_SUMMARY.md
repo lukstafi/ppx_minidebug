@@ -198,25 +198,54 @@ module Debug_runtime =
 
 **For users needing static HTML**: Use 2.4.x branch (maintained for bug fixes)
 
-## Why This Matters
+## Why OCamlers Should Try This
+
+### Compared to Printf Debugging
+```ocaml
+(* Before: Manual prints everywhere *)
+let process data =
+  Printf.eprintf "process: data=%s\n%!" (show_data data);
+  let result = compute data in
+  Printf.eprintf "process: result=%s\n%!" (show_result result);
+  result
+
+(* After: Just add %debug_sexp *)
+let%debug_sexp process data =
+  let result = compute data in
+  result
+```
+**Advantage**: Zero manual work, automatic tree structure, no cleanup needed
+
+### Compared to ocamldebug
+- **No recompilation**: Works with existing bytecode/native
+- **Production-safe**: Enable/disable at runtime via log levels
+- **Asynchronous code**: Traces work even with Lwt/Async (no stepping)
+- **Complex data**: Automatic sexp serialization of any type
+
+### Compared to Landmarks/Statmemprof
+- **Full execution trace**: Not just hotspots, but complete flow
+- **Data values**: See actual data, not just function names
+- **Interactive exploration**: TUI for drilling down into specific calls
+- **Zero configuration**: No need to annotate call sites
 
 ### For Development
 - **Fast debugging**: See complete execution flow without manual prints
-- **No boilerplate**: PPX handles all instrumentation
-- **Minimal overhead**: Lazy evaluation, optional compilation
+- **Type-safe**: Uses ppx_sexp_conv, show, or pp - picks the right one
+- **Minimal overhead**: Lazy evaluation, optional compilation (`[%%global_debug_log_level 0]`)
 - **Interactive exploration**: TUI beats scrolling through text files
 
 ### For Production
-- **Crash-safe**: WAL mode, instant writes
+- **Crash-safe**: WAL mode, instant writes (no buffering)
 - **Space efficient**: 60-80% deduplication on real workloads
 - **Queryable**: SQL analysis of execution patterns
-- **Concurrent**: Thread-safe database access
+- **Conditional**: Path filters and log levels for targeted tracing
+- **Thread-safe**: Multiple threads can write to same database
 
 ### For Analysis
-- **Execution patterns**: Find hot paths with SQL
-- **Value distribution**: Analyze data flow
-- **Performance profiling**: Elapsed time per entry
+- **SQL queries**: Find hot paths, analyze value distributions
+- **Performance profiling**: Elapsed time per entry with nanosecond precision
 - **Regression detection**: Compare runs with diffs (coming in 3.1)
+- **Post-mortem**: Trace persists after crash, query with standard tools
 
 ## Live Demo
 
@@ -264,6 +293,31 @@ Unique values: 18
 Deduplication: 57.1%
 Database size: 52 KB
 ```
+
+## Quick Start (60 seconds)
+
+```bash
+# 1. Install (one command)
+opam pin ppx_minidebug https://github.com/lukstafi/ppx_minidebug.git
+
+# 2. Add to dune file
+(executable
+ (name my_program)
+ (preprocess (pps ppx_minidebug ppx_sexp_conv))
+ (libraries ppx_minidebug.db sexplib0))
+
+# 3. Add to your code (2 lines)
+let _get_local_debug_runtime =
+  let rt = Minidebug_db.debug_db_file "trace" in fun () -> rt
+
+let%debug_sexp my_function x = (* your code *)
+
+# 4. Run and explore
+./my_program.exe
+minidebug_view trace.db tui
+```
+
+That's it! No configuration files, no build system changes, just works.
 
 ## Installation
 
