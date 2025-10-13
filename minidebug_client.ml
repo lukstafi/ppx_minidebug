@@ -315,7 +315,27 @@ module Query = struct
     Sqlite3.finalize stmt |> ignore;
     List.rev !entries
 
-  (** Get direct children of a scope efficiently *)
+  (** Check if an entry has any children (efficient query) *)
+  let has_children db ~run_id ~parent_entry_id =
+    let query =
+      {|
+      SELECT 1
+      FROM entries
+      WHERE run_id = ? AND entry_id = ?
+      LIMIT 1
+    |}
+    in
+    let stmt = Sqlite3.prepare db query in
+    Sqlite3.bind_int stmt 1 run_id |> ignore;
+    Sqlite3.bind_int stmt 2 parent_entry_id |> ignore;
+    let has_child =
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW -> true
+      | _ -> false
+    in
+    Sqlite3.finalize stmt |> ignore;
+    has_child
+
   let get_scope_children db ~run_id ~parent_entry_id =
     let query =
       {|
@@ -696,7 +716,12 @@ module Interactive = struct
   (** Build visible items list from database using lazy loading *)
   let build_visible_items db run_id expanded =
     let rec flatten_entry ~depth entry =
-      let is_expandable = entry.Query.header_entry_id <> None in
+      (* Check if this entry actually has children *)
+      let is_expandable =
+        match entry.Query.header_entry_id with
+        | Some hid -> Query.has_children db ~run_id ~parent_entry_id:hid
+        | None -> false
+      in
       (* Use header_entry_id as the key - it uniquely identifies this scope *)
       let is_expanded =
         match entry.header_entry_id with
