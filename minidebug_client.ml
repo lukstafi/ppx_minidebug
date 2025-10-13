@@ -314,6 +314,76 @@ module Query = struct
     loop ();
     Sqlite3.finalize stmt |> ignore;
     List.rev !entries
+
+  (** Get direct children of a scope efficiently *)
+  let get_scope_children db ~run_id ~parent_entry_id =
+    let query =
+      {|
+      SELECT
+        e.entry_id,
+        e.seq_id,
+        e.header_entry_id,
+        e.depth,
+        m.value_content as message,
+        l.value_content as location,
+        d.value_content as data,
+        e.elapsed_start_ns,
+        e.elapsed_end_ns,
+        e.is_result,
+        e.log_level,
+        e.entry_type
+      FROM entries e
+      JOIN value_atoms m ON e.message_value_id = m.value_id
+      LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
+      LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
+      WHERE e.run_id = ? AND e.entry_id = ?
+      ORDER BY e.seq_id
+    |}
+    in
+
+    let stmt = Sqlite3.prepare db query in
+    Sqlite3.bind_int stmt 1 run_id |> ignore;
+    Sqlite3.bind_int stmt 2 parent_entry_id |> ignore;
+
+    let entries = ref [] in
+    let rec loop () =
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW ->
+          let entry =
+            {
+              entry_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+              seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
+              header_entry_id =
+                (match Sqlite3.column stmt 2 with
+                | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+                | _ -> None);
+              depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
+              message = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 4);
+              location =
+                (match Sqlite3.column stmt 5 with
+                | Sqlite3.Data.TEXT s -> Some s
+                | _ -> None);
+              data =
+                (match Sqlite3.column stmt 6 with
+                | Sqlite3.Data.TEXT s -> Some s
+                | _ -> None);
+              elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
+              elapsed_end_ns =
+                (match Sqlite3.column stmt 8 with
+                | Sqlite3.Data.INT ns -> Some (Int64.to_int ns)
+                | _ -> None);
+              is_result = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 9) = 1;
+              log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
+              entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
+            }
+          in
+          entries := entry :: !entries;
+          loop ()
+      | _ -> ()
+    in
+    loop ();
+    Sqlite3.finalize stmt |> ignore;
+    List.rev !entries
 end
 
 (** Tree renderer for terminal output *)
@@ -623,35 +693,34 @@ module Interactive = struct
     is_expanded : bool;
   }
 
-  (** Flatten tree into visible items based on expansion state *)
-  let rec flatten_tree ~expanded ~depth items acc =
-    List.fold_left
-      (fun acc (item : Renderer.tree_node) ->
-        let entry = item.entry in
-        let is_expandable = entry.header_entry_id <> None in
-        let is_expanded = Hashtbl.mem expanded entry.entry_id in
-
-        let visible = {
-          entry;
-          indent_level = depth;
-          is_expandable;
-          is_expanded;
-        } in
-
-        let acc = visible :: acc in
-
-        (* Add children if expanded *)
-        if is_expanded then
-          flatten_tree ~expanded ~depth:(depth + 1) item.children acc
-        else acc)
-      acc items
-
-  (** Build visible items list from database *)
+  (** Build visible items list from database using lazy loading *)
   let build_visible_items db run_id expanded =
-    let entries = Query.get_entries db ~run_id () in
-    let trees = Renderer.build_tree entries in
-    let items = flatten_tree ~expanded ~depth:0 trees [] in
-    Array.of_list (List.rev items)
+    let rec flatten_entry ~depth entry =
+      let is_expandable = entry.Query.header_entry_id <> None in
+      let is_expanded = Hashtbl.mem expanded entry.entry_id in
+
+      let visible = {
+        entry;
+        indent_level = depth;
+        is_expandable;
+        is_expanded;
+      } in
+
+      (* Add children if this is expanded *)
+      if is_expanded then
+        match entry.header_entry_id with
+        | Some hid ->
+            (* Load children on demand *)
+            let children = Query.get_scope_children db ~run_id ~parent_entry_id:hid in
+            visible :: List.concat_map (flatten_entry ~depth:(depth + 1)) children
+        | None -> [ visible ]
+      else [ visible ]
+    in
+
+    (* Start with root entries *)
+    let roots = Query.get_root_entries db ~run_id ~with_values:false in
+    let items = List.concat_map (flatten_entry ~depth:0) roots in
+    Array.of_list items
 
   (** Render a single line *)
   let render_line ~width ~is_selected ~show_times item =
