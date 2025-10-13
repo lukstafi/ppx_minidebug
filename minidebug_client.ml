@@ -514,9 +514,12 @@ module Renderer = struct
         let has_children = node.children <> [] in
         match (has_children, values_first_mode, results) with
         | false, _, _ ->
-            (* Leaf node: display as "name = value" *)
+            (* Leaf node: display as "name = value" or "name => value" for results *)
             if entry.message <> "" then
-              Buffer.add_string buf (entry.message ^ " = ");
+              if entry.is_result then
+                Buffer.add_string buf (entry.message ^ " => ")
+              else
+                Buffer.add_string buf (entry.message ^ " = ");
 
             (match entry.data with Some data -> Buffer.add_string buf data | None -> ());
 
@@ -676,8 +679,12 @@ module Renderer = struct
               List.iter
                 (fun (child : Query.entry) ->
                   Buffer.add_string buf "  ";
-                  if child.is_result then Buffer.add_string buf "=> "
-                  else if child.message <> "" then
+                  if child.is_result then (
+                    if child.message <> "" then
+                      Buffer.add_string buf (child.message ^ " => ")
+                    else
+                      Buffer.add_string buf "=> "
+                  ) else if child.message <> "" then
                     Buffer.add_string buf (child.message ^ " = ");
                   (match child.data with
                   | Some data -> Buffer.add_string buf data
@@ -775,7 +782,7 @@ module Interactive = struct
           (* Value *)
           let value_str = match entry.data with Some d -> d | None -> "" in
           if entry.is_result then
-            Printf.sprintf "%s  => %s" indent value_str
+            Printf.sprintf "%s  %s => %s" indent entry.message value_str
           else
             Printf.sprintf "%s  %s = %s" indent entry.message value_str
     in
@@ -1064,7 +1071,11 @@ module Client = struct
       (* Result *)
       (if entry.is_result then
          match entry.data with
-         | Some data -> Printf.fprintf oc "%s  **=>** `%s`\n" indent data
+         | Some data ->
+             if entry.message <> "" then
+               Printf.fprintf oc "%s  **%s =>** `%s`\n" indent entry.message data
+             else
+               Printf.fprintf oc "%s  **=>** `%s`\n" indent data
          | None -> ());
 
       List.iter (render_node ~depth:(depth + 1)) node.Renderer.children

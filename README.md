@@ -411,7 +411,7 @@ Example that also illustrates disabling tracing:
       [track] else:test_expect_test:737 @ test/test_expect_test.ml:737:6-742:16
         [track] <match -- branch 2> @ test/test_expect_test.ml:741:10-742:16
           [track] result @ test/test_expect_test.ml:741:14-741:20
-            [track] then:test_expect_test:741 @ test/test_expect_test.ml:741:44-741:45
+            then:test_expect_test:741 =
             result => 8
       track_branches => 8
     [track] track_branches @ test/test_expect_test.ml:728:32-742:16
@@ -549,9 +549,9 @@ The `%diagn_` extension points further restrict logging to explicit logs only. E
     {|
     336
     91
-    [diagn] bar @ test/test_expect_test.ml:2460:21-2464:15
+    [diagn] bar @ test/test_expect_test.ml:2416:21-2420:15
       ("for bar, b-3", 42)
-    [diagn] baz @ test/test_expect_test.ml:2467:21-2472:25
+    [diagn] baz @ test/test_expect_test.ml:2423:21-2428:25
       ("foo baz, f squared", 49)
     |}]
 ```
@@ -656,10 +656,10 @@ Another example from the test suite, notice how the log level of `%log1` overrid
     336
     336
     109
-    [debug] baz => 109 @ test/test_expect_test.ml:2586:24-2589:30
+    [debug] baz => 109 @ test/test_expect_test.ml:2542:24-2545:30
       first = 7
       second = 42
-      [debug] {first; second} @ test/test_expect_test.ml:2587:10-2587:39
+      [debug] {first; second} @ test/test_expect_test.ml:2543:10-2543:39
         first => 8
         second => 45
       ("for baz, f squared", 64)
@@ -698,7 +698,7 @@ The extension point `%log_printbox` lets you embed a `PrintBox.t` in the logs di
   [%expect
     {|
     latest_run: (no-name)
-    [debug] foo => () @ test/test_expect_test.ml:2644:21-2657:91
+    [debug] foo => () @ test/test_expect_test.ml:2600:21-2613:91
       0/0│0/1│0/2│0/3│0/4
     ───┼───┼───┼───┼───
     1/0│1/1│1/2│1/3│1/4
@@ -787,7 +787,7 @@ The extension point `%log_entry` lets you shape arbitrary log tree structures. T
   [%expect
     {|
     latest_run: (no-name)
-    [diagn] _logging_logic @ test/test_expect_test.ml:2712:17-2712:31
+    [diagn] _logging_logic @ test/test_expect_test.ml:2668:17-2668:31
       "preamble"
       [diagn] header 1 @ :0:0-0:0
         "log 1"
@@ -892,20 +892,20 @@ expose the (lexical) entry id except when passing `~verbose_entry_ids:true` to t
   Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    [debug] bar => () @ test/test_expect_test.ml:2378:21-2383:19
+    [debug] bar => () @ test/test_expect_test.ml:2334:21-2339:19
       ("This is like", 3, "or", 3.14, "above")
       ("tau =", 6.28)
       ("This is like", 3, "or", 3.14, "above")
       ("tau =", 6.28)
-    [debug] baz => () @ test/test_expect_test.ml:2385:21-2390:19
+    [debug] baz => () @ test/test_expect_test.ml:2341:21-2346:19
       [3; 1; 2; 3]
       [3; 1; 2; 3]
       [3; 1; 2; 3]
       [3; 1; 2; 3]
-    [debug] bar => () @ test/test_expect_test.ml:2378:21-2383:19
+    [debug] bar => () @ test/test_expect_test.ml:2334:21-2339:19
       ("This is like", 3, "or", 3.14, "above")
       ("tau =", 6.28)
-    [debug] _foobar => () @ test/test_expect_test.ml:2397:17-2397:24
+    [debug] _foobar => () @ test/test_expect_test.ml:2353:17-2353:24
     |}]
 ```
 
@@ -1497,17 +1497,17 @@ Example from the test suite:
     (List.rev !run_ids);
   [%expect
     {|
-    [track] foo @ test/test_expect_test.ml:2801:21-2803:23
+    [track] foo @ test/test_expect_test.ml:2757:21-2759:23
       "inside foo"
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:2807:8-2808:27
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:2763:8-2764:27
       "inside bar"
-    [track] foo @ test/test_expect_test.ml:2801:21-2803:23
+    [track] foo @ test/test_expect_test.ml:2757:21-2759:23
       "inside foo"
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:2807:8-2808:27
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:2763:8-2764:27
       "inside bar"
-    [track] foo @ test/test_expect_test.ml:2801:21-2803:23
+    [track] foo @ test/test_expect_test.ml:2757:21-2759:23
       "inside foo"
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:2807:8-2808:27
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:2763:8-2764:27
       "inside bar"
     |}]
 ```
@@ -1536,16 +1536,16 @@ Example from the test suite:
   [%expect
     {|
     14
-    latest_run: foo-1
+    latest_run: (no-name)
     [track] foo => 14 @ test/test_expect_test.ml:1740:24-1740:85
       [track] <match -- branch 1> :: (y, _) @ test/test_expect_test.ml:1740:80-1740:85
         y = 7
     8
-    latest_run: baz-1
+    latest_run: (no-name)
     [track] <function -- branch 1> :: (y, []) => baz = 8 @ test/test_expect_test.ml:1746:15-1746:20
       y = 4
     10
-    latest_run: baz-2
+    latest_run: (no-name)
     [track] <function -- branch 3> :: (y, :: (z, _)) => baz = 10 @ test/test_expect_test.ml:1748:21-1748:30
       y = 4
       z = 5

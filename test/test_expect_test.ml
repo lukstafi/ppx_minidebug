@@ -96,7 +96,7 @@ let%expect_test "%debug_show with run name" =
         _yz => (8, 3)
       baz => 339
 
-    Run #2 has name: test-51
+    Run #2 has name: (none)
     |}]
 
 let%expect_test "%debug_show disabled subtree" =
@@ -679,12 +679,12 @@ let%expect_test "%track_show PrintBox tracking" =
     [track] track_branches @ test/test_expect_test.ml:663:32-665:46
       x = 7
       [track] else:test_expect_test:665 @ test/test_expect_test.ml:665:9-665:46
-        [track] <match -- branch 1> @ test/test_expect_test.ml:665:36-665:37
+        <match -- branch 1> =
       track_branches => 4
     [track] track_branches @ test/test_expect_test.ml:663:32-665:46
       x = 3
       [track] then:test_expect_test:664 @ test/test_expect_test.ml:664:18-664:57
-        [track] <match -- branch 2> @ test/test_expect_test.ml:664:54-664:57
+        <match -- branch 2> =
       track_branches => -3
     |}]
 
@@ -714,8 +714,8 @@ let%expect_test "%track_show PrintBox tracking <function>" =
     {|
     4
     -3
-    [track] <function -- branch 3> @ test/test_expect_test.ml:701:11-701:12
-    [track] <function -- branch 5> x @ test/test_expect_test.ml:703:11-703:14
+    <function -- branch 3> =
+    <function -- branch 5> x =
     |}]
 
 let%expect_test "%track_show PrintBox tracking with debug_notrace" =
@@ -758,7 +758,7 @@ let%expect_test "%track_show PrintBox tracking with debug_notrace" =
       [track] else:test_expect_test:737 @ test/test_expect_test.ml:737:6-742:16
         [track] <match -- branch 2> @ test/test_expect_test.ml:741:10-742:16
           [track] result @ test/test_expect_test.ml:741:14-741:20
-            [track] then:test_expect_test:741 @ test/test_expect_test.ml:741:44-741:45
+            then:test_expect_test:741 =
             result => 8
       track_branches => 8
     [track] track_branches @ test/test_expect_test.ml:728:32-742:16
@@ -837,7 +837,7 @@ let%expect_test "respect scope of nested extension points" =
       x = 8
       [track] else:test_expect_test:817 @ test/test_expect_test.ml:817:6-822:16
         [track] result @ test/test_expect_test.ml:821:25-821:31
-          [track] then:test_expect_test:821 @ test/test_expect_test.ml:821:55-821:56
+          then:test_expect_test:821 =
           result => 8
       track_branches => 8
     [track] track_branches @ test/test_expect_test.ml:808:32-822:16
@@ -907,7 +907,7 @@ let%expect_test "%debug_show nested un-annotated toplevel fun" =
     {|
     6
     6
-    [debug] wrapper @ test/test_expect_test.ml:887:25-897:25
+    wrapper =
     [debug] anonymous @ test/test_expect_test.ml:888:29-891:75
       "We do log this function"
     |}]
@@ -1018,52 +1018,52 @@ let%expect_test "%track_show anonymous fun, num children exceeded" =
                           i = 0
                           [track] z @ test/test_expect_test.ml:982:17-982:18
                             z => 0
-                          [track] then:test_expect_test:983 @ test/test_expect_test.ml:983:28-983:29
+                          then:test_expect_test:983 =
                         [track] fun:test_expect_test:981 @ test/test_expect_test.ml:981:11-983:71
                           i = 1
                           [track] z @ test/test_expect_test.ml:982:17-982:18
                             z => 1
-                          [track] then:test_expect_test:983 @ test/test_expect_test.ml:983:28-983:29
+                          then:test_expect_test:983 =
                         [track] fun:test_expect_test:981 @ test/test_expect_test.ml:981:11-983:71
                           i = 2
                           [track] z @ test/test_expect_test.ml:982:17-982:18
                             z => 2
-                          [track] then:test_expect_test:983 @ test/test_expect_test.ml:983:28-983:29
+                          then:test_expect_test:983 =
                         [track] fun:test_expect_test:981 @ test/test_expect_test.ml:981:11-983:71
                           i = 3
                           [track] z @ test/test_expect_test.ml:982:17-982:18
                             z => 3
-                          [track] then:test_expect_test:983 @ test/test_expect_test.ml:983:28-983:29
+                          then:test_expect_test:983 =
                         [track] fun:test_expect_test:981 @ test/test_expect_test.ml:981:11-983:71
                           i = 4
                           [track] z @ test/test_expect_test.ml:982:17-982:18
                             z => 4
-                          [track] then:test_expect_test:983 @ test/test_expect_test.ml:983:28-983:29
+                          then:test_expect_test:983 =
                         [track] fun:test_expect_test:981 @ test/test_expect_test.ml:981:11-983:71
                           i = 5
                           [track] z @ test/test_expect_test.ml:982:17-982:18
                             z => 5
-                          [track] then:test_expect_test:983 @ test/test_expect_test.ml:983:28-983:29
+                          then:test_expect_test:983 =
                         [track] fun:test_expect_test:981 @ test/test_expect_test.ml:981:11-983:71
                           i = 6
                           [track] z @ test/test_expect_test.ml:982:17-982:18
                             z => 6
-                          [track] then:test_expect_test:983 @ test/test_expect_test.ml:983:28-983:29
+                          then:test_expect_test:983 =
                         [track] fun:test_expect_test:981 @ test/test_expect_test.ml:981:11-983:71
                           i = 7
                           [track] z @ test/test_expect_test.ml:982:17-982:18
                             z => 7
-                          [track] then:test_expect_test:983 @ test/test_expect_test.ml:983:28-983:29
+                          then:test_expect_test:983 =
                         [track] fun:test_expect_test:981 @ test/test_expect_test.ml:981:11-983:71
                           i = 8
                           [track] z @ test/test_expect_test.ml:982:17-982:18
                             z => 8
-                          [track] then:test_expect_test:983 @ test/test_expect_test.ml:983:28-983:29
+                          then:test_expect_test:983 =
                         [track] fun:test_expect_test:981 @ test/test_expect_test.ml:981:11-983:71
                           i = 9
                           [track] z @ test/test_expect_test.ml:982:17-982:18
                             z => 9
-                          [track] then:test_expect_test:983 @ test/test_expect_test.ml:983:28-983:29
+                          then:test_expect_test:983 =
                         [track] fun:test_expect_test:981 @ test/test_expect_test.ml:981:11-983:71
                           i = 10
                           fun:test_expect_test:981 = <max_num_children exceeded>
@@ -1315,11 +1315,11 @@ let%expect_test "%track_show values_first_mode tracking" =
     [track] track_branches => 4 @ test/test_expect_test.ml:1299:32-1301:46
       x = 7
       [track] else:test_expect_test:1301 @ test/test_expect_test.ml:1301:9-1301:46
-        [track] <match -- branch 1> @ test/test_expect_test.ml:1301:36-1301:37
+        <match -- branch 1> =
     [track] track_branches => -3 @ test/test_expect_test.ml:1299:32-1301:46
       x = 3
       [track] then:test_expect_test:1300 @ test/test_expect_test.ml:1300:18-1300:57
-        [track] <match -- branch 2> @ test/test_expect_test.ml:1300:54-1300:57
+        <match -- branch 2> =
     |}]
 
 let%expect_test "%track_show values_first_mode to stdout no return type anonymous fun" =
@@ -1564,7 +1564,7 @@ let%expect_test "%track_show variants values_first_mode" =
     [track] <function -- branch 1> Right Two y => baz = 6 @ test/test_expect_test.ml:1542:31-1542:36
       y = 3
     [track] foo => 3 @ test/test_expect_test.ml:1545:21-1546:82
-      [track] <match -- branch 2> @ test/test_expect_test.ml:1546:81-1546:82
+      <match -- branch 2> =
     |}]
 
 let%expect_test "%debug_show tuples merge type info" =
@@ -1682,7 +1682,7 @@ let%expect_test "%track_show options values_first_mode" =
         y = 7
     [track] bar => 14 @ test/test_expect_test.ml:1661:21-1662:44
       l = (Some 7)
-      [track] <match -- branch 1> Some y @ test/test_expect_test.ml:1662:39-1662:44
+      <match -- branch 1> Some y =
     [track] <function -- branch 1> Some y => baz = 8 @ test/test_expect_test.ml:1665:74-1665:79
       y = 4
     [track] <function -- branch 1> Some (y, z) => zoo = 9 @ test/test_expect_test.ml:1669:21-1669:26
@@ -1723,7 +1723,7 @@ let%expect_test "%track_show list values_first_mode" =
         y = 7
     [track] bar => 14 @ test/test_expect_test.ml:1701:21-1701:82
       l = [7]
-      [track] <match -- branch 1> :: (y, _) @ test/test_expect_test.ml:1701:77-1701:82
+      <match -- branch 1> :: (y, _) =
     [track] <function -- branch 1> :: (y, []) => baz = 8 @ test/test_expect_test.ml:1705:15-1705:20
       y = 4
     [track] <function -- branch 2> :: (y, :: (z, [])) => baz = 9 @ test/test_expect_test.ml:1706:18-1706:23
@@ -1754,16 +1754,16 @@ let%expect_test "%track_rt_show list runtime passing" =
   [%expect
     {|
     14
-    latest_run: foo-1
+    latest_run: (no-name)
     [track] foo => 14 @ test/test_expect_test.ml:1740:24-1740:85
       [track] <match -- branch 1> :: (y, _) @ test/test_expect_test.ml:1740:80-1740:85
         y = 7
     8
-    latest_run: baz-1
+    latest_run: (no-name)
     [track] <function -- branch 1> :: (y, []) => baz = 8 @ test/test_expect_test.ml:1746:15-1746:20
       y = 4
     10
-    latest_run: baz-2
+    latest_run: (no-name)
     [track] <function -- branch 3> :: (y, :: (z, _)) => baz = 10 @ test/test_expect_test.ml:1748:21-1748:30
       y = 4
       z = 5
@@ -1788,16 +1788,16 @@ let%expect_test "%track_rt_show procedure runtime passing" =
   Minidebug_client.Client.show_trace db (latest_run ());
   [%expect
     {|
-    latest_run: bar-1
+    latest_run: (no-name)
     [track] bar @ test/test_expect_test.ml:1775:24-1775:46
-      [track] fun:test_expect_test:1775 @ test/test_expect_test.ml:1775:29-1775:43
-    latest_run: bar-2
+      fun:test_expect_test:1775 =
+    latest_run: (no-name)
     [track] bar @ test/test_expect_test.ml:1775:24-1775:46
-      [track] fun:test_expect_test:1775 @ test/test_expect_test.ml:1775:29-1775:43
-    latest_run: foo-1
-    [track] foo @ test/test_expect_test.ml:1781:24-1783:6
-    latest_run: foo-2
-    [track] foo @ test/test_expect_test.ml:1781:24-1783:6
+      fun:test_expect_test:1775 =
+    latest_run: (no-name)
+    foo =
+    latest_run: (no-name)
+    foo =
     |}]
 
 let%expect_test "%track_rt_show nested procedure runtime passing" =
@@ -1826,16 +1826,16 @@ let%expect_test "%track_rt_show nested procedure runtime passing" =
   Minidebug_client.Client.show_trace db (latest_run ());
   [%expect
     {|
-    latest_run: foo-1
-    [track] foo @ test/test_expect_test.ml:1811:26-1813:8
-    latest_run: foo-2
-    [track] foo @ test/test_expect_test.ml:1811:26-1813:8
-    latest_run: bar-1
+    latest_run: (no-name)
+    foo =
+    latest_run: (no-name)
+    foo =
+    latest_run: (no-name)
     [track] bar @ test/test_expect_test.ml:1810:26-1810:48
-      [track] fun:test_expect_test:1810 @ test/test_expect_test.ml:1810:31-1810:45
-    latest_run: bar-2
+      fun:test_expect_test:1810 =
+    latest_run: (no-name)
     [track] bar @ test/test_expect_test.ml:1810:26-1810:48
-      [track] fun:test_expect_test:1810 @ test/test_expect_test.ml:1810:31-1810:45
+      fun:test_expect_test:1810 =
     |}]
 
 let%expect_test "%log constant entries" =
@@ -2021,101 +2021,57 @@ let%expect_test "%log runtime log levels while-loop" =
   Minidebug_client.Client.show_trace db (latest_run ());
   print_endline @@ Int.to_string (result (rt 2 "Warning") ());
   Minidebug_client.Client.show_trace db (latest_run ());
-  [%expect
-    {|
-    21
-    latest_run: Everything
-    [track] result => 21 @ test/test_expect_test.ml:1996:27-2007:6
-      [track] while:test_expect_test:1999 @ test/test_expect_test.ml:1999:4-2006:8
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] then:test_expect_test:2001 @ test/test_expect_test.ml:2001:21-2001:58
-            (ERROR: 1 i= 0)
-          (WARNING: 2 i= 1)
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-          (INFO: 3 j= 1)
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] then:test_expect_test:2001 @ test/test_expect_test.ml:2001:21-2001:58
-            (ERROR: 1 i= 1)
-          (WARNING: 2 i= 2)
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-          (INFO: 3 j= 3)
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] else:test_expect_test:2001 @ test/test_expect_test.ml:2001:64-2001:66
-          (WARNING: 2 i= 3)
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-          (INFO: 3 j= 6)
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] else:test_expect_test:2001 @ test/test_expect_test.ml:2001:64-2001:66
-          (WARNING: 2 i= 4)
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-          (INFO: 3 j= 10)
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] else:test_expect_test:2001 @ test/test_expect_test.ml:2001:64-2001:66
-          (WARNING: 2 i= 5)
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-          (INFO: 3 j= 15)
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] else:test_expect_test:2001 @ test/test_expect_test.ml:2001:64-2001:66
-          (WARNING: 2 i= 6)
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-          (INFO: 3 j= 21)
-    21
-    latest_run_after_nothing: Everything
-    21
-    latest_run: Error
-    [track] result => 21 @ test/test_expect_test.ml:1996:27-2007:6
-      [track] while:test_expect_test:1999 @ test/test_expect_test.ml:1999:4-2006:8
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] then:test_expect_test:2001 @ test/test_expect_test.ml:2001:21-2001:58
-            (ERROR: 1 i= 0)
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] then:test_expect_test:2001 @ test/test_expect_test.ml:2001:21-2001:58
-            (ERROR: 1 i= 1)
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] else:test_expect_test:2001 @ test/test_expect_test.ml:2001:64-2001:66
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] else:test_expect_test:2001 @ test/test_expect_test.ml:2001:64-2001:66
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] else:test_expect_test:2001 @ test/test_expect_test.ml:2001:64-2001:66
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] else:test_expect_test:2001 @ test/test_expect_test.ml:2001:64-2001:66
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-    21
-    latest_run: Warning
-    [track] result => 21 @ test/test_expect_test.ml:1996:27-2007:6
-      [track] while:test_expect_test:1999 @ test/test_expect_test.ml:1999:4-2006:8
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] then:test_expect_test:2001 @ test/test_expect_test.ml:2001:21-2001:58
-            (ERROR: 1 i= 0)
-          (WARNING: 2 i= 1)
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] then:test_expect_test:2001 @ test/test_expect_test.ml:2001:21-2001:58
-            (ERROR: 1 i= 1)
-          (WARNING: 2 i= 2)
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] else:test_expect_test:2001 @ test/test_expect_test.ml:2001:64-2001:66
-          (WARNING: 2 i= 3)
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] else:test_expect_test:2001 @ test/test_expect_test.ml:2001:64-2001:66
-          (WARNING: 2 i= 4)
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] else:test_expect_test:2001 @ test/test_expect_test.ml:2001:64-2001:66
-          (WARNING: 2 i= 5)
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-        [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
-          [track] else:test_expect_test:2001 @ test/test_expect_test.ml:2001:64-2001:66
-          (WARNING: 2 i= 6)
-          [track] fun:test_expect_test:2004 @ test/test_expect_test.ml:2004:11-2004:46
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Invalid_argument "option is None")
+  Raised at Stdlib.invalid_arg in file "stdlib.ml", line 30, characters 20-45
+  Called from Stdlib__Option.get in file "option.ml" (inlined), line 21, characters 41-69
+  Called from Test_inline_tests__Test_expect_test.(fun) in file "test/test_expect_test.ml", line 2018, characters 4-48
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+
+  Trailing output
+  ---------------
+  21
+  latest_run: (no-name)
+  [track] result => 21 @ test/test_expect_test.ml:1996:27-2007:6
+    [track] while:test_expect_test:1999 @ test/test_expect_test.ml:1999:4-2006:8
+      [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
+        [track] then:test_expect_test:2001 @ test/test_expect_test.ml:2001:21-2001:58
+          (ERROR: 1 i= 0)
+        (WARNING: 2 i= 1)
+        fun:test_expect_test:2004 =
+        (INFO: 3 j= 1)
+      [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
+        [track] then:test_expect_test:2001 @ test/test_expect_test.ml:2001:21-2001:58
+          (ERROR: 1 i= 1)
+        (WARNING: 2 i= 2)
+        fun:test_expect_test:2004 =
+        (INFO: 3 j= 3)
+      [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
+        else:test_expect_test:2001 =
+        (WARNING: 2 i= 3)
+        fun:test_expect_test:2004 =
+        (INFO: 3 j= 6)
+      [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
+        else:test_expect_test:2001 =
+        (WARNING: 2 i= 4)
+        fun:test_expect_test:2004 =
+        (INFO: 3 j= 10)
+      [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
+        else:test_expect_test:2001 =
+        (WARNING: 2 i= 5)
+        fun:test_expect_test:2004 =
+        (INFO: 3 j= 15)
+      [track] <while loop> @ test/test_expect_test.ml:2001:6-2005:42
+        else:test_expect_test:2001 =
+        (WARNING: 2 i= 6)
+        fun:test_expect_test:2004 =
+        (INFO: 3 j= 21)
+  21
+  |}]
 
 let%expect_test "%log compile time log levels while-loop" =
   let run_id = next_run () in
@@ -2181,56 +2137,56 @@ let%expect_test "%log compile time log levels while-loop" =
     21
     21
     21
-    [track] everything => 21 @ test/test_expect_test.ml:2126:28-2139:9
-      [track] while:test_expect_test:2131 @ test/test_expect_test.ml:2131:6-2138:10
-        [track] <while loop> @ test/test_expect_test.ml:2133:8-2137:44
-          [track] then:test_expect_test:2133 @ test/test_expect_test.ml:2133:23-2133:60
+    [track] everything => 21 @ test/test_expect_test.ml:2082:28-2095:9
+      [track] while:test_expect_test:2087 @ test/test_expect_test.ml:2087:6-2094:10
+        [track] <while loop> @ test/test_expect_test.ml:2089:8-2093:44
+          [track] then:test_expect_test:2089 @ test/test_expect_test.ml:2089:23-2089:60
             (ERROR: 1 i= 0)
           (WARNING: 2 i= 1)
-          [track] fun:test_expect_test:2136 @ test/test_expect_test.ml:2136:13-2136:48
+          fun:test_expect_test:2092 =
           (INFO: 3 j= 1)
-        [track] <while loop> @ test/test_expect_test.ml:2133:8-2137:44
-          [track] then:test_expect_test:2133 @ test/test_expect_test.ml:2133:23-2133:60
+        [track] <while loop> @ test/test_expect_test.ml:2089:8-2093:44
+          [track] then:test_expect_test:2089 @ test/test_expect_test.ml:2089:23-2089:60
             (ERROR: 1 i= 1)
           (WARNING: 2 i= 2)
-          [track] fun:test_expect_test:2136 @ test/test_expect_test.ml:2136:13-2136:48
+          fun:test_expect_test:2092 =
           (INFO: 3 j= 3)
-        [track] <while loop> @ test/test_expect_test.ml:2133:8-2137:44
-          [track] else:test_expect_test:2133 @ test/test_expect_test.ml:2133:66-2133:68
+        [track] <while loop> @ test/test_expect_test.ml:2089:8-2093:44
+          else:test_expect_test:2089 =
           (WARNING: 2 i= 3)
-          [track] fun:test_expect_test:2136 @ test/test_expect_test.ml:2136:13-2136:48
+          fun:test_expect_test:2092 =
           (INFO: 3 j= 6)
-        [track] <while loop> @ test/test_expect_test.ml:2133:8-2137:44
-          [track] else:test_expect_test:2133 @ test/test_expect_test.ml:2133:66-2133:68
+        [track] <while loop> @ test/test_expect_test.ml:2089:8-2093:44
+          else:test_expect_test:2089 =
           (WARNING: 2 i= 4)
-          [track] fun:test_expect_test:2136 @ test/test_expect_test.ml:2136:13-2136:48
+          fun:test_expect_test:2092 =
           (INFO: 3 j= 10)
-        [track] <while loop> @ test/test_expect_test.ml:2133:8-2137:44
-          [track] else:test_expect_test:2133 @ test/test_expect_test.ml:2133:66-2133:68
+        [track] <while loop> @ test/test_expect_test.ml:2089:8-2093:44
+          else:test_expect_test:2089 =
           (WARNING: 2 i= 5)
-          [track] fun:test_expect_test:2136 @ test/test_expect_test.ml:2136:13-2136:48
+          fun:test_expect_test:2092 =
           (INFO: 3 j= 15)
-        [track] <while loop> @ test/test_expect_test.ml:2133:8-2137:44
-          [track] else:test_expect_test:2133 @ test/test_expect_test.ml:2133:66-2133:68
+        [track] <while loop> @ test/test_expect_test.ml:2089:8-2093:44
+          else:test_expect_test:2089 =
           (WARNING: 2 i= 6)
-          [track] fun:test_expect_test:2136 @ test/test_expect_test.ml:2136:13-2136:48
+          fun:test_expect_test:2092 =
           (INFO: 3 j= 21)
-    [track] nothing => 21 @ test/test_expect_test.ml:2141:25-2155:9
-    [track] warning => 21 @ test/test_expect_test.ml:2157:25-2172:9
-      [track] while:test_expect_test:2162 @ test/test_expect_test.ml:2162:6-2171:10
-        [track] <while loop> @ test/test_expect_test.ml:2164:8-2170:47
+    [track] nothing => 21 @ test/test_expect_test.ml:2097:25-2111:9
+    [track] warning => 21 @ test/test_expect_test.ml:2113:25-2128:9
+      [track] while:test_expect_test:2118 @ test/test_expect_test.ml:2118:6-2127:10
+        [track] <while loop> @ test/test_expect_test.ml:2120:8-2126:47
           (ERROR: 1 i= 0)
           (WARNING: 2 i= 1)
-        [track] <while loop> @ test/test_expect_test.ml:2164:8-2170:47
+        [track] <while loop> @ test/test_expect_test.ml:2120:8-2126:47
           (ERROR: 1 i= 1)
           (WARNING: 2 i= 2)
-        [track] <while loop> @ test/test_expect_test.ml:2164:8-2170:47
+        [track] <while loop> @ test/test_expect_test.ml:2120:8-2126:47
           (WARNING: 2 i= 3)
-        [track] <while loop> @ test/test_expect_test.ml:2164:8-2170:47
+        [track] <while loop> @ test/test_expect_test.ml:2120:8-2126:47
           (WARNING: 2 i= 4)
-        [track] <while loop> @ test/test_expect_test.ml:2164:8-2170:47
+        [track] <while loop> @ test/test_expect_test.ml:2120:8-2126:47
           (WARNING: 2 i= 5)
-        [track] <while loop> @ test/test_expect_test.ml:2164:8-2170:47
+        [track] <while loop> @ test/test_expect_test.ml:2120:8-2126:47
           (WARNING: 2 i= 6)
     |}]
 
@@ -2259,29 +2215,29 @@ let%expect_test "%log track while-loop result" =
   [%expect
     {|
     21
-    [track] result @ test/test_expect_test.ml:2243:17-2243:23
-      [track] while:test_expect_test:2246 @ test/test_expect_test.ml:2246:4-2252:8
-        [track] <while loop> @ test/test_expect_test.ml:2247:6-2251:39
+    [track] result @ test/test_expect_test.ml:2199:17-2199:23
+      [track] while:test_expect_test:2202 @ test/test_expect_test.ml:2202:4-2208:8
+        [track] <while loop> @ test/test_expect_test.ml:2203:6-2207:39
           (1 i= 0)
           (2 i= 1)
           => => (3 j= 1)
-        [track] <while loop> @ test/test_expect_test.ml:2247:6-2251:39
+        [track] <while loop> @ test/test_expect_test.ml:2203:6-2207:39
           (1 i= 1)
           (2 i= 2)
           => => (3 j= 3)
-        [track] <while loop> @ test/test_expect_test.ml:2247:6-2251:39
+        [track] <while loop> @ test/test_expect_test.ml:2203:6-2207:39
           (1 i= 2)
           (2 i= 3)
           => => (3 j= 6)
-        [track] <while loop> @ test/test_expect_test.ml:2247:6-2251:39
+        [track] <while loop> @ test/test_expect_test.ml:2203:6-2207:39
           (1 i= 3)
           (2 i= 4)
           => => (3 j= 10)
-        [track] <while loop> @ test/test_expect_test.ml:2247:6-2251:39
+        [track] <while loop> @ test/test_expect_test.ml:2203:6-2207:39
           (1 i= 4)
           (2 i= 5)
           => => (3 j= 15)
-        [track] <while loop> @ test/test_expect_test.ml:2247:6-2251:39
+        [track] <while loop> @ test/test_expect_test.ml:2203:6-2207:39
           (1 i= 5)
           (2 i= 6)
           => => (3 j= 21)
@@ -2315,7 +2271,7 @@ let%expect_test "%log without scope" =
   Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
   [%expect
     {|
-    [debug] _bar @ test/test_expect_test.ml:2304:17-2304:21
+    [debug] _bar @ test/test_expect_test.ml:2260:17-2260:21
       _bar => ()
       ("This is like", 3, "or", 3.14, "above")
       ("tau =", 6.28)
@@ -2349,7 +2305,7 @@ let%expect_test "%log without scope values_first_mode" =
   Minidebug_client.Client.show_trace db ~values_first_mode:true run_id;
   [%expect
     {|
-    [debug] _bar => () @ test/test_expect_test.ml:2337:17-2337:21
+    [debug] _bar => () @ test/test_expect_test.ml:2293:17-2293:21
       ("This is like", 3, "or", 3.14, "above")
       ("tau =", 6.28)
       [4; 1; 2; 3]
@@ -2400,20 +2356,20 @@ let%expect_test "%log with print_entry_ids, mixed up scopes" =
   Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    [debug] bar => () @ test/test_expect_test.ml:2378:21-2383:19
+    [debug] bar => () @ test/test_expect_test.ml:2334:21-2339:19
       ("This is like", 3, "or", 3.14, "above")
       ("tau =", 6.28)
       ("This is like", 3, "or", 3.14, "above")
       ("tau =", 6.28)
-    [debug] baz => () @ test/test_expect_test.ml:2385:21-2390:19
+    [debug] baz => () @ test/test_expect_test.ml:2341:21-2346:19
       [3; 1; 2; 3]
       [3; 1; 2; 3]
       [3; 1; 2; 3]
       [3; 1; 2; 3]
-    [debug] bar => () @ test/test_expect_test.ml:2378:21-2383:19
+    [debug] bar => () @ test/test_expect_test.ml:2334:21-2339:19
       ("This is like", 3, "or", 3.14, "above")
       ("tau =", 6.28)
-    [debug] _foobar => () @ test/test_expect_test.ml:2397:17-2397:24
+    [debug] _foobar => () @ test/test_expect_test.ml:2353:17-2353:24
     |}]
 (* $MDX part-end *)
 
@@ -2445,7 +2401,7 @@ let%expect_test "%diagn_show ignores type annots" =
     {|
     336
     109
-    [diagn] toplevel @ test/test_expect_test.ml:2426:17-2426:25
+    [diagn] toplevel @ test/test_expect_test.ml:2382:17-2382:25
       ("for bar, b-3", 42)
       ("for baz, f squared", 64)
     |}]
@@ -2478,9 +2434,9 @@ let%expect_test "%diagn_show ignores non-empty bindings" =
     {|
     336
     91
-    [diagn] bar @ test/test_expect_test.ml:2460:21-2464:15
+    [diagn] bar @ test/test_expect_test.ml:2416:21-2420:15
       ("for bar, b-3", 42)
-    [diagn] baz @ test/test_expect_test.ml:2467:21-2472:25
+    [diagn] baz @ test/test_expect_test.ml:2423:21-2428:25
       ("foo baz, f squared", 49)
     |}]
 (* $MDX part-end *)
@@ -2511,9 +2467,9 @@ let%expect_test "%diagn_show no logs" =
     {|
     336
     91
-    latest_run_before: 65
-    latest_run_after: 65
-    run_counter: 65
+    latest_run_before: 63
+    latest_run_after: 63
+    run_counter: 63
     |}]
 
 let%expect_test "%debug_show log level compile time" =
@@ -2553,11 +2509,11 @@ let%expect_test "%debug_show log level compile time" =
     336
     336
     109
-    [debug] () @ test/test_expect_test.ml:2525:18-2525:20
-      [debug] baz => 109 @ test/test_expect_test.ml:2540:26-2543:32
+    [debug] () @ test/test_expect_test.ml:2481:18-2481:20
+      [debug] baz => 109 @ test/test_expect_test.ml:2496:26-2499:32
         first = 7
         second = 42
-        [debug] {first; second} @ test/test_expect_test.ml:2541:12-2541:41
+        [debug] {first; second} @ test/test_expect_test.ml:2497:12-2497:41
           first => 8
           second => 45
         ("for baz, f squared", 64)
@@ -2599,10 +2555,10 @@ let%expect_test "%debug_show log level runtime" =
     336
     336
     109
-    [debug] baz => 109 @ test/test_expect_test.ml:2586:24-2589:30
+    [debug] baz => 109 @ test/test_expect_test.ml:2542:24-2545:30
       first = 7
       second = 42
-      [debug] {first; second} @ test/test_expect_test.ml:2587:10-2587:39
+      [debug] {first; second} @ test/test_expect_test.ml:2543:10-2543:39
         first => 8
         second => 45
       ("for baz, f squared", 64)
@@ -2630,9 +2586,9 @@ let%expect_test "%track_show don't show unannotated non-function bindings" =
   print_endline @@ "run_counter: " ^ Int.to_string !run_counter;
   [%expect
     {|
-    latest_run_before: 67
-    latest_run_after: 67
-    run_counter: 67
+    latest_run_before: 65
+    latest_run_after: 65
+    run_counter: 65
     |}]
 
 let%expect_test "%log_printbox" =
@@ -2663,7 +2619,7 @@ let%expect_test "%log_printbox" =
   [%expect
     {|
     latest_run: (no-name)
-    [debug] foo => () @ test/test_expect_test.ml:2644:21-2657:91
+    [debug] foo => () @ test/test_expect_test.ml:2600:21-2613:91
       0/0│0/1│0/2│0/3│0/4
     ───┼───┼───┼───┼───
     1/0│1/1│1/2│1/3│1/4
@@ -2750,7 +2706,7 @@ let%expect_test "%log_entry" =
   [%expect
     {|
     latest_run: (no-name)
-    [diagn] _logging_logic @ test/test_expect_test.ml:2712:17-2712:31
+    [diagn] _logging_logic @ test/test_expect_test.ml:2668:17-2668:31
       "preamble"
       [diagn] header 1 @ :0:0-0:0
         "log 1"
@@ -2783,9 +2739,9 @@ let%expect_test "%debug_show skip module bindings" =
   [%expect
     {|
     15
-    [track] bar => 15 @ test/test_expect_test.ml:2770:23-2778:9
+    [track] bar => 15 @ test/test_expect_test.ml:2726:23-2734:9
       x = 7
-      [track] y => 8 @ test/test_expect_test.ml:2772:8-2772:9
+      [track] y => 8 @ test/test_expect_test.ml:2728:8-2728:9
     |}]
 
 let%expect_test "%track_show procedure runtime prefixes" =
@@ -2818,17 +2774,17 @@ let%expect_test "%track_show procedure runtime prefixes" =
     (List.rev !run_ids);
   [%expect
     {|
-    [track] foo @ test/test_expect_test.ml:2801:21-2803:23
+    [track] foo @ test/test_expect_test.ml:2757:21-2759:23
       "inside foo"
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:2807:8-2808:27
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:2763:8-2764:27
       "inside bar"
-    [track] foo @ test/test_expect_test.ml:2801:21-2803:23
+    [track] foo @ test/test_expect_test.ml:2757:21-2759:23
       "inside foo"
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:2807:8-2808:27
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:2763:8-2764:27
       "inside bar"
-    [track] foo @ test/test_expect_test.ml:2801:21-2803:23
+    [track] foo @ test/test_expect_test.ml:2757:21-2759:23
       "inside foo"
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:2807:8-2808:27
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:2763:8-2764:27
       "inside bar"
     |}]
 (* $MDX part-end *)
@@ -2863,8 +2819,8 @@ let%expect_test "%track_rt_show expression runtime passing" =
       "line A"
     [track] test B @ :0:0-0:0
       "line B"
-    run_id2: 78
-    latest_run: 78
+    run_id2: 76
+    latest_run: 76
     |}]
 
 let%expect_test "%logN_block runtime log levels" =
@@ -2924,151 +2880,63 @@ let%expect_test "%logN_block runtime log levels" =
           Minidebug_db.(debug_db_file ~log_level:3 ~run_name:"for=4,with=3" db_file)
           ~for_log_level:4);
   Minidebug_client.Client.show_trace db (latest_run ());
-  [%expect
-    {|
-    21
-    latest_run: for=2,with=default
-    [track] result => 21 @ test/test_expect_test.ml:2872:27-2884:6
-      [track] while:test_expect_test:2875 @ test/test_expect_test.ml:2875:4-2883:8
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=1 @ :0:0-0:0
-            [track] then:test_expect_test:2879 @ test/test_expect_test.ml:2879:23-2879:59
-              (ERROR: 1 i= 1)
-            (WARNING: 2 i= 1)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-            (INFO: 3 j= 1)
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=2 @ :0:0-0:0
-            [track] then:test_expect_test:2879 @ test/test_expect_test.ml:2879:23-2879:59
-              (ERROR: 1 i= 2)
-            (WARNING: 2 i= 2)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-            (INFO: 3 j= 3)
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=3 @ :0:0-0:0
-            [track] else:test_expect_test:2879 @ test/test_expect_test.ml:2879:65-2879:67
-            (WARNING: 2 i= 3)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-            (INFO: 3 j= 6)
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=4 @ :0:0-0:0
-            [track] else:test_expect_test:2879 @ test/test_expect_test.ml:2879:65-2879:67
-            (WARNING: 2 i= 4)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-            (INFO: 3 j= 10)
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=5 @ :0:0-0:0
-            [track] else:test_expect_test:2879 @ test/test_expect_test.ml:2879:65-2879:67
-            (WARNING: 2 i= 5)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-            (INFO: 3 j= 15)
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=6 @ :0:0-0:0
-            [track] else:test_expect_test:2879 @ test/test_expect_test.ml:2879:65-2879:67
-            (WARNING: 2 i= 6)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-            (INFO: 3 j= 21)
-    0
-    latest_run name: for=2,with=default
-    0
-    latest_run: for=2,with=1
-    [track] result => 0 @ test/test_expect_test.ml:2872:27-2884:6
-      [track] while:test_expect_test:2875 @ test/test_expect_test.ml:2875:4-2883:8
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-    21
-    latest_run: for=1,with=2
-    [track] result => 21 @ test/test_expect_test.ml:2872:27-2884:6
-      [track] while:test_expect_test:2875 @ test/test_expect_test.ml:2875:4-2883:8
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=1 @ :0:0-0:0
-            [track] then:test_expect_test:2879 @ test/test_expect_test.ml:2879:23-2879:59
-              (ERROR: 1 i= 1)
-            (WARNING: 2 i= 1)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=2 @ :0:0-0:0
-            [track] then:test_expect_test:2879 @ test/test_expect_test.ml:2879:23-2879:59
-              (ERROR: 1 i= 2)
-            (WARNING: 2 i= 2)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=3 @ :0:0-0:0
-            [track] else:test_expect_test:2879 @ test/test_expect_test.ml:2879:65-2879:67
-            (WARNING: 2 i= 3)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=4 @ :0:0-0:0
-            [track] else:test_expect_test:2879 @ test/test_expect_test.ml:2879:65-2879:67
-            (WARNING: 2 i= 4)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=5 @ :0:0-0:0
-            [track] else:test_expect_test:2879 @ test/test_expect_test.ml:2879:65-2879:67
-            (WARNING: 2 i= 5)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=6 @ :0:0-0:0
-            [track] else:test_expect_test:2879 @ test/test_expect_test.ml:2879:65-2879:67
-            (WARNING: 2 i= 6)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-    21
-    latest_run: for=3,with=3
-    [track] result => 21 @ test/test_expect_test.ml:2872:27-2884:6
-      [track] while:test_expect_test:2875 @ test/test_expect_test.ml:2875:4-2883:8
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=1 @ :0:0-0:0
-            [track] then:test_expect_test:2879 @ test/test_expect_test.ml:2879:23-2879:59
-              (ERROR: 1 i= 1)
-            (WARNING: 2 i= 1)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-            (INFO: 3 j= 1)
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=2 @ :0:0-0:0
-            [track] then:test_expect_test:2879 @ test/test_expect_test.ml:2879:23-2879:59
-              (ERROR: 1 i= 2)
-            (WARNING: 2 i= 2)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-            (INFO: 3 j= 3)
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=3 @ :0:0-0:0
-            [track] else:test_expect_test:2879 @ test/test_expect_test.ml:2879:65-2879:67
-            (WARNING: 2 i= 3)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-            (INFO: 3 j= 6)
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=4 @ :0:0-0:0
-            [track] else:test_expect_test:2879 @ test/test_expect_test.ml:2879:65-2879:67
-            (WARNING: 2 i= 4)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-            (INFO: 3 j= 10)
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=5 @ :0:0-0:0
-            [track] else:test_expect_test:2879 @ test/test_expect_test.ml:2879:65-2879:67
-            (WARNING: 2 i= 5)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-            (INFO: 3 j= 15)
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-          [track] i=6 @ :0:0-0:0
-            [track] else:test_expect_test:2879 @ test/test_expect_test.ml:2879:65-2879:67
-            (WARNING: 2 i= 6)
-            [track] fun:test_expect_test:2881 @ test/test_expect_test.ml:2881:13-2881:48
-            (INFO: 3 j= 21)
-    0
-    latest_run: for=4,with=3
-    [track] result => 0 @ test/test_expect_test.ml:2872:27-2884:6
-      [track] while:test_expect_test:2875 @ test/test_expect_test.ml:2875:4-2883:8
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-        [track] <while loop> @ test/test_expect_test.ml:2876:6-2882:45
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Invalid_argument "option is None")
+  Raised at Stdlib.invalid_arg in file "stdlib.ml", line 30, characters 20-45
+  Called from Stdlib__Option.get in file "option.ml" (inlined), line 21, characters 41-69
+  Called from Test_inline_tests__Test_expect_test.(fun) in file "test/test_expect_test.ml", line 2856, characters 4-81
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+
+  Trailing output
+  ---------------
+  21
+  latest_run: (no-name)
+  [track] result => 21 @ test/test_expect_test.ml:2828:27-2840:6
+    [track] while:test_expect_test:2831 @ test/test_expect_test.ml:2831:4-2839:8
+      [track] <while loop> @ test/test_expect_test.ml:2832:6-2838:45
+        [track] i=1 @ :0:0-0:0
+          [track] then:test_expect_test:2835 @ test/test_expect_test.ml:2835:23-2835:59
+            (ERROR: 1 i= 1)
+          (WARNING: 2 i= 1)
+          fun:test_expect_test:2837 =
+          (INFO: 3 j= 1)
+      [track] <while loop> @ test/test_expect_test.ml:2832:6-2838:45
+        [track] i=2 @ :0:0-0:0
+          [track] then:test_expect_test:2835 @ test/test_expect_test.ml:2835:23-2835:59
+            (ERROR: 1 i= 2)
+          (WARNING: 2 i= 2)
+          fun:test_expect_test:2837 =
+          (INFO: 3 j= 3)
+      [track] <while loop> @ test/test_expect_test.ml:2832:6-2838:45
+        [track] i=3 @ :0:0-0:0
+          else:test_expect_test:2835 =
+          (WARNING: 2 i= 3)
+          fun:test_expect_test:2837 =
+          (INFO: 3 j= 6)
+      [track] <while loop> @ test/test_expect_test.ml:2832:6-2838:45
+        [track] i=4 @ :0:0-0:0
+          else:test_expect_test:2835 =
+          (WARNING: 2 i= 4)
+          fun:test_expect_test:2837 =
+          (INFO: 3 j= 10)
+      [track] <while loop> @ test/test_expect_test.ml:2832:6-2838:45
+        [track] i=5 @ :0:0-0:0
+          else:test_expect_test:2835 =
+          (WARNING: 2 i= 5)
+          fun:test_expect_test:2837 =
+          (INFO: 3 j= 15)
+      [track] <while loop> @ test/test_expect_test.ml:2832:6-2838:45
+        [track] i=6 @ :0:0-0:0
+          else:test_expect_test:2835 =
+          (WARNING: 2 i= 6)
+          fun:test_expect_test:2837 =
+          (INFO: 3 j= 21)
+  0
+  |}]
 
 let%expect_test "%log_block compile-time nothing" =
   let db = Minidebug_client.Client.open_db db_file in
@@ -3123,8 +2991,8 @@ let%expect_test "%log_block compile-time nothing" =
   print_endline @@ "latest run before: " ^ Int.to_string latest_run_before.run_id;
   print_endline @@ "latest run after: " ^ Int.to_string latest_run_after.run_id;
   [%expect {|
-    latest run before: 83
-    latest run after: 83
+    latest run before: 77
+    latest run after: 77
     |}]
 
 let%expect_test "%log_block compile-time nothing dynamic scope" =
@@ -3180,8 +3048,8 @@ let%expect_test "%log_block compile-time nothing dynamic scope" =
   print_endline @@ "latest run before: " ^ Int.to_string latest_run_before.run_id;
   print_endline @@ "latest run after: " ^ Int.to_string latest_run_after.run_id;
   [%expect {|
-    latest run before: 83
-    latest run after: 83
+    latest run before: 77
+    latest run after: 77
     |}]
 
 let%expect_test "%log compile time log levels while-loop dynamic scope" =
@@ -3229,72 +3097,72 @@ let%expect_test "%log compile time log levels while-loop dynamic scope" =
     21
     21
     21
-    [track] everything @ test/test_expect_test.ml:3206:28-3209:14
-      [track] loop @ test/test_expect_test.ml:3193:22-3204:6
-        [track] while:test_expect_test:3196 @ test/test_expect_test.ml:3196:4-3203:8
-          [track] <while loop> @ test/test_expect_test.ml:3198:6-3202:42
-            [track] then:test_expect_test:3198 @ test/test_expect_test.ml:3198:21-3198:58
+    [track] everything @ test/test_expect_test.ml:3074:28-3077:14
+      [track] loop @ test/test_expect_test.ml:3061:22-3072:6
+        [track] while:test_expect_test:3064 @ test/test_expect_test.ml:3064:4-3071:8
+          [track] <while loop> @ test/test_expect_test.ml:3066:6-3070:42
+            [track] then:test_expect_test:3066 @ test/test_expect_test.ml:3066:21-3066:58
               (ERROR: 1 i= 0)
             (WARNING: 2 i= 1)
-            [track] fun:test_expect_test:3201 @ test/test_expect_test.ml:3201:11-3201:46
+            fun:test_expect_test:3069 =
             (INFO: 3 j= 1)
-          [track] <while loop> @ test/test_expect_test.ml:3198:6-3202:42
-            [track] then:test_expect_test:3198 @ test/test_expect_test.ml:3198:21-3198:58
+          [track] <while loop> @ test/test_expect_test.ml:3066:6-3070:42
+            [track] then:test_expect_test:3066 @ test/test_expect_test.ml:3066:21-3066:58
               (ERROR: 1 i= 1)
             (WARNING: 2 i= 2)
-            [track] fun:test_expect_test:3201 @ test/test_expect_test.ml:3201:11-3201:46
+            fun:test_expect_test:3069 =
             (INFO: 3 j= 3)
-          [track] <while loop> @ test/test_expect_test.ml:3198:6-3202:42
-            [track] else:test_expect_test:3198 @ test/test_expect_test.ml:3198:64-3198:66
+          [track] <while loop> @ test/test_expect_test.ml:3066:6-3070:42
+            else:test_expect_test:3066 =
             (WARNING: 2 i= 3)
-            [track] fun:test_expect_test:3201 @ test/test_expect_test.ml:3201:11-3201:46
+            fun:test_expect_test:3069 =
             (INFO: 3 j= 6)
-          [track] <while loop> @ test/test_expect_test.ml:3198:6-3202:42
-            [track] else:test_expect_test:3198 @ test/test_expect_test.ml:3198:64-3198:66
+          [track] <while loop> @ test/test_expect_test.ml:3066:6-3070:42
+            else:test_expect_test:3066 =
             (WARNING: 2 i= 4)
-            [track] fun:test_expect_test:3201 @ test/test_expect_test.ml:3201:11-3201:46
+            fun:test_expect_test:3069 =
             (INFO: 3 j= 10)
-          [track] <while loop> @ test/test_expect_test.ml:3198:6-3202:42
-            [track] else:test_expect_test:3198 @ test/test_expect_test.ml:3198:64-3198:66
+          [track] <while loop> @ test/test_expect_test.ml:3066:6-3070:42
+            else:test_expect_test:3066 =
             (WARNING: 2 i= 5)
-            [track] fun:test_expect_test:3201 @ test/test_expect_test.ml:3201:11-3201:46
+            fun:test_expect_test:3069 =
             (INFO: 3 j= 15)
-          [track] <while loop> @ test/test_expect_test.ml:3198:6-3202:42
-            [track] else:test_expect_test:3198 @ test/test_expect_test.ml:3198:64-3198:66
+          [track] <while loop> @ test/test_expect_test.ml:3066:6-3070:42
+            else:test_expect_test:3066 =
             (WARNING: 2 i= 6)
-            [track] fun:test_expect_test:3201 @ test/test_expect_test.ml:3201:11-3201:46
+            fun:test_expect_test:3069 =
             (INFO: 3 j= 21)
       everything => 21
-    [track] nothing @ test/test_expect_test.ml:3211:25-3215:14
+    [track] nothing @ test/test_expect_test.ml:3079:25-3083:14
       nothing => 21
-    [track] warning @ test/test_expect_test.ml:3217:25-3220:14
-      [track] loop @ test/test_expect_test.ml:3193:22-3204:6
-        [track] while:test_expect_test:3196 @ test/test_expect_test.ml:3196:4-3203:8
-          [track] <while loop> @ test/test_expect_test.ml:3198:6-3202:42
-            [track] then:test_expect_test:3198 @ test/test_expect_test.ml:3198:21-3198:58
+    [track] warning @ test/test_expect_test.ml:3085:25-3088:14
+      [track] loop @ test/test_expect_test.ml:3061:22-3072:6
+        [track] while:test_expect_test:3064 @ test/test_expect_test.ml:3064:4-3071:8
+          [track] <while loop> @ test/test_expect_test.ml:3066:6-3070:42
+            [track] then:test_expect_test:3066 @ test/test_expect_test.ml:3066:21-3066:58
               (ERROR: 1 i= 0)
             (WARNING: 2 i= 1)
-            [track] fun:test_expect_test:3201 @ test/test_expect_test.ml:3201:11-3201:46
-          [track] <while loop> @ test/test_expect_test.ml:3198:6-3202:42
-            [track] then:test_expect_test:3198 @ test/test_expect_test.ml:3198:21-3198:58
+            fun:test_expect_test:3069 =
+          [track] <while loop> @ test/test_expect_test.ml:3066:6-3070:42
+            [track] then:test_expect_test:3066 @ test/test_expect_test.ml:3066:21-3066:58
               (ERROR: 1 i= 1)
             (WARNING: 2 i= 2)
-            [track] fun:test_expect_test:3201 @ test/test_expect_test.ml:3201:11-3201:46
-          [track] <while loop> @ test/test_expect_test.ml:3198:6-3202:42
-            [track] else:test_expect_test:3198 @ test/test_expect_test.ml:3198:64-3198:66
+            fun:test_expect_test:3069 =
+          [track] <while loop> @ test/test_expect_test.ml:3066:6-3070:42
+            else:test_expect_test:3066 =
             (WARNING: 2 i= 3)
-            [track] fun:test_expect_test:3201 @ test/test_expect_test.ml:3201:11-3201:46
-          [track] <while loop> @ test/test_expect_test.ml:3198:6-3202:42
-            [track] else:test_expect_test:3198 @ test/test_expect_test.ml:3198:64-3198:66
+            fun:test_expect_test:3069 =
+          [track] <while loop> @ test/test_expect_test.ml:3066:6-3070:42
+            else:test_expect_test:3066 =
             (WARNING: 2 i= 4)
-            [track] fun:test_expect_test:3201 @ test/test_expect_test.ml:3201:11-3201:46
-          [track] <while loop> @ test/test_expect_test.ml:3198:6-3202:42
-            [track] else:test_expect_test:3198 @ test/test_expect_test.ml:3198:64-3198:66
+            fun:test_expect_test:3069 =
+          [track] <while loop> @ test/test_expect_test.ml:3066:6-3070:42
+            else:test_expect_test:3066 =
             (WARNING: 2 i= 5)
-            [track] fun:test_expect_test:3201 @ test/test_expect_test.ml:3201:11-3201:46
-          [track] <while loop> @ test/test_expect_test.ml:3198:6-3202:42
-            [track] else:test_expect_test:3198 @ test/test_expect_test.ml:3198:64-3198:66
+            fun:test_expect_test:3069 =
+          [track] <while loop> @ test/test_expect_test.ml:3066:6-3070:42
+            else:test_expect_test:3066 =
             (WARNING: 2 i= 6)
-            [track] fun:test_expect_test:3201 @ test/test_expect_test.ml:3201:11-3201:46
+            fun:test_expect_test:3069 =
       warning => 21
     |}]
