@@ -697,7 +697,12 @@ module Interactive = struct
   let build_visible_items db run_id expanded =
     let rec flatten_entry ~depth entry =
       let is_expandable = entry.Query.header_entry_id <> None in
-      let is_expanded = Hashtbl.mem expanded entry.entry_id in
+      (* Use header_entry_id as the key - it uniquely identifies this scope *)
+      let is_expanded =
+        match entry.header_entry_id with
+        | Some hid -> Hashtbl.mem expanded hid
+        | None -> false
+      in
 
       let visible = {
         entry;
@@ -825,14 +830,18 @@ module Interactive = struct
     if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
       let item = state.visible_items.(state.cursor) in
       if item.is_expandable then (
-        if Hashtbl.mem state.expanded item.entry.entry_id then
-          Hashtbl.remove state.expanded item.entry.entry_id
-        else
-          Hashtbl.add state.expanded item.entry.entry_id ();
+        match item.entry.header_entry_id with
+        | Some hid ->
+            (* Use header_entry_id as the unique key for this scope *)
+            if Hashtbl.mem state.expanded hid then
+              Hashtbl.remove state.expanded hid
+            else
+              Hashtbl.add state.expanded hid ();
 
-        (* Rebuild visible items *)
-        let new_visible = build_visible_items state.db state.run_id state.expanded in
-        { state with visible_items = new_visible }
+            (* Rebuild visible items *)
+            let new_visible = build_visible_items state.db state.run_id state.expanded in
+            { state with visible_items = new_visible }
+        | None -> state
       ) else state
     else state
 
