@@ -392,6 +392,13 @@
   (pps ppx_minidebug ppx_deriving.show)))
 
 (test
+ (name test_indentation_parsing)
+ (modules test_indentation_parsing)
+ (libraries sexplib0 minidebug_db minidebug_client)
+ (preprocess
+  (pps ppx_minidebug ppx_sexp_conv)))
+
+(test
  (name test_comptime_log_level_rt_passing)
  (modules test_comptime_log_level_rt_passing)
  (libraries sexplib0 minidebug_db minidebug_client)

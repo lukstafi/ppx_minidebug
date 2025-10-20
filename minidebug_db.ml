@@ -170,13 +170,9 @@ module ValueIntern = struct
     Sqlite3.finalize t.lookup_stmt |> ignore
 end
 
-(** Extended config module type with boxify parameters *)
+(** Extended config module type *)
 module type Db_config = sig
   include Minidebug_runtime.Shared_config
-
-  val boxify_sexp_from_size : int
-  val max_inline_sexp_size : int
-  val max_inline_sexp_length : int
 end
 
 (** Database backend implementing Debug_runtime interface *)
@@ -402,6 +398,67 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     decr boxify_entry_id_counter;
     !boxify_entry_id_counter
 
+  (** Helper to insert a header entry with data into the database.
+      Used for indentation-based sub-scopes. *)
+  let insert_header_with_data ~parent_entry_id ~seq_id ~new_entry_id ~depth ~content_str =
+    let db = get_db () in
+    let run_id = get_run_id () in
+    let intern = get_intern () in
+
+    (* Insert into entry_parents table for the new scope *)
+    let parent_stmt =
+      Sqlite3.prepare db
+        "INSERT INTO entry_parents (run_id, entry_id, parent_id) VALUES (?, ?, ?)"
+    in
+    Sqlite3.bind_int parent_stmt 1 run_id |> ignore;
+    Sqlite3.bind_int parent_stmt 2 new_entry_id |> ignore;
+    Sqlite3.bind_int parent_stmt 3 parent_entry_id |> ignore;
+    (match Sqlite3.step parent_stmt with
+    | Sqlite3.Rc.DONE -> ()
+    | _ -> failwith "Failed to insert entry parent for header");
+    Sqlite3.finalize parent_stmt |> ignore;
+
+    (* Intern data content *)
+    let data_value_id = ValueIntern.intern intern ~value_type:"value" content_str in
+
+    (* Get elapsed time *)
+    let elapsed_start = Mtime_clock.elapsed () in
+    let elapsed_ns =
+      match Int64.unsigned_to_int @@ Mtime.Span.to_uint64_ns elapsed_start with
+      | None -> 0
+      | Some ns -> ns
+    in
+
+    (* Insert header row with data into entries table *)
+    let stmt =
+      Sqlite3.prepare db
+        "INSERT INTO entries (run_id, entry_id, seq_id, header_entry_id, depth, \
+         data_value_id, elapsed_start_ns, elapsed_end_ns, log_level, entry_type) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    in
+    Sqlite3.bind_int stmt 1 run_id |> ignore;
+    Sqlite3.bind_int stmt 2 parent_entry_id |> ignore;
+    Sqlite3.bind_int stmt 3 seq_id |> ignore;
+    Sqlite3.bind_int stmt 4 new_entry_id |> ignore;
+    (* header_entry_id points to new scope *)
+    Sqlite3.bind_int stmt 5 depth |> ignore;
+    Sqlite3.bind_int stmt 6 data_value_id |> ignore;
+    Sqlite3.bind_int stmt 7 elapsed_ns |> ignore;
+    Sqlite3.bind_int stmt 8 elapsed_ns |> ignore;
+    Sqlite3.bind_int stmt 9 !log_level |> ignore;
+    Sqlite3.bind_text stmt 10 "value" |> ignore;
+
+    (match Sqlite3.step stmt with
+    | Sqlite3.Rc.DONE -> ()
+    | rc ->
+        let err_msg =
+          Printf.sprintf "Failed to insert header with data: %s (entry_id=%d, seq_id=%d)"
+            (Sqlite3.Rc.to_string rc) parent_entry_id seq_id
+        in
+        Sqlite3.finalize stmt |> ignore;
+        failwith err_msg);
+    Sqlite3.finalize stmt |> ignore
+
   (** Helper to insert a value entry into the database *)
   let insert_value_entry ~entry_id ~seq_id ~depth ~message ~content_str ~is_result =
     let db = get_db () in
@@ -458,6 +515,92 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
         failwith err_msg);
     Sqlite3.finalize stmt |> ignore
 
+  (** Entry type for parsed indentation structure *)
+  type indent_entry =
+    | Value of int * int * string  (* seq_id, depth, content *)
+    | Header of int * int * int * string * indent_entry list  (* seq_id, new_entry_id, depth, content, children *)
+
+  (** Parse indentation structure of a multi-line string.
+      Returns a list of entries where indentation increases create sub-scopes. *)
+  let parse_indentation ~base_depth ~starting_seq str =
+    let lines = String.split_on_char '\n' str in
+    let non_empty_lines = List.filter (fun s -> String.trim s <> "") lines in
+
+    if List.length non_empty_lines <= 1 then
+      (* Single line or empty - no structure to parse *)
+      []
+    else
+      let get_indent line =
+        let rec count_spaces i =
+          if i >= String.length line then i
+          else match line.[i] with
+          | ' ' | '\t' -> count_spaces (i + 1)
+          | _ -> i
+        in
+        count_spaces 0
+      in
+
+      (* Find minimum indentation to use as baseline *)
+      let min_indent =
+        List.fold_left
+          (fun acc line -> min acc (get_indent line))
+          max_int
+          non_empty_lines
+      in
+
+      (* Convert lines to (relative_indent, content) pairs *)
+      let indent_lines = List.map (fun line ->
+        let indent = get_indent line in
+        let content = String.trim line in
+        (indent - min_indent, content)
+      ) non_empty_lines in
+
+      (* Build tree: look ahead to see if next line is indented more *)
+      let rec process_lines seq_num = function
+        | [] -> []
+        | [(indent, content)] ->
+            (* Last line - always a value *)
+            [Value (starting_seq + seq_num, base_depth + (indent / 2), content)]
+        | (indent, content) :: ((next_indent, _) :: _ as rest) when next_indent > indent ->
+            (* Next line is more indented - make this a header *)
+            let new_entry_id = get_boxify_entry_id () in
+            let children, remaining, next_seq = collect_children (next_indent, indent) (seq_num + 1) rest in
+            let header = Header (starting_seq + seq_num, new_entry_id, base_depth + (indent / 2), content, children) in
+            header :: process_lines next_seq remaining
+        | (indent, content) :: rest ->
+            (* Same or less indentation - regular value *)
+            let value = Value (starting_seq + seq_num, base_depth + (indent / 2), content) in
+            value :: process_lines (seq_num + 1) rest
+
+      and collect_children (target_indent, parent_indent) seq_num = function
+        | [] -> ([], [], seq_num)
+        | ((indent, content) :: rest) when indent = target_indent ->
+            (* Direct child at target indentation *)
+            let child = Value (starting_seq + seq_num, base_depth + (indent / 2), content) in
+            let more_children, remaining, next_seq = collect_children (target_indent, parent_indent) (seq_num + 1) rest in
+            (child :: more_children, remaining, next_seq)
+        | ((indent, _content) :: _rest) as all when indent > target_indent ->
+            (* Deeper indentation - skip for now (simplified) *)
+            ([], all, seq_num)
+        | remaining ->
+            (* Back to parent level or less indentation *)
+            ([], remaining, seq_num)
+      in
+
+      process_lines 0 indent_lines
+
+  (** Insert indentation entries into database *)
+  let rec insert_indent_entries ~parent_entry_id entries =
+    List.iter (function
+      | Value (seq, depth, content) ->
+          insert_value_entry ~entry_id:parent_entry_id ~seq_id:seq ~depth ~message:"" ~content_str:content ~is_result:false
+      | Header (seq, new_entry_id, depth, content, children) ->
+          (* Insert header with data *)
+          insert_header_with_data ~parent_entry_id ~seq_id:seq ~new_entry_id ~depth ~content_str:content;
+          (* Recursively insert children under the new entry_id *)
+          insert_indent_entries ~parent_entry_id:new_entry_id children
+    ) entries
+
   (** Boxify a sexp: split it into multiple database entries with synthetic entry_ids.
       Returns a list of (synthetic_entry_id, seq_id, depth, message, content_str) tuples.
   *)
@@ -476,10 +619,12 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
       s
     in
 
+    let boxify_threshold = 10 in
+
     let rec loop ~depth sexp =
-      if sexp_size sexp < boxify_sexp_from_size then
-        (* Small enough - return as single entry *)
-        let content = Sexplib0.Sexp.to_string_mach sexp in
+      if sexp_size sexp < boxify_threshold then
+        (* Small enough - return as single entry with pretty-printed content *)
+        let content = Sexplib0.Sexp.to_string_hum sexp in
         [ (parent_entry_id, get_next_seq (), depth, "", content) ]
       else
         match sexp with
@@ -511,22 +656,24 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
         [ (parent_entry_id, get_next_seq (), depth, "", s) ]
     | List [], Some d -> [ (parent_entry_id, get_next_seq (), depth, d, "") ]
     | List [], None -> []
-    | List l, _ ->
-        let str =
-          if sexp_size sexp < min boxify_sexp_from_size max_inline_sexp_size then
-            Sexplib0.Sexp.to_string_hum sexp
-          else ""
-        in
-        if String.length str > 0 && String.length str < max_inline_sexp_length then
+    | List _, _ ->
+        (* For large sexps, use structural splitting; for small ones, inline *)
+        if sexp_size sexp < boxify_threshold then (
+          (* Small enough - pretty print and inline *)
+          let content = Sexplib0.Sexp.to_string_hum sexp in
           let msg = match descr with None -> "" | Some d -> d in
-          let content = match descr with None -> str | Some d -> d ^ " = " ^ str in
-          [ (parent_entry_id, get_next_seq (), depth, msg, content) ]
-        else
-          (* Need to boxify - add descr as header if present *)
+          let full_content = match descr with None -> content | Some d -> d ^ " = " ^ content in
+          [ (parent_entry_id, get_next_seq (), depth, msg, full_content) ]
+        ) else (
+          (* Large sexp - use structural splitting *)
           let body_sexp =
-            List ((match descr with None -> [] | Some d -> [ Atom (d ^ " =") ]) @ l)
+            match (sexp, descr) with
+            | List l, Some d -> List (Atom (d ^ " =") :: l)
+            | List l, None -> List l
+            | _ -> sexp
           in
           loop ~depth:(depth + 1) body_sexp
+        )
 
   let log_value_common ~descr ~entry_id ~log_level:_ ~is_result content_str =
     if List.mem entry_id !hidden_entries then ()
@@ -647,7 +794,7 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
       (* Force the lazy value to get actual content *)
       let sexp = Lazy.force v in
       if sexp = Sexplib0.Sexp.List [] then ()
-      else if boxify_sexp_from_size >= 0 && sexp_size sexp >= boxify_sexp_from_size then (
+      else if sexp_size sexp >= 10 then (
         (* Boxify: split into multiple entries *)
         let depth =
           match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
@@ -655,20 +802,70 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
           | None -> List.length !stack
         in
         let entries = boxify ~descr ~depth ~parent_entry_id:entry_id sexp in
+        let num_inserted = ref 0 in
         List.iter
           (fun (eid, seq, d, msg, content) ->
-            if content <> "" then
-              insert_value_entry ~entry_id:eid ~seq_id:seq ~depth:d ~message:msg
-                ~content_str:content ~is_result)
+            if content <> "" then (
+              (* Check if content has multiple lines - if so, parse indentation *)
+              let indent_entries = parse_indentation ~base_depth:d ~starting_seq:seq content in
+              if indent_entries = [] then (
+                (* Single line - insert as regular value *)
+                insert_value_entry ~entry_id:eid ~seq_id:seq ~depth:d ~message:msg
+                  ~content_str:content ~is_result;
+                incr num_inserted
+              ) else (
+                (* Multi-line - insert with indentation structure *)
+                insert_indent_entries ~parent_entry_id:eid indent_entries;
+                let count_entries entries =
+                  let rec count = function
+                    | Value _ -> 1
+                    | Header (_, _, _, _, children) -> 1 + List.fold_left (fun acc child -> acc + count child) 0 children
+                  in
+                  List.fold_left (fun acc entry -> acc + count entry) 0 entries
+                in
+                num_inserted := !num_inserted + count_entries indent_entries
+              )
+            ))
           entries;
         (* Update parent's num_children counter *)
         match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
         | Some parent_entry ->
-            parent_entry.num_children <- parent_entry.num_children + List.length entries
+            parent_entry.num_children <- parent_entry.num_children + !num_inserted
         | None -> ())
-      else
-        let content = Sexplib0.Sexp.to_string_mach sexp in
-        log_value_common ~descr ~entry_id ~log_level ~is_result content
+      else (
+        (* Small sexp - pretty print and potentially parse indentation *)
+        let content = Sexplib0.Sexp.to_string_hum sexp in
+        let depth =
+          match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
+          | Some parent_entry -> parent_entry.depth + 1
+          | None -> List.length !stack
+        in
+        let starting_seq =
+          match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
+          | Some parent_entry -> parent_entry.num_children
+          | None -> 0
+        in
+        let indent_entries = parse_indentation ~base_depth:depth ~starting_seq content in
+        if indent_entries = [] then
+          (* Single line - log as-is *)
+          log_value_common ~descr ~entry_id ~log_level ~is_result content
+        else (
+          (* Multi-line - insert with proper nesting based on indentation *)
+          insert_indent_entries ~parent_entry_id:entry_id indent_entries;
+          (* Update parent's num_children counter *)
+          let count_entries entries =
+            let rec count = function
+              | Value _ -> 1
+              | Header (_, _, _, _, children) -> 1 + List.fold_left (fun acc child -> acc + count child) 0 children
+            in
+            List.fold_left (fun acc entry -> acc + count entry) 0 entries
+          in
+          match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
+          | Some parent_entry ->
+              parent_entry.num_children <- parent_entry.num_children + count_entries indent_entries
+          | None -> ()
+        )
+      )
 
   let log_value_pp ?descr ~entry_id ~log_level ~pp ~is_result v =
     if not (check_log_level log_level) then ()
@@ -901,8 +1098,7 @@ let db_config ?(time_tagged = Minidebug_runtime.Not_tagged)
     ?(elapsed_times = Minidebug_runtime.Not_reported)
     ?(location_format = Minidebug_runtime.Beg_pos) ?(print_entry_ids = false)
     ?(verbose_entry_ids = false) ?(run_name = "") ?(log_level = 9)
-    ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_size = 20)
-    ?(max_inline_sexp_length = 80) ?path_filter db_filename : (module Db_config) =
+    ?path_filter db_filename : (module Db_config) =
   let module Config = struct
     let refresh_ch () = false
     let debug_ch () = stdout (* Unused for database backend *)
@@ -921,9 +1117,6 @@ let db_config ?(time_tagged = Minidebug_runtime.Not_tagged)
     let toc_entry = Minidebug_runtime.And []
     let init_log_level = log_level
     let path_filter = path_filter
-    let boxify_sexp_from_size = boxify_sexp_from_size
-    let max_inline_sexp_size = max_inline_sexp_size
-    let max_inline_sexp_length = max_inline_sexp_length
   end in
   (module Config)
 
@@ -932,14 +1125,12 @@ let debug_db_file ?(time_tagged = Minidebug_runtime.Not_tagged)
     ?(elapsed_times = Minidebug_runtime.Not_reported)
     ?(location_format = Minidebug_runtime.Beg_pos) ?(print_entry_ids = false)
     ?(verbose_entry_ids = false) ?(run_name = "") ?(for_append = true) ?(log_level = 9)
-    ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_size = 20)
-    ?(max_inline_sexp_length = 80) ?path_filter filename =
+    ?path_filter filename =
   let _ = for_append in
   (* Ignore for database backend *)
   let config =
     db_config ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
-      ~verbose_entry_ids ~run_name ~log_level ~boxify_sexp_from_size ~max_inline_sexp_size
-      ~max_inline_sexp_length ?path_filter filename
+      ~verbose_entry_ids ~run_name ~log_level ?path_filter filename
   in
   let module Config = (val config : Db_config) in
   let module Backend = DatabaseBackend (Config) in
@@ -950,11 +1141,9 @@ let debug_db ?(debug_ch = stdout) ?(time_tagged = Minidebug_runtime.Not_tagged)
     ?(elapsed_times = Minidebug_runtime.Not_reported)
     ?(location_format = Minidebug_runtime.Beg_pos) ?(print_entry_ids = false)
     ?(verbose_entry_ids = false) ?(run_name = "") ?(log_level = 9)
-    ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_size = 20)
-    ?(max_inline_sexp_length = 80) ?path_filter () =
+    ?path_filter () =
   (* For database backend, we ignore debug_ch and create a file-based config *)
   let _ = debug_ch in
   let filename = "debug" in
   debug_db_file ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
-    ~verbose_entry_ids ~run_name ~for_append:true ~log_level ~boxify_sexp_from_size
-    ~max_inline_sexp_size ~max_inline_sexp_length ?path_filter filename
+    ~verbose_entry_ids ~run_name ~for_append:true ~log_level ?path_filter filename

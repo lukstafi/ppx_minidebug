@@ -480,29 +480,29 @@ Explicit logging statements also help with tracking the execution, since they ca
   [%expect
     {|
     21
-    [track] result @ test/test_expect_test.ml:1946:17-1946:23
-      [track] while:test_expect_test:1949 @ test/test_expect_test.ml:1949:4-1955:8
-        [track] <while loop> @ test/test_expect_test.ml:1950:6-1954:32
+    [track] result @ test/test_expect_test.ml:1942:17-1942:23
+      [track] while:test_expect_test:1945 @ test/test_expect_test.ml:1945:4-1951:8
+        [track] <while loop> @ test/test_expect_test.ml:1946:6-1950:32
           (1 i= 0)
           (2 i= 1)
           (3 j= 1)
-        [track] <while loop> @ test/test_expect_test.ml:1950:6-1954:32
+        [track] <while loop> @ test/test_expect_test.ml:1946:6-1950:32
           (1 i= 1)
           (2 i= 2)
           (3 j= 3)
-        [track] <while loop> @ test/test_expect_test.ml:1950:6-1954:32
+        [track] <while loop> @ test/test_expect_test.ml:1946:6-1950:32
           (1 i= 2)
           (2 i= 3)
           (3 j= 6)
-        [track] <while loop> @ test/test_expect_test.ml:1950:6-1954:32
+        [track] <while loop> @ test/test_expect_test.ml:1946:6-1950:32
           (1 i= 3)
           (2 i= 4)
           (3 j= 10)
-        [track] <while loop> @ test/test_expect_test.ml:1950:6-1954:32
+        [track] <while loop> @ test/test_expect_test.ml:1946:6-1950:32
           (1 i= 4)
           (2 i= 5)
           (3 j= 15)
-        [track] <while loop> @ test/test_expect_test.ml:1950:6-1954:32
+        [track] <while loop> @ test/test_expect_test.ml:1946:6-1950:32
           (1 i= 5)
           (2 i= 6)
           (3 j= 21)
@@ -549,9 +549,9 @@ The `%diagn_` extension points further restrict logging to explicit logs only. E
     {|
     336
     91
-    [diagn] bar @ test/test_expect_test.ml:2416:21-2420:15
+    [diagn] bar @ test/test_expect_test.ml:2412:21-2416:15
       ("for bar, b-3", 42)
-    [diagn] baz @ test/test_expect_test.ml:2423:21-2428:25
+    [diagn] baz @ test/test_expect_test.ml:2419:21-2424:25
       ("foo baz, f squared", 49)
     |}]
 ```
@@ -656,10 +656,10 @@ Another example from the test suite, notice how the log level of `%log1` overrid
     336
     336
     109
-    [debug] baz => 109 @ test/test_expect_test.ml:2542:24-2545:30
+    [debug] baz => 109 @ test/test_expect_test.ml:2538:24-2541:30
       first = 7
       second = 42
-      [debug] {first; second} @ test/test_expect_test.ml:2543:10-2543:39
+      [debug] {first; second} @ test/test_expect_test.ml:2539:10-2539:39
         first => 8
         second => 45
       ("for baz, f squared", 64)
@@ -698,7 +698,7 @@ The extension point `%log_printbox` lets you embed a `PrintBox.t` in the logs di
   [%expect
     {|
     latest_run: (no-name)
-    [debug] foo => () @ test/test_expect_test.ml:2600:21-2613:91
+    [debug] foo => () @ test/test_expect_test.ml:2596:21-2609:91
       0/0│0/1│0/2│0/3│0/4
     ───┼───┼───┼───┼───
     1/0│1/1│1/2│1/3│1/4
@@ -787,7 +787,7 @@ The extension point `%log_entry` lets you shape arbitrary log tree structures. T
   [%expect
     {|
     latest_run: (no-name)
-    [diagn] _logging_logic @ test/test_expect_test.ml:2668:17-2668:31
+    [diagn] _logging_logic @ test/test_expect_test.ml:2664:17-2664:31
       "preamble"
       [diagn] header 1 @ :0:0-0:0
         "log 1"
@@ -892,20 +892,20 @@ expose the (lexical) entry id except when passing `~verbose_entry_ids:true` to t
   Minidebug_client.Client.show_trace db run_id;
   [%expect
     {|
-    [debug] bar => () @ test/test_expect_test.ml:2334:21-2339:19
+    [debug] bar => () @ test/test_expect_test.ml:2330:21-2335:19
       ("This is like", 3, "or", 3.14, "above")
       ("tau =", 6.28)
       ("This is like", 3, "or", 3.14, "above")
       ("tau =", 6.28)
-    [debug] baz => () @ test/test_expect_test.ml:2341:21-2346:19
+    [debug] baz => () @ test/test_expect_test.ml:2337:21-2342:19
       [3; 1; 2; 3]
       [3; 1; 2; 3]
       [3; 1; 2; 3]
       [3; 1; 2; 3]
-    [debug] bar => () @ test/test_expect_test.ml:2334:21-2339:19
+    [debug] bar => () @ test/test_expect_test.ml:2330:21-2335:19
       ("This is like", 3, "or", 3.14, "above")
       ("tau =", 6.28)
-    [debug] _foobar => () @ test/test_expect_test.ml:2353:17-2353:24
+    [debug] _foobar => () @ test/test_expect_test.ml:2349:17-2349:24
     |}]
 ```
 
@@ -1497,17 +1497,17 @@ Example from the test suite:
     (List.rev !run_ids);
   [%expect
     {|
-    [track] foo @ test/test_expect_test.ml:2757:21-2759:23
+    [track] foo @ test/test_expect_test.ml:2753:21-2755:23
       "inside foo"
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:2763:8-2764:27
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:2759:8-2760:27
       "inside bar"
-    [track] foo @ test/test_expect_test.ml:2757:21-2759:23
+    [track] foo @ test/test_expect_test.ml:2753:21-2755:23
       "inside foo"
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:2763:8-2764:27
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:2759:8-2760:27
       "inside bar"
-    [track] foo @ test/test_expect_test.ml:2757:21-2759:23
+    [track] foo @ test/test_expect_test.ml:2753:21-2755:23
       "inside foo"
-    [track] <function -- branch 0> () @ test/test_expect_test.ml:2763:8-2764:27
+    [track] <function -- branch 0> () @ test/test_expect_test.ml:2759:8-2760:27
       "inside bar"
     |}]
 ```
