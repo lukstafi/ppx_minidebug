@@ -95,7 +95,7 @@ module Query = struct
         e.log_level,
         e.entry_type
       FROM entries e
-      JOIN value_atoms m ON e.message_value_id = m.value_id
+      LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
       LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
       LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
       WHERE e.run_id = ?
@@ -135,7 +135,10 @@ module Query = struct
                 | Sqlite3.Data.INT id -> Some (Int64.to_int id)
                 | _ -> None);
               depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
-              message = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 4);
+              message =
+                (match Sqlite3.column stmt 4 with
+                | Sqlite3.Data.TEXT s -> s
+                | _ -> "");
               location =
                 (match Sqlite3.column stmt 5 with
                 | Sqlite3.Data.TEXT s -> Some s
@@ -241,7 +244,7 @@ module Query = struct
         e.log_level,
         e.entry_type
       FROM entries e
-      JOIN value_atoms m ON e.message_value_id = m.value_id
+      LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
       LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
       LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
       WHERE e.run_id = ? AND e.depth <= 1
@@ -264,7 +267,7 @@ module Query = struct
         e.log_level,
         e.entry_type
       FROM entries e
-      JOIN value_atoms m ON e.message_value_id = m.value_id
+      LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
       LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
       LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
       WHERE e.run_id = ? AND e.entry_id = 0 AND e.header_entry_id IS NOT NULL
@@ -288,7 +291,10 @@ module Query = struct
                 | Sqlite3.Data.INT id -> Some (Int64.to_int id)
                 | _ -> None);
               depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
-              message = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 4);
+              message =
+                (match Sqlite3.column stmt 4 with
+                | Sqlite3.Data.TEXT s -> s
+                | _ -> "");
               location =
                 (match Sqlite3.column stmt 5 with
                 | Sqlite3.Data.TEXT s -> Some s
@@ -353,7 +359,7 @@ module Query = struct
         e.log_level,
         e.entry_type
       FROM entries e
-      JOIN value_atoms m ON e.message_value_id = m.value_id
+      LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
       LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
       LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
       WHERE e.run_id = ? AND e.entry_id = ?
@@ -378,7 +384,10 @@ module Query = struct
                 | Sqlite3.Data.INT id -> Some (Int64.to_int id)
                 | _ -> None);
               depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
-              message = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 4);
+              message =
+                (match Sqlite3.column stmt 4 with
+                | Sqlite3.Data.TEXT s -> s
+                | _ -> "");
               location =
                 (match Sqlite3.column stmt 5 with
                 | Sqlite3.Data.TEXT s -> Some s
