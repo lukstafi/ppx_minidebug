@@ -694,8 +694,24 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
             incr num_inserted
         | List [] -> ()
         | List [ s ] -> loop ~depth:(depth + 1) ~parent_eid ~get_seq s
+        | List (Atom s :: body) ->
+            (* Create a synthetic scope with first atom as header *)
+            let synthetic_id = get_boxify_entry_id () in
+            (* Insert header entry with first atom as content *)
+            insert_header_with_data ~parent_entry_id:parent_eid ~seq_id:(get_seq ())
+              ~new_entry_id:synthetic_id ~depth ~content_str:s;
+            incr num_inserted;
+            (* Create new seq counter for the synthetic scope *)
+            let synthetic_seq = ref 0 in
+            let get_synthetic_seq () =
+              let s = !synthetic_seq in
+              incr synthetic_seq;
+              s
+            in
+            (* Recursively process remaining elements under the synthetic scope *)
+            List.iter (fun child -> loop ~depth:(depth + 1) ~parent_eid:synthetic_id ~get_seq:get_synthetic_seq child) body
         | List l ->
-            (* Create a synthetic scope for the list *)
+            (* Create a synthetic scope for non-atom-headed list (empty header) *)
             let synthetic_id = get_boxify_entry_id () in
             (* Insert header entry with empty content (just a container) *)
             insert_header_with_data ~parent_entry_id:parent_eid ~seq_id:(get_seq ())
