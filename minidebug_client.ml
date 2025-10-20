@@ -803,10 +803,15 @@ module Interactive = struct
       | None ->
           (* Value *)
           let value_str = match entry.data with Some d -> d | None -> "" in
-          if entry.is_result then
-            Printf.sprintf "%s  %s => %s" indent entry.message value_str
+          if entry.message <> "" then
+            (* Has message: show "message = value" or "message => value" *)
+            if entry.is_result then
+              Printf.sprintf "%s  %s => %s" indent entry.message value_str
+            else
+              Printf.sprintf "%s  %s = %s" indent entry.message value_str
           else
-            Printf.sprintf "%s  %s = %s" indent entry.message value_str
+            (* No message: just show value *)
+            Printf.sprintf "%s  %s" indent value_str
     in
 
     (* Time *)
