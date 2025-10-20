@@ -708,21 +708,8 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
             (* Recursively process remaining elements under the synthetic scope *)
             List.iter (fun child -> loop ~depth:(depth + 1) ~parent_eid:synthetic_id ~get_seq:get_synthetic_seq child) body
         | List l ->
-            (* Create a synthetic scope for non-atom-headed list (empty header) *)
-            let synthetic_id = get_boxify_entry_id () in
-            (* Insert header entry with empty content (just a container) *)
-            insert_header_with_data ~parent_entry_id:parent_eid ~seq_id:(get_seq ())
-              ~new_entry_id:synthetic_id ~depth ~content_str:"";
-            incr num_inserted;
-            (* Create new seq counter for the synthetic scope *)
-            let list_seq = ref 0 in
-            let get_list_seq () =
-              let s = !list_seq in
-              incr list_seq;
-              s
-            in
-            (* Process each element of the list under the synthetic scope *)
-            List.iter (fun child -> loop ~depth:(depth + 1) ~parent_eid:synthetic_id ~get_seq:get_list_seq child) l
+            (* Process each element of the list directly under current parent *)
+            List.iter (fun child -> loop ~depth:(depth + 1) ~parent_eid ~get_seq child) l
     in
 
     (* Handle the initial descr wrapping *)
@@ -765,22 +752,9 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
             num_inserted := !num_inserted + count_entries indent_entries
           )
         ) else
-          match descr with
-          | Some d ->
-              (* Create a wrapper scope with descr as header *)
-              let synthetic_id = get_boxify_entry_id () in
-              insert_header_with_data ~parent_entry_id ~seq_id:(get_next_seq ())
-                ~new_entry_id:synthetic_id ~depth ~content_str:d;
-              incr num_inserted;
-              (* Create new seq counter for the wrapper scope *)
-              let wrapper_seq = ref 0 in
-              let get_wrapper_seq () =
-                let s = !wrapper_seq in
-                incr wrapper_seq;
-                s
-              in
-              loop ~depth:(depth + 1) ~parent_eid:synthetic_id ~get_seq:get_wrapper_seq sexp
-          | None -> loop ~depth ~parent_eid:parent_entry_id ~get_seq:get_next_seq sexp);
+          (* Large sexp - process directly without wrapper scope *)
+          (* The descr is already associated with the parent scope, no need for wrapper *)
+          loop ~depth ~parent_eid:parent_entry_id ~get_seq:get_next_seq sexp);
 
     (* Update parent's num_children counter *)
     (match parent_entry with
