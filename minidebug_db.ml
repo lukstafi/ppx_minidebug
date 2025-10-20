@@ -366,7 +366,48 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
 
       (match Sqlite3.step stmt with
       | Sqlite3.Rc.DONE -> ()
-      | _ -> failwith "Failed to insert header entry");
+      | rc ->
+          let errmsg = Sqlite3.errmsg db in
+          (* Query existing entry if there's a conflict *)
+          let existing_info =
+            let query_stmt =
+              Sqlite3.prepare db
+                "SELECT header_entry_id, depth, message_value_id, location_value_id, \
+                 log_level, entry_type FROM entries WHERE run_id = ? AND entry_id = ? \
+                 AND seq_id = ?"
+            in
+            Sqlite3.bind_int query_stmt 1 run_id |> ignore;
+            Sqlite3.bind_int query_stmt 2
+              (match parent_entry_id with None -> 0 | Some pid -> pid)
+            |> ignore;
+            Sqlite3.bind_int query_stmt 3 seq_id |> ignore;
+            match Sqlite3.step query_stmt with
+            | Sqlite3.Rc.ROW ->
+                let existing =
+                  Printf.sprintf
+                    "Existing: header_entry_id=%s, depth=%s, message_value_id=%s, \
+                     location_value_id=%s, log_level=%s, entry_type=%s"
+                    (Sqlite3.Data.to_string_debug (Sqlite3.column query_stmt 0))
+                    (Sqlite3.Data.to_string_debug (Sqlite3.column query_stmt 1))
+                    (Sqlite3.Data.to_string_debug (Sqlite3.column query_stmt 2))
+                    (Sqlite3.Data.to_string_debug (Sqlite3.column query_stmt 3))
+                    (Sqlite3.Data.to_string_debug (Sqlite3.column query_stmt 4))
+                    (Sqlite3.Data.to_string_debug (Sqlite3.column query_stmt 5))
+                in
+                Sqlite3.finalize query_stmt |> ignore;
+                existing
+            | _ ->
+                Sqlite3.finalize query_stmt |> ignore;
+                "No existing entry found"
+          in
+          failwith
+            (Printf.sprintf
+               "Failed to insert header entry: %s (rc=%s)\n\
+                Trying to insert: run_id=%d, entry_id=%d, seq_id=%d, \
+                header_entry_id=%d, depth=%d, log_level=%d, entry_type=%s\n\
+                %s" errmsg (Sqlite3.Rc.to_string rc) run_id
+               (match parent_entry_id with None -> 0 | Some pid -> pid)
+               seq_id entry_id depth log_level entry_type_str existing_info));
       Sqlite3.finalize stmt |> ignore;
 
       (* Push to stack *)
