@@ -659,9 +659,6 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
       s
     in
 
-    (* Seq allocator for indentation parsing *)
-    let get_seq_id () = get_next_seq () in
-
     let boxify_threshold = 10 in
     let num_inserted = ref 0 in
 
@@ -670,7 +667,7 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
         (* Small enough - insert as single entry with pretty-printed content *)
         let content = Sexplib0.Sexp.to_string_hum sexp in
         (* Check for multi-line and parse indentation if needed *)
-        let indent_entries = parse_indentation ~base_depth:depth ~get_seq_id content in
+        let indent_entries = parse_indentation ~base_depth:depth ~get_seq_id:get_seq content in
         if indent_entries = [] then (
           insert_value_entry ~entry_id:parent_eid ~seq_id:(get_seq ()) ~depth
             ~message:"" ~content_str:content ~is_result:false;
@@ -751,7 +748,7 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
           let content = Sexplib0.Sexp.to_string_hum sexp in
           let message = match descr with Some d -> d | None -> "" in
           (* Check for multi-line and parse indentation *)
-          let indent_entries = parse_indentation ~base_depth:depth ~get_seq_id content in
+          let indent_entries = parse_indentation ~base_depth:depth ~get_seq_id:get_next_seq content in
           if indent_entries = [] then (
             insert_value_entry ~entry_id:parent_entry_id ~seq_id:(get_next_seq ()) ~depth
               ~message ~content_str:content ~is_result;
