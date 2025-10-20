@@ -562,8 +562,9 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     | Header of int * int * int * string * indent_entry list  (* seq_id, new_entry_id, depth, content, children *)
 
   (** Parse indentation structure of a multi-line string.
-      Returns a list of entries where indentation increases create sub-scopes. *)
-  let parse_indentation ~base_depth ~starting_seq str =
+      Returns a list of entries where indentation increases create sub-scopes.
+      get_seq_id is a callback to allocate fresh seq_ids. *)
+  let parse_indentation ~base_depth ~get_seq_id str =
     let lines = String.split_on_char '\n' str in
     let non_empty_lines = List.filter (fun s -> String.trim s <> "") lines in
 
@@ -597,38 +598,39 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
       ) non_empty_lines in
 
       (* Build tree: look ahead to see if next line is indented more *)
-      let rec process_lines seq_num = function
+      let rec process_lines = function
         | [] -> []
         | [(indent, content)] ->
             (* Last line - always a value *)
-            [Value (starting_seq + seq_num, base_depth + (indent / 2), content)]
+            [Value (get_seq_id (), base_depth + (indent / 2), content)]
         | (indent, content) :: ((next_indent, _) :: _ as rest) when next_indent > indent ->
             (* Next line is more indented - make this a header *)
+            let seq = get_seq_id () in
             let new_entry_id = get_boxify_entry_id () in
-            let children, remaining, next_seq = collect_children (next_indent, indent) (seq_num + 1) rest in
-            let header = Header (starting_seq + seq_num, new_entry_id, base_depth + (indent / 2), content, children) in
-            header :: process_lines next_seq remaining
+            let children, remaining = collect_children (next_indent, indent) rest in
+            let header = Header (seq, new_entry_id, base_depth + (indent / 2), content, children) in
+            header :: process_lines remaining
         | (indent, content) :: rest ->
             (* Same or less indentation - regular value *)
-            let value = Value (starting_seq + seq_num, base_depth + (indent / 2), content) in
-            value :: process_lines (seq_num + 1) rest
+            let value = Value (get_seq_id (), base_depth + (indent / 2), content) in
+            value :: process_lines rest
 
-      and collect_children (target_indent, parent_indent) seq_num = function
-        | [] -> ([], [], seq_num)
+      and collect_children (target_indent, parent_indent) = function
+        | [] -> ([], [])
         | ((indent, content) :: rest) when indent = target_indent ->
             (* Direct child at target indentation *)
-            let child = Value (starting_seq + seq_num, base_depth + (indent / 2), content) in
-            let more_children, remaining, next_seq = collect_children (target_indent, parent_indent) (seq_num + 1) rest in
-            (child :: more_children, remaining, next_seq)
+            let child = Value (get_seq_id (), base_depth + (indent / 2), content) in
+            let more_children, remaining = collect_children (target_indent, parent_indent) rest in
+            (child :: more_children, remaining)
         | ((indent, _content) :: _rest) as all when indent > target_indent ->
             (* Deeper indentation - skip for now (simplified) *)
-            ([], all, seq_num)
+            ([], all)
         | remaining ->
             (* Back to parent level or less indentation *)
-            ([], remaining, seq_num)
+            ([], remaining)
       in
 
-      process_lines 0 indent_lines
+      process_lines indent_lines
 
   (** Insert indentation entries into database *)
   let rec insert_indent_entries ~parent_entry_id entries =
@@ -844,11 +846,22 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
         in
         let entries = boxify ~descr ~depth ~parent_entry_id:entry_id sexp in
         let num_inserted = ref 0 in
+        (* Create a seq_id allocator for indentation entries.
+           Start from max seq_id in boxify results + 1 to avoid conflicts. *)
+        let max_boxify_seq =
+          List.fold_left (fun max_seq (_, seq, _, _, _) -> max max_seq seq) (-1) entries
+        in
+        let seq_counter = ref (max_boxify_seq + 1) in
+        let get_seq_id () =
+          let s = !seq_counter in
+          incr seq_counter;
+          s
+        in
         List.iter
           (fun (eid, seq, d, msg, content) ->
             if content <> "" then (
               (* Check if content has multiple lines - if so, parse indentation *)
-              let indent_entries = parse_indentation ~base_depth:d ~starting_seq:seq content in
+              let indent_entries = parse_indentation ~base_depth:d ~get_seq_id content in
               if indent_entries = [] then (
                 (* Single line - insert as regular value *)
                 insert_value_entry ~entry_id:eid ~seq_id:seq ~depth:d ~message:msg
@@ -868,10 +881,10 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
               )
             ))
           entries;
-        (* Update parent's num_children counter *)
+        (* Update parent's num_children counter based on seq_counter to avoid conflicts *)
         match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
         | Some parent_entry ->
-            parent_entry.num_children <- parent_entry.num_children + !num_inserted
+            parent_entry.num_children <- !seq_counter
         | None -> ())
       else (
         (* Small sexp - pretty print and potentially parse indentation *)
@@ -881,12 +894,14 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
           | Some parent_entry -> parent_entry.depth + 1
           | None -> List.length !stack
         in
-        let starting_seq =
-          match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
-          | Some parent_entry -> parent_entry.num_children
-          | None -> 0
+        let parent_entry = List.find_opt (fun e -> e.entry_id = entry_id) !stack in
+        let seq_counter = ref (match parent_entry with Some p -> p.num_children | None -> 0) in
+        let get_seq_id () =
+          let s = !seq_counter in
+          incr seq_counter;
+          s
         in
-        let indent_entries = parse_indentation ~base_depth:depth ~starting_seq content in
+        let indent_entries = parse_indentation ~base_depth:depth ~get_seq_id content in
         if indent_entries = [] then
           (* Single line - log as-is *)
           log_value_common ~descr ~entry_id ~log_level ~is_result content
