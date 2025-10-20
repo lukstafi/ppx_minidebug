@@ -645,78 +645,136 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     ) entries
 
   (** Boxify a sexp: split it into multiple database entries with synthetic entry_ids.
-      Returns a list of (synthetic_entry_id, seq_id, depth, message, content_str) tuples.
+      Directly inserts entries into the database, creating proper nested scope structure.
+      Returns the number of entries inserted.
   *)
-  let boxify ~descr ~depth ~parent_entry_id sexp =
+  let boxify ~descr ~depth ~parent_entry_id ~is_result sexp =
     let open Sexplib0.Sexp in
-    (* Start seq_id from the parent's current num_children to avoid collisions *)
-    let starting_seq =
-      match List.find_opt (fun e -> e.entry_id = parent_entry_id) !stack with
-      | Some parent_entry -> parent_entry.num_children
-      | None -> 0
-    in
-    let parent_seq = ref starting_seq in
+    (* Get seq_id allocator from parent's counter *)
+    let parent_entry = List.find_opt (fun e -> e.entry_id = parent_entry_id) !stack in
+    let seq_counter = ref (match parent_entry with Some p -> p.num_children | None -> 0) in
     let get_next_seq () =
-      let s = !parent_seq in
-      incr parent_seq;
+      let s = !seq_counter in
+      incr seq_counter;
       s
     in
 
-    let boxify_threshold = 10 in
+    (* Seq allocator for indentation parsing *)
+    let get_seq_id () = get_next_seq () in
 
-    let rec loop ~depth sexp =
-      if sexp_size sexp < boxify_threshold then
-        (* Small enough - return as single entry with pretty-printed content *)
+    let boxify_threshold = 10 in
+    let num_inserted = ref 0 in
+
+    let rec loop ~depth ~parent_eid ~get_seq sexp =
+      if sexp_size sexp < boxify_threshold then (
+        (* Small enough - insert as single entry with pretty-printed content *)
         let content = Sexplib0.Sexp.to_string_hum sexp in
-        [ (parent_entry_id, get_next_seq (), depth, "", content) ]
-      else
+        (* Check for multi-line and parse indentation if needed *)
+        let indent_entries = parse_indentation ~base_depth:depth ~get_seq_id content in
+        if indent_entries = [] then (
+          insert_value_entry ~entry_id:parent_eid ~seq_id:(get_seq ()) ~depth
+            ~message:"" ~content_str:content ~is_result:false;
+          incr num_inserted
+        ) else (
+          insert_indent_entries ~parent_entry_id:parent_eid indent_entries;
+          let count_entries entries =
+            let rec count = function
+              | Value _ -> 1
+              | Header (_, _, _, _, children) -> 1 + List.fold_left (fun acc child -> acc + count child) 0 children
+            in
+            List.fold_left (fun acc entry -> acc + count entry) 0 entries
+          in
+          num_inserted := !num_inserted + count_entries indent_entries
+        )
+      ) else
         match sexp with
-        | Atom s -> [ (parent_entry_id, get_next_seq (), depth, "", s) ]
-        | List [] -> []
-        | List [ s ] -> loop ~depth:(depth + 1) s
-        | List (Atom s :: body) ->
-            (* Create a synthetic scope for this subtree *)
-            let _synthetic_id = get_boxify_entry_id () in
-            (* Insert header entry *)
-            let entries_ref = ref [ (parent_entry_id, get_next_seq (), depth, s, "") ] in
-            (* Recursively process body *)
-            List.iter
-              (fun child ->
-                let child_entries = loop ~depth:(depth + 1) child in
-                entries_ref := !entries_ref @ child_entries)
-              body;
-            !entries_ref
+        | Atom s ->
+            insert_value_entry ~entry_id:parent_eid ~seq_id:(get_seq ()) ~depth
+              ~message:"" ~content_str:s ~is_result:false;
+            incr num_inserted
+        | List [] -> ()
+        | List [ s ] -> loop ~depth:(depth + 1) ~parent_eid ~get_seq s
         | List l ->
-            (* Process each element of the list *)
-            List.concat (List.map (loop ~depth:(depth + 1)) l)
+            (* Create a synthetic scope for the list *)
+            let synthetic_id = get_boxify_entry_id () in
+            (* Insert header entry with empty content (just a container) *)
+            insert_header_with_data ~parent_entry_id:parent_eid ~seq_id:(get_seq ())
+              ~new_entry_id:synthetic_id ~depth ~content_str:"";
+            incr num_inserted;
+            (* Create new seq counter for the synthetic scope *)
+            let list_seq = ref 0 in
+            let get_list_seq () =
+              let s = !list_seq in
+              incr list_seq;
+              s
+            in
+            (* Process each element of the list under the synthetic scope *)
+            List.iter (fun child -> loop ~depth:(depth + 1) ~parent_eid:synthetic_id ~get_seq:get_list_seq child) l
     in
 
     (* Handle the initial descr wrapping *)
-    match (sexp, descr) with
-    | (Atom s | List [ Atom s ]), Some d ->
-        [ (parent_entry_id, get_next_seq (), depth, d, s) ]
-    | (Atom s | List [ Atom s ]), None ->
-        [ (parent_entry_id, get_next_seq (), depth, "", s) ]
-    | List [], Some d -> [ (parent_entry_id, get_next_seq (), depth, d, "") ]
-    | List [], None -> []
+    (match (sexp, descr) with
+    | (Atom _ | List [ Atom _ ]), Some d ->
+        let s_str = match sexp with Atom s | List [Atom s] -> s | _ -> "" in
+        insert_value_entry ~entry_id:parent_entry_id ~seq_id:(get_next_seq ()) ~depth
+          ~message:d ~content_str:s_str ~is_result;
+        incr num_inserted
+    | (Atom _ | List [ Atom _ ]), None ->
+        let s_str = match sexp with Atom s | List [Atom s] -> s | _ -> "" in
+        insert_value_entry ~entry_id:parent_entry_id ~seq_id:(get_next_seq ()) ~depth
+          ~message:"" ~content_str:s_str ~is_result;
+        incr num_inserted
+    | List [], Some d ->
+        insert_value_entry ~entry_id:parent_entry_id ~seq_id:(get_next_seq ()) ~depth
+          ~message:d ~content_str:"" ~is_result;
+        incr num_inserted
+    | List [], None -> ()
     | List _, _ ->
         (* For large sexps, use structural splitting; for small ones, inline *)
         if sexp_size sexp < boxify_threshold then (
-          (* Small enough - pretty print and inline *)
           let content = Sexplib0.Sexp.to_string_hum sexp in
-          let msg = match descr with None -> "" | Some d -> d in
-          let full_content = match descr with None -> content | Some d -> d ^ " = " ^ content in
-          [ (parent_entry_id, get_next_seq (), depth, msg, full_content) ]
-        ) else (
-          (* Large sexp - use structural splitting *)
-          let body_sexp =
-            match (sexp, descr) with
-            | List l, Some d -> List (Atom (d ^ " =") :: l)
-            | List l, None -> List l
-            | _ -> sexp
-          in
-          loop ~depth:(depth + 1) body_sexp
-        )
+          let message = match descr with Some d -> d | None -> "" in
+          (* Check for multi-line and parse indentation *)
+          let indent_entries = parse_indentation ~base_depth:depth ~get_seq_id content in
+          if indent_entries = [] then (
+            insert_value_entry ~entry_id:parent_entry_id ~seq_id:(get_next_seq ()) ~depth
+              ~message ~content_str:content ~is_result;
+            incr num_inserted
+          ) else (
+            insert_indent_entries ~parent_entry_id:parent_entry_id indent_entries;
+            let count_entries entries =
+              let rec count = function
+                | Value _ -> 1
+                | Header (_, _, _, _, children) -> 1 + List.fold_left (fun acc child -> acc + count child) 0 children
+              in
+              List.fold_left (fun acc entry -> acc + count entry) 0 entries
+            in
+            num_inserted := !num_inserted + count_entries indent_entries
+          )
+        ) else
+          match descr with
+          | Some d ->
+              (* Create a wrapper scope with descr as header *)
+              let synthetic_id = get_boxify_entry_id () in
+              insert_header_with_data ~parent_entry_id ~seq_id:(get_next_seq ())
+                ~new_entry_id:synthetic_id ~depth ~content_str:d;
+              incr num_inserted;
+              (* Create new seq counter for the wrapper scope *)
+              let wrapper_seq = ref 0 in
+              let get_wrapper_seq () =
+                let s = !wrapper_seq in
+                incr wrapper_seq;
+                s
+              in
+              loop ~depth:(depth + 1) ~parent_eid:synthetic_id ~get_seq:get_wrapper_seq sexp
+          | None -> loop ~depth ~parent_eid:parent_entry_id ~get_seq:get_next_seq sexp);
+
+    (* Update parent's num_children counter *)
+    (match parent_entry with
+    | Some p -> p.num_children <- !seq_counter
+    | None -> ());
+
+    !num_inserted
 
   let log_value_common ~descr ~entry_id ~log_level:_ ~is_result content_str =
     if List.mem entry_id !hidden_entries then ()
@@ -838,54 +896,16 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
       let sexp = Lazy.force v in
       if sexp = Sexplib0.Sexp.List [] then ()
       else if sexp_size sexp >= 10 then (
-        (* Boxify: split into multiple entries *)
+        (* Boxify: split into multiple entries with proper nesting *)
         let depth =
           match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
           | Some parent_entry -> parent_entry.depth + 1
           | None -> List.length !stack
         in
-        let entries = boxify ~descr ~depth ~parent_entry_id:entry_id sexp in
-        let num_inserted = ref 0 in
-        (* Create a seq_id allocator for indentation entries.
-           Start from max seq_id in boxify results + 1 to avoid conflicts. *)
-        let max_boxify_seq =
-          List.fold_left (fun max_seq (_, seq, _, _, _) -> max max_seq seq) (-1) entries
-        in
-        let seq_counter = ref (max_boxify_seq + 1) in
-        let get_seq_id () =
-          let s = !seq_counter in
-          incr seq_counter;
-          s
-        in
-        List.iter
-          (fun (eid, seq, d, msg, content) ->
-            if content <> "" then (
-              (* Check if content has multiple lines - if so, parse indentation *)
-              let indent_entries = parse_indentation ~base_depth:d ~get_seq_id content in
-              if indent_entries = [] then (
-                (* Single line - insert as regular value *)
-                insert_value_entry ~entry_id:eid ~seq_id:seq ~depth:d ~message:msg
-                  ~content_str:content ~is_result;
-                incr num_inserted
-              ) else (
-                (* Multi-line - insert with indentation structure *)
-                insert_indent_entries ~parent_entry_id:eid indent_entries;
-                let count_entries entries =
-                  let rec count = function
-                    | Value _ -> 1
-                    | Header (_, _, _, _, children) -> 1 + List.fold_left (fun acc child -> acc + count child) 0 children
-                  in
-                  List.fold_left (fun acc entry -> acc + count entry) 0 entries
-                in
-                num_inserted := !num_inserted + count_entries indent_entries
-              )
-            ))
-          entries;
-        (* Update parent's num_children counter based on seq_counter to avoid conflicts *)
-        match List.find_opt (fun e -> e.entry_id = entry_id) !stack with
-        | Some parent_entry ->
-            parent_entry.num_children <- !seq_counter
-        | None -> ())
+        (* boxify now handles insertion directly and returns number of entries inserted *)
+        let _num_inserted = boxify ~descr ~depth ~parent_entry_id:entry_id ~is_result sexp in
+        ()
+      )
       else (
         (* Small sexp - pretty print and potentially parse indentation *)
         let content = Sexplib0.Sexp.to_string_hum sexp in
