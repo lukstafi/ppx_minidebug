@@ -441,7 +441,7 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
 
   (** Helper to insert a header entry with data into the database.
       Used for indentation-based sub-scopes. *)
-  let insert_header_with_data ~parent_entry_id ~seq_id ~new_entry_id ~depth ~content_str =
+  let insert_header_with_data ~parent_entry_id ~seq_id ~new_entry_id ~depth ~message ~content_str ~is_result =
     let db = get_db () in
     let run_id = get_run_id () in
     let intern = get_intern () in
@@ -459,8 +459,12 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     | _ -> failwith "Failed to insert entry parent for header");
     Sqlite3.finalize parent_stmt |> ignore;
 
+    (* Intern the message (parameter/result name) *)
+    let message_value_id = ValueIntern.intern intern ~value_type:"message" message in
+
     (* Intern data content *)
-    let data_value_id = ValueIntern.intern intern ~value_type:"value" content_str in
+    let value_type = if is_result then "result" else "value" in
+    let data_value_id = ValueIntern.intern intern ~value_type content_str in
 
     (* Get elapsed time *)
     let elapsed_start = Mtime_clock.elapsed () in
@@ -474,8 +478,8 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     let stmt =
       Sqlite3.prepare db
         "INSERT INTO entries (run_id, entry_id, seq_id, header_entry_id, depth, \
-         data_value_id, elapsed_start_ns, elapsed_end_ns, log_level, entry_type) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+         message_value_id, data_value_id, elapsed_start_ns, elapsed_end_ns, is_result, \
+         log_level, entry_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     in
     Sqlite3.bind_int stmt 1 run_id |> ignore;
     Sqlite3.bind_int stmt 2 parent_entry_id |> ignore;
@@ -483,11 +487,13 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     Sqlite3.bind_int stmt 4 new_entry_id |> ignore;
     (* header_entry_id points to new scope *)
     Sqlite3.bind_int stmt 5 depth |> ignore;
-    Sqlite3.bind_int stmt 6 data_value_id |> ignore;
-    Sqlite3.bind_int stmt 7 elapsed_ns |> ignore;
+    Sqlite3.bind_int stmt 6 message_value_id |> ignore;
+    Sqlite3.bind_int stmt 7 data_value_id |> ignore;
     Sqlite3.bind_int stmt 8 elapsed_ns |> ignore;
-    Sqlite3.bind_int stmt 9 !log_level |> ignore;
-    Sqlite3.bind_text stmt 10 "value" |> ignore;
+    Sqlite3.bind_int stmt 9 elapsed_ns |> ignore;
+    Sqlite3.bind_int stmt 10 (if is_result then 1 else 0) |> ignore;
+    Sqlite3.bind_int stmt 11 !log_level |> ignore;
+    Sqlite3.bind_text stmt 12 "value" |> ignore;
 
     (match Sqlite3.step stmt with
     | Sqlite3.Rc.DONE -> ()
@@ -633,15 +639,17 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
       process_lines indent_lines
 
   (** Insert indentation entries into database *)
-  let rec insert_indent_entries ~parent_entry_id entries =
+  let rec insert_indent_entries ~message ~is_result ~parent_entry_id entries =
     List.iter (function
       | Value (seq, depth, content) ->
-          insert_value_entry ~entry_id:parent_entry_id ~seq_id:seq ~depth ~message:"" ~content_str:content ~is_result:false
+          insert_value_entry ~entry_id:parent_entry_id ~seq_id:seq ~depth ~message
+            ~content_str:content ~is_result
       | Header (seq, new_entry_id, depth, content, children) ->
           (* Insert header with data *)
-          insert_header_with_data ~parent_entry_id ~seq_id:seq ~new_entry_id ~depth ~content_str:content;
+          insert_header_with_data ~parent_entry_id ~seq_id:seq ~new_entry_id ~depth ~message
+            ~content_str:content ~is_result;
           (* Recursively insert children under the new entry_id *)
-          insert_indent_entries ~parent_entry_id:new_entry_id children
+          insert_indent_entries ~message:"" ~is_result:false ~parent_entry_id:new_entry_id children
     ) entries
 
   (** Boxify a sexp: split it into multiple database entries with synthetic entry_ids.
@@ -662,7 +670,9 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     let boxify_threshold = 10 in
     let num_inserted = ref 0 in
 
-    let rec loop ~depth ~parent_eid ~get_seq sexp =
+    let rec loop ~is_toplevel ~depth ~parent_eid ~get_seq sexp =
+      let message = if is_toplevel then (match descr with Some d -> d | None -> "") else "" in
+      let is_result = is_toplevel && is_result in
       if sexp_size sexp < boxify_threshold then (
         (* Small enough - insert as single entry with pretty-printed content *)
         let content = Sexplib0.Sexp.to_string_hum sexp in
@@ -670,10 +680,10 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
         let indent_entries = parse_indentation ~base_depth:depth ~get_seq_id:get_seq content in
         if indent_entries = [] then (
           insert_value_entry ~entry_id:parent_eid ~seq_id:(get_seq ()) ~depth
-            ~message:"" ~content_str:content ~is_result:false;
+            ~message ~content_str:content ~is_result;
           incr num_inserted
         ) else (
-          insert_indent_entries ~parent_entry_id:parent_eid indent_entries;
+          insert_indent_entries ~message ~is_result ~parent_entry_id:parent_eid indent_entries;
           let count_entries entries =
             let rec count = function
               | Value _ -> 1
@@ -687,16 +697,24 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
         match sexp with
         | Atom s ->
             insert_value_entry ~entry_id:parent_eid ~seq_id:(get_seq ()) ~depth
-              ~message:"" ~content_str:s ~is_result:false;
+              ~message ~content_str:s ~is_result;
             incr num_inserted
-        | List [] -> ()
-        | List [ s ] -> loop ~depth:(depth + 1) ~parent_eid ~get_seq s
+        | List [] ->
+            if is_toplevel then (
+              if message <> "" || is_result then (
+                insert_value_entry ~entry_id:parent_eid ~seq_id:(get_seq ()) ~depth
+                  ~message ~content_str:"()" ~is_result;
+                incr num_inserted
+              )
+            )
+        | List [ s ] -> loop ~is_toplevel ~depth:(depth + 1) ~parent_eid ~get_seq s
         | List (Atom s :: body) ->
             (* Create a synthetic scope with first atom as header *)
             let synthetic_id = get_boxify_entry_id () in
             (* Insert header entry with first atom as content *)
             insert_header_with_data ~parent_entry_id:parent_eid ~seq_id:(get_seq ())
-              ~new_entry_id:synthetic_id ~depth ~content_str:s;
+              ~new_entry_id:synthetic_id ~depth ~message ~content_str:s
+              ~is_result;
             incr num_inserted;
             (* Create new seq counter for the synthetic scope *)
             let synthetic_seq = ref 0 in
@@ -706,55 +724,15 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
               s
             in
             (* Recursively process remaining elements under the synthetic scope *)
-            List.iter (fun child -> loop ~depth:(depth + 1) ~parent_eid:synthetic_id ~get_seq:get_synthetic_seq child) body
+            List.iter (fun child -> loop ~is_toplevel:false ~depth:(depth + 1) ~parent_eid:synthetic_id ~get_seq:get_synthetic_seq child) body
+        | List body when is_toplevel ->
+          loop ~is_toplevel ~depth ~parent_eid ~get_seq (List (Atom "<scope>" :: body))
         | List l ->
             (* Process each element of the list directly under current parent *)
-            List.iter (fun child -> loop ~depth:(depth + 1) ~parent_eid ~get_seq child) l
+            List.iter (fun child -> loop ~is_toplevel:false ~depth:(depth + 1) ~parent_eid ~get_seq child) l
     in
 
-    (* Handle the initial descr wrapping *)
-    (match (sexp, descr) with
-    | (Atom _ | List [ Atom _ ]), Some d ->
-        let s_str = match sexp with Atom s | List [Atom s] -> s | _ -> "" in
-        insert_value_entry ~entry_id:parent_entry_id ~seq_id:(get_next_seq ()) ~depth
-          ~message:d ~content_str:s_str ~is_result;
-        incr num_inserted
-    | (Atom _ | List [ Atom _ ]), None ->
-        let s_str = match sexp with Atom s | List [Atom s] -> s | _ -> "" in
-        insert_value_entry ~entry_id:parent_entry_id ~seq_id:(get_next_seq ()) ~depth
-          ~message:"" ~content_str:s_str ~is_result;
-        incr num_inserted
-    | List [], Some d ->
-        insert_value_entry ~entry_id:parent_entry_id ~seq_id:(get_next_seq ()) ~depth
-          ~message:d ~content_str:"" ~is_result;
-        incr num_inserted
-    | List [], None -> ()
-    | List _, _ ->
-        (* For large sexps, use structural splitting; for small ones, inline *)
-        if sexp_size sexp < boxify_threshold then (
-          let content = Sexplib0.Sexp.to_string_hum sexp in
-          let message = match descr with Some d -> d | None -> "" in
-          (* Check for multi-line and parse indentation *)
-          let indent_entries = parse_indentation ~base_depth:depth ~get_seq_id:get_next_seq content in
-          if indent_entries = [] then (
-            insert_value_entry ~entry_id:parent_entry_id ~seq_id:(get_next_seq ()) ~depth
-              ~message ~content_str:content ~is_result;
-            incr num_inserted
-          ) else (
-            insert_indent_entries ~parent_entry_id:parent_entry_id indent_entries;
-            let count_entries entries =
-              let rec count = function
-                | Value _ -> 1
-                | Header (_, _, _, _, children) -> 1 + List.fold_left (fun acc child -> acc + count child) 0 children
-              in
-              List.fold_left (fun acc entry -> acc + count entry) 0 entries
-            in
-            num_inserted := !num_inserted + count_entries indent_entries
-          )
-        ) else
-          (* Large sexp - process directly without wrapper scope *)
-          (* The descr is already associated with the parent scope, no need for wrapper *)
-          loop ~depth ~parent_eid:parent_entry_id ~get_seq:get_next_seq sexp);
+    loop ~is_toplevel:true ~depth ~parent_eid:parent_entry_id ~get_seq:get_next_seq sexp;
 
     (* Update parent's num_children counter *)
     (match parent_entry with
@@ -914,7 +892,8 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
           log_value_common ~descr ~entry_id ~log_level ~is_result content
         else (
           (* Multi-line - insert with proper nesting based on indentation *)
-          insert_indent_entries ~parent_entry_id:entry_id indent_entries;
+          insert_indent_entries ~message:(Option.value ~default:"" descr)
+            ~is_result ~parent_entry_id:entry_id indent_entries;
           (* Update parent's num_children counter *)
           let count_entries entries =
             let rec count = function
