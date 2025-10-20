@@ -486,6 +486,13 @@ module Renderer = struct
     | Some end_ns -> Some (end_ns - entry.elapsed_start_ns)
     | None -> None
 
+  (** Get display text for entry - use message if available, otherwise data, otherwise placeholder *)
+  let get_display_text (entry : Query.entry) =
+    if entry.Query.message <> "" then entry.Query.message
+    else match entry.Query.data with
+    | Some d when d <> "" -> d
+    | _ -> "<scope>"
+
   (** Render tree to string with indentation *)
   let render_tree ?(show_entry_ids = false) ?(show_times = false) ?(max_depth = None)
       ?(values_first_mode = false) trees =
@@ -528,7 +535,7 @@ module Renderer = struct
             (* Scope node with single value result in values_first_mode: combine on one line *)
             (* Format: [type] message => result.message result_value <time> @ location *)
             Buffer.add_string buf
-              (Printf.sprintf "[%s] %s" entry.entry_type entry.message);
+              (Printf.sprintf "[%s] %s" entry.entry_type (get_display_text entry));
 
             (* Add result value *)
             (match result_child.entry.data with
@@ -563,7 +570,7 @@ module Renderer = struct
             (* Normal rendering mode - scope with children *)
             (* Message and type *)
             Buffer.add_string buf
-              (Printf.sprintf "[%s] %s" entry.entry_type entry.message);
+              (Printf.sprintf "[%s] %s" entry.entry_type (get_display_text entry));
 
             (* Location *)
             (match entry.location with
@@ -775,9 +782,15 @@ module Interactive = struct
     let content =
       match item.entry.header_entry_id with
       | Some _ ->
-          (* Header/scope *)
+          (* Header/scope - use message if available, otherwise data, otherwise placeholder *)
+          let display_text =
+            if entry.message <> "" then entry.message
+            else match entry.data with
+            | Some d when d <> "" -> d
+            | _ -> "<scope>"
+          in
           Printf.sprintf "%s%s[%s] %s" indent expansion_mark
-            entry.entry_type entry.message
+            entry.entry_type display_text
       | None ->
           (* Value *)
           let value_str = match entry.data with Some d -> d | None -> "" in
