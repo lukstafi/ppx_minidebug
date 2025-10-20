@@ -28,6 +28,11 @@ setup.log
 # Local OPAM switch
 _opam/
 
+# SQLite database files from tests and debugging
+*.db
+*.db-shm
+*.db-wal
+
 # IDE configuration files
 .vscode/
 
