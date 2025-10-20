@@ -123,7 +123,7 @@ let _get_local_debug_runtime =
 | `~values_first_mode:true` | N/A | Controlled by GUI |
 | `~highlight_terms:re` | N/A | GUI client feature |
 | `~prev_run_file:"old.raw"` | N/A | GUI handles diffs |
-| `~boxify_sexp_from_size:50` | N/A | Future: structure_value_id |
+| `~boxify_sexp_from_size:50` | `N/A | ✅ Supported with fixed splitting |
 | `~print_entry_ids:true` | `~print_entry_ids:true` | ✅ Supported |
 | `~log_level:5` | `~log_level:5` | ✅ Supported |
 | `~path_filter:(`Whitelist re)` | `~path_filter:(`Whitelist re)` | ✅ Supported |

@@ -1829,15 +1829,15 @@ relevance:0},{begin:/-&gt;/}]})})();hljs.registerLanguage(&quot;ocaml&quot;,e)})
 &lt;/ul&gt;
 &lt;/div&gt;
 &lt;hr&gt;
-&lt;div id=&quot;new-in-3&quot; center-at-unpause pause&gt;&lt;/div&gt;
+&lt;div center-at-unpause=new-in-3 pause&gt;&lt;/div&gt;
 &lt;h2 id=&quot;whats-new-in-30-🚀&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#whats-new-in-30-🚀&quot;&gt;&lt;/a&gt;&lt;span&gt;What's New in 3.0 🚀 &lt;/span&gt;&lt;span id=&quot;new-in-3&quot;&gt;&lt;/span&gt;&lt;/h2&gt;
 &lt;div class=&quot;block&quot; title=&quot;Database-Backed Tracing + Interactive TUI&quot;&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;SQLite storage&lt;/span&gt;&lt;/strong&gt;&lt;span&gt; with content-addressed deduplication&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Terminal UI&lt;/span&gt;&lt;/strong&gt;&lt;span&gt; for interactive trace exploration&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;CLI tool&lt;/span&gt;&lt;/strong&gt;&lt;span&gt; for querying and analysis&lt;/span&gt;&lt;/p&gt;
 &lt;/div&gt;
-&lt;h3 id=&quot;architecture-highlights&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#architecture-highlights&quot;&gt;&lt;/a&gt;&lt;span&gt;Architecture Highlights &lt;/span&gt;&lt;span id=&quot;arch&quot;&gt;&lt;/span&gt;&lt;/h3&gt;
-&lt;div pause down-at-unpause&gt;
+&lt;h3 id=&quot;architecture-highlights&quot; up-at-unpause pause&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#architecture-highlights&quot;&gt;&lt;/a&gt;&lt;span&gt;Architecture Highlights&lt;/span&gt;&lt;/h3&gt;
+&lt;div&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Schema Design&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;:&lt;/span&gt;&lt;/p&gt;
 &lt;pre&gt;&lt;code class=&quot;language-sql&quot;&gt;-- Content-addressed value storage (deduplication)
 CREATE TABLE value_atoms (
@@ -1848,23 +1848,29 @@ CREATE TABLE value_atoms (
 );
 &lt;/code&gt;&lt;/pre&gt;
 &lt;/div&gt;
-&lt;pre up-at-unpause=arch pause&gt;&lt;code class=&quot;language-sql&quot;&gt;-- Tree structure: scope parent relationships
+&lt;pre up-at-unpause pause&gt;&lt;code class=&quot;language-sql&quot;&gt;-- Tree structure: scope parent relationships
 CREATE TABLE entry_parents (
   run_id INTEGER NOT NULL,
-  entry_id INTEGER NOT NULL,     -- Scope ID
-  parent_id INTEGER,              -- Parent scope (NULL for roots)
+  -- Scope ID:
+  entry_id INTEGER NOT NULL,
+  -- Parent scope (NULL for roots)
+  parent_id INTEGER,
   PRIMARY KEY (run_id, entry_id)
 );
 &lt;/code&gt;&lt;/pre&gt;
-&lt;pre down-at-unpause pause&gt;&lt;code class=&quot;language-sql&quot;&gt;-- Trace entries: composite key (run_id, entry_id, seq_id)
+&lt;pre up-at-unpause pause&gt;&lt;code class=&quot;language-sql&quot;&gt;-- Trace entries:
+-- composite key (run_id, entry_id, seq_id)
 CREATE TABLE entries (
   run_id INTEGER NOT NULL,
-  entry_id INTEGER NOT NULL,     -- Groups all rows for this scope
-  seq_id INTEGER NOT NULL,        -- Position in parent (0, 1, 2...)
-  header_entry_id INTEGER,        -- NULL for values; child scope for headers
+  -- Groups all rows for this scope
+  entry_id INTEGER NOT NULL,
+  -- Position in parent (0, 1, 2...)
+  seq_id INTEGER NOT NULL,
+  -- NULL for values; child scope for headers
+  header_entry_id INTEGER,
   depth INTEGER,
-  message_value_id INTEGER,       -- FK to value_atoms
-  data_value_id INTEGER,          -- FK to value_atoms
+  message_value_id INTEGER,  -- FK to value_atoms
+  data_value_id INTEGER,     -- FK to value_atoms
   elapsed_start_ns INTEGER,
   elapsed_end_ns INTEGER,
   PRIMARY KEY (run_id, entry_id, seq_id)
@@ -1880,31 +1886,32 @@ let _get_local_debug_runtime =
   fun () -&amp;gt; rt
 
 (* Use anywhere *)
-let%debug_sexp process (data : data_type) : result_type =
+let%debug_sexp process (data : t) : R.t =
   (* your code here *)
 
 let () =
   let result = process my_data in
+  (* optional *)
   Debug_runtime.finish_and_cleanup ()
 &lt;/code&gt;&lt;/pre&gt;
 &lt;div pause&gt;&lt;/div&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Output&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: &lt;/span&gt;&lt;code&gt;trace.db&lt;/code&gt;&lt;span&gt; SQLite database&lt;/span&gt;&lt;/p&gt;
 &lt;hr&gt;
-&lt;div center-at-unpause=#tui pause&gt;&lt;/div&gt;
+&lt;div center-at-unpause=tui pause&gt;&lt;/div&gt;
 &lt;h2 id=&quot;interactive-exploration&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#interactive-exploration&quot;&gt;&lt;/a&gt;&lt;span&gt;Interactive Exploration &lt;/span&gt;&lt;span id=&quot;tui&quot;&gt;&lt;/span&gt;&lt;/h2&gt;
 &lt;h3 id=&quot;launch-tui&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#launch-tui&quot;&gt;&lt;/a&gt;&lt;span&gt;Launch TUI&lt;/span&gt;&lt;/h3&gt;
 &lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;minidebug_view trace.db tui
 &lt;/code&gt;&lt;/pre&gt;
-&lt;p down-at-unpause pause&gt;&lt;strong&gt;&lt;span&gt;Features&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;:&lt;/span&gt;&lt;/p&gt;
-&lt;div&gt;
+&lt;div pause down-at-unpause&gt;
+&lt;p&gt;&lt;strong&gt;&lt;span&gt;Features&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;:&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;code&gt;↑/↓&lt;/code&gt;&lt;span&gt; or &lt;/span&gt;&lt;code&gt;k/j&lt;/code&gt;&lt;span&gt;: Navigate tree&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;code&gt;Enter&lt;/code&gt;&lt;span&gt;: Expand/collapse nodes&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;code&gt;t&lt;/code&gt;&lt;span&gt;: Toggle timing display&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;code&gt;v&lt;/code&gt;&lt;span&gt;: Toggle values-first mode&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;code&gt;q&lt;/code&gt;&lt;span&gt;: Quit&lt;/span&gt;&lt;/p&gt;
 &lt;/div&gt;
-&lt;p down-at-unpause pause&gt;&lt;strong&gt;&lt;span&gt;Why TUI?&lt;/span&gt;&lt;/strong&gt;&lt;/p&gt;
-&lt;div&gt;
+&lt;div pause center-at-unpause&gt;
+&lt;p&gt;&lt;strong&gt;&lt;span&gt;Why TUI?&lt;/span&gt;&lt;/strong&gt;&lt;/p&gt;
 &lt;p&gt;&lt;span&gt;Works over SSH (no X forwarding)&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;span&gt;Zero dependencies (no Node.js, browsers)&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;span&gt;Instant startup (&amp;lt; 50ms)&lt;/span&gt;&lt;/p&gt;
@@ -1928,38 +1935,7 @@ minidebug_view trace.db search &amp;quot;fib&amp;quot;
 minidebug_view trace.db stats
 &lt;/code&gt;&lt;/pre&gt;
 &lt;hr&gt;
-&lt;div id=&quot;sql-queries&quot; center-at-unpause pause&gt;&lt;/div&gt;
-&lt;h2 id=&quot;querying-traces-with-sql&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#querying-traces-with-sql&quot;&gt;&lt;/a&gt;&lt;span&gt;Querying Traces with SQL &lt;/span&gt;&lt;span id=&quot;sql-queries&quot;&gt;&lt;/span&gt;&lt;/h2&gt;
-&lt;h3 id=&quot;view-root-level-function-calls&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#view-root-level-function-calls&quot;&gt;&lt;/a&gt;&lt;span&gt;View root-level function calls&lt;/span&gt;&lt;/h3&gt;
-&lt;pre&gt;&lt;code class=&quot;language-sql&quot;&gt;SELECT e.entry_id, m.value_content as function_name,
-       l.value_content as location
-FROM entries e
-JOIN value_atoms m ON e.message_value_id = m.value_id
-LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
-WHERE e.entry_id = 0 AND e.header_entry_id IS NOT NULL
-ORDER BY e.seq_id;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;div pause&gt;&lt;/div&gt;
-&lt;h3 id=&quot;view-execution-tree&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#view-execution-tree&quot;&gt;&lt;/a&gt;&lt;span&gt;View execution tree&lt;/span&gt;&lt;/h3&gt;
-&lt;pre&gt;&lt;code class=&quot;language-sql&quot;&gt;SELECT e.entry_id, e.seq_id, e.header_entry_id, e.depth,
-       m.value_content as message,
-       d.value_content as value
-FROM entries e
-JOIN value_atoms m ON e.message_value_id = m.value_id
-LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
-WHERE e.run_id = 1
-ORDER BY e.entry_id, e.seq_id;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;div pause&gt;&lt;/div&gt;
-&lt;h3 id=&quot;check-deduplication-efficiency&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#check-deduplication-efficiency&quot;&gt;&lt;/a&gt;&lt;span&gt;Check deduplication efficiency&lt;/span&gt;&lt;/h3&gt;
-&lt;pre&gt;&lt;code class=&quot;language-sql&quot;&gt;SELECT COUNT(*) as total_refs,
-       COUNT(DISTINCT value_hash) as unique_values,
-       ROUND(100.0 * (1 - COUNT(DISTINCT value_hash)*1.0/COUNT(*)), 1) as dedup_pct
-FROM value_atoms;
-&lt;/code&gt;&lt;/pre&gt;
-&lt;hr&gt;
-&lt;div id=&quot;roadmap&quot; center-at-unpause pause&gt;&lt;/div&gt;
-&lt;h2 id=&quot;roadmap&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#roadmap&quot;&gt;&lt;/a&gt;&lt;span&gt;Roadmap &lt;/span&gt;&lt;span id=&quot;roadmap&quot;&gt;&lt;/span&gt;&lt;/h2&gt;
+&lt;h2 id=&quot;roadmap&quot; up-at-unpause pause&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#roadmap&quot;&gt;&lt;/a&gt;&lt;span&gt;Roadmap &lt;/span&gt;&lt;span id=&quot;roadmap&quot;&gt;&lt;/span&gt;&lt;/h2&gt;
 &lt;div id=&quot;v3-0&quot; class=&quot;block&quot; title=&quot;Version 3.0 (Current Release)&quot;&gt;
 &lt;p&gt;&lt;span&gt;✅ Database backend with deduplication&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;span&gt;✅ SQLite storage with indexes&lt;/span&gt;&lt;/p&gt;
@@ -1968,40 +1944,23 @@ FROM value_atoms;
 &lt;p&gt;&lt;span&gt;✅ CLI tool with multiple commands&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;span&gt;✅ &lt;/span&gt;&lt;strong&gt;&lt;span&gt;Interactive TUI&lt;/span&gt;&lt;/strong&gt;&lt;span&gt; for trace exploration&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;span&gt;✅ &lt;/span&gt;&lt;strong&gt;&lt;span&gt;Sexp decomposition&lt;/span&gt;&lt;/strong&gt;&lt;span&gt; (large sexps broken into navigable subtrees)&lt;/span&gt;&lt;/p&gt;
-&lt;p&gt;&lt;span&gt;🔜 Regex search in TUI (in progress)&lt;/span&gt;&lt;/p&gt;
+&lt;p&gt;&lt;span&gt;🔜 Regex search in TUI with highlighting (TODO)&lt;/span&gt;&lt;/p&gt;
 &lt;/div&gt;
-&lt;div id=&quot;v3-1&quot; down-at-unpause pause&gt;&lt;/div&gt;
-&lt;div id=&quot;v3-1&quot; class=&quot;block&quot; title=&quot;Version 3.1 (Next - ~6 weeks)&quot;&gt;
-&lt;p&gt;&lt;span&gt;📅 Cross-run diff visualization&lt;/span&gt;&lt;/p&gt;
+&lt;div class=&quot;block&quot; pause down-at-unpause title=&quot;Version 3.1 (Next - ~6 weeks)&quot;&gt;
+&lt;p&gt;&lt;span&gt;📅 Cross-run diff visualization (available in 2.x)&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;span&gt;📅 State persistence (remember expanded nodes)&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;span&gt;📅 Bookmarks and navigation history&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;span&gt;📅 Export filtered views to files&lt;/span&gt;&lt;/p&gt;
 &lt;/div&gt;
-&lt;div id=&quot;v3-2&quot; down-at-unpause pause&gt;&lt;/div&gt;
-&lt;div id=&quot;v3-2&quot; class=&quot;block&quot; title=&quot;Version 3.2 (Future - ~12 weeks)&quot;&gt;
+&lt;div class=&quot;block&quot; pause down-at-unpause title=&quot;Version 3.2 (Future - ~12 weeks)&quot;&gt;
 &lt;p&gt;&lt;span&gt;📅 Advanced deduplication (structural templates)&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;span&gt;📅 Performance profiling views (flame graphs)&lt;/span&gt;&lt;/p&gt;
-&lt;p&gt;&lt;span&gt;📅 Search result highlighting in TUI&lt;/span&gt;&lt;/p&gt;
 &lt;/div&gt;
 &lt;hr&gt;
-&lt;div id=&quot;migration&quot; center-at-unpause pause&gt;&lt;/div&gt;
-&lt;h2 id=&quot;migration-from-24x&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#migration-from-24x&quot;&gt;&lt;/a&gt;&lt;span&gt;Migration from 2.4.x &lt;/span&gt;&lt;span id=&quot;migration&quot;&gt;&lt;/span&gt;&lt;/h2&gt;
-&lt;p&gt;&lt;strong&gt;&lt;span&gt;Old way&lt;/span&gt;&lt;/strong&gt;&lt;span&gt; (static HTML generation):&lt;/span&gt;&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&quot;language-ocaml&quot;&gt;module Debug_runtime = Minidebug_runtime.PrintBox (
-  (val Minidebug_runtime.debug_file ~backend:(`Html _) &amp;quot;trace&amp;quot;)
-)
-&lt;/code&gt;&lt;/pre&gt;
-&lt;div pause&gt;&lt;/div&gt;
-&lt;p&gt;&lt;strong&gt;&lt;span&gt;New way&lt;/span&gt;&lt;/strong&gt;&lt;span&gt; (database):&lt;/span&gt;&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&quot;language-ocaml&quot;&gt;module Debug_runtime =
-  (val Minidebug_db.debug_db_file &amp;quot;trace&amp;quot;)
-&lt;/code&gt;&lt;/pre&gt;
-&lt;div pause&gt;&lt;/div&gt;
-&lt;p&gt;&lt;strong&gt;&lt;span&gt;For users needing static HTML&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: Use 2.4.x branch (maintained for bug fixes)&lt;/span&gt;&lt;/p&gt;
+&lt;p class=&quot;remark&quot; title=&quot;OCaml 4 -&gt; 2.2.x&quot; down-at-unpause pause&gt;&lt;strong&gt;&lt;span&gt;For users needing OCaml 4&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: Use 2.2.x branch (maintained for bug fixes)&lt;/span&gt;&lt;/p&gt;
 &lt;hr&gt;
-&lt;div id=&quot;why-try&quot; center-at-unpause pause&gt;&lt;/div&gt;
-&lt;h2 id=&quot;why-ocamlers-should-try-this&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#why-ocamlers-should-try-this&quot;&gt;&lt;/a&gt;&lt;span&gt;Why OCamlers Should Try This &lt;/span&gt;&lt;span id=&quot;why-try&quot;&gt;&lt;/span&gt;&lt;/h2&gt;
-&lt;h3 id=&quot;compared-to-printf-debugging&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#compared-to-printf-debugging&quot;&gt;&lt;/a&gt;&lt;span&gt;Compared to Printf Debugging &lt;/span&gt;&lt;span id=&quot;vs-printf&quot;&gt;&lt;/span&gt;&lt;/h3&gt;
+&lt;h2 id=&quot;why-ocamlers-should-try-this&quot; up-at-unpause pause&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#why-ocamlers-should-try-this&quot;&gt;&lt;/a&gt;&lt;span&gt;Why OCamlers Should Try This&lt;/span&gt;&lt;/h2&gt;
+&lt;h3 id=&quot;compared-to-printf-debugging&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#compared-to-printf-debugging&quot;&gt;&lt;/a&gt;&lt;span&gt;Compared to Printf Debugging&lt;/span&gt;&lt;/h3&gt;
 &lt;pre&gt;&lt;code class=&quot;language-ocaml&quot;&gt;(* Before: Manual prints everywhere *)
 let process data =
   Printf.eprintf &amp;quot;process: data=%s\n%!&amp;quot; (show_data data);
@@ -2010,106 +1969,58 @@ let process data =
   result
 &lt;/code&gt;&lt;/pre&gt;
 &lt;div pause&gt;&lt;/div&gt;
-&lt;pre&gt;&lt;code class=&quot;language-ocaml&quot;&gt;(* After: Just add %debug_sexp *)
-let%debug_sexp process data =
-  let result = compute data in
-  result
+&lt;pre&gt;&lt;code class=&quot;language-ocaml&quot;&gt;(* After: Add %debug_sexp and type annotations *)
+let%debug_sexp process (data : data) : result =
+  let not_logged = prepare data in
+  let x : intermediate = compute not_logged in
+  postprocess x
 &lt;/code&gt;&lt;/pre&gt;
 &lt;div pause&gt;&lt;/div&gt;
-&lt;p&gt;&lt;strong&gt;&lt;span&gt;Advantage&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: Zero manual work, automatic tree structure, no cleanup needed&lt;/span&gt;&lt;/p&gt;
-&lt;div id=&quot;vs-ocamldebug&quot; down-at-unpause pause&gt;&lt;/div&gt;
-&lt;h3 id=&quot;compared-to-ocamldebug&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#compared-to-ocamldebug&quot;&gt;&lt;/a&gt;&lt;span&gt;Compared to ocamldebug &lt;/span&gt;&lt;span id=&quot;vs-ocamldebug&quot;&gt;&lt;/span&gt;&lt;/h3&gt;
-&lt;div&gt;
+&lt;p&gt;&lt;strong&gt;&lt;span&gt;Advantage&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: Less manual work, automatic tree structure, no cleanup needed&lt;/span&gt;&lt;/p&gt;
+&lt;div down-at-unpause=vs-ocamldebug pause&gt;&lt;/div&gt;
+&lt;h3 id=&quot;compared-to-ocamldebug&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#compared-to-ocamldebug&quot;&gt;&lt;/a&gt;&lt;span&gt;Compared to ocamldebug&lt;/span&gt;&lt;/h3&gt;
+&lt;div id=&quot;vs-ocamldebug&quot; class=&quot;block&quot;&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;No recompilation&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: Works with existing bytecode/native&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Production-safe&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: Enable/disable at runtime via log levels&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Asynchronous code&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: Traces work even with Lwt/Async (no stepping)&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Complex data&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: Automatic sexp serialization of any type&lt;/span&gt;&lt;/p&gt;
 &lt;/div&gt;
-&lt;div id=&quot;vs-landmarks&quot; down-at-unpause pause&gt;&lt;/div&gt;
-&lt;h3 id=&quot;compared-to-landmarksstatmemprof&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#compared-to-landmarksstatmemprof&quot;&gt;&lt;/a&gt;&lt;span&gt;Compared to Landmarks/Statmemprof &lt;/span&gt;&lt;span id=&quot;vs-landmarks&quot;&gt;&lt;/span&gt;&lt;/h3&gt;
-&lt;div&gt;
+&lt;div down-at-unpause=vs-landmarks pause&gt;&lt;/div&gt;
+&lt;h3 id=&quot;compared-to-landmarksstatmemprof&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#compared-to-landmarksstatmemprof&quot;&gt;&lt;/a&gt;&lt;span&gt;Compared to Landmarks/Statmemprof&lt;/span&gt;&lt;/h3&gt;
+&lt;div id=&quot;vs-landmarks&quot; class=&quot;block&quot;&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Full execution trace&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: Not just hotspots, but complete flow&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Data values&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: See actual data, not just function names&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Interactive exploration&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: TUI for drilling down into specific calls&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Zero configuration&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: No need to annotate call sites&lt;/span&gt;&lt;/p&gt;
 &lt;/div&gt;
-&lt;div id=&quot;for-dev&quot; down-at-unpause pause&gt;&lt;/div&gt;
-&lt;h3 id=&quot;for-development&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#for-development&quot;&gt;&lt;/a&gt;&lt;span&gt;For Development &lt;/span&gt;&lt;span id=&quot;for-dev&quot;&gt;&lt;/span&gt;&lt;/h3&gt;
-&lt;div&gt;
+&lt;div down-at-unpause=for-dev pause&gt;&lt;/div&gt;
+&lt;h3 id=&quot;for-development&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#for-development&quot;&gt;&lt;/a&gt;&lt;span&gt;For Development&lt;/span&gt;&lt;/h3&gt;
+&lt;div id=&quot;for-dev&quot; class=&quot;block&quot;&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Fast debugging&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: See complete execution flow without manual prints&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Type-safe&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: Uses ppx_sexp_conv, show, or pp - picks the right one&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Minimal overhead&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: Lazy evaluation, optional compilation (&lt;/span&gt;&lt;code&gt;[%%global_debug_log_level 0]&lt;/code&gt;&lt;span&gt;)&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Interactive exploration&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: TUI beats scrolling through text files&lt;/span&gt;&lt;/p&gt;
 &lt;/div&gt;
-&lt;div id=&quot;for-prod&quot; down-at-unpause pause&gt;&lt;/div&gt;
-&lt;h3 id=&quot;for-production&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#for-production&quot;&gt;&lt;/a&gt;&lt;span&gt;For Production &lt;/span&gt;&lt;span id=&quot;for-prod&quot;&gt;&lt;/span&gt;&lt;/h3&gt;
-&lt;div&gt;
+&lt;div down-at-unpause=for-prod pause&gt;&lt;/div&gt;
+&lt;h3 id=&quot;for-production&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#for-production&quot;&gt;&lt;/a&gt;&lt;span&gt;For Production&lt;/span&gt;&lt;/h3&gt;
+&lt;div id=&quot;for-prod&quot; class=&quot;block&quot;&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Crash-safe&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: WAL mode, instant writes (no buffering)&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Space efficient&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: 60-80% deduplication on real workloads&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Queryable&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: SQL analysis of execution patterns&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Conditional&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: Path filters and log levels for targeted tracing&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Thread-safe&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: Multiple threads can write to same database&lt;/span&gt;&lt;/p&gt;
 &lt;/div&gt;
-&lt;div id=&quot;for-analysis&quot; down-at-unpause pause&gt;&lt;/div&gt;
-&lt;h3 id=&quot;for-analysis&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#for-analysis&quot;&gt;&lt;/a&gt;&lt;span&gt;For Analysis &lt;/span&gt;&lt;span id=&quot;for-analysis&quot;&gt;&lt;/span&gt;&lt;/h3&gt;
-&lt;div&gt;
+&lt;div down-at-unpause=analys pause&gt;&lt;/div&gt;
+&lt;h3 id=&quot;for-analysis&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#for-analysis&quot;&gt;&lt;/a&gt;&lt;span&gt;For Analysis&lt;/span&gt;&lt;/h3&gt;
+&lt;div id=&quot;analys&quot; class=&quot;block&quot;&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;SQL queries&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: Find hot paths, analyze value distributions&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Performance profiling&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: Elapsed time per entry with nanosecond precision&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Regression detection&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: Compare runs with diffs (coming in 3.1)&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Post-mortem&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: Trace persists after crash, query with standard tools&lt;/span&gt;&lt;/p&gt;
 &lt;/div&gt;
 &lt;hr&gt;
-&lt;div id=&quot;demo&quot; center-at-unpause pause&gt;&lt;/div&gt;
-&lt;h2 id=&quot;live-demo&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#live-demo&quot;&gt;&lt;/a&gt;&lt;span&gt;Live Demo &lt;/span&gt;&lt;span id=&quot;demo&quot;&gt;&lt;/span&gt;&lt;/h2&gt;
-&lt;p&gt;&lt;strong&gt;&lt;span&gt;Demo code&lt;/span&gt;&lt;/strong&gt;&lt;span&gt; (test/test_programmatic_log_entry.ml):&lt;/span&gt;&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&quot;language-ocaml&quot;&gt;let _get_local_debug_runtime =
-  let rt = Minidebug_db.debug_db_file &amp;quot;demo&amp;quot; in
-  fun () -&amp;gt; rt
-
-let%debug_sexp process_data items =
-  List.map (fun x -&amp;gt; x * 2) items
-
-let () =
-  let result = process_data [1; 2; 3] in
-  Printf.printf &amp;quot;Result: %s\n&amp;quot; ([%sexp_of: int list] result |&amp;gt; Sexp.to_string);
-  Debug_runtime.finish_and_cleanup ()
-&lt;/code&gt;&lt;/pre&gt;
-&lt;div pause&gt;&lt;/div&gt;
-&lt;p&gt;&lt;strong&gt;&lt;span&gt;Results&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;:&lt;/span&gt;&lt;/p&gt;
-&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;$ dune exec test/test_programmatic_log_entry.exe
-Result: (2 4 6)
-&lt;/code&gt;&lt;/pre&gt;
-&lt;div pause&gt;&lt;/div&gt;
-&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;$ minidebug_view demo.db show
-Run #1
-Timestamp: 2025-10-11 07:10:55
-Command: test_programmatic_log_entry.exe
-Elapsed: 9.72ms
-
-[diagn] _logging_logic @ test/test_programmatic_log_entry.ml:8:17-8:31
-  &amp;quot;preamble&amp;quot;
-  [diagn] header 1 @ :0:0-0:0
-    &amp;quot;log 1&amp;quot;
-    ...
-&lt;/code&gt;&lt;/pre&gt;
-&lt;div pause&gt;&lt;/div&gt;
-&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;$ minidebug_view demo.db tui
-# Interactive TUI launches - navigate with arrows!
-&lt;/code&gt;&lt;/pre&gt;
-&lt;div pause&gt;&lt;/div&gt;
-&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;$ minidebug_view demo.db stats
-Database Statistics
-===================
-Total entries: 15
-Total value references: 42
-Unique values: 18
-Deduplication: 57.1%
-Database size: 52 KB
-&lt;/code&gt;&lt;/pre&gt;
-&lt;hr&gt;
-&lt;div id=&quot;quick-start&quot; center-at-unpause pause&gt;&lt;/div&gt;
-&lt;h2 id=&quot;quick-start-60-seconds&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#quick-start-60-seconds&quot;&gt;&lt;/a&gt;&lt;span&gt;Quick Start (60 seconds) &lt;/span&gt;&lt;span id=&quot;quick-start&quot;&gt;&lt;/span&gt;&lt;/h2&gt;
-&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;# 1. Install (one command)
+&lt;h2 id=&quot;quick-start-60-seconds&quot; up-at-unpause pause&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#quick-start-60-seconds&quot;&gt;&lt;/a&gt;&lt;span&gt;Quick Start (60 seconds) &lt;/span&gt;&lt;span id=&quot;quick-start&quot;&gt;&lt;/span&gt;&lt;/h2&gt;
+&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;# 1. Install (one command) -- for 3.0
 opam pin ppx_minidebug https://github.com/lukstafi/ppx_minidebug.git
 &lt;/code&gt;&lt;/pre&gt;
 &lt;div pause&gt;&lt;/div&gt;
@@ -2120,22 +2031,21 @@ opam pin ppx_minidebug https://github.com/lukstafi/ppx_minidebug.git
  (libraries ppx_minidebug.db sexplib0))
 &lt;/code&gt;&lt;/pre&gt;
 &lt;div pause&gt;&lt;/div&gt;
-&lt;pre&gt;&lt;code class=&quot;language-ocaml&quot;&gt;# 3. Add to your code (2 lines)
+&lt;pre&gt;&lt;code class=&quot;language-ocaml&quot;&gt;# 3. Add to your code
 let _get_local_debug_runtime =
-  let rt = Minidebug_db.debug_db_file &amp;quot;trace&amp;quot; in fun () -&amp;gt; rt
+  let rt = Minidebug_db.debug_db_file &amp;quot;trace&amp;quot; in
+  fun () -&amp;gt; rt
 
-let%debug_sexp my_function x = (* your code *)
+let%debug_sexp my_function (x : t) : R.t =
+  (* your code *)
 &lt;/code&gt;&lt;/pre&gt;
-&lt;div pause&gt;&lt;/div&gt;
-&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;# 4. Run and explore
+&lt;pre down-at-unpause pause&gt;&lt;code class=&quot;language-bash&quot;&gt;# 4. Run and explore
 ./my_program.exe
 minidebug_view trace.db tui
 &lt;/code&gt;&lt;/pre&gt;
-&lt;div pause&gt;&lt;/div&gt;
-&lt;p&gt;&lt;span&gt;That's it! No configuration files, no build system changes, just works.&lt;/span&gt;&lt;/p&gt;
+&lt;p down-at-unpause pause&gt;&lt;span&gt;That's it! No configuration files, no build system changes, just works.&lt;/span&gt;&lt;/p&gt;
 &lt;hr&gt;
-&lt;div id=&quot;install&quot; center-at-unpause pause&gt;&lt;/div&gt;
-&lt;h2 id=&quot;installation&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#installation&quot;&gt;&lt;/a&gt;&lt;span&gt;Installation &lt;/span&gt;&lt;span id=&quot;install&quot;&gt;&lt;/span&gt;&lt;/h2&gt;
+&lt;h2 id=&quot;installation&quot; center-at-unpause pause&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#installation&quot;&gt;&lt;/a&gt;&lt;span&gt;Installation &lt;/span&gt;&lt;span id=&quot;install&quot;&gt;&lt;/span&gt;&lt;/h2&gt;
 &lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;# Current stable (static generation - 2.x)
 opam install ppx_minidebug
 
@@ -2145,8 +2055,7 @@ opam pin ppx_minidebug https://github.com/lukstafi/ppx_minidebug.git
 &lt;div pause&gt;&lt;/div&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Dependencies&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: &lt;/span&gt;&lt;code&gt;sqlite3&lt;/code&gt;&lt;span&gt;, &lt;/span&gt;&lt;code&gt;notty&lt;/code&gt;&lt;span&gt; (automatically installed)&lt;/span&gt;&lt;/p&gt;
 &lt;hr&gt;
-&lt;div id=&quot;takeaways&quot; center-at-unpause pause&gt;&lt;/div&gt;
-&lt;h2 id=&quot;key-takeaways&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#key-takeaways&quot;&gt;&lt;/a&gt;&lt;span&gt;Key Takeaways &lt;/span&gt;&lt;span id=&quot;takeaways&quot;&gt;&lt;/span&gt;&lt;/h2&gt;
+&lt;h2 id=&quot;key-takeaways&quot; up-at-unpause pause&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#key-takeaways&quot;&gt;&lt;/a&gt;&lt;span&gt;Key Takeaways &lt;/span&gt;&lt;span id=&quot;takeaways&quot;&gt;&lt;/span&gt;&lt;/h2&gt;
 &lt;div class=&quot;block&quot; title=&quot;Key Takeaways&quot;&gt;
 &lt;p&gt;&lt;span&gt;✓ &lt;/span&gt;&lt;strong&gt;&lt;span&gt;Zero-effort debugging&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: PPX handles all instrumentation&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;span&gt;✓ &lt;/span&gt;&lt;strong&gt;&lt;span&gt;Space efficient&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: 60-80% deduplication on real traces&lt;/span&gt;&lt;/p&gt;
@@ -2156,17 +2065,17 @@ opam pin ppx_minidebug https://github.com/lukstafi/ppx_minidebug.git
 &lt;p&gt;&lt;span&gt;✓ &lt;/span&gt;&lt;strong&gt;&lt;span&gt;Simple design&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: TUI in ~200 lines, not 3000+ for web GUI&lt;/span&gt;&lt;/p&gt;
 &lt;/div&gt;
 &lt;hr&gt;
-&lt;div id=&quot;links&quot; center-at-unpause pause&gt;&lt;/div&gt;
-&lt;h2 id=&quot;links&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#links&quot;&gt;&lt;/a&gt;&lt;span&gt;Links &lt;/span&gt;&lt;span id=&quot;links&quot;&gt;&lt;/span&gt;&lt;/h2&gt;
-&lt;div class=&quot;block&quot; title=&quot;Resources&quot;&gt;
+&lt;div down-at-unpause=resources pause&gt;&lt;/div&gt;
+&lt;h2 id=&quot;links&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#links&quot;&gt;&lt;/a&gt;&lt;span&gt;Links&lt;/span&gt;&lt;/h2&gt;
+&lt;div id=&quot;resources&quot; class=&quot;block&quot; title=&quot;Resources&quot;&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Repo&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: https://github.com/lukstafi/ppx_minidebug&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Docs&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: https://lukstafi.github.io/ppx_minidebug/ppx_minidebug&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Design Doc&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: &lt;/span&gt;&lt;a href=&quot;./DESIGN.md&quot;&gt;&lt;span&gt;DESIGN.md&lt;/span&gt;&lt;/a&gt;&lt;span&gt; - TUI architecture explained&lt;/span&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;&lt;span&gt;Migration Guide&lt;/span&gt;&lt;/strong&gt;&lt;span&gt;: &lt;/span&gt;&lt;a href=&quot;./MIGRATION_3.0.md&quot;&gt;&lt;span&gt;MIGRATION_3.0.md&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;
 &lt;/div&gt;
-&lt;div id=&quot;questions&quot; center-at-unpause pause&gt;&lt;/div&gt;
-&lt;h2 id=&quot;questions&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#questions&quot;&gt;&lt;/a&gt;&lt;span&gt;Questions? &lt;/span&gt;&lt;span id=&quot;questions&quot;&gt;&lt;/span&gt;&lt;/h2&gt;
-&lt;div class=&quot;block&quot; title=&quot;Discussion Topics&quot;&gt;
+&lt;div down-at-unpause=quest pause&gt;&lt;/div&gt;
+&lt;h2 id=&quot;questions&quot;&gt;&lt;a class=&quot;anchor&quot; aria-hidden=&quot;true&quot; href=&quot;#questions&quot;&gt;&lt;/a&gt;&lt;span&gt;Questions?&lt;/span&gt;&lt;/h2&gt;
+&lt;div id=&quot;quest&quot; class=&quot;block&quot; title=&quot;Discussion Topics&quot;&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;span&gt;Use cases in your codebase?&lt;/span&gt;&lt;/li&gt;
 &lt;li&gt;&lt;span&gt;Specific query patterns needed?&lt;/span&gt;&lt;/li&gt;

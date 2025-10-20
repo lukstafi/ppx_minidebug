@@ -1,9 +1,9 @@
 # PPX_MINIDEBUG Development Guide
 
 ## Project Overview
-ppx_minidebug is an OCaml PPX extension for debug logging. It has two main components:
+ppx_minidebug is an OCaml PPX extension for debug logging. It has two main components -- the preprocessor and the runtime / backend:
 - **ppx_minidebug.ml**: The preprocessor that transforms annotated code (e.g., `let%debug_sexp foo`) into instrumented versions with logging calls
-- **minidebug_runtime.ml**: The legacy runtime library providing Flushing and PrintBox backends (deprecated in 3.0.0)
+- **minidebug_runtime.ml**: The runtime library providing the types and the legacy Flushing and PrintBox backends (deprecated in 3.0.0)
 - **minidebug_db.ml**: The database backend (3.0+ default) using SQLite with content-addressed value storage
 
 The preprocessor generates calls to `Debug_runtime.log_value_{sexp,pp,show}` which are provided by functors in the runtime.

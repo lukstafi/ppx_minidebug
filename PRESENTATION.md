@@ -30,7 +30,7 @@ let%debug_sexp rec fib (n : int) : int =
 
 ***
 
-{pause center #new-in-3}
+{pause center=new-in-3}
 
 ## What's New in 3.0 🚀 {#new-in-3}
 
@@ -41,9 +41,9 @@ let%debug_sexp rec fib (n : int) : int =
 >
 > **CLI tool** for querying and analysis
 
-### Architecture Highlights {#arch}
+{pause up}
+### Architecture Highlights
 
-{pause down}
 > **Schema Design**:
 > ```sql
 > -- Content-addressed value storage (deduplication)
@@ -55,28 +55,34 @@ let%debug_sexp rec fib (n : int) : int =
 > );
 > ```
 
-{pause up=arch}
+{pause up}
 ```sql
 -- Tree structure: scope parent relationships
 CREATE TABLE entry_parents (
   run_id INTEGER NOT NULL,
-  entry_id INTEGER NOT NULL,     -- Scope ID
-  parent_id INTEGER,              -- Parent scope (NULL for roots)
+  -- Scope ID:
+  entry_id INTEGER NOT NULL,
+  -- Parent scope (NULL for roots)
+  parent_id INTEGER,
   PRIMARY KEY (run_id, entry_id)
 );
 ```
 
-{pause down}
+{pause up}
 ```sql
--- Trace entries: composite key (run_id, entry_id, seq_id)
+-- Trace entries:
+-- composite key (run_id, entry_id, seq_id)
 CREATE TABLE entries (
   run_id INTEGER NOT NULL,
-  entry_id INTEGER NOT NULL,     -- Groups all rows for this scope
-  seq_id INTEGER NOT NULL,        -- Position in parent (0, 1, 2...)
-  header_entry_id INTEGER,        -- NULL for values; child scope for headers
+  -- Groups all rows for this scope
+  entry_id INTEGER NOT NULL,
+  -- Position in parent (0, 1, 2...)
+  seq_id INTEGER NOT NULL,
+  -- NULL for values; child scope for headers
+  header_entry_id INTEGER,
   depth INTEGER,
-  message_value_id INTEGER,       -- FK to value_atoms
-  data_value_id INTEGER,          -- FK to value_atoms
+  message_value_id INTEGER,  -- FK to value_atoms
+  data_value_id INTEGER,     -- FK to value_atoms
   elapsed_start_ns INTEGER,
   elapsed_end_ns INTEGER,
   PRIMARY KEY (run_id, entry_id, seq_id)
@@ -97,11 +103,12 @@ let _get_local_debug_runtime =
   fun () -> rt
 
 (* Use anywhere *)
-let%debug_sexp process (data : data_type) : result_type =
+let%debug_sexp process (data : t) : R.t =
   (* your code here *)
 
 let () =
   let result = process my_data in
+  (* optional *)
   Debug_runtime.finish_and_cleanup ()
 ```
 
@@ -111,7 +118,7 @@ let () =
 
 ***
 
-{pause center=#tui}
+{pause center=tui}
 
 ## Interactive Exploration {#tui}
 
@@ -121,7 +128,8 @@ minidebug_view trace.db tui
 ```
 
 {pause down}
-**Features**:
+> **Features**:
+>
 > `↑/↓` or `k/j`: Navigate tree
 >
 > `Enter`: Expand/collapse nodes
@@ -132,8 +140,9 @@ minidebug_view trace.db tui
 >
 > `q`: Quit
 
-{pause down}
-**Why TUI?**
+{pause center}
+> **Why TUI?**
+>
 > Works over SSH (no X forwarding)
 >
 > Zero dependencies (no Node.js, browsers)
@@ -165,49 +174,7 @@ minidebug_view trace.db stats
 
 ***
 
-{pause center #sql-queries}
-
-## Querying Traces with SQL {#sql-queries}
-
-### View root-level function calls
-```sql
-SELECT e.entry_id, m.value_content as function_name,
-       l.value_content as location
-FROM entries e
-JOIN value_atoms m ON e.message_value_id = m.value_id
-LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
-WHERE e.entry_id = 0 AND e.header_entry_id IS NOT NULL
-ORDER BY e.seq_id;
-```
-
-{pause}
-
-### View execution tree
-```sql
-SELECT e.entry_id, e.seq_id, e.header_entry_id, e.depth,
-       m.value_content as message,
-       d.value_content as value
-FROM entries e
-JOIN value_atoms m ON e.message_value_id = m.value_id
-LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
-WHERE e.run_id = 1
-ORDER BY e.entry_id, e.seq_id;
-```
-
-{pause}
-
-### Check deduplication efficiency
-```sql
-SELECT COUNT(*) as total_refs,
-       COUNT(DISTINCT value_hash) as unique_values,
-       ROUND(100.0 * (1 - COUNT(DISTINCT value_hash)*1.0/COUNT(*)), 1) as dedup_pct
-FROM value_atoms;
-```
-
-***
-
-{pause center #roadmap}
-
+{pause up}
 ## Roadmap {#roadmap}
 
 {.block title="Version 3.0 (Current Release)" #v3-0}
@@ -225,12 +192,10 @@ FROM value_atoms;
 >
 > ✅ **Sexp decomposition** (large sexps broken into navigable subtrees)
 >
-> 🔜 Regex search in TUI (in progress)
+> 🔜 Regex search in TUI with highlighting (TODO)
 
-{pause down #v3-1}
-
-{.block title="Version 3.1 (Next - ~6 weeks)" #v3-1}
-> 📅 Cross-run diff visualization
+{pause down .block title="Version 3.1 (Next - ~6 weeks)"}
+> 📅 Cross-run diff visualization (available in 2.x)
 >
 > 📅 State persistence (remember expanded nodes)
 >
@@ -238,47 +203,22 @@ FROM value_atoms;
 >
 > 📅 Export filtered views to files
 
-{pause down #v3-2}
-
-{.block title="Version 3.2 (Future - ~12 weeks)" #v3-2}
+{pause down .block title="Version 3.2 (Future - ~12 weeks)"}
 > 📅 Advanced deduplication (structural templates)
 >
-> 📅 Performance profiling views (flame graphs)
->
-> 📅 Search result highlighting in TUI
+> 📅 Flame graphs (static single-page available in 2.x)
 
 ***
 
-{pause center #migration}
-
-## Migration from 2.4.x {#migration}
-
-**Old way** (static HTML generation):
-```ocaml
-module Debug_runtime = Minidebug_runtime.PrintBox (
-  (val Minidebug_runtime.debug_file ~backend:(`Html _) "trace")
-)
-```
-
-{pause}
-
-**New way** (database):
-```ocaml
-module Debug_runtime =
-  (val Minidebug_db.debug_db_file "trace")
-```
-
-{pause}
-
-**For users needing static HTML**: Use 2.4.x branch (maintained for bug fixes)
+{pause down .remark title="OCaml 4 -> 2.2.x"}
+**For users needing OCaml 4**: Use 2.2.x branch (maintained for bug fixes)
 
 ***
 
-{pause center #why-try}
+{pause up}
+## Why OCamlers Should Try This
 
-## Why OCamlers Should Try This {#why-try}
-
-### Compared to Printf Debugging {#vs-printf}
+### Compared to Printf Debugging
 ```ocaml
 (* Before: Manual prints everywhere *)
 let process data =
@@ -291,19 +231,22 @@ let process data =
 {pause}
 
 ```ocaml
-(* After: Just add %debug_sexp *)
-let%debug_sexp process data =
-  let result = compute data in
-  result
+(* After: Add %debug_sexp and type annotations *)
+let%debug_sexp process (data : data) : result =
+  let not_logged = prepare data in
+  let x : intermediate = compute not_logged in
+  postprocess x
 ```
 
 {pause}
 
-**Advantage**: Zero manual work, automatic tree structure, no cleanup needed
+**Advantage**: Less manual work, automatic tree structure, no cleanup needed
 
-{pause down #vs-ocamldebug}
+{pause down=vs-ocamldebug}
 
-### Compared to ocamldebug {#vs-ocamldebug}
+### Compared to ocamldebug
+
+{.block #vs-ocamldebug}
 > **No recompilation**: Works with existing bytecode/native
 >
 > **Production-safe**: Enable/disable at runtime via log levels
@@ -312,9 +255,11 @@ let%debug_sexp process data =
 >
 > **Complex data**: Automatic sexp serialization of any type
 
-{pause down #vs-landmarks}
+{pause down=vs-landmarks}
 
-### Compared to Landmarks/Statmemprof {#vs-landmarks}
+### Compared to Landmarks/Statmemprof
+
+{.block #vs-landmarks}
 > **Full execution trace**: Not just hotspots, but complete flow
 >
 > **Data values**: See actual data, not just function names
@@ -323,9 +268,11 @@ let%debug_sexp process data =
 >
 > **Zero configuration**: No need to annotate call sites
 
-{pause down #for-dev}
+{pause down=for-dev}
 
-### For Development {#for-dev}
+### For Development
+
+{.block #for-dev}
 > **Fast debugging**: See complete execution flow without manual prints
 >
 > **Type-safe**: Uses ppx_sexp_conv, show, or pp - picks the right one
@@ -334,9 +281,11 @@ let%debug_sexp process data =
 >
 > **Interactive exploration**: TUI beats scrolling through text files
 
-{pause down #for-prod}
+{pause down=for-prod}
 
-### For Production {#for-prod}
+### For Production
+
+{.block #for-prod}
 > **Crash-safe**: WAL mode, instant writes (no buffering)
 >
 > **Space efficient**: 60-80% deduplication on real workloads
@@ -347,9 +296,11 @@ let%debug_sexp process data =
 >
 > **Thread-safe**: Multiple threads can write to same database
 
-{pause down #for-analysis}
+{pause down=analys}
 
-### For Analysis {#for-analysis}
+### For Analysis
+
+{.block #analys}
 > **SQL queries**: Find hot paths, analyze value distributions
 >
 > **Performance profiling**: Elapsed time per entry with nanosecond precision
@@ -360,77 +311,11 @@ let%debug_sexp process data =
 
 ***
 
-{pause center #demo}
-
-## Live Demo {#demo}
-
-**Demo code** (test/test_programmatic_log_entry.ml):
-```ocaml
-let _get_local_debug_runtime =
-  let rt = Minidebug_db.debug_db_file "demo" in
-  fun () -> rt
-
-let%debug_sexp process_data items =
-  List.map (fun x -> x * 2) items
-
-let () =
-  let result = process_data [1; 2; 3] in
-  Printf.printf "Result: %s\n" ([%sexp_of: int list] result |> Sexp.to_string);
-  Debug_runtime.finish_and_cleanup ()
-```
-
-{pause}
-
-**Results**:
-```bash
-$ dune exec test/test_programmatic_log_entry.exe
-Result: (2 4 6)
-```
-
-{pause}
-
-```bash
-$ minidebug_view demo.db show
-Run #1
-Timestamp: 2025-10-11 07:10:55
-Command: test_programmatic_log_entry.exe
-Elapsed: 9.72ms
-
-[diagn] _logging_logic @ test/test_programmatic_log_entry.ml:8:17-8:31
-  "preamble"
-  [diagn] header 1 @ :0:0-0:0
-    "log 1"
-    ...
-```
-
-{pause}
-
-```bash
-$ minidebug_view demo.db tui
-# Interactive TUI launches - navigate with arrows!
-```
-
-{pause}
-
-```bash
-$ minidebug_view demo.db stats
-Database Statistics
-===================
-Total entries: 15
-Total value references: 42
-Unique values: 18
-Deduplication: 57.1%
-Database size: 52 KB
-```
-
-***
-
-{pause center #quick-start}
-
+{pause up}
 ## Quick Start (60 seconds) {#quick-start}
 
 ```bash
-# 1. Install (one command)
+# 1. Install (one command) -- for 3.0
 opam pin ppx_minidebug https://github.com/lukstafi/ppx_minidebug.git
 ```
 
@@ -447,29 +332,28 @@ opam pin ppx_minidebug https://github.com/lukstafi/ppx_minidebug.git
 {pause}
 
 ```ocaml
-# 3. Add to your code (2 lines)
+# 3. Add to your code
 let _get_local_debug_runtime =
-  let rt = Minidebug_db.debug_db_file "trace" in fun () -> rt
+  let rt = Minidebug_db.debug_db_file "trace" in
+  fun () -> rt
 
-let%debug_sexp my_function x = (* your code *)
+let%debug_sexp my_function (x : t) : R.t =
+  (* your code *)
 ```
 
-{pause}
-
+{pause down}
 ```bash
 # 4. Run and explore
 ./my_program.exe
 minidebug_view trace.db tui
 ```
 
-{pause}
-
+{pause down}
 That's it! No configuration files, no build system changes, just works.
 
 ***
 
-{pause center #install}
-
+{pause center}
 ## Installation {#install}
 
 ```bash
@@ -486,8 +370,7 @@ opam pin ppx_minidebug https://github.com/lukstafi/ppx_minidebug.git
 
 ***
 
-{pause center #takeaways}
-
+{pause up}
 ## Key Takeaways {#takeaways}
 
 {.block title="Key Takeaways"}
@@ -505,11 +388,11 @@ opam pin ppx_minidebug https://github.com/lukstafi/ppx_minidebug.git
 
 ***
 
-{pause center #links}
+{pause down=resources}
 
-## Links {#links}
+## Links
 
-{.block title="Resources"}
+{.block title="Resources" #resources}
 > **Repo**: https://github.com/lukstafi/ppx_minidebug
 >
 > **Docs**: https://lukstafi.github.io/ppx_minidebug/ppx_minidebug
@@ -518,11 +401,11 @@ opam pin ppx_minidebug https://github.com/lukstafi/ppx_minidebug.git
 >
 > **Migration Guide**: [MIGRATION_3.0.md](./MIGRATION_3.0.md)
 
-{pause center #questions}
+{pause down=quest}
 
-## Questions? {#questions}
+## Questions?
 
-{.block title="Discussion Topics"}
+{.block title="Discussion Topics" #quest}
 > - Use cases in your codebase?
 > - Specific query patterns needed?
 > - TUI workflow feedback?
