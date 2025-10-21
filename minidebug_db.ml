@@ -108,15 +108,15 @@ module Schema = struct
          schema_version)
     |> ignore;
 
-    (* Fast mode: optimize for single-writer performance, no concurrent readers.
+    (* Fast mode: optimize for performance with top-level transactions.
        - DELETE journal: simpler than WAL, lower overhead
        - synchronous=OFF: no fsync calls (trades durability for speed)
-       - locking_mode=EXCLUSIVE: no lock overhead
-       This gives ~100x speedup over autocommit with synchronous=NORMAL.
-       Trade-off: TUI cannot read database while runtime is writing. *)
+       - locking_mode=NORMAL: allows lock release on COMMIT (between top-level scopes)
+
+       Each top-level scope is wrapped in BEGIN...COMMIT, giving transaction
+       performance while allowing database access between top-level calls. *)
     Sqlite3.exec db "PRAGMA journal_mode=DELETE" |> ignore;
-    Sqlite3.exec db "PRAGMA synchronous=OFF" |> ignore;
-    Sqlite3.exec db "PRAGMA locking_mode=EXCLUSIVE" |> ignore
+    Sqlite3.exec db "PRAGMA synchronous=OFF" |> ignore
 end
 
 (** Content-addressed value storage with O(1) deduplication *)
@@ -199,6 +199,11 @@ module type Db_config = sig
   include Minidebug_runtime.Shared_config
 end
 
+(** Global counter for versioning database files.
+    Each runtime instance gets a unique run number to prevent conflicts.
+    This is process-global, shared across all DatabaseBackend functor instances. *)
+let global_run_counter = Atomic.make 0
+
 (** Database backend implementing Debug_runtime interface *)
 module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = struct
   open Log_to
@@ -241,13 +246,20 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     ref [] (* Per-entry_id counters for orphaned logs: (entry_id * seq_counter) list *)
 
   (** Initialize database connection *)
-  let initialize_database filename =
-    (* In Fast mode (locking_mode=EXCLUSIVE), fail if database already exists.
-       This prevents hanging when multiple runtimes try to write to same DB. *)
-    if Sys.file_exists filename then
-      failwith (Printf.sprintf
-        "Database file '%s' already exists. In Fast mode, each runtime needs a unique database file.\n\
-         Either delete the existing file or use a different filename." filename);
+  let initialize_database base_filename =
+    (* Get unique run number from global counter - ensures no conflicts between
+       multiple runtime instances in the same process or across processes. *)
+    let run_number = Atomic.fetch_and_add global_run_counter 1 + 1 in
+
+    (* Version the filename with run number: debug.db -> debug_1.db, debug_2.db, etc. *)
+    let filename =
+      let base = Filename.remove_extension base_filename in
+      let ext = Filename.extension base_filename in
+      Printf.sprintf "%s_%d%s" base run_number ext
+    in
+
+    (* Delete existing file if present (safe because we have a unique run_number) *)
+    if Sys.file_exists filename then Sys.remove filename;
 
     let db_handle = Sqlite3.db_open filename in
     Sqlite3.busy_timeout db_handle 5000;
@@ -255,6 +267,13 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     Schema.initialize_db db_handle;
     db := Some db_handle;
     db_path := Some filename;
+
+    (* Create/update symlink from base filename to versioned file for convenience.
+       This allows tools to reference the base name (debug.db) and get the latest run. *)
+    (try
+      if Sys.file_exists base_filename then Sys.remove base_filename;
+      Unix.symlink (Filename.basename filename) base_filename
+    with _ -> ());
 
     (* Create value interning context *)
     intern := Some (ValueIntern.create db_handle);
@@ -337,12 +356,23 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
   let get_intern () = Option.get !intern
   let check_log_level level = level <= !log_level
 
-  (** Start transaction on first log entry to avoid autocommit overhead *)
-  let ensure_transaction_started () =
+  (** Start transaction when entering a top-level scope.
+      This is called from open_log when stack is empty. *)
+  let begin_toplevel_transaction () =
     if not !transaction_started then (
       let db = get_db () in
       Sqlite3.exec db "BEGIN TRANSACTION" |> ignore;
       transaction_started := true
+    )
+
+  (** Commit transaction when leaving a top-level scope.
+      This is called from close_log when stack becomes empty.
+      This unlocks the database so other processes can read it. *)
+  let commit_toplevel_transaction () =
+    if !transaction_started then (
+      let db = get_db () in
+      Sqlite3.exec db "COMMIT" |> ignore;
+      transaction_started := false
     )
 
   let should_log_path fname message =
@@ -359,13 +389,14 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     if not (should_log ~log_level ~fname ~message) then
       hidden_entries := entry_id :: !hidden_entries
     else (
-      ensure_transaction_started ();
       let db = get_db () in
       let run_id = get_run_id () in
       let intern = get_intern () in
       let parent_entry_id, seq_id =
         match !stack with
         | [] ->
+            (* Entering top-level scope - start transaction *)
+            begin_toplevel_transaction ();
             let seq = !root_seq_counter in
             incr root_seq_counter;
             (None, seq)
@@ -1066,7 +1097,10 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
         | None -> ());
 
         stack := rest;
-        hidden_entries := List.filter (( <> ) entry_id) !hidden_entries
+        hidden_entries := List.filter (( <> ) entry_id) !hidden_entries;
+
+        (* If stack is now empty, we're leaving a top-level scope - commit transaction *)
+        if rest = [] then commit_toplevel_transaction ()
     | _ -> ()
 
   let exceeds_max_nesting () =
