@@ -478,20 +478,25 @@ module Query = struct
       with _ -> ()
     in
 
-    try
-      Printexc.record_backtrace true;
-      log_error (Printf.sprintf "Starting search for '%s', quiet_path=%s" search_term
-        (match quiet_path with Some q -> "'" ^ q ^ "'" | None -> "None"));
+    Printexc.record_backtrace true;
+    log_error (Printf.sprintf "Starting search for '%s', quiet_path=%s" search_term
+      (match quiet_path with Some q -> "'" ^ q ^ "'" | None -> "None"));
 
-      (* Open a new database connection for this Domain *)
-      log_error (Printf.sprintf "Opening database: %s" db_path);
-      let db = Sqlite3.db_open db_path in
-      log_error "Database opened successfully";
+    (* Open a new database connection for this Domain *)
+    log_error (Printf.sprintf "Opening database: %s" db_path);
+    let db = Sqlite3.db_open db_path in
+    log_error "Database opened successfully";
+
+    try
 
       (* First clear the table for this run *)
       log_error "Clearing search table...";
       clear_search_table db ~run_id ~slot;
       log_error "Cleared search table";
+
+      (* Start a transaction for better performance and atomicity *)
+      Sqlite3.exec db "BEGIN TRANSACTION" |> ignore;
+      log_error "Started transaction";
 
       (* Stream entries instead of loading all into memory (DB is huge!) *)
       log_error "Streaming entries and searching...";
@@ -658,6 +663,14 @@ module Query = struct
     Sqlite3.finalize insert_stmt |> ignore;
     log_error "Finalized statement";
 
+      (* Commit the transaction to make results visible to other connections *)
+      Sqlite3.exec db "COMMIT" |> ignore;
+      log_error "Committed transaction";
+
+      (* Checkpoint the WAL to prevent it from growing unbounded *)
+      Sqlite3.exec db "PRAGMA wal_checkpoint(TRUNCATE)" |> ignore;
+      log_error "Checkpointed WAL";
+
       (* Close the database connection *)
       Sqlite3.db_close db |> ignore;
 
@@ -667,6 +680,8 @@ module Query = struct
       completed_ref := true
     with exn ->
       log_error (Printf.sprintf "ERROR: %s\n%s" (Printexc.to_string exn) (Printexc.get_backtrace ()));
+      (* Rollback transaction on error *)
+      (try Sqlite3.exec db "ROLLBACK" |> ignore with _ -> ());
       (* Still mark as completed even on error *)
       completed_ref := true
 
