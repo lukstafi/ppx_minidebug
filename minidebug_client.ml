@@ -536,13 +536,46 @@ module Query = struct
       let matches_to_propagate = ref [] in
       let processed_count = ref 0 in
       let match_count = ref 0 in
+      let propagated = Hashtbl.create 64 in  (* Track propagated ancestors to avoid duplicates *)
+      let propagation_count = ref 0 in
+
+      (* Helper to propagate highlights to ancestors incrementally *)
+      let propagate_batch () =
+        List.iter (fun entry ->
+          let this_entry_id =
+            match entry.header_entry_id with
+            | Some hid -> hid
+            | None -> entry.entry_id
+          in
+
+          let rec propagate_to_parent current_entry_id =
+            match get_parent_id db ~run_id ~entry_id:current_entry_id with
+            | None -> ()
+            | Some parent_id ->
+                if not (Hashtbl.mem propagated parent_id) then (
+                  Hashtbl.add propagated parent_id ();
+                  match Hashtbl.find_opt scope_by_id parent_id with
+                  | Some parent_entry when not (matches_quiet_path parent_entry) ->
+                      insert_entry parent_entry;
+                      incr propagation_count;
+                      propagate_to_parent parent_id
+                  | _ -> ()
+                )
+          in
+          propagate_to_parent this_entry_id
+        ) !matches_to_propagate;
+        matches_to_propagate := []  (* Clear the batch after propagation *)
+      in
 
       let rec process_rows () =
         match Sqlite3.step query_stmt with
         | Sqlite3.Rc.ROW ->
             incr processed_count;
-            if !processed_count mod 100000 = 0 then
+            if !processed_count mod 100000 = 0 then (
               log_error (Printf.sprintf "Processed %d entries, found %d matches" !processed_count !match_count);
+              (* Propagate ancestors for matches found so far *)
+              propagate_batch ()
+            );
 
             let entry = {
               entry_id = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 0);
@@ -596,44 +629,9 @@ module Query = struct
       log_error (Printf.sprintf "Streaming complete. Processed %d entries, found %d matches, %d scopes"
                    !processed_count !match_count (Hashtbl.length scope_by_id));
 
-    (* Propagate highlights to ancestors *)
-    let propagated = Hashtbl.create 64 in  (* Track which entries we've already propagated to avoid duplicates *)
-    let propagation_count = ref 0 in
-    List.iter (fun entry ->
-      (* Determine this entry's ID for looking up in entry_parents:
-         - For scopes: use header_entry_id (the scope's own ID)
-         - For values: use entry_id (their parent scope ID) *)
-      let this_entry_id =
-        match entry.header_entry_id with
-        | Some hid -> hid  (* This is a scope *)
-        | None -> entry.entry_id  (* This is a value, use its parent scope *)
-      in
-
-      let rec propagate_to_parent current_entry_id =
-        match get_parent_id db ~run_id ~entry_id:current_entry_id with
-        | None -> ()  (* Reached root *)
-        | Some parent_id ->
-            (* Skip if already propagated to this parent *)
-            if not (Hashtbl.mem propagated parent_id) then (
-              Hashtbl.add propagated parent_id ();
-
-              (* Find the parent entry using hash table (O(1) instead of O(n)) *)
-              match Hashtbl.find_opt scope_by_id parent_id with
-              | Some parent_entry ->
-                  (* Check if parent matches quiet_path - if so, stop propagation *)
-                  if not (matches_quiet_path parent_entry) then (
-                    insert_entry parent_entry;
-                    incr propagation_count;
-                    propagate_to_parent parent_id
-                  )
-              | None -> ()
-            )
-      in
-      (* Start propagation from this entry's parent *)
-      propagate_to_parent this_entry_id
-    ) !matches_to_propagate;
-
-    log_error (Printf.sprintf "Propagation complete. Direct: %d, Ancestors: %d" (List.length !matches_to_propagate) !propagation_count);
+      (* Propagate any remaining matches *)
+      propagate_batch ();
+      log_error (Printf.sprintf "Propagation complete. Total ancestors highlighted: %d" !propagation_count);
 
       (* Close the database connection *)
       Sqlite3.db_close db |> ignore;
