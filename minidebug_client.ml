@@ -469,11 +469,12 @@ module Query = struct
       Sets completed_ref to true when finished.
       Propagates highlights to ancestors unless quiet_path matches. *)
   let populate_search_results db_path ~run_id ~slot ~search_term ~quiet_path ~completed_ref =
-    (* Open a new database connection for this Domain *)
-    let db = Sqlite3.db_open db_path in
+    try
+      (* Open a new database connection for this Domain *)
+      let db = Sqlite3.db_open db_path in
 
-    (* First clear the table for this run *)
-    clear_search_table db ~run_id ~slot;
+      (* First clear the table for this run *)
+      clear_search_table db ~run_id ~slot;
 
     (* Get all entries for this run *)
     let entries = get_entries db ~run_id () in
@@ -578,11 +579,16 @@ module Query = struct
 
     Sqlite3.finalize stmt |> ignore;
 
-    (* Close the database connection *)
-    Sqlite3.db_close db |> ignore;
+      (* Close the database connection *)
+      Sqlite3.db_close db |> ignore;
 
-    (* Signal completion via shared memory *)
-    completed_ref := true
+      (* Signal completion via shared memory *)
+      completed_ref := true
+    with exn ->
+      Printf.eprintf "Error in search Domain (slot %d): %s\n%!" slot (Printexc.to_string exn);
+      Printexc.print_backtrace stderr;
+      (* Still mark as completed even on error *)
+      completed_ref := true
 
   (** Check if an entry matches any active search (returns slot number 1-4, or None).
       Checks slots in reverse chronological order to prioritize more recent searches.
