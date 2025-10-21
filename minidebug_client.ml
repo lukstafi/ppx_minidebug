@@ -487,25 +487,29 @@ module Query = struct
       (* Stream entries instead of loading all into memory (DB is huge!) *)
       log_error "Streaming entries and searching...";
 
-      (* Helper to check if haystack contains needle as substring *)
-      let contains_substring haystack needle =
+      (* Compile regexes once for efficiency *)
+      let search_regex = Re.Str.regexp_string search_term in
+      let quiet_path_regex = Option.map Re.Str.regexp_string quiet_path in
+
+      (* Helper to check if haystack contains needle using pre-compiled regex *)
+      let contains_match haystack regex =
         try
-          let _ = Re.Str.search_forward (Re.Str.regexp_string needle) haystack 0 in
+          let _ = Re.Str.search_forward regex haystack 0 in
           true
         with Not_found -> false
       in
 
       (* Helper to check if entry matches quiet_path *)
       let matches_quiet_path entry =
-        match quiet_path with
+        match quiet_path_regex with
         | None -> false
-        | Some qp ->
-            contains_substring entry.message qp
+        | Some qp_regex ->
+            contains_match entry.message qp_regex
             || (match entry.location with
-                | Some loc -> contains_substring loc qp
+                | Some loc -> contains_match loc qp_regex
                 | None -> false)
             || (match entry.data with
-                | Some d -> contains_substring d qp
+                | Some d -> contains_match d qp_regex
                 | None -> false)
       in
 
@@ -563,14 +567,14 @@ module Query = struct
             | Some hid -> Hashtbl.add scope_by_id hid entry
             | None -> ());
 
-            (* Check if it matches the search term *)
+            (* Check if it matches the search term using pre-compiled regex *)
             let matches =
-              contains_substring entry.message search_term
+              contains_match entry.message search_regex
               || (match entry.location with
-                  | Some loc -> contains_substring loc search_term
+                  | Some loc -> contains_match loc search_regex
                   | None -> false)
               || (match entry.data with
-                  | Some d -> contains_substring d search_term
+                  | Some d -> contains_match d search_regex
                   | None -> false)
             in
 
