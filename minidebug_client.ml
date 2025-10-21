@@ -224,6 +224,21 @@ module Query = struct
         || match entry.data with Some d -> Re.execp re d | None -> false)
       entries
 
+  (** Get maximum entry_id for a run *)
+  let get_max_entry_id db ~run_id =
+    let stmt = Sqlite3.prepare db "SELECT MAX(entry_id) FROM entries WHERE run_id = ?" in
+    Sqlite3.bind_int stmt 1 run_id |> ignore;
+    let max_id =
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW -> (
+          match Sqlite3.column stmt 0 with
+          | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+          | _ -> None)
+      | _ -> None
+    in
+    Sqlite3.finalize stmt |> ignore;
+    Option.value ~default:0 max_id
+
   (** Get only root entries efficiently - roots are those with entry_id=0 *)
   let get_root_entries db ~run_id ~with_values =
     let query =
@@ -341,6 +356,31 @@ module Query = struct
     in
     Sqlite3.finalize stmt |> ignore;
     has_child
+
+  (** Get parent entry_id for a given entry *)
+  let get_parent_id db ~run_id ~entry_id =
+    let query =
+      {|
+      SELECT parent_id
+      FROM entry_parents
+      WHERE run_id = ? AND entry_id = ?
+    |}
+    in
+    let stmt = Sqlite3.prepare db query in
+    Sqlite3.bind_int stmt 1 run_id |> ignore;
+    Sqlite3.bind_int stmt 2 entry_id |> ignore;
+
+    let parent_id =
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW -> (
+          match Sqlite3.column stmt 0 with
+          | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+          | Sqlite3.Data.NULL -> None
+          | _ -> None)
+      | _ -> None
+    in
+    Sqlite3.finalize stmt |> ignore;
+    parent_id
 
   let get_scope_children db ~run_id ~parent_entry_id =
     let query =
@@ -720,6 +760,7 @@ module Interactive = struct
     visible_items : visible_item array; (* Flattened view of tree *)
     show_times : bool;
     values_first : bool;
+    max_entry_id : int; (* Maximum entry_id in this run *)
   }
 
   and visible_item = {
@@ -728,6 +769,17 @@ module Interactive = struct
     is_expandable : bool;
     is_expanded : bool;
   }
+
+  (** Find closest ancestor with positive ID by walking up the tree *)
+  let rec find_positive_ancestor_id db run_id entry_id =
+    (* Base case: if this entry_id is positive, return it *)
+    if entry_id >= 0 then
+      Some entry_id
+    else
+      (* Negative entry_id - walk up to parent *)
+      match Query.get_parent_id db ~run_id ~entry_id with
+      | Some parent_id -> find_positive_ancestor_id db run_id parent_id
+      | None -> None  (* No parent found *)
 
   (** Build visible items list from database using lazy loading *)
   let build_visible_items db run_id expanded =
@@ -769,8 +821,25 @@ module Interactive = struct
     Array.of_list items
 
   (** Render a single line *)
-  let render_line ~width ~is_selected ~show_times item =
+  let render_line ~width ~is_selected ~show_times ~margin_width item =
     let entry = item.entry in
+
+    (* Entry ID margin - use header_entry_id for scopes, entry_id for values *)
+    (* Don't display negative IDs (used for boxified/decomposed values) *)
+    let display_id =
+      match entry.header_entry_id with
+      | Some hid when hid >= 0 -> Some hid  (* This is a scope/header - show its actual scope ID *)
+      | Some _ -> None  (* Negative header_entry_id - hide it *)
+      | None when entry.entry_id >= 0 -> Some entry.entry_id  (* This is a value - show its parent scope ID *)
+      | None -> None  (* Negative entry_id - hide it *)
+    in
+    let entry_id_str =
+      match display_id with
+      | Some id -> Printf.sprintf "%*d │ " margin_width id
+      | None -> String.make (margin_width + 3) ' '  (* Blank margin: spaces + " │ " *)
+    in
+    let content_width = width - String.length entry_id_str in
+
     let indent = String.make (item.indent_level * 2) ' ' in
 
     (* Expansion indicator *)
@@ -811,14 +880,15 @@ module Interactive = struct
 
     let full_text = content ^ time_str in
     let truncated =
-      if String.length full_text > width then
-        String.sub full_text 0 (width - 3) ^ "..."
+      if String.length full_text > content_width then
+        String.sub full_text 0 (content_width - 3) ^ "..."
       else
         full_text
     in
 
     let attr = if is_selected then A.(bg lightblue ++ fg black) else A.empty in
-    I.string attr truncated
+    let margin_attr = if is_selected then A.(bg lightblue ++ fg black) else A.(fg yellow) in
+    I.hcat [ I.string margin_attr entry_id_str; I.string attr truncated ]
 
   (** Render the full screen *)
   let render_screen state term_height term_width =
@@ -826,15 +896,42 @@ module Interactive = struct
     let footer_height = 2 in
     let content_height = term_height - header_height - footer_height in
 
+    (* Calculate margin width based on max_entry_id *)
+    let margin_width = String.length (string_of_int state.max_entry_id) in
+
+    (* Calculate progress indicator - find closest ancestor with positive ID *)
+    let current_entry_id =
+      if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
+        let entry = state.visible_items.(state.cursor).entry in
+        (* For scopes, use header_entry_id; for values, use entry_id *)
+        let id_to_check =
+          match entry.header_entry_id with
+          | Some hid -> hid
+          | None -> entry.entry_id
+        in
+        match find_positive_ancestor_id state.db state.run_id id_to_check with
+        | Some id -> id
+        | None -> 0
+      else 0
+    in
+    let progress_pct =
+      if state.max_entry_id > 0 then
+        float_of_int current_entry_id /. float_of_int state.max_entry_id *. 100.0
+      else 0.0
+    in
+
     (* Header *)
     let header =
       I.vcat [
         I.string A.(fg lightcyan)
-          (Printf.sprintf "Run #%d | Items: %d | Times: %s | Values First: %s"
+          (Printf.sprintf "Run #%d | Items: %d | Times: %s | Values First: %s | Entry: %d/%d (%.1f%%)"
             state.run_id
             (Array.length state.visible_items)
             (if state.show_times then "ON" else "OFF")
-            (if state.values_first then "ON" else "OFF"));
+            (if state.values_first then "ON" else "OFF")
+            current_entry_id
+            state.max_entry_id
+            progress_pct);
         I.string A.(fg white) (String.make term_width '-');
       ]
     in
@@ -847,7 +944,7 @@ module Interactive = struct
     for i = visible_start to visible_end - 1 do
       let is_selected = i = state.cursor in
       let item = state.visible_items.(i) in
-      let line = render_line ~width:term_width ~is_selected ~show_times:state.show_times item in
+      let line = render_line ~width:term_width ~is_selected ~show_times:state.show_times ~margin_width item in
       content_lines := line :: !content_lines
     done;
 
@@ -929,6 +1026,7 @@ module Interactive = struct
   let run db run_id =
     let expanded = Hashtbl.create 64 in
     let visible_items = build_visible_items db run_id expanded in
+    let max_entry_id = Query.get_max_entry_id db ~run_id in
 
     let initial_state = {
       db;
@@ -939,6 +1037,7 @@ module Interactive = struct
       visible_items;
       show_times = true;
       values_first = true;
+      max_entry_id;
     } in
 
     let term = Term.create () in
