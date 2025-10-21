@@ -8,7 +8,9 @@ The database backend (`minidebug_db.ml`) provides:
 - SQLite-based trace storage with content-addressed deduplication
 - Automatic value interning for space efficiency
 - Same Debug_runtime interface as existing backends
-- Schema designed for future GUI client integration
+- Fast mode: top-level transactions for ~100x write performance improvement
+- File versioning: each runtime instance gets unique database file
+- Schema designed for interactive TUI and future GUI client integration
 
 ## Usage
 
@@ -33,7 +35,14 @@ let () =
   Debug_runtime.finish_and_cleanup ()
 ```
 
-This creates a database file `trace.db` with all trace information.
+This creates versioned database files with automatic file management:
+- First runtime instance: `trace_1.db`
+- Second runtime instance: `trace_2.db`
+- Symlink `trace.db` → latest versioned file
+
+This prevents conflicts when multiple runtime instances exist in the same process.
+
+**Note on `finish_and_cleanup()`:** This call is optional in Fast mode. The database backend registers `at_exit` handlers and signal handlers (SIGINT, SIGTERM) to automatically commit any pending transaction before process termination. However, calling `finish_and_cleanup()` explicitly ensures the database is committed immediately and is recommended for long-running processes.
 
 ### Factory Functions
 
@@ -94,7 +103,9 @@ val debug_db :
 **entries** - Trace entries (composite key allows chronological ordering of children)
 - `run_id`: Foreign key to runs table
 - `entry_id`: Parent scope ID (all children of a scope share the same entry_id)
-- `seq_id`: Chronological position within parent's children (0, 1, 2...)
+- `seq_id`: Chronological position within parent's children
+  - `seq_id >= 0`: Regular entries (0, 1, 2...) created by `log_value_*` and `open_log`
+  - `seq_id < 0`: Synthetic entries created by `boxify` during sexp decomposition
 - `header_entry_id`: Discriminates row type:
   - `NULL` = value row (parameter or result)
   - Non-NULL = header row opening a new scope (points to new scope's entry_id)
@@ -137,11 +148,20 @@ Rendered as:
 **schema_version** - Schema version tracking
 - `version`: Current schema version
 
+**search_results_1..4** - Cached search results (4 slots for concurrent searches)
+- `run_id`: Foreign key to runs table
+- `entry_id`: Entry identifier matching search pattern
+- `seq_id`: Sequence ID within entry
+- `search_term`: The search pattern that matched
+
+Each search slot persists results in the database, enabling instant restore on TUI restart and concurrent search with different highlight colors.
+
 ### Indexes
 
 - `idx_value_hash`: Hash index on `value_atoms(value_hash)` for O(1) deduplication
-- `idx_entries_parent`: Index on `entries(run_id, parent_id)` for tree traversal
+- `idx_entries_header`: Index on `entries(run_id, header_entry_id)` for finding scope headers
 - `idx_entries_depth`: Index on `entries(run_id, depth)` for depth queries
+- `idx_search_results_N_lookup`: Index on `search_results_N(run_id, entry_id, seq_id)` for O(1) search result lookup (N=1..4)
 
 ## Deduplication Strategy
 
@@ -159,6 +179,26 @@ For Fibonacci sequence:
 - Location `test.ml:10:15-12:20` → stored once for all calls from that location
 - Message `fib` → stored once for all recursive calls
 
+## Large Value Decomposition (Boxify)
+
+When a sexp value exceeds a threshold size (default: 10 atoms), the database backend automatically decomposes it into multiple entries for better navigation:
+
+**Indentation-based parsing:**
+- Multi-line pretty-printed sexps are parsed by indentation
+- Each indented level becomes a separate scope with nested structure
+- Values at the same indentation level are siblings
+
+**Synthetic entries:**
+- Boxified entries use negative `seq_id` values (e.g., -1, -2, -3...)
+- Each decomposed scope gets a synthetic `entry_id` from a negative counter
+- Synthetic entries properly nest to preserve structure
+
+**Benefits:**
+- Large data structures remain navigable in the TUI
+- Tree structure matches visual indentation
+- Each level can be expanded/collapsed independently
+- Preserves all structural information from original sexp
+
 ## Viewing Traces
 
 ### Using the minidebug_view CLI Tool
@@ -175,7 +215,10 @@ minidebug_view trace.db show --entry-ids --times
 # Show compact view (function names only)
 minidebug_view trace.db compact
 
-# Search for entries matching pattern
+# Launch interactive TUI (Text User Interface)
+minidebug_view trace.db tui
+
+# Search for entries matching pattern (CLI)
 minidebug_view trace.db search "fib"
 
 # Export to markdown
@@ -198,6 +241,31 @@ calculate <471.58μs>
   sum <133.58μs>
   product <139.79μs>
 ```
+
+### Interactive TUI Features
+
+The TUI mode provides an interactive terminal interface with:
+
+**Navigation:**
+- Arrow keys / j/k: Move up/down through entries
+- PageUp/PageDown: Jump by screen height
+- Space: Toggle expand/collapse for current entry
+- Home/End: Jump to first/last entry
+
+**Search:**
+- `/`: Enter search mode
+- Type pattern and press Enter to search
+- `n`: Jump to next search result
+- `N`: Jump to previous search result
+- Search runs concurrently in background Domain
+- Matched entries highlighted with path to root
+- Auto-expand entries to show search results
+
+**Display:**
+- Entry IDs shown in left margin for reference
+- Elapsed times displayed when available
+- Progress indicator for ongoing searches
+- Search results persisted in database for instant restore on TUI restart
 
 ### Direct SQL Queries
 
@@ -277,20 +345,71 @@ For real-world OCANNL traces (471 MB HTML):
 - Lazy thunks: 99.6% deduplication rate (2.9M occurrences → 1 storage)
 - Environment values: 99.7% deduplication rate
 
+### Write Performance (Fast Mode)
+
+ppx_minidebug 3.0+ uses optimized "Fast mode" for database writes:
+
+**Configuration:**
+- `journal_mode=DELETE`: Simpler than WAL, lower overhead
+- `synchronous=OFF`: No fsync calls (trades durability for speed)
+- `locking_mode=NORMAL`: Allows lock release on COMMIT
+
+**Transaction Strategy:**
+- `BEGIN TRANSACTION` when entering top-level scope (when stack is empty)
+- `COMMIT` when leaving top-level scope (when stack becomes empty)
+- Database unlocked between top-level function calls for concurrent access
+
+**File Versioning:**
+- Each runtime instance gets unique run number from global atomic counter
+- Database files versioned: `debug.db` → `debug_1.db`, `debug_2.db`, etc.
+- Symlink from base name to latest versioned file for convenience
+- Prevents conflicts between multiple runtimes in same process
+
+**Performance Impact:**
+- ~100x faster than autocommit within each trace
+- Single transaction per top-level function eliminates per-log fsync overhead
+- Database accessible for reading between top-level function calls
+
+**Safety:**
+- `at_exit` handler ensures COMMIT on normal exit
+- Signal handlers (SIGINT, SIGTERM) commit before process termination
+- Each runtime instance writes to separate versioned file (no conflicts)
+
+**Concurrent Access Model:**
+- **During top-level trace**: Database locked (transaction in progress)
+- **Between top-level traces**: Database unlocked and readable by other processes
+- **TUI/query tools**: Can read database when not actively writing
+- **Multiple runtimes**: Each writes to separate versioned file, no conflicts
+- **Search operations**: Use separate read connection with transactions and WAL checkpointing
+
+This allows the TUI to inspect traces between function calls while maintaining high write performance during tracing.
+
 ### Query Performance
 
 - O(1) value lookup via hash index
 - O(log n) tree traversal via parent_id index
-- WAL mode enabled for concurrent access
+- DELETE journal mode (fast, simple)
 - NORMAL synchronous mode for speed
+- WAL checkpointing in search operations to prevent unbounded growth
+
+## Implemented Features (3.0+)
+
+✅ **Database backend with content-addressed storage**
+✅ **Fast mode with top-level transactions** (~100x write performance improvement)
+✅ **File versioning for multi-runtime safety**
+✅ **Interactive TUI** with navigation, search, expand/collapse
+✅ **Concurrent search** with background Domain and persistent results
+✅ **Large value decomposition** (boxify with indentation-based parsing)
+✅ **Automatic signal handling** for safe commits on interruption
 
 ## Next Steps (Phase 2+)
 
-1. **Sexp Structure Decomposition**: Store JSON structure in `structure_value_id` for navigable large sexps
+1. **Enhanced Structure Storage**: Use `structure_value_id` for JSON-based structure metadata
 2. **GUI Server**: REST API for pagination, search, lazy loading
-3. **GUI Client**: React/TypeScript client with tree visualization
+3. **GUI Client**: Web-based client with rich tree visualization
 4. **Cross-Run State**: PrevRun diff integration for state persistence
 5. **Advanced Deduplication**: Template-based structural sharing for repeated record shapes
+6. **Performance Metrics**: Query timing, cache hit rates, deduplication statistics
 
 ## Testing
 
