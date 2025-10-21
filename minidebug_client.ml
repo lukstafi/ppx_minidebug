@@ -1343,7 +1343,7 @@ module Interactive = struct
             | Some _ ->
                 "[Enter] Confirm search | [Esc] Cancel | [Backspace] Delete"
             | None ->
-                "[↑/↓] Navigate | [PgUp/PgDn] Page | [Enter] Expand | [/] Search | [Q] Quiet path | [t] Times | [v] Values | [q] Quit"
+                "[↑/↓] Navigate | [PgUp/PgDn] Page | [n/N] Next/Prev Match | [Enter] Expand | [/] Search | [Q] Quiet path | [t] Times | [v] Values | [q] Quit"
         )
       in
       I.vcat [
@@ -1373,6 +1373,36 @@ module Interactive = struct
         | None -> state
       ) else state
     else state
+
+  (** Find next/previous search result in visible items *)
+  let find_next_search_result state ~forward =
+    let len = Array.length state.visible_items in
+    if len = 0 then None
+    else
+      let start_pos = if forward then state.cursor + 1 else state.cursor - 1 in
+      let check_pos i =
+        if i < 0 || i >= len then false
+        else
+          let item = state.visible_items.(i) in
+          match Query.get_search_match state.db ~run_id:state.run_id
+            ~entry_id:item.entry.entry_id ~seq_id:item.entry.seq_id
+            ~current_slot:state.current_slot with
+          | Some _ -> true
+          | None -> false
+      in
+
+      (* Search from current position *)
+      let rec search pos =
+        if forward then
+          if pos >= len then None
+          else if check_pos pos then Some pos
+          else search (pos + 1)
+        else
+          if pos < 0 then None
+          else if check_pos pos then Some pos
+          else search (pos - 1)
+      in
+      search start_pos
 
   (** Handle key events *)
   let handle_key state key term_height =
@@ -1526,6 +1556,32 @@ module Interactive = struct
         else
           (* Move cursor to bottom of current view *)
           Some { state with cursor = bottom_of_screen }
+
+    | `ASCII 'n', _ ->
+        (* Next search result *)
+        (match find_next_search_result state ~forward:true with
+        | Some new_cursor ->
+            let new_scroll =
+              if new_cursor < state.scroll_offset then new_cursor
+              else if new_cursor >= state.scroll_offset + content_height then
+                new_cursor - content_height + 1
+              else state.scroll_offset
+            in
+            Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+        | None -> Some state)
+
+    | `ASCII 'N', _ ->
+        (* Previous search result *)
+        (match find_next_search_result state ~forward:false with
+        | Some new_cursor ->
+            let new_scroll =
+              if new_cursor < state.scroll_offset then new_cursor
+              else if new_cursor >= state.scroll_offset + content_height then
+                new_cursor - content_height + 1
+              else state.scroll_offset
+            in
+            Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+        | None -> Some state)
 
         | _ -> Some state
     )
