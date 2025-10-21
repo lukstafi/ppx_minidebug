@@ -290,34 +290,34 @@ The setting [max_nesting_depth] terminates a computation when the given log nest
     try print_endline @@ Int.to_string @@ loop_exceeded 7
     with _ -> print_endline "Raised exception."
   in
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
+  let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false 1;
   [%expect
     {|
     Raised exception.
-    [debug] loop_exceeded @ test/test_expect_test.ml:260:35-264:60
+    [debug] loop_exceeded @ test/test_expect_test.ml:266:35-270:60
       x = 7
-      [debug] z @ test/test_expect_test.ml:263:10-263:11
+      [debug] z @ test/test_expect_test.ml:269:10-269:11
         z => 3
-      [debug] loop_exceeded @ test/test_expect_test.ml:260:35-264:60
+      [debug] loop_exceeded @ test/test_expect_test.ml:266:35-270:60
         x = 6
-        [debug] z @ test/test_expect_test.ml:263:10-263:11
+        [debug] z @ test/test_expect_test.ml:269:10-269:11
           z => 2
-        [debug] loop_exceeded @ test/test_expect_test.ml:260:35-264:60
+        [debug] loop_exceeded @ test/test_expect_test.ml:266:35-270:60
           x = 5
-          [debug] z @ test/test_expect_test.ml:263:10-263:11
+          [debug] z @ test/test_expect_test.ml:269:10-269:11
             z => 2
-          [debug] loop_exceeded @ test/test_expect_test.ml:260:35-264:60
+          [debug] loop_exceeded @ test/test_expect_test.ml:266:35-270:60
             x = 4
-            [debug] z @ test/test_expect_test.ml:263:10-263:11
+            [debug] z @ test/test_expect_test.ml:269:10-269:11
               z => 1
-            [debug] loop_exceeded @ test/test_expect_test.ml:260:35-264:60
+            [debug] loop_exceeded @ test/test_expect_test.ml:266:35-270:60
               x = 3
-              [debug] z @ test/test_expect_test.ml:263:10-263:11
+              [debug] z @ test/test_expect_test.ml:269:10-269:11
                 z => 1
-              [debug] loop_exceeded @ test/test_expect_test.ml:260:35-264:60
+              [debug] loop_exceeded @ test/test_expect_test.ml:266:35-270:60
                 x = 2
-                [debug] z @ test/test_expect_test.ml:263:10-263:11
+                [debug] z @ test/test_expect_test.ml:269:10-269:11
                   z = <max_nesting_depth exceeded>
     |}]
 ]}
@@ -338,35 +338,35 @@ Similarly, [max_num_children] raises a failure when the given number of logs wit
       ()
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
+  let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false 1;
   [%expect
     {|
     Raised exception: ppx_minidebug: max_num_children exceeded
-    [debug] _bar @ test/test_expect_test.ml:311:21-311:25
-      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
+    [debug] _bar @ test/test_expect_test.ml:317:21-317:25
+      [debug] _baz @ test/test_expect_test.ml:321:16-321:20
         _baz => 0
-      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
+      [debug] _baz @ test/test_expect_test.ml:321:16-321:20
         _baz => 2
-      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
+      [debug] _baz @ test/test_expect_test.ml:321:16-321:20
         _baz => 4
-      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
+      [debug] _baz @ test/test_expect_test.ml:321:16-321:20
         _baz => 6
-      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
+      [debug] _baz @ test/test_expect_test.ml:321:16-321:20
         _baz => 8
-      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
+      [debug] _baz @ test/test_expect_test.ml:321:16-321:20
         _baz => 10
-      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
+      [debug] _baz @ test/test_expect_test.ml:321:16-321:20
         _baz => 12
-      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
+      [debug] _baz @ test/test_expect_test.ml:321:16-321:20
         _baz => 14
-      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
+      [debug] _baz @ test/test_expect_test.ml:321:16-321:20
         _baz => 16
-      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
+      [debug] _baz @ test/test_expect_test.ml:321:16-321:20
         _baz => 18
-      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
+      [debug] _baz @ test/test_expect_test.ml:321:16-321:20
         _baz => 20
-      [debug] _baz @ test/test_expect_test.ml:315:16-315:20
+      [debug] _baz @ test/test_expect_test.ml:321:16-321:20
         _baz = <max_num_children exceeded>
     |}]
 ]}
@@ -420,24 +420,24 @@ Example that also illustrates disabling tracing:
       print_endline @@ Int.to_string @@ track_branches 3
     with _ -> print_endline "Raised exception."
   in
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
+  let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false 1;
   [%expect
     {|
     8
     3
-    [track] track_branches @ test/test_expect_test.ml:728:32-742:16
+    [track] track_branches @ test/test_expect_test.ml:734:32-748:16
       x = 8
-      [track] else:test_expect_test:737 @ test/test_expect_test.ml:737:6-742:16
-        [track] <match -- branch 2> @ test/test_expect_test.ml:741:10-742:16
-          [track] result @ test/test_expect_test.ml:741:14-741:20
-            then:test_expect_test:741 =
+      [track] else:test_expect_test:743 @ test/test_expect_test.ml:743:6-748:16
+        [track] <match -- branch 2> @ test/test_expect_test.ml:747:10-748:16
+          [track] result @ test/test_expect_test.ml:747:14-747:20
+            then:test_expect_test:747 =
             result => 8
       track_branches => 8
-    [track] track_branches @ test/test_expect_test.ml:728:32-742:16
+    [track] track_branches @ test/test_expect_test.ml:734:32-748:16
       x = 3
-      [track] then:test_expect_test:730 @ test/test_expect_test.ml:730:6-735:16
-        [debug] result @ test/test_expect_test.ml:734:14-734:20
+      [track] then:test_expect_test:736 @ test/test_expect_test.ml:736:6-741:16
+        [debug] result @ test/test_expect_test.ml:740:14-740:20
           result => 3
       track_branches => 3
     |}]
@@ -453,20 +453,20 @@ Another example:
     try print_endline @@ Int.to_string @@ anonymous 3
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id;
+  let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false 1;
   [%expect
     {|
     6
-    [track] anonymous @ test/test_expect_test.ml:944:27-945:70
+    [track] anonymous @ test/test_expect_test.ml:950:27-951:70
       x = 3
-      [track] fun:test_expect_test:945 @ test/test_expect_test.ml:945:50-945:70
+      [track] fun:test_expect_test:951 @ test/test_expect_test.ml:951:50-951:70
         i = 0
-      [track] fun:test_expect_test:945 @ test/test_expect_test.ml:945:50-945:70
+      [track] fun:test_expect_test:951 @ test/test_expect_test.ml:951:50-951:70
         i = 1
-      [track] fun:test_expect_test:945 @ test/test_expect_test.ml:945:50-945:70
+      [track] fun:test_expect_test:951 @ test/test_expect_test.ml:951:50-951:70
         i = 2
-      [track] fun:test_expect_test:945 @ test/test_expect_test.ml:945:50-945:70
+      [track] fun:test_expect_test:951 @ test/test_expect_test.ml:951:50-951:70
         i = 3
     |}]
 ]}
@@ -477,7 +477,7 @@ Explicit logging statements also help with tracking the execution, since they ca
 
 {@ocaml file=../test/test_expect_test.ml,part=track_while_loop_example[
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file db_file in
+    let rt = Minidebug_db.debug_db_file db_file_base in
     fun () -> rt
   in
   let%track_sexp result =
@@ -493,8 +493,8 @@ Explicit logging statements also help with tracking the execution, since they ca
     !j
   in
   let () = print_endline @@ Int.to_string result in
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db run_id;
+  let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
+  Minidebug_client.Client.show_trace db 1;
   [%expect
     {|
     21
@@ -540,9 +540,9 @@ The log levels are integers intended to be within the range 0-9, where 0 means n
 The [%diagn_] extension points further restrict logging to explicit logs only. Example from the test suite:
 
 {@ocaml file=../test/test_expect_test.ml,part=diagn_show_ignores_bindings[
-  let run_id = next_run () in
+  let run_num = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file db_file in
+    let rt = Minidebug_db.debug_db_file db_file_base in
     fun () -> rt
   in
   let%diagn_show bar { first : int; second : int } : int =
@@ -560,8 +560,8 @@ The [%diagn_] extension points further restrict logging to explicit logs only. E
     foo { first; second }
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db run_id;
+  let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
+  Minidebug_client.Client.show_trace db 1;
   [%expect
     {|
     336
@@ -576,7 +576,8 @@ The [%diagn_] extension points further restrict logging to explicit logs only. E
 At runtime creation, the level can be set via the [~log_level] parameter, or via [Debug_runtime.log_level := ...] later on, also for the flushing backend. The following example also illustrates the [_rt_] runtime-passing entry points:
 
 {@ocaml file=../test/test_expect_test.ml,part=log_runtime_log_levels_while_loop_example[
-  let rt log_level run_name = Minidebug_db.debug_db_file ~log_level ~run_name db_file in
+  let run_num = next_run () in
+  let rt log_level run_name = Minidebug_db.debug_db_file ~log_level ~run_name db_file_base in
   let%track_rt_sexp result () : int =
     let i = ref 0 in
     let j = ref 0 in
@@ -591,11 +592,10 @@ At runtime creation, the level can be set via the [~log_level] parameter, or via
     !j
   in
   print_endline @@ Int.to_string (result (rt 9 "Everything") ());
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db (latest_run ());
+  Minidebug_client.Client.show_trace (latest_run ()) 1;
   print_endline @@ Int.to_string (result (rt 0 "Nothing") ());
   let latest_run_after_nothing =
-    Minidebug_client.Client.open_db db_file
+    Minidebug_client.Client.open_db (db_file_for_run run_num)
     |> Minidebug_client.Client.get_latest_run |> Option.get
   in
   print_endline @@ "latest_run_after_nothing: "
@@ -636,9 +636,9 @@ With [[%%global_debug_log_level_from_env_var "environment_variable_name"]], the 
 Another example from the test suite, notice how the log level of [%log1] overrides the parent log level of [%debug3_show]:
 
 {@ocaml file=../test/test_expect_test.ml,part=debug_show_log_level_runtime[
-  let run_id = next_run () in
+  let run_num = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~log_level:2 db_file in
+    let rt = Minidebug_db.debug_db_file ~log_level:2 db_file_base in
     fun () -> rt
   in
   let%debug3_show () =
@@ -663,8 +663,8 @@ Another example from the test suite, notice how the log level of [%log1] overrid
     print_endline @@ Int.to_string @@ bar { first = 7; second = 42 };
     print_endline @@ Int.to_string @@ baz { first = 7; second = 42 }
   in
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db run_id;
+  let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
+  Minidebug_client.Client.show_trace db 1;
   [%expect
     {|
     336
@@ -685,8 +685,9 @@ The extension point [%log_result] lets you benefit from the [values_first_mode] 
 The extension point [%log_printbox] lets you embed a [PrintBox.t] in the logs directly. Example from the test suite:
 
 {@ocaml file=../test/test_expect_test.ml,part=log_printbox[
+  let run_num = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file db_file in
+    let rt = Minidebug_db.debug_db_file db_file_base in
     fun () -> rt
   in
   let%debug_show foo () : unit =
@@ -705,9 +706,9 @@ The extension point [%log_printbox] lets you embed a [PrintBox.t] in the logs di
         @@ init_grid ~line:5 ~col:5 (fun ~line ~col -> PrintBox.sprintf "%d/%d" line col))]
   in
   let () = foo () in
-  let run_id = latest_run () in
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db run_id;
+  let _ = latest_run () in
+  let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
+  Minidebug_client.Client.show_trace db 1;
   [%expect
     {|
     latest_run: (no-name)
@@ -754,8 +755,9 @@ The extension point [%log_printbox] lets you embed a [PrintBox.t] in the logs di
 The extension point [%log_entry] lets you shape arbitrary log tree structures. The similar extension point [%log_block] ensures that its body doesn't get executed (resp. generated) when the current runtime (resp. compile-time) log level is inadequate. Example:
 
 {@ocaml file=../test/test_expect_test.ml,part=log_entry[
+  let _ = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file db_file in
+    let rt = Minidebug_db.debug_db_file db_file_base in
     fun () -> rt
   in
   let%diagn_show _logging_logic : unit =
@@ -794,8 +796,7 @@ The extension point [%log_entry] lets you shape arbitrary log tree structures. T
            "postscript";
          ]
   in
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db (latest_run ());
+  Minidebug_client.Client.show_trace (latest_run ()) 1;
   [%expect
     {|
     latest_run: (no-name)
@@ -840,6 +841,7 @@ let%debug_sexp _test_at_log_level_3 : unit = test_at_log_level 3
 Take a look at the test ["%logN_block runtime log levels"] in {{:https://github.com/lukstafi/ppx_minidebug/blob/main/test/test_expect_test.ml} test_expect_test.ml}:
 
 {@ocaml file=../test/test_expect_test.ml,part=logN_block[
+  let _ = next_run () in
   let%track_rt_sexp result ~for_log_level : int =
     let i = ref 0 in
     let j = ref 0 in
@@ -865,9 +867,9 @@ also dynamic scoping: which entry a particular log actually ends up belonging in
 expose the (lexical) entry id except when passing [~verbose_entry_ids:true] to the renderer. Unlike with the static artifacts versions ppx_minidebug 2.x, if a log's entry is not in the lexical scope, the DB based backend adds that log to its entry in the DB -- even retroactively for closed logs. Thus we no longer have the problem of orphaned entries. Example from the test suite:
 
 {@ocaml file=../test/test_expect_test.ml,part=log_with_print_entry_ids_mixed_up_scopes[
-  let run_id = next_run () in
+  let run_num = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~print_entry_ids:true db_file in
+    let rt = Minidebug_db.debug_db_file ~print_entry_ids:true db_file_base in
     fun () -> rt
   in
   let i = 3 in
@@ -897,8 +899,8 @@ expose the (lexical) entry id except when passing [~verbose_entry_ids:true] to t
   in
   let%debug_show _foobar : unit = !foo1 () in
   let () = !foo2 () in
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db run_id;
+  let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
+  Minidebug_client.Client.show_trace db 1;
   [%expect
     {|
     [debug] bar => () @ test/test_expect_test.ml:2330:21-2335:19
@@ -1000,9 +1002,9 @@ Result: 30
 
 === Test 4: No filter (shows all logs) ===
 Result: 30
-[debug] compute_nofilter => 30 @ test/test_path_filter.ml:71:34-73:9
+[debug] compute_nofilter => 30 @ test/test_path_filter.ml:75:34-77:9
   x = 5
-  [debug] y => 15 @ test/test_path_filter.ml:72:8-72:9
+  [debug] y => 15 @ test/test_path_filter.ml:76:8-76:9
 ]}
 
 This is useful for focusing on specific parts of your codebase during debugging, or for excluding noisy test utilities from production debug logs.
@@ -1022,22 +1024,22 @@ The test suite example:
     res
   in
   let () = print_endline @@ Int.to_string @@ loop_changes 7 in
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false run_id2;
+  let db = Minidebug_client.Client.open_db (db_file_for_run run_num2) in
+  Minidebug_client.Client.show_trace db ~values_first_mode:false 1;
   [%expect
     {|
     9
-    [debug] loop_changes @ test/test_expect_test.ml:162:34-168:7
+    [debug] loop_changes @ test/test_expect_test.ml:168:34-174:7
       x = 7
-      [debug] z @ test/test_expect_test.ml:163:8-163:9
+      [debug] z @ test/test_expect_test.ml:169:8-169:9
         z => 3
-      [debug] loop_changes @ test/test_expect_test.ml:162:34-168:7
+      [debug] loop_changes @ test/test_expect_test.ml:168:34-174:7
         x = 6
-        [debug] z @ test/test_expect_test.ml:163:8-163:9
+        [debug] z @ test/test_expect_test.ml:169:8-169:9
           z => 2
-        [debug] loop_changes @ test/test_expect_test.ml:162:34-168:7
+        [debug] loop_changes @ test/test_expect_test.ml:168:34-174:7
           x = 5
-          [debug] z @ test/test_expect_test.ml:163:8-163:9
+          [debug] z @ test/test_expect_test.ml:169:8-169:9
             z => 2
           loop_changes => 4
         loop_changes => 6
@@ -1117,7 +1119,7 @@ As a help in debugging whether the right type information got propagated, we off
 
 {@ocaml file=../test/test_expect_test.ml,part=debug_type_info[
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file db_file in
+    let rt = Minidebug_db.debug_db_file db_file_base in
     fun () -> rt
   in
   [%debug_show
@@ -1126,15 +1128,15 @@ As a help in debugging whether the right type information got propagated, we off
       let g : 'a. 'a -> int -> 'a -> 'a -> int = fun _a b _c _d -> b * 2 in
       let () = print_endline @@ Int.to_string @@ f 'a' 6 in
       print_endline @@ Int.to_string @@ g 'a' 6 'b' 'c']];
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db run_id;
+  let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
+  Minidebug_client.Client.show_trace db 1;
   [%expect
     {|
     7
     12
-    [debug] f : int => 7 @ test/test_expect_test.ml:1634:37-1634:54
+    [debug] f : int => 7 @ test/test_expect_test.ml:1640:37-1640:54
       b : int = 6
-    [debug] g : int => 12 @ test/test_expect_test.ml:1635:49-1635:72
+    [debug] g : int => 12 @ test/test_expect_test.ml:1641:49-1641:72
       b : int = 6
     |}]
 ]}
@@ -1156,12 +1158,12 @@ There is an optional runtime instance-level setting [global_prefix], which adds 
 Example from the test suite:
 
 {@ocaml file=../test/test_expect_test.ml,part=track_show_procedure_runtime_prefixes[
+  let run_num = next_run () in
   let i = ref 0 in
   let run_ids = ref [] in
   let _get_local_debug_runtime () =
-    let rt = Minidebug_db.debug_db_file ~run_name:("foo-" ^ string_of_int !i) db_file in
-    let run_id = next_run () in
-    run_ids := run_id :: !run_ids;
+    let rt = Minidebug_db.debug_db_file ~run_name:("foo-" ^ string_of_int !i) db_file_base in
+    run_ids := 1 :: !run_ids;
     rt
   in
   let%track_show foo () =
@@ -1178,7 +1180,7 @@ Example from the test suite:
     foo ();
     bar ()
   done;
-  let db = Minidebug_client.Client.open_db db_file in
+  let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
   List.iter
     (fun run_id -> Minidebug_client.Client.show_trace db run_id)
     (List.rev !run_ids);
@@ -1204,11 +1206,10 @@ Another similar feature is the extension points [%debug_rt_sexp], [%track_rt_sex
 Example from the test suite:
 
 {@ocaml file=../test/test_expect_test.ml,part=track_rt_show_list_runtime_passing[
-  let rt run_name = Minidebug_db.debug_db_file ~run_name db_file in
+  let rt run_name = Minidebug_db.debug_db_file ~run_name db_file_base in
   let%track_rt_show foo l : int = match (l : int list) with [] -> 7 | y :: _ -> y * 2 in
   let () = print_endline @@ Int.to_string @@ foo (rt "foo-1") [ 7 ] in
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true (latest_run ());
+  Minidebug_client.Client.show_trace (latest_run ()) ~values_first_mode:true 1;
   let%track_rt_show baz : int list -> int = function
     | [] -> 7
     | [ y ] -> y * 2
@@ -1216,9 +1217,9 @@ Example from the test suite:
     | y :: z :: _ -> y + z + 1
   in
   let () = print_endline @@ Int.to_string @@ baz (rt "baz-1") [ 4 ] in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true (latest_run ());
+  Minidebug_client.Client.show_trace (latest_run ()) ~values_first_mode:true 1;
   let () = print_endline @@ Int.to_string @@ baz (rt "baz-2") [ 4; 5; 6 ] in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true (latest_run ());
+  Minidebug_client.Client.show_trace (latest_run ()) ~values_first_mode:true 1;
   [%expect
     {|
     14
