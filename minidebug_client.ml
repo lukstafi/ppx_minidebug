@@ -454,10 +454,13 @@ module Query = struct
     Sqlite3.finalize stmt |> ignore;
     List.rev !entries
 
-  (** Clear search results table for a given slot (1-4) *)
-  let clear_search_table db ~slot =
-    let query = Printf.sprintf "DELETE FROM search_results_%d" slot in
-    Sqlite3.exec db query |> ignore
+  (** Clear search results table for a given slot (1-4) and run *)
+  let clear_search_table db ~run_id ~slot =
+    let query = Printf.sprintf "DELETE FROM search_results_%d WHERE run_id = ?" slot in
+    let stmt = Sqlite3.prepare db query in
+    Sqlite3.bind_int stmt 1 run_id |> ignore;
+    (match Sqlite3.step stmt with _ -> ());
+    Sqlite3.finalize stmt |> ignore
 
   (** Populate search results table with entries matching search term.
       This is meant to run in a background Domain. Opens its own DB connection.
@@ -466,8 +469,8 @@ module Query = struct
     (* Open a new database connection for this Domain *)
     let db = Sqlite3.db_open db_path in
 
-    (* First clear the table *)
-    clear_search_table db ~slot;
+    (* First clear the table for this run *)
+    clear_search_table db ~run_id ~slot;
 
     (* Get all entries for this run *)
     let entries = get_entries db ~run_id () in
@@ -566,6 +569,27 @@ module Query = struct
     in
     Sqlite3.finalize stmt |> ignore;
     count
+
+  (** Get existing search term for a slot, if any *)
+  let get_existing_search db ~run_id ~slot =
+    let query =
+      Printf.sprintf
+        "SELECT DISTINCT search_term FROM search_results_%d WHERE run_id = ? LIMIT 1"
+        slot
+    in
+    let stmt = Sqlite3.prepare db query in
+    Sqlite3.bind_int stmt 1 run_id |> ignore;
+
+    let term =
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW -> (
+          match Sqlite3.column stmt 0 with
+          | Sqlite3.Data.TEXT s -> Some s
+          | _ -> None)
+      | _ -> None
+    in
+    Sqlite3.finalize stmt |> ignore;
+    term
 end
 
 (** Tree renderer for terminal output *)
@@ -1294,6 +1318,16 @@ module Interactive = struct
     let visible_items = build_visible_items db run_id expanded in
     let max_entry_id = Query.get_max_entry_id db ~run_id in
 
+    (* Load existing search results from database *)
+    let initial_search_slots = Array.init 4 (fun idx ->
+      let slot_num = idx + 1 in
+      match Query.get_existing_search db ~run_id ~slot:slot_num with
+      | Some search_term ->
+          (* Found existing search - mark as completed since it's from a previous run *)
+          Some { search_term; domain_handle = None; completed_ref = ref true }
+      | None -> None
+    ) in
+
     let initial_state = {
       db;
       db_path;
@@ -1305,7 +1339,7 @@ module Interactive = struct
       show_times = true;
       values_first = true;
       max_entry_id;
-      search_slots = Array.make 4 None;
+      search_slots = initial_search_slots;
       current_slot = 0;
       search_input = None;
     } in
