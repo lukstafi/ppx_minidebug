@@ -706,6 +706,58 @@ module Query = struct
     in
     check_slot_offset 0
 
+  (** Find next/previous search result in database (across all entries, not just visible).
+      Returns (entry_id, seq_id) of the next match, or None if no more matches.
+      Search direction: forward=true searches for matches with (entry_id, seq_id) > current,
+                       forward=false searches for matches with (entry_id, seq_id) < current
+      Note: searches across all 4 search slots. *)
+  let find_next_search_result_in_db db ~run_id ~current_entry_id ~current_seq_id ~forward =
+    (* Build UNION query across all 4 search_results tables, ordered by entry_id, seq_id *)
+    let union_query =
+      String.concat " UNION ALL "
+        (List.init 4 (fun i ->
+          Printf.sprintf
+            "SELECT entry_id, seq_id FROM search_results_%d WHERE run_id = %d"
+            (i + 1) run_id))
+    in
+
+    let comparison_op = if forward then ">" else "<" in
+    let order_dir = if forward then "ASC" else "DESC" in
+
+    let query =
+      Printf.sprintf
+        "SELECT entry_id, seq_id FROM (%s) \
+         WHERE (entry_id > ? OR (entry_id = ? AND seq_id %s ?)) \
+         ORDER BY entry_id %s, seq_id %s LIMIT 1"
+        union_query comparison_op order_dir order_dir
+    in
+
+    let stmt = Sqlite3.prepare db query in
+    Sqlite3.bind_int stmt 1 current_entry_id |> ignore;
+    Sqlite3.bind_int stmt 2 current_entry_id |> ignore;
+    Sqlite3.bind_int stmt 3 current_seq_id |> ignore;
+
+    let result =
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW ->
+          let entry_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0) in
+          let seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1) in
+          Some (entry_id, seq_id)
+      | _ -> None
+    in
+    Sqlite3.finalize stmt |> ignore;
+    result
+
+  (** Get all ancestor entry IDs from a given entry up to root.
+      Returns list in order [entry_id; parent; grandparent; ...; root]. *)
+  let get_ancestors db ~run_id ~entry_id =
+    let rec collect_ancestors acc current_id =
+      match get_parent_id db ~run_id ~entry_id:current_id with
+      | None -> List.rev acc  (* Reached root *)
+      | Some parent_id -> collect_ancestors (parent_id :: acc) parent_id
+    in
+    collect_ancestors [entry_id] entry_id
+
   (** Get count of search results for a given slot *)
   let get_search_count db ~run_id ~slot =
     let query =
@@ -1374,35 +1426,57 @@ module Interactive = struct
       ) else state
     else state
 
-  (** Find next/previous search result in visible items *)
-  let find_next_search_result state ~forward =
-    let len = Array.length state.visible_items in
-    if len = 0 then None
-    else
-      let start_pos = if forward then state.cursor + 1 else state.cursor - 1 in
-      let check_pos i =
-        if i < 0 || i >= len then false
-        else
-          let item = state.visible_items.(i) in
-          match Query.get_search_match state.db ~run_id:state.run_id
-            ~entry_id:item.entry.entry_id ~seq_id:item.entry.seq_id
-            ~current_slot:state.current_slot with
-          | Some _ -> true
-          | None -> false
-      in
+  (** Find next/previous search result (searches entire database, not just visible items).
+      Returns updated state with cursor moved to the match and path auto-expanded, or None if no match. *)
+  let find_and_jump_to_search_result state ~forward =
+    (* Get current entry's (entry_id, seq_id) *)
+    let (current_entry_id, current_seq_id) =
+      if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
+        let entry = state.visible_items.(state.cursor).entry in
+        (entry.entry_id, entry.seq_id)
+      else
+        (0, 0)  (* Start from beginning if cursor invalid *)
+    in
 
-      (* Search from current position *)
-      let rec search pos =
-        if forward then
-          if pos >= len then None
-          else if check_pos pos then Some pos
-          else search (pos + 1)
-        else
-          if pos < 0 then None
-          else if check_pos pos then Some pos
-          else search (pos - 1)
-      in
-      search start_pos
+    (* Query database for next search match *)
+    match Query.find_next_search_result_in_db state.db ~run_id:state.run_id
+      ~current_entry_id ~current_seq_id ~forward with
+    | None -> None  (* No more search results *)
+    | Some (target_entry_id, target_seq_id) ->
+        (* Expand all ancestors of the target entry *)
+        let ancestors = Query.get_ancestors state.db ~run_id:state.run_id ~entry_id:target_entry_id in
+        List.iter (fun ancestor_id ->
+          Hashtbl.replace state.expanded ancestor_id ()
+        ) ancestors;
+
+        (* Rebuild visible items with expanded path *)
+        let new_visible = build_visible_items state.db state.run_id state.expanded in
+
+        (* Find the target entry in the new visible items *)
+        let rec find_in_visible idx =
+          if idx >= Array.length new_visible then
+            None  (* Shouldn't happen, but handle gracefully *)
+          else
+            let item = new_visible.(idx) in
+            if item.entry.entry_id = target_entry_id && item.entry.seq_id = target_seq_id then
+              Some idx
+            else
+              find_in_visible (idx + 1)
+        in
+
+        match find_in_visible 0 with
+        | None -> None  (* Couldn't find target in visible items *)
+        | Some new_cursor ->
+            (* Calculate scroll offset to center the match on screen *)
+            let (_, term_height) = Term.size (Term.create ()) in
+            let content_height = term_height - 4 in
+            let new_scroll =
+              if new_cursor < state.scroll_offset then new_cursor
+              else if new_cursor >= state.scroll_offset + content_height then
+                max 0 (new_cursor - content_height / 2)
+              else state.scroll_offset
+            in
+            Some { state with cursor = new_cursor; scroll_offset = new_scroll; visible_items = new_visible }
 
   (** Handle key events *)
   let handle_key state key term_height =
@@ -1558,30 +1632,16 @@ module Interactive = struct
           Some { state with cursor = bottom_of_screen }
 
     | `ASCII 'n', _ ->
-        (* Next search result *)
-        (match find_next_search_result state ~forward:true with
-        | Some new_cursor ->
-            let new_scroll =
-              if new_cursor < state.scroll_offset then new_cursor
-              else if new_cursor >= state.scroll_offset + content_height then
-                new_cursor - content_height + 1
-              else state.scroll_offset
-            in
-            Some { state with cursor = new_cursor; scroll_offset = new_scroll }
-        | None -> Some state)
+        (* Next search result - searches entire DB and auto-expands path *)
+        (match find_and_jump_to_search_result state ~forward:true with
+        | Some new_state -> Some new_state
+        | None -> Some state)  (* No more results, stay in place *)
 
     | `ASCII 'N', _ ->
-        (* Previous search result *)
-        (match find_next_search_result state ~forward:false with
-        | Some new_cursor ->
-            let new_scroll =
-              if new_cursor < state.scroll_offset then new_cursor
-              else if new_cursor >= state.scroll_offset + content_height then
-                new_cursor - content_height + 1
-              else state.scroll_offset
-            in
-            Some { state with cursor = new_cursor; scroll_offset = new_scroll }
-        | None -> Some state)
+        (* Previous search result - searches entire DB and auto-expands path *)
+        (match find_and_jump_to_search_result state ~forward:false with
+        | Some new_state -> Some new_state
+        | None -> Some state)  (* No more results, stay in place *)
 
         | _ -> Some state
     )
