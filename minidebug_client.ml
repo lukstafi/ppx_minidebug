@@ -561,7 +561,7 @@ module Query = struct
         match Sqlite3.step query_stmt with
         | Sqlite3.Rc.ROW ->
             incr processed_count;
-            if !processed_count mod 10000 = 0 then
+            if !processed_count mod 100000 = 0 then
               log_error (Printf.sprintf "Processed %d entries, found %d matches" !processed_count !match_count);
 
             let entry = {
