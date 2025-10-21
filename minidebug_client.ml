@@ -454,26 +454,17 @@ module Query = struct
     Sqlite3.finalize stmt |> ignore;
     List.rev !entries
 
-  (** Clear search results table for a given slot (1-4) and run *)
-  let clear_search_table db ~run_id ~slot =
-    (* Use Sqlite3.exec for DELETE to ensure it executes immediately *)
-    let query = Printf.sprintf "DELETE FROM search_results_%d WHERE run_id = %d" slot run_id in
-    match Sqlite3.exec db query with
-    | Sqlite3.Rc.OK -> ()
-    | rc ->
-        Printf.eprintf "Warning: Failed to clear search results for slot %d: %s\n%!"
-          slot (Sqlite3.Rc.to_string rc)
-
-  (** Populate search results table with entries matching search term.
+  (** Populate search results hash table with entries matching search term.
       This is meant to run in a background Domain. Opens its own DB connection.
       Sets completed_ref to true when finished.
-      Propagates highlights to ancestors unless quiet_path matches. *)
-  let populate_search_results db_path ~run_id ~slot ~search_term ~quiet_path ~completed_ref =
+      Propagates highlights to ancestors unless quiet_path matches.
+      Writes results to shared hash table (lock-free concurrent writes are safe). *)
+  let populate_search_results db_path ~run_id ~search_term ~quiet_path ~completed_ref ~results_table =
     (* Log to file for debugging since TUI occupies terminal *)
     let log_error msg =
       try
         let oc = open_out_gen [Open_append; Open_creat] 0o644 "/tmp/minidebug_search.log" in
-        Printf.fprintf oc "[%s] Slot %d: %s\n" (Unix.gettimeofday () |> string_of_float) slot msg;
+        Printf.fprintf oc "[%s] %s\n" (Unix.gettimeofday () |> string_of_float) msg;
         close_out oc
       with _ -> ()
     in
@@ -482,32 +473,19 @@ module Query = struct
     log_error (Printf.sprintf "Starting search for '%s', quiet_path=%s" search_term
       (match quiet_path with Some q -> "'" ^ q ^ "'" | None -> "None"));
 
-    (* Open a new database connection for this Domain *)
+    (* Open a new database connection for this Domain (read-only for querying) *)
     log_error (Printf.sprintf "Opening database: %s" db_path);
-    let db = Sqlite3.db_open db_path in
+    let db = Sqlite3.db_open ~mode:`READONLY db_path in
     log_error "Database opened successfully";
 
     try
-
-      (* First clear the table for this run *)
-      log_error "Clearing search table...";
-      clear_search_table db ~run_id ~slot;
-      log_error "Cleared search table";
-
-      (* Start a transaction for better performance and atomicity *)
-      Sqlite3.exec db "BEGIN TRANSACTION" |> ignore;
-      log_error "Started transaction";
+      (* Clear the results hash table *)
+      log_error "Clearing results hash table...";
+      Hashtbl.clear results_table;
+      log_error "Cleared results hash table";
 
       (* Stream entries instead of loading all into memory (DB is huge!) *)
       log_error "Streaming entries and searching...";
-
-      (* Prepare insert statement for matches *)
-      let insert_query =
-        Printf.sprintf
-          "INSERT INTO search_results_%d (run_id, entry_id, seq_id, search_term) VALUES (?, ?, ?, ?)"
-          slot
-      in
-      let insert_stmt = Sqlite3.prepare db insert_query in
 
       (* Helper to check if haystack contains needle as substring *)
       let contains_substring haystack needle =
@@ -531,16 +509,9 @@ module Query = struct
                 | None -> false)
       in
 
-      (* Helper to insert an entry into search results *)
+      (* Helper to insert an entry into search results hash table *)
       let insert_entry entry =
-        Sqlite3.reset insert_stmt |> ignore;
-        Sqlite3.bind_int insert_stmt 1 run_id |> ignore;
-        Sqlite3.bind_int insert_stmt 2 entry.entry_id |> ignore;
-        Sqlite3.bind_int insert_stmt 3 entry.seq_id |> ignore;
-        Sqlite3.bind_text insert_stmt 4 search_term |> ignore;
-        (match Sqlite3.step insert_stmt with
-        | Sqlite3.Rc.DONE -> ()
-        | _ -> ())
+        Hashtbl.replace results_table (entry.entry_id, entry.seq_id) ()
       in
 
       (* Stream entries, find matches, and build scope index in one pass *)
@@ -660,17 +631,6 @@ module Query = struct
 
     log_error (Printf.sprintf "Propagation complete. Direct: %d, Ancestors: %d" (List.length !matches_to_propagate) !propagation_count);
 
-    Sqlite3.finalize insert_stmt |> ignore;
-    log_error "Finalized statement";
-
-      (* Commit the transaction to make results visible to other connections *)
-      Sqlite3.exec db "COMMIT" |> ignore;
-      log_error "Committed transaction";
-
-      (* Checkpoint the WAL to prevent it from growing unbounded *)
-      Sqlite3.exec db "PRAGMA wal_checkpoint(TRUNCATE)" |> ignore;
-      log_error "Checkpointed WAL";
-
       (* Close the database connection *)
       Sqlite3.db_close db |> ignore;
 
@@ -680,88 +640,10 @@ module Query = struct
       completed_ref := true
     with exn ->
       log_error (Printf.sprintf "ERROR: %s\n%s" (Printexc.to_string exn) (Printexc.get_backtrace ()));
-      (* Rollback transaction on error *)
-      (try Sqlite3.exec db "ROLLBACK" |> ignore with _ -> ());
+      (* Close database on error *)
+      (try Sqlite3.db_close db |> ignore with _ -> ());
       (* Still mark as completed even on error *)
       completed_ref := true
-
-  (** Check if an entry matches any active search (returns slot number 1-4, or None).
-      Checks slots in reverse chronological order to prioritize more recent searches.
-      Slot ordering is determined by current_slot parameter. *)
-  let get_search_match db ~run_id ~entry_id ~seq_id ~current_slot =
-    (* Check slots in reverse chronological order:
-       most recent = (current_slot - 1 + 4) mod 4, then (current_slot - 2 + 4) mod 4, etc. *)
-    let rec check_slot_offset offset =
-      if offset >= 4 then
-        None
-      else
-        let slot_index = (current_slot - 1 - offset + 8) mod 4 in
-        let slot = slot_index + 1 in  (* DB tables are 1-indexed *)
-
-        let query =
-          Printf.sprintf
-            "SELECT 1 FROM search_results_%d WHERE run_id = ? AND entry_id = ? AND seq_id = ?"
-            slot
-        in
-        let stmt = Sqlite3.prepare db query in
-        Sqlite3.bind_int stmt 1 run_id |> ignore;
-        Sqlite3.bind_int stmt 2 entry_id |> ignore;
-        Sqlite3.bind_int stmt 3 seq_id |> ignore;
-
-        let result =
-          match Sqlite3.step stmt with
-          | Sqlite3.Rc.ROW -> Some slot
-          | _ -> None
-        in
-        Sqlite3.finalize stmt |> ignore;
-
-        match result with
-        | Some _ -> result
-        | None -> check_slot_offset (offset + 1)
-    in
-    check_slot_offset 0
-
-  (** Find next/previous search result in database (across all entries, not just visible).
-      Returns (entry_id, seq_id) of the next match, or None if no more matches.
-      Search direction: forward=true searches for matches with (entry_id, seq_id) > current,
-                       forward=false searches for matches with (entry_id, seq_id) < current
-      Note: searches across all 4 search slots. *)
-  let find_next_search_result_in_db db ~run_id ~current_entry_id ~current_seq_id ~forward =
-    (* Build UNION query across all 4 search_results tables, ordered by entry_id, seq_id *)
-    let union_query =
-      String.concat " UNION ALL "
-        (List.init 4 (fun i ->
-          Printf.sprintf
-            "SELECT entry_id, seq_id FROM search_results_%d WHERE run_id = %d"
-            (i + 1) run_id))
-    in
-
-    let comparison_op = if forward then ">" else "<" in
-    let order_dir = if forward then "ASC" else "DESC" in
-
-    let query =
-      Printf.sprintf
-        "SELECT entry_id, seq_id FROM (%s) \
-         WHERE (entry_id > ? OR (entry_id = ? AND seq_id %s ?)) \
-         ORDER BY entry_id %s, seq_id %s LIMIT 1"
-        union_query comparison_op order_dir order_dir
-    in
-
-    let stmt = Sqlite3.prepare db query in
-    Sqlite3.bind_int stmt 1 current_entry_id |> ignore;
-    Sqlite3.bind_int stmt 2 current_entry_id |> ignore;
-    Sqlite3.bind_int stmt 3 current_seq_id |> ignore;
-
-    let result =
-      match Sqlite3.step stmt with
-      | Sqlite3.Rc.ROW ->
-          let entry_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0) in
-          let seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1) in
-          Some (entry_id, seq_id)
-      | _ -> None
-    in
-    Sqlite3.finalize stmt |> ignore;
-    result
 
   (** Get all ancestor entry IDs from a given entry up to root.
       Returns list in order [entry_id; parent; grandparent; ...; root]. *)
@@ -772,45 +654,6 @@ module Query = struct
       | Some parent_id -> collect_ancestors (parent_id :: acc) parent_id
     in
     collect_ancestors [entry_id] entry_id
-
-  (** Get count of search results for a given slot *)
-  let get_search_count db ~run_id ~slot =
-    let query =
-      Printf.sprintf
-        "SELECT COUNT(*) FROM search_results_%d WHERE run_id = ?"
-        slot
-    in
-    let stmt = Sqlite3.prepare db query in
-    Sqlite3.bind_int stmt 1 run_id |> ignore;
-
-    let count =
-      match Sqlite3.step stmt with
-      | Sqlite3.Rc.ROW -> Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0)
-      | _ -> 0
-    in
-    Sqlite3.finalize stmt |> ignore;
-    count
-
-  (** Get existing search term for a slot, if any *)
-  let get_existing_search db ~run_id ~slot =
-    let query =
-      Printf.sprintf
-        "SELECT DISTINCT search_term FROM search_results_%d WHERE run_id = ? LIMIT 1"
-        slot
-    in
-    let stmt = Sqlite3.prepare db query in
-    Sqlite3.bind_int stmt 1 run_id |> ignore;
-
-    let term =
-      match Sqlite3.step stmt with
-      | Sqlite3.Rc.ROW -> (
-          match Sqlite3.column stmt 0 with
-          | Sqlite3.Data.TEXT s -> Some s
-          | _ -> None)
-      | _ -> None
-    in
-    Sqlite3.finalize stmt |> ignore;
-    term
 end
 
 (** Tree renderer for terminal output *)
@@ -1119,11 +962,85 @@ module Interactive = struct
     else
       Some (Term.event term)  (* Event available *)
 
+  (** Hash set of (entry_id, seq_id) pairs matching a search term.
+      This is shared memory written by background Domain, read by main TUI loop. *)
+  type search_results = ((int * int), unit) Hashtbl.t
+
   type search_slot = {
     search_term : string;
     domain_handle : unit Domain.t option; [@warning "-69"]
     completed_ref : bool ref; (* Shared memory flag set by Domain when finished *)
+    results : search_results; (* Shared hash table written by Domain *)
   }
+
+  (** Check if an entry matches any active search (returns slot number 1-4, or None).
+      Checks slots in reverse chronological order to prioritize more recent searches.
+      Slot ordering is determined by current_slot parameter. *)
+  let get_search_match ~search_slots ~entry_id ~seq_id ~current_slot =
+    (* Check slots in reverse chronological order:
+       most recent = (current_slot - 1 + 4) mod 4, then (current_slot - 2 + 4) mod 4, etc. *)
+    let rec check_slot_offset offset =
+      if offset >= 4 then
+        None
+      else
+        let slot_index = (current_slot - 1 - offset + 8) mod 4 in
+        let slot_num = slot_index + 1 in  (* Slot numbers are 1-indexed for display *)
+
+        match search_slots.(slot_index) with
+        | Some slot when Hashtbl.mem slot.results (entry_id, seq_id) ->
+            Some slot_num
+        | _ ->
+            check_slot_offset (offset + 1)
+    in
+    check_slot_offset 0
+
+  (** Find next/previous search result in hash tables (across all entries, not just visible).
+      Returns (entry_id, seq_id) of the next match, or None if no more matches.
+      Search direction: forward=true searches for matches with (entry_id, seq_id) > current,
+                       forward=false searches for matches with (entry_id, seq_id) < current
+      Note: searches across all 4 search slots. *)
+  let find_next_search_result ~search_slots ~current_entry_id ~current_seq_id ~forward =
+    (* Collect all matches from all slots into a single list *)
+    let all_matches = ref [] in
+    Array.iter (function
+      | Some slot ->
+          Hashtbl.iter (fun key () -> all_matches := key :: !all_matches) slot.results
+      | None -> ()
+    ) search_slots;
+
+    (* Sort by (entry_id, seq_id) *)
+    let sorted_matches =
+      List.sort (fun (e1, s1) (e2, s2) ->
+        let c = compare e1 e2 in
+        if c = 0 then compare s1 s2 else c
+      ) !all_matches
+    in
+
+    (* Find next/previous match *)
+    let compare_fn =
+      if forward then
+        fun (e, s) -> e > current_entry_id || (e = current_entry_id && s > current_seq_id)
+      else
+        fun (e, s) -> e < current_entry_id || (e = current_entry_id && s < current_seq_id)
+    in
+
+    let candidates = List.filter compare_fn sorted_matches in
+    if forward then
+      (* Return first match in forward direction *)
+      match candidates with
+      | [] -> None
+      | x :: _ -> Some x
+    else
+      (* Return last match in backward direction (closest to current) *)
+      match List.rev candidates with
+      | [] -> None
+      | x :: _ -> Some x
+
+  (** Get count of search results for a given slot *)
+  let get_search_count ~search_slot =
+    match search_slot with
+    | Some slot -> Hashtbl.length slot.results
+    | None -> 0
 
   type view_state = {
     db : Sqlite3.db;
@@ -1201,11 +1118,11 @@ module Interactive = struct
     Array.of_list items
 
   (** Render a single line *)
-  let render_line ~width ~is_selected ~show_times ~margin_width ~db ~run_id ~current_slot item =
+  let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots ~current_slot item =
     let entry = item.entry in
 
     (* Check if this entry matches any search (prioritizes more recent searches) *)
-    let search_slot_match = Query.get_search_match db ~run_id ~entry_id:entry.entry_id ~seq_id:entry.seq_id ~current_slot in
+    let search_slot_match = get_search_match ~search_slots ~entry_id:entry.entry_id ~seq_id:entry.seq_id ~current_slot in
 
     (* Entry ID margin - use header_entry_id for scopes, entry_id for values *)
     (* Don't display negative IDs (used for boxified/decomposed values) *)
@@ -1348,7 +1265,7 @@ module Interactive = struct
                 match slot_opt with
                 | Some slot ->
                     let slot_num = idx + 1 in
-                    let count = Query.get_search_count state.db ~run_id:state.run_id ~slot:slot_num in
+                    let count = get_search_count ~search_slot:slot_opt in
                     let color_name = match slot_num with
                       | 1 -> "G" | 2 -> "C" | 3 -> "M" | 4 -> "Y" | _ -> "?" in
                     (* Show [...] while running, just [...] when complete *)
@@ -1387,7 +1304,7 @@ module Interactive = struct
     for i = visible_start to visible_end - 1 do
       let is_selected = i = state.cursor in
       let item = state.visible_items.(i) in
-      let line = render_line ~width:term_width ~is_selected ~show_times:state.show_times ~margin_width ~db:state.db ~run_id:state.run_id ~current_slot:state.current_slot item in
+      let line = render_line ~width:term_width ~is_selected ~show_times:state.show_times ~margin_width ~search_slots:state.search_slots ~current_slot:state.current_slot item in
       content_lines := line :: !content_lines
     done;
 
@@ -1441,7 +1358,7 @@ module Interactive = struct
       ) else state
     else state
 
-  (** Find next/previous search result (searches entire database, not just visible items).
+  (** Find next/previous search result (searches hash tables, not just visible items).
       Returns updated state with cursor moved to the match and path auto-expanded, or None if no match. *)
   let find_and_jump_to_search_result state ~forward =
     (* Get current entry's (entry_id, seq_id) *)
@@ -1453,8 +1370,8 @@ module Interactive = struct
         (0, 0)  (* Start from beginning if cursor invalid *)
     in
 
-    (* Query database for next search match *)
-    match Query.find_next_search_result_in_db state.db ~run_id:state.run_id
+    (* Query hash tables for next search match *)
+    match find_next_search_result ~search_slots:state.search_slots
       ~current_entry_id ~current_seq_id ~forward with
     | None -> None  (* No more search results *)
     | Some (target_entry_id, target_seq_id) ->
@@ -1536,24 +1453,24 @@ module Interactive = struct
             Some { state with search_input = None }
 
         | `Enter, _ ->
-            (* Confirm search - spawn Domain to populate search table *)
+            (* Confirm search - spawn Domain to populate search hash table *)
             if String.length input > 0 then
               let slot = state.current_slot in
-              let slot_num = slot + 1 in  (* DB tables are 1-indexed *)
 
-              (* Create shared completion flag *)
+              (* Create shared completion flag and results hash table *)
               let completed_ref = ref false in
+              let results_table = Hashtbl.create 1024 in
 
               (* Spawn background search Domain - pass db_path not db handle *)
               let domain_handle =
                 Domain.spawn (fun () ->
-                  Query.populate_search_results state.db_path ~run_id:state.run_id ~slot:slot_num ~search_term:input ~quiet_path:state.quiet_path ~completed_ref
+                  Query.populate_search_results state.db_path ~run_id:state.run_id ~search_term:input ~quiet_path:state.quiet_path ~completed_ref ~results_table
                 )
               in
 
               (* Update search slots *)
               let new_slots = Array.copy state.search_slots in
-              new_slots.(slot) <- Some { search_term = input; domain_handle = Some domain_handle; completed_ref };
+              new_slots.(slot) <- Some { search_term = input; domain_handle = Some domain_handle; completed_ref; results = results_table };
 
               Some {
                 state with
@@ -1668,15 +1585,8 @@ module Interactive = struct
     let visible_items = build_visible_items db run_id expanded in
     let max_entry_id = Query.get_max_entry_id db ~run_id in
 
-    (* Load existing search results from database *)
-    let initial_search_slots = Array.init 4 (fun idx ->
-      let slot_num = idx + 1 in
-      match Query.get_existing_search db ~run_id ~slot:slot_num with
-      | Some search_term ->
-          (* Found existing search - mark as completed since it's from a previous run *)
-          Some { search_term; domain_handle = None; completed_ref = ref true }
-      | None -> None
-    ) in
+    (* Initialize empty search slots (no persistence across TUI sessions) *)
+    let initial_search_slots = Array.make 4 None in
 
     let initial_state = {
       db;

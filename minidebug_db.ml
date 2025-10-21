@@ -79,24 +79,6 @@ module Schema = struct
       "CREATE INDEX IF NOT EXISTS idx_entries_depth ON entries(run_id, depth)"
     |> ignore;
 
-    (* Search results tables - 4 slots for concurrent searches with different highlight colors *)
-    for slot = 1 to 4 do
-      Sqlite3.exec db
-        (Printf.sprintf
-          {|CREATE TABLE IF NOT EXISTS search_results_%d (
-              run_id INTEGER NOT NULL,
-              entry_id INTEGER NOT NULL,
-              seq_id INTEGER NOT NULL,
-              search_term TEXT NOT NULL,
-              PRIMARY KEY (run_id, entry_id, seq_id)
-            )|}
-          slot)
-      |> ignore;
-      Sqlite3.exec db
-        (Printf.sprintf "CREATE INDEX IF NOT EXISTS idx_search_results_%d_lookup ON search_results_%d(run_id, entry_id, seq_id)" slot slot)
-      |> ignore
-    done;
-
     (* Schema version tracking *)
     Sqlite3.exec db
       {|CREATE TABLE IF NOT EXISTS schema_version (
