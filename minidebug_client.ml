@@ -961,7 +961,7 @@ module Interactive = struct
       I.vcat [
         I.string A.(fg white) (String.make term_width '-');
         I.string A.(fg lightcyan)
-          "[↑/↓] Navigate | [Enter] Expand/Collapse | [t] Toggle Times | [v] Values First | [q] Quit";
+          "[↑/↓] Navigate | [PgUp/PgDn] Page | [Enter] Expand/Collapse | [t] Times | [v] Values First | [q] Quit";
       ]
     in
 
@@ -1019,6 +1019,31 @@ module Interactive = struct
 
     | `ASCII 'v', _ ->
         Some { state with values_first = not state.values_first }
+
+    | `Page `Up, _ ->
+        (* Page Up: Move cursor to top of screen, then scroll up by content_height - 1 *)
+        if state.cursor = state.scroll_offset then
+          (* Cursor already at top - scroll up one page, keeping one row overlap *)
+          let new_scroll = max 0 (state.scroll_offset - (content_height - 1)) in
+          let new_cursor = new_scroll in
+          Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+        else
+          (* Move cursor to top of current view *)
+          Some { state with cursor = state.scroll_offset }
+
+    | `Page `Down, _ ->
+        (* Page Down: Move cursor to bottom of screen, then scroll down by content_height - 1 *)
+        let max_cursor = Array.length state.visible_items - 1 in
+        let bottom_of_screen = min max_cursor (state.scroll_offset + content_height - 1) in
+        if state.cursor = bottom_of_screen then
+          (* Cursor already at bottom - scroll down one page, keeping one row overlap *)
+          let new_scroll = min (max 0 (max_cursor - content_height + 1))
+                               (state.scroll_offset + (content_height - 1)) in
+          let new_cursor = min max_cursor (new_scroll + content_height - 1) in
+          Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+        else
+          (* Move cursor to bottom of current view *)
+          Some { state with cursor = bottom_of_screen }
 
     | _ -> Some state
 
