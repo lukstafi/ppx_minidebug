@@ -456,11 +456,13 @@ module Query = struct
 
   (** Clear search results table for a given slot (1-4) and run *)
   let clear_search_table db ~run_id ~slot =
-    let query = Printf.sprintf "DELETE FROM search_results_%d WHERE run_id = ?" slot in
-    let stmt = Sqlite3.prepare db query in
-    Sqlite3.bind_int stmt 1 run_id |> ignore;
-    (match Sqlite3.step stmt with _ -> ());
-    Sqlite3.finalize stmt |> ignore
+    (* Use Sqlite3.exec for DELETE to ensure it executes immediately *)
+    let query = Printf.sprintf "DELETE FROM search_results_%d WHERE run_id = %d" slot run_id in
+    match Sqlite3.exec db query with
+    | Sqlite3.Rc.OK -> ()
+    | rc ->
+        Printf.eprintf "Warning: Failed to clear search results for slot %d: %s\n%!"
+          slot (Sqlite3.Rc.to_string rc)
 
   (** Populate search results table with entries matching search term.
       This is meant to run in a background Domain. Opens its own DB connection.

@@ -219,8 +219,9 @@ let () =
                   Printf.eprintf "Error: No runs found in database\n";
                   exit 1)
         in
-        (* Open a separate database connection for interactive mode *)
-        let db = Sqlite3.db_open ~mode:`READONLY db_path in
+        (* Open database connection for interactive mode.
+           Not READONLY so it can see writes from search Domains via WAL. *)
+        let db = Sqlite3.db_open db_path in
         Minidebug_client.Interactive.run db db_path run_id;
         Sqlite3.db_close db |> ignore
     | Compact run_id_opt ->
