@@ -534,6 +534,14 @@ module Query = struct
       | _ -> ())
     in
 
+    (* Build hash table for fast lookup of entries by header_entry_id *)
+    let scope_by_id = Hashtbl.create (List.length entries) in
+    List.iter (fun entry ->
+      match entry.header_entry_id with
+      | Some hid -> Hashtbl.add scope_by_id hid entry
+      | None -> ()
+    ) entries;
+
     (* Collect directly matching entries and mark for propagation *)
     let matches_to_propagate = ref [] in
     List.iter
@@ -556,6 +564,8 @@ module Query = struct
       entries;
 
     (* Propagate highlights to ancestors *)
+    let propagated = Hashtbl.create 64 in  (* Track which entries we've already propagated to avoid duplicates *)
+    let propagation_count = ref 0 in
     List.iter (fun entry ->
       (* Determine this entry's ID for looking up in entry_parents:
          - For scopes: use header_entry_id (the scope's own ID)
@@ -570,25 +580,27 @@ module Query = struct
         match get_parent_id db ~run_id ~entry_id:current_entry_id with
         | None -> ()  (* Reached root *)
         | Some parent_id ->
-            (* Find the parent entry (parent will be a scope, so has header_entry_id) *)
-            let parent_entry_opt = List.find_opt (fun e ->
-              match e.header_entry_id with
-              | Some hid when hid = parent_id -> true
-              | _ -> false
-            ) entries in
+            (* Skip if already propagated to this parent *)
+            if not (Hashtbl.mem propagated parent_id) then (
+              Hashtbl.add propagated parent_id ();
 
-            (match parent_entry_opt with
-            | Some parent_entry ->
-                (* Check if parent matches quiet_path - if so, stop propagation *)
-                if not (matches_quiet_path parent_entry) then (
-                  insert_entry parent_entry;
-                  propagate_to_parent parent_id
-                )
-            | None -> ())
+              (* Find the parent entry using hash table (O(1) instead of O(n)) *)
+              match Hashtbl.find_opt scope_by_id parent_id with
+              | Some parent_entry ->
+                  (* Check if parent matches quiet_path - if so, stop propagation *)
+                  if not (matches_quiet_path parent_entry) then (
+                    insert_entry parent_entry;
+                    incr propagation_count;
+                    propagate_to_parent parent_id
+                  )
+              | None -> ()
+            )
       in
       (* Start propagation from this entry's parent *)
       propagate_to_parent this_entry_id
     ) !matches_to_propagate;
+
+    log_error (Printf.sprintf "Direct matches: %d, Propagated: %d" (List.length !matches_to_propagate) !propagation_count);
 
     Sqlite3.finalize stmt |> ignore;
 
