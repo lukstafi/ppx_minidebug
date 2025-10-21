@@ -466,8 +466,9 @@ module Query = struct
 
   (** Populate search results table with entries matching search term.
       This is meant to run in a background Domain. Opens its own DB connection.
-      Sets completed_ref to true when finished. *)
-  let populate_search_results db_path ~run_id ~slot ~search_term ~completed_ref =
+      Sets completed_ref to true when finished.
+      Propagates highlights to ancestors unless quiet_path matches. *)
+  let populate_search_results db_path ~run_id ~slot ~search_term ~quiet_path ~completed_ref =
     (* Open a new database connection for this Domain *)
     let db = Sqlite3.db_open db_path in
 
@@ -493,7 +494,34 @@ module Query = struct
       with Not_found -> false
     in
 
-    (* Filter and insert matching entries *)
+    (* Helper to check if entry matches quiet_path *)
+    let matches_quiet_path entry =
+      match quiet_path with
+      | None -> false
+      | Some qp ->
+          contains_substring entry.message qp
+          || (match entry.location with
+              | Some loc -> contains_substring loc qp
+              | None -> false)
+          || (match entry.data with
+              | Some d -> contains_substring d qp
+              | None -> false)
+    in
+
+    (* Helper to insert an entry into search results *)
+    let insert_entry entry =
+      Sqlite3.reset stmt |> ignore;
+      Sqlite3.bind_int stmt 1 run_id |> ignore;
+      Sqlite3.bind_int stmt 2 entry.entry_id |> ignore;
+      Sqlite3.bind_int stmt 3 entry.seq_id |> ignore;
+      Sqlite3.bind_text stmt 4 search_term |> ignore;
+      (match Sqlite3.step stmt with
+      | Sqlite3.Rc.DONE -> ()
+      | _ -> ())
+    in
+
+    (* Collect directly matching entries and mark for propagation *)
+    let matches_to_propagate = ref [] in
     List.iter
       (fun (entry : entry) ->
         let matches =
@@ -506,16 +534,38 @@ module Query = struct
               | None -> false)
         in
         if matches then (
-          Sqlite3.reset stmt |> ignore;
-          Sqlite3.bind_int stmt 1 run_id |> ignore;
-          Sqlite3.bind_int stmt 2 entry.entry_id |> ignore;
-          Sqlite3.bind_int stmt 3 entry.seq_id |> ignore;
-          Sqlite3.bind_text stmt 4 search_term |> ignore;
-          (match Sqlite3.step stmt with
-          | Sqlite3.Rc.DONE -> ()
-          | _ -> ())
+          insert_entry entry;
+          (* Mark for ancestor propagation if not a quiet_path match *)
+          if not (matches_quiet_path entry) then
+            matches_to_propagate := entry :: !matches_to_propagate
         ))
       entries;
+
+    (* Propagate highlights to ancestors *)
+    List.iter (fun entry ->
+      let rec propagate_to_parent current_entry_id =
+        match get_parent_id db ~run_id ~entry_id:current_entry_id with
+        | None -> ()  (* Reached root *)
+        | Some parent_id ->
+            (* Find the parent entry *)
+            let parent_entry_opt = List.find_opt (fun e ->
+              match e.header_entry_id with
+              | Some hid when hid = parent_id -> true
+              | _ -> false
+            ) entries in
+
+            (match parent_entry_opt with
+            | Some parent_entry ->
+                (* Check if parent matches quiet_path - if so, stop propagation *)
+                if not (matches_quiet_path parent_entry) then (
+                  insert_entry parent_entry;
+                  propagate_to_parent parent_id
+                )
+            | None -> ())
+      in
+      (* Start propagation from the entry's parent *)
+      propagate_to_parent entry.entry_id
+    ) !matches_to_propagate;
 
     Sqlite3.finalize stmt |> ignore;
 
@@ -525,12 +575,19 @@ module Query = struct
     (* Signal completion via shared memory *)
     completed_ref := true
 
-  (** Check if an entry matches any active search (returns slot number 1-4, or None) *)
-  let get_search_match db ~run_id ~entry_id ~seq_id =
-    let rec check_slot slot =
-      if slot > 4 then
+  (** Check if an entry matches any active search (returns slot number 1-4, or None).
+      Checks slots in reverse chronological order to prioritize more recent searches.
+      Slot ordering is determined by current_slot parameter. *)
+  let get_search_match db ~run_id ~entry_id ~seq_id ~current_slot =
+    (* Check slots in reverse chronological order:
+       most recent = (current_slot - 1 + 4) mod 4, then (current_slot - 2 + 4) mod 4, etc. *)
+    let rec check_slot_offset offset =
+      if offset >= 4 then
         None
       else
+        let slot_index = (current_slot - 1 - offset + 8) mod 4 in
+        let slot = slot_index + 1 in  (* DB tables are 1-indexed *)
+
         let query =
           Printf.sprintf
             "SELECT 1 FROM search_results_%d WHERE run_id = ? AND entry_id = ? AND seq_id = ?"
@@ -550,9 +607,9 @@ module Query = struct
 
         match result with
         | Some _ -> result
-        | None -> check_slot (slot + 1)
+        | None -> check_slot_offset (offset + 1)
     in
-    check_slot 1
+    check_slot_offset 0
 
   (** Get count of search results for a given slot *)
   let get_search_count db ~run_id ~slot =
@@ -910,6 +967,8 @@ module Interactive = struct
     search_slots : search_slot option array; (* 4 search slots, indexed 0-3 *)
     current_slot : int; (* Next slot to use (0-3) *)
     search_input : string option; (* Active search input buffer *)
+    quiet_path_input : string option; (* Active quiet path input buffer *)
+    quiet_path : string option; (* Shared quiet path filter - stops highlight propagation *)
   }
 
   and visible_item = {
@@ -970,11 +1029,11 @@ module Interactive = struct
     Array.of_list items
 
   (** Render a single line *)
-  let render_line ~width ~is_selected ~show_times ~margin_width ~db ~run_id item =
+  let render_line ~width ~is_selected ~show_times ~margin_width ~db ~run_id ~current_slot item =
     let entry = item.entry in
 
-    (* Check if this entry matches any search *)
-    let search_slot_match = Query.get_search_match db ~run_id ~entry_id:entry.entry_id ~seq_id:entry.seq_id in
+    (* Check if this entry matches any search (prioritizes more recent searches) *)
+    let search_slot_match = Query.get_search_match db ~run_id ~entry_id:entry.entry_id ~seq_id:entry.seq_id ~current_slot in
 
     (* Entry ID margin - use header_entry_id for scopes, entry_id for values *)
     (* Don't display negative IDs (used for boxified/decomposed values) *)
@@ -1087,11 +1146,17 @@ module Interactive = struct
     (* Header *)
     let header =
       let line1 =
-        match state.search_input with
+        match state.quiet_path_input with
         | Some input ->
-            (* Show search input prompt *)
-            I.string A.(fg lightyellow)
-              (Printf.sprintf "Search: %s_" input)
+            (* Show quiet_path input prompt *)
+            I.string A.(fg lightred)
+              (Printf.sprintf "Quiet Path: %s_" input)
+        | None -> (
+            match state.search_input with
+            | Some input ->
+                (* Show search input prompt *)
+                I.string A.(fg lightyellow)
+                  (Printf.sprintf "Search: %s_" input)
         | None ->
             (* Show run info and search status *)
             let base_info =
@@ -1127,7 +1192,14 @@ module Interactive = struct
               if !active_searches = [] then ""
               else " | " ^ String.concat " " (List.rev !active_searches)
             in
-            I.string A.(fg lightcyan) (base_info ^ search_status)
+            (* Add quiet_path indicator if set *)
+            let quiet_info =
+              match state.quiet_path with
+              | Some qp -> Printf.sprintf " | Q:%s" qp
+              | None -> ""
+            in
+            I.string A.(fg lightcyan) (base_info ^ search_status ^ quiet_info)
+        )
       in
       I.vcat [
         line1;
@@ -1143,7 +1215,7 @@ module Interactive = struct
     for i = visible_start to visible_end - 1 do
       let is_selected = i = state.cursor in
       let item = state.visible_items.(i) in
-      let line = render_line ~width:term_width ~is_selected ~show_times:state.show_times ~margin_width ~db:state.db ~run_id:state.run_id item in
+      let line = render_line ~width:term_width ~is_selected ~show_times:state.show_times ~margin_width ~db:state.db ~run_id:state.run_id ~current_slot:state.current_slot item in
       content_lines := line :: !content_lines
     done;
 
@@ -1158,11 +1230,16 @@ module Interactive = struct
     (* Footer *)
     let footer =
       let help_text =
-        match state.search_input with
+        match state.quiet_path_input with
         | Some _ ->
-            "[Enter] Confirm | [Esc] Cancel | [Backspace] Delete"
-        | None ->
-            "[↑/↓] Navigate | [PgUp/PgDn] Page | [Enter] Expand | [/] Search | [t] Times | [v] Values | [q] Quit"
+            "[Enter] Confirm quiet path | [Esc] Cancel | [Backspace] Delete"
+        | None -> (
+            match state.search_input with
+            | Some _ ->
+                "[Enter] Confirm search | [Esc] Cancel | [Backspace] Delete"
+            | None ->
+                "[↑/↓] Navigate | [PgUp/PgDn] Page | [Enter] Expand | [/] Search | [Q] Quiet path | [t] Times | [v] Values | [q] Quit"
+        )
       in
       I.vcat [
         I.string A.(fg white) (String.make term_width '-');
@@ -1196,9 +1273,39 @@ module Interactive = struct
   let handle_key state key term_height =
     let content_height = term_height - 4 in
 
-    (* Handle search input mode separately *)
-    match state.search_input with
+    (* Handle quiet_path input mode first *)
+    match state.quiet_path_input with
     | Some input -> (
+        match key with
+        | `Escape, _ ->
+            (* Cancel quiet_path input *)
+            Some { state with quiet_path_input = None }
+
+        | `Enter, _ ->
+            (* Confirm quiet_path *)
+            let new_quiet_path = if String.length input > 0 then Some input else None in
+            Some { state with quiet_path_input = None; quiet_path = new_quiet_path }
+
+        | `Backspace, _ ->
+            (* Remove last character *)
+            let new_input =
+              if String.length input > 0 then
+                String.sub input 0 (String.length input - 1)
+              else
+                input
+            in
+            Some { state with quiet_path_input = Some new_input }
+
+        | `ASCII c, _ when c >= ' ' && c <= '~' ->
+            (* Add printable character *)
+            Some { state with quiet_path_input = Some (input ^ String.make 1 c) }
+
+        | _ -> Some state
+    )
+    | None -> (
+        (* Handle search input mode *)
+        match state.search_input with
+        | Some input -> (
         match key with
         | `Escape, _ ->
             (* Cancel search input *)
@@ -1216,7 +1323,7 @@ module Interactive = struct
               (* Spawn background search Domain - pass db_path not db handle *)
               let domain_handle =
                 Domain.spawn (fun () ->
-                  Query.populate_search_results state.db_path ~run_id:state.run_id ~slot:slot_num ~search_term:input ~completed_ref
+                  Query.populate_search_results state.db_path ~run_id:state.run_id ~slot:slot_num ~search_term:input ~quiet_path:state.quiet_path ~completed_ref
                 )
               in
 
@@ -1258,6 +1365,10 @@ module Interactive = struct
         | `ASCII '/', _ ->
             (* Enter search mode *)
             Some { state with search_input = Some "" }
+
+        | `ASCII 'Q', _ ->
+            (* Enter quiet_path mode *)
+            Some { state with quiet_path_input = Some (Option.value ~default:"" state.quiet_path) }
 
         | `Arrow `Up, _ | `ASCII 'k', _ ->
         let new_cursor = max 0 (state.cursor - 1) in
@@ -1313,6 +1424,7 @@ module Interactive = struct
 
         | _ -> Some state
     )
+    )
 
   (** Main interactive loop *)
   let run db db_path run_id =
@@ -1344,6 +1456,8 @@ module Interactive = struct
       search_slots = initial_search_slots;
       current_slot = 0;
       search_input = None;
+      quiet_path_input = None;
+      quiet_path = None;
     } in
 
     let term = Term.create () in
