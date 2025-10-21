@@ -1042,6 +1042,16 @@ module Interactive = struct
   open Notty
   open Notty_unix
 
+  (** Poll for terminal event with timeout. Returns None on timeout. *)
+  let event_with_timeout term timeout_sec =
+    (* Get the input file descriptor from stdin *)
+    let stdin_fd = Unix.stdin in
+    let (ready, _, _) = Unix.select [stdin_fd] [] [] timeout_sec in
+    if ready = [] then
+      None  (* Timeout *)
+    else
+      Some (Term.event term)  (* Event available *)
+
   type search_slot = {
     search_term : string;
     domain_handle : unit Domain.t option; [@warning "-69"]
@@ -1562,13 +1572,19 @@ module Interactive = struct
       let image = render_screen state term_height term_width in
       Term.image term image;
 
-      match Term.event term with
-      | `Key key ->
-          (match handle_key state key term_height with
-          | Some new_state -> loop new_state
-          | None -> ())
-      | `Resize _ -> loop state
-      | _ -> loop state
+      (* Poll every 100ms to check for search updates *)
+      match event_with_timeout term 0.1 with
+      | Some event ->
+          (match event with
+          | `Key key ->
+              (match handle_key state key term_height with
+              | Some new_state -> loop new_state
+              | None -> ())
+          | `Resize _ -> loop state
+          | #Notty.Unescape.event | `End -> loop state)
+      | None ->
+          (* Timeout - just redraw to update search status *)
+          loop state
     in
 
     loop initial_state;
