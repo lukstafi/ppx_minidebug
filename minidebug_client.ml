@@ -543,11 +543,20 @@ module Query = struct
 
     (* Propagate highlights to ancestors *)
     List.iter (fun entry ->
+      (* Determine this entry's ID for looking up in entry_parents:
+         - For scopes: use header_entry_id (the scope's own ID)
+         - For values: use entry_id (their parent scope ID) *)
+      let this_entry_id =
+        match entry.header_entry_id with
+        | Some hid -> hid  (* This is a scope *)
+        | None -> entry.entry_id  (* This is a value, use its parent scope *)
+      in
+
       let rec propagate_to_parent current_entry_id =
         match get_parent_id db ~run_id ~entry_id:current_entry_id with
         | None -> ()  (* Reached root *)
         | Some parent_id ->
-            (* Find the parent entry *)
+            (* Find the parent entry (parent will be a scope, so has header_entry_id) *)
             let parent_entry_opt = List.find_opt (fun e ->
               match e.header_entry_id with
               | Some hid when hid = parent_id -> true
@@ -563,8 +572,8 @@ module Query = struct
                 )
             | None -> ())
       in
-      (* Start propagation from the entry's parent *)
-      propagate_to_parent entry.entry_id
+      (* Start propagation from this entry's parent *)
+      propagate_to_parent this_entry_id
     ) !matches_to_propagate;
 
     Sqlite3.finalize stmt |> ignore;
