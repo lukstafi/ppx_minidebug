@@ -404,12 +404,16 @@ This allows the TUI to inspect traces between function calls while maintaining h
 
 ## Next Steps (Phase 2+)
 
-1. **Enhanced Structure Storage**: Use `structure_value_id` for JSON-based structure metadata
-2. **GUI Server**: REST API for pagination, search, lazy loading
-3. **GUI Client**: Web-based client with rich tree visualization
-4. **Cross-Run State**: PrevRun diff integration for state persistence
-5. **Advanced Deduplication**: Template-based structural sharing for repeated record shapes
-6. **Performance Metrics**: Query timing, cache hit rates, deduplication statistics
+1. **Schema Cleanup**: Remove `run_id` from composite keys - file versioning makes it redundant
+   - Currently: `(run_id, entry_id, seq_num)` primary key
+   - After cleanup: `(entry_id, seq_num)` primary key
+   - Rationale: Each runtime instance gets its own versioned database file, so all entries in a file belong to the same logical run. The `run_id` column is vestigial from the pre-versioning design.
+2. **Enhanced Structure Storage**: Use `structure_value_id` for JSON-based structure metadata
+3. **GUI Server**: REST API for pagination, search, lazy loading
+4. **GUI Client**: Web-based client with rich tree visualization
+5. **Cross-Run State**: PrevRun diff integration for state persistence
+6. **Advanced Deduplication**: Template-based structural sharing for repeated record shapes
+7. **Performance Metrics**: Query timing, cache hit rates, deduplication statistics
 
 ## Testing
 

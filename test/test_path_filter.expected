@@ -14,6 +14,6 @@ Result: 30
 
 === Test 4: No filter (shows all logs) ===
 Result: 30
-[debug] compute_nofilter => 30 @ test/test_path_filter.ml:71:34-73:9
+[debug] compute_nofilter => 30 @ test/test_path_filter.ml:75:34-77:9
   x = 5
-  [debug] y => 15 @ test/test_path_filter.ml:72:8-72:9
+  [debug] y => 15 @ test/test_path_filter.ml:76:8-76:9
