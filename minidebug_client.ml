@@ -460,8 +460,9 @@ module Query = struct
     Sqlite3.exec db query |> ignore
 
   (** Populate search results table with entries matching search term.
-      This is meant to run in a background Domain. Opens its own DB connection. *)
-  let populate_search_results db_path ~run_id ~slot ~search_term =
+      This is meant to run in a background Domain. Opens its own DB connection.
+      Sets completed_ref to true when finished. *)
+  let populate_search_results db_path ~run_id ~slot ~search_term ~completed_ref =
     (* Open a new database connection for this Domain *)
     let db = Sqlite3.db_open db_path in
 
@@ -514,7 +515,10 @@ module Query = struct
     Sqlite3.finalize stmt |> ignore;
 
     (* Close the database connection *)
-    Sqlite3.db_close db |> ignore
+    Sqlite3.db_close db |> ignore;
+
+    (* Signal completion via shared memory *)
+    completed_ref := true
 
   (** Check if an entry matches any active search (returns slot number 1-4, or None) *)
   let get_search_match db ~run_id ~entry_id ~seq_id =
@@ -863,6 +867,7 @@ module Interactive = struct
   type search_slot = {
     search_term : string;
     domain_handle : unit Domain.t option; [@warning "-69"]
+    completed_ref : bool ref; (* Shared memory flag set by Domain when finished *)
   }
 
   type view_state = {
@@ -1083,7 +1088,14 @@ module Interactive = struct
                     let count = Query.get_search_count state.db ~run_id:state.run_id ~slot:slot_num in
                     let color_name = match slot_num with
                       | 1 -> "G" | 2 -> "C" | 3 -> "M" | 4 -> "Y" | _ -> "?" in
-                    active_searches := Printf.sprintf "%s:%s[%d]" color_name slot.search_term count :: !active_searches
+                    (* Show [...] while running, just [...] when complete *)
+                    let count_str =
+                      if !(slot.completed_ref) then
+                        Printf.sprintf "[%d]" count
+                      else
+                        Printf.sprintf "[%d...]" count
+                    in
+                    active_searches := Printf.sprintf "%s:%s%s" color_name slot.search_term count_str :: !active_searches
                 | None -> ()
               ) state.search_slots;
               if !active_searches = [] then ""
@@ -1172,16 +1184,19 @@ module Interactive = struct
               let slot = state.current_slot in
               let slot_num = slot + 1 in  (* DB tables are 1-indexed *)
 
+              (* Create shared completion flag *)
+              let completed_ref = ref false in
+
               (* Spawn background search Domain - pass db_path not db handle *)
               let domain_handle =
                 Domain.spawn (fun () ->
-                  Query.populate_search_results state.db_path ~run_id:state.run_id ~slot:slot_num ~search_term:input
+                  Query.populate_search_results state.db_path ~run_id:state.run_id ~slot:slot_num ~search_term:input ~completed_ref
                 )
               in
 
               (* Update search slots *)
               let new_slots = Array.copy state.search_slots in
-              new_slots.(slot) <- Some { search_term = input; domain_handle = Some domain_handle };
+              new_slots.(slot) <- Some { search_term = input; domain_handle = Some domain_handle; completed_ref };
 
               Some {
                 state with
