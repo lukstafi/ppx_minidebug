@@ -484,84 +484,137 @@ module Query = struct
         (match quiet_path with Some q -> "'" ^ q ^ "'" | None -> "None"));
 
       (* Open a new database connection for this Domain *)
+      log_error (Printf.sprintf "Opening database: %s" db_path);
       let db = Sqlite3.db_open db_path in
+      log_error "Database opened successfully";
 
       (* First clear the table for this run *)
+      log_error "Clearing search table...";
       clear_search_table db ~run_id ~slot;
+      log_error "Cleared search table";
 
-    (* Get all entries for this run *)
-    let entries = get_entries db ~run_id () in
+      (* Stream entries instead of loading all into memory (DB is huge!) *)
+      log_error "Streaming entries and searching...";
 
-    (* Prepare insert statement *)
-    let insert_query =
-      Printf.sprintf
-        "INSERT INTO search_results_%d (run_id, entry_id, seq_id, search_term) VALUES (?, ?, ?, ?)"
-        slot
-    in
-    let stmt = Sqlite3.prepare db insert_query in
+      (* Prepare insert statement for matches *)
+      let insert_query =
+        Printf.sprintf
+          "INSERT INTO search_results_%d (run_id, entry_id, seq_id, search_term) VALUES (?, ?, ?, ?)"
+          slot
+      in
+      let insert_stmt = Sqlite3.prepare db insert_query in
 
-    (* Helper to check if haystack contains needle as substring *)
-    let contains_substring haystack needle =
-      try
-        let _ = Re.Str.search_forward (Re.Str.regexp_string needle) haystack 0 in
-        true
-      with Not_found -> false
-    in
+      (* Helper to check if haystack contains needle as substring *)
+      let contains_substring haystack needle =
+        try
+          let _ = Re.Str.search_forward (Re.Str.regexp_string needle) haystack 0 in
+          true
+        with Not_found -> false
+      in
 
-    (* Helper to check if entry matches quiet_path *)
-    let matches_quiet_path entry =
-      match quiet_path with
-      | None -> false
-      | Some qp ->
-          contains_substring entry.message qp
-          || (match entry.location with
-              | Some loc -> contains_substring loc qp
-              | None -> false)
-          || (match entry.data with
-              | Some d -> contains_substring d qp
-              | None -> false)
-    in
+      (* Helper to check if entry matches quiet_path *)
+      let matches_quiet_path entry =
+        match quiet_path with
+        | None -> false
+        | Some qp ->
+            contains_substring entry.message qp
+            || (match entry.location with
+                | Some loc -> contains_substring loc qp
+                | None -> false)
+            || (match entry.data with
+                | Some d -> contains_substring d qp
+                | None -> false)
+      in
 
-    (* Helper to insert an entry into search results *)
-    let insert_entry entry =
-      Sqlite3.reset stmt |> ignore;
-      Sqlite3.bind_int stmt 1 run_id |> ignore;
-      Sqlite3.bind_int stmt 2 entry.entry_id |> ignore;
-      Sqlite3.bind_int stmt 3 entry.seq_id |> ignore;
-      Sqlite3.bind_text stmt 4 search_term |> ignore;
-      (match Sqlite3.step stmt with
-      | Sqlite3.Rc.DONE -> ()
-      | _ -> ())
-    in
+      (* Helper to insert an entry into search results *)
+      let insert_entry entry =
+        Sqlite3.reset insert_stmt |> ignore;
+        Sqlite3.bind_int insert_stmt 1 run_id |> ignore;
+        Sqlite3.bind_int insert_stmt 2 entry.entry_id |> ignore;
+        Sqlite3.bind_int insert_stmt 3 entry.seq_id |> ignore;
+        Sqlite3.bind_text insert_stmt 4 search_term |> ignore;
+        (match Sqlite3.step insert_stmt with
+        | Sqlite3.Rc.DONE -> ()
+        | _ -> ())
+      in
 
-    (* Build hash table for fast lookup of entries by header_entry_id *)
-    let scope_by_id = Hashtbl.create (List.length entries) in
-    List.iter (fun entry ->
-      match entry.header_entry_id with
-      | Some hid -> Hashtbl.add scope_by_id hid entry
-      | None -> ()
-    ) entries;
+      (* Stream entries, find matches, and build scope index in one pass *)
+      let query_stmt = Sqlite3.prepare db
+        {|SELECT e.entry_id, e.seq_id, e.header_entry_id, e.depth,
+                 m.value_content as message, l.value_content as location, d.value_content as data,
+                 e.elapsed_start_ns, e.elapsed_end_ns, e.is_result, e.log_level, e.entry_type
+          FROM entries e
+          LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
+          LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
+          LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
+          WHERE e.run_id = ?
+          ORDER BY e.entry_id, e.seq_id|}
+      in
+      Sqlite3.bind_int query_stmt 1 run_id |> ignore;
 
-    (* Collect directly matching entries and mark for propagation *)
-    let matches_to_propagate = ref [] in
-    List.iter
-      (fun (entry : entry) ->
-        let matches =
-          contains_substring entry.message search_term
-          || (match entry.location with
-              | Some loc -> contains_substring loc search_term
-              | None -> false)
-          || (match entry.data with
-              | Some d -> contains_substring d search_term
-              | None -> false)
-        in
-        if matches then (
-          insert_entry entry;
-          (* Mark for ancestor propagation if not a quiet_path match *)
-          if not (matches_quiet_path entry) then
-            matches_to_propagate := entry :: !matches_to_propagate
-        ))
-      entries;
+      let scope_by_id = Hashtbl.create 1024 in
+      let matches_to_propagate = ref [] in
+      let processed_count = ref 0 in
+      let match_count = ref 0 in
+
+      let rec process_rows () =
+        match Sqlite3.step query_stmt with
+        | Sqlite3.Rc.ROW ->
+            incr processed_count;
+            if !processed_count mod 10000 = 0 then
+              log_error (Printf.sprintf "Processed %d entries, found %d matches" !processed_count !match_count);
+
+            let entry = {
+              entry_id = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 0);
+              seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 1);
+              header_entry_id =
+                (match Sqlite3.column query_stmt 2 with
+                | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+                | _ -> None);
+              depth = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 3);
+              message = (match Sqlite3.column query_stmt 4 with Sqlite3.Data.TEXT s -> s | _ -> "");
+              location = (match Sqlite3.column query_stmt 5 with Sqlite3.Data.TEXT s -> Some s | _ -> None);
+              data = (match Sqlite3.column query_stmt 6 with Sqlite3.Data.TEXT s -> Some s | _ -> None);
+              elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 7);
+              elapsed_end_ns = (match Sqlite3.column query_stmt 8 with Sqlite3.Data.INT i -> Some (Int64.to_int i) | _ -> None);
+              is_result = (match Sqlite3.Data.to_bool (Sqlite3.column query_stmt 9) with Some b -> b | None -> false);
+              log_level = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 10);
+              entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column query_stmt 11);
+            } in
+
+            (* Add to scope index if it's a scope *)
+            (match entry.header_entry_id with
+            | Some hid -> Hashtbl.add scope_by_id hid entry
+            | None -> ());
+
+            (* Check if it matches the search term *)
+            let matches =
+              contains_substring entry.message search_term
+              || (match entry.location with
+                  | Some loc -> contains_substring loc search_term
+                  | None -> false)
+              || (match entry.data with
+                  | Some d -> contains_substring d search_term
+                  | None -> false)
+            in
+
+            if matches then (
+              incr match_count;
+              insert_entry entry;
+              (* Mark for ancestor propagation if not a quiet_path match *)
+              if not (matches_quiet_path entry) then
+                matches_to_propagate := entry :: !matches_to_propagate
+            );
+
+            process_rows ()
+        | Sqlite3.Rc.DONE -> ()
+        | rc -> failwith (Printf.sprintf "Query failed: %s" (Sqlite3.Rc.to_string rc))
+      in
+
+      process_rows ();
+      Sqlite3.finalize query_stmt |> ignore;
+      log_error (Printf.sprintf "Streaming complete. Processed %d entries, found %d matches, %d scopes"
+                   !processed_count !match_count (Hashtbl.length scope_by_id));
 
     (* Propagate highlights to ancestors *)
     let propagated = Hashtbl.create 64 in  (* Track which entries we've already propagated to avoid duplicates *)
@@ -600,9 +653,10 @@ module Query = struct
       propagate_to_parent this_entry_id
     ) !matches_to_propagate;
 
-    log_error (Printf.sprintf "Direct matches: %d, Propagated: %d" (List.length !matches_to_propagate) !propagation_count);
+    log_error (Printf.sprintf "Propagation complete. Direct: %d, Ancestors: %d" (List.length !matches_to_propagate) !propagation_count);
 
-    Sqlite3.finalize stmt |> ignore;
+    Sqlite3.finalize insert_stmt |> ignore;
+    log_error "Finalized statement";
 
       (* Close the database connection *)
       Sqlite3.db_close db |> ignore;
