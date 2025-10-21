@@ -88,8 +88,9 @@ end
 
 (** Interactive TUI using Notty *)
 module Interactive : sig
-  val run : Sqlite3.db -> int -> unit
+  val run : Sqlite3.db -> string -> int -> unit
   (** Launch interactive terminal UI for exploring a trace run.
+      Arguments: db handle, db_path, run_id
 
       Controls:
       - [↑/↓] or [k/j]: Navigate up/down

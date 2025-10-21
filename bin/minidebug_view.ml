@@ -221,7 +221,7 @@ let () =
         in
         (* Open a separate database connection for interactive mode *)
         let db = Sqlite3.db_open ~mode:`READONLY db_path in
-        Minidebug_client.Interactive.run db run_id;
+        Minidebug_client.Interactive.run db db_path run_id;
         Sqlite3.db_close db |> ignore
     | Compact run_id_opt ->
         let run_id =

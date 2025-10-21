@@ -460,8 +460,11 @@ module Query = struct
     Sqlite3.exec db query |> ignore
 
   (** Populate search results table with entries matching search term.
-      This is meant to run in a background Domain. *)
-  let populate_search_results db ~run_id ~slot ~search_term =
+      This is meant to run in a background Domain. Opens its own DB connection. *)
+  let populate_search_results db_path ~run_id ~slot ~search_term =
+    (* Open a new database connection for this Domain *)
+    let db = Sqlite3.db_open db_path in
+
     (* First clear the table *)
     clear_search_table db ~slot;
 
@@ -508,7 +511,10 @@ module Query = struct
         ))
       entries;
 
-    Sqlite3.finalize stmt |> ignore
+    Sqlite3.finalize stmt |> ignore;
+
+    (* Close the database connection *)
+    Sqlite3.db_close db |> ignore
 
   (** Check if an entry matches any active search (returns slot number 1-4, or None) *)
   let get_search_match db ~run_id ~entry_id ~seq_id =
@@ -861,6 +867,7 @@ module Interactive = struct
 
   type view_state = {
     db : Sqlite3.db;
+    db_path : string; (* Path to database file for spawning Domains *)
     run_id : int;
     cursor : int; (* Current cursor position in visible items *)
     scroll_offset : int; (* Top visible item index *)
@@ -1165,10 +1172,10 @@ module Interactive = struct
               let slot = state.current_slot in
               let slot_num = slot + 1 in  (* DB tables are 1-indexed *)
 
-              (* Spawn background search Domain *)
+              (* Spawn background search Domain - pass db_path not db handle *)
               let domain_handle =
                 Domain.spawn (fun () ->
-                  Query.populate_search_results state.db ~run_id:state.run_id ~slot:slot_num ~search_term:input
+                  Query.populate_search_results state.db_path ~run_id:state.run_id ~slot:slot_num ~search_term:input
                 )
               in
 
@@ -1267,13 +1274,14 @@ module Interactive = struct
     )
 
   (** Main interactive loop *)
-  let run db run_id =
+  let run db db_path run_id =
     let expanded = Hashtbl.create 64 in
     let visible_items = build_visible_items db run_id expanded in
     let max_entry_id = Query.get_max_entry_id db ~run_id in
 
     let initial_state = {
       db;
+      db_path;
       run_id;
       cursor = 0;
       scroll_offset = 0;
