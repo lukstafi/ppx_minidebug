@@ -453,6 +453,109 @@ module Query = struct
     loop ();
     Sqlite3.finalize stmt |> ignore;
     List.rev !entries
+
+  (** Clear search results table for a given slot (1-4) *)
+  let clear_search_table db ~slot =
+    let query = Printf.sprintf "DELETE FROM search_results_%d" slot in
+    Sqlite3.exec db query |> ignore
+
+  (** Populate search results table with entries matching search term.
+      This is meant to run in a background Domain. *)
+  let populate_search_results db ~run_id ~slot ~search_term =
+    (* First clear the table *)
+    clear_search_table db ~slot;
+
+    (* Get all entries for this run *)
+    let entries = get_entries db ~run_id () in
+
+    (* Prepare insert statement *)
+    let insert_query =
+      Printf.sprintf
+        "INSERT INTO search_results_%d (run_id, entry_id, seq_id, search_term) VALUES (?, ?, ?, ?)"
+        slot
+    in
+    let stmt = Sqlite3.prepare db insert_query in
+
+    (* Helper to check if haystack contains needle as substring *)
+    let contains_substring haystack needle =
+      try
+        let _ = Re.Str.search_forward (Re.Str.regexp_string needle) haystack 0 in
+        true
+      with Not_found -> false
+    in
+
+    (* Filter and insert matching entries *)
+    List.iter
+      (fun (entry : entry) ->
+        let matches =
+          contains_substring entry.message search_term
+          || (match entry.location with
+              | Some loc -> contains_substring loc search_term
+              | None -> false)
+          || (match entry.data with
+              | Some d -> contains_substring d search_term
+              | None -> false)
+        in
+        if matches then (
+          Sqlite3.reset stmt |> ignore;
+          Sqlite3.bind_int stmt 1 run_id |> ignore;
+          Sqlite3.bind_int stmt 2 entry.entry_id |> ignore;
+          Sqlite3.bind_int stmt 3 entry.seq_id |> ignore;
+          Sqlite3.bind_text stmt 4 search_term |> ignore;
+          (match Sqlite3.step stmt with
+          | Sqlite3.Rc.DONE -> ()
+          | _ -> ())
+        ))
+      entries;
+
+    Sqlite3.finalize stmt |> ignore
+
+  (** Check if an entry matches any active search (returns slot number 1-4, or None) *)
+  let get_search_match db ~run_id ~entry_id ~seq_id =
+    let rec check_slot slot =
+      if slot > 4 then
+        None
+      else
+        let query =
+          Printf.sprintf
+            "SELECT 1 FROM search_results_%d WHERE run_id = ? AND entry_id = ? AND seq_id = ?"
+            slot
+        in
+        let stmt = Sqlite3.prepare db query in
+        Sqlite3.bind_int stmt 1 run_id |> ignore;
+        Sqlite3.bind_int stmt 2 entry_id |> ignore;
+        Sqlite3.bind_int stmt 3 seq_id |> ignore;
+
+        let result =
+          match Sqlite3.step stmt with
+          | Sqlite3.Rc.ROW -> Some slot
+          | _ -> None
+        in
+        Sqlite3.finalize stmt |> ignore;
+
+        match result with
+        | Some _ -> result
+        | None -> check_slot (slot + 1)
+    in
+    check_slot 1
+
+  (** Get count of search results for a given slot *)
+  let get_search_count db ~run_id ~slot =
+    let query =
+      Printf.sprintf
+        "SELECT COUNT(*) FROM search_results_%d WHERE run_id = ?"
+        slot
+    in
+    let stmt = Sqlite3.prepare db query in
+    Sqlite3.bind_int stmt 1 run_id |> ignore;
+
+    let count =
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW -> Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0)
+      | _ -> 0
+    in
+    Sqlite3.finalize stmt |> ignore;
+    count
 end
 
 (** Tree renderer for terminal output *)
@@ -751,6 +854,11 @@ module Interactive = struct
   open Notty
   open Notty_unix
 
+  type search_slot = {
+    search_term : string;
+    domain_handle : unit Domain.t option; [@warning "-69"]
+  }
+
   type view_state = {
     db : Sqlite3.db;
     run_id : int;
@@ -761,6 +869,9 @@ module Interactive = struct
     show_times : bool;
     values_first : bool;
     max_entry_id : int; (* Maximum entry_id in this run *)
+    search_slots : search_slot option array; (* 4 search slots, indexed 0-3 *)
+    current_slot : int; (* Next slot to use (0-3) *)
+    search_input : string option; (* Active search input buffer *)
   }
 
   and visible_item = {
@@ -821,8 +932,11 @@ module Interactive = struct
     Array.of_list items
 
   (** Render a single line *)
-  let render_line ~width ~is_selected ~show_times ~margin_width item =
+  let render_line ~width ~is_selected ~show_times ~margin_width ~db ~run_id item =
     let entry = item.entry in
+
+    (* Check if this entry matches any search *)
+    let search_slot_match = Query.get_search_match db ~run_id ~entry_id:entry.entry_id ~seq_id:entry.seq_id in
 
     (* Entry ID margin - use header_entry_id for scopes, entry_id for values *)
     (* Don't display negative IDs (used for boxified/decomposed values) *)
@@ -886,9 +1000,21 @@ module Interactive = struct
         full_text
     in
 
-    let attr = if is_selected then A.(bg lightblue ++ fg black) else A.empty in
-    let margin_attr = if is_selected then A.(bg lightblue ++ fg black) else A.(fg yellow) in
-    I.hcat [ I.string margin_attr entry_id_str; I.string attr truncated ]
+    (* Determine highlighting colors based on search match and selection *)
+    let (content_attr, margin_attr) =
+      if is_selected then
+        (* Selection takes priority - blue background *)
+        (A.(bg lightblue ++ fg black), A.(bg lightblue ++ fg black))
+      else
+        match search_slot_match with
+        | Some 1 -> (A.(fg green), A.(fg green))       (* Search slot 1: green *)
+        | Some 2 -> (A.(fg cyan), A.(fg cyan))         (* Search slot 2: cyan *)
+        | Some 3 -> (A.(fg magenta), A.(fg magenta))   (* Search slot 3: magenta *)
+        | Some 4 -> (A.(fg yellow), A.(fg yellow))     (* Search slot 4: yellow *)
+        | _ -> (A.empty, A.(fg yellow))                (* No match: default (margin still yellow) *)
+    in
+
+    I.hcat [ I.string margin_attr entry_id_str; I.string content_attr truncated ]
 
   (** Render the full screen *)
   let render_screen state term_height term_width =
@@ -922,16 +1048,44 @@ module Interactive = struct
 
     (* Header *)
     let header =
+      let line1 =
+        match state.search_input with
+        | Some input ->
+            (* Show search input prompt *)
+            I.string A.(fg lightyellow)
+              (Printf.sprintf "Search: %s_" input)
+        | None ->
+            (* Show run info and search status *)
+            let base_info =
+              Printf.sprintf "Run #%d | Items: %d | Times: %s | Values First: %s | Entry: %d/%d (%.1f%%)"
+                state.run_id
+                (Array.length state.visible_items)
+                (if state.show_times then "ON" else "OFF")
+                (if state.values_first then "ON" else "OFF")
+                current_entry_id
+                state.max_entry_id
+                progress_pct
+            in
+            (* Build search status string *)
+            let search_status =
+              let active_searches = ref [] in
+              Array.iteri (fun idx slot_opt ->
+                match slot_opt with
+                | Some slot ->
+                    let slot_num = idx + 1 in
+                    let count = Query.get_search_count state.db ~run_id:state.run_id ~slot:slot_num in
+                    let color_name = match slot_num with
+                      | 1 -> "G" | 2 -> "C" | 3 -> "M" | 4 -> "Y" | _ -> "?" in
+                    active_searches := Printf.sprintf "%s:%s[%d]" color_name slot.search_term count :: !active_searches
+                | None -> ()
+              ) state.search_slots;
+              if !active_searches = [] then ""
+              else " | " ^ String.concat " " (List.rev !active_searches)
+            in
+            I.string A.(fg lightcyan) (base_info ^ search_status)
+      in
       I.vcat [
-        I.string A.(fg lightcyan)
-          (Printf.sprintf "Run #%d | Items: %d | Times: %s | Values First: %s | Entry: %d/%d (%.1f%%)"
-            state.run_id
-            (Array.length state.visible_items)
-            (if state.show_times then "ON" else "OFF")
-            (if state.values_first then "ON" else "OFF")
-            current_entry_id
-            state.max_entry_id
-            progress_pct);
+        line1;
         I.string A.(fg white) (String.make term_width '-');
       ]
     in
@@ -944,7 +1098,7 @@ module Interactive = struct
     for i = visible_start to visible_end - 1 do
       let is_selected = i = state.cursor in
       let item = state.visible_items.(i) in
-      let line = render_line ~width:term_width ~is_selected ~show_times:state.show_times ~margin_width item in
+      let line = render_line ~width:term_width ~is_selected ~show_times:state.show_times ~margin_width ~db:state.db ~run_id:state.run_id item in
       content_lines := line :: !content_lines
     done;
 
@@ -958,10 +1112,16 @@ module Interactive = struct
 
     (* Footer *)
     let footer =
+      let help_text =
+        match state.search_input with
+        | Some _ ->
+            "[Enter] Confirm | [Esc] Cancel | [Backspace] Delete"
+        | None ->
+            "[↑/↓] Navigate | [PgUp/PgDn] Page | [Enter] Expand | [/] Search | [t] Times | [v] Values | [q] Quit"
+      in
       I.vcat [
         I.string A.(fg white) (String.make term_width '-');
-        I.string A.(fg lightcyan)
-          "[↑/↓] Navigate | [PgUp/PgDn] Page | [Enter] Expand/Collapse | [t] Times | [v] Values First | [q] Quit";
+        I.string A.(fg lightcyan) help_text;
       ]
     in
 
@@ -990,10 +1150,68 @@ module Interactive = struct
   (** Handle key events *)
   let handle_key state key term_height =
     let content_height = term_height - 4 in
-    match key with
-    | `ASCII 'q', _ | `Escape, _ -> None (* Quit *)
 
-    | `Arrow `Up, _ | `ASCII 'k', _ ->
+    (* Handle search input mode separately *)
+    match state.search_input with
+    | Some input -> (
+        match key with
+        | `Escape, _ ->
+            (* Cancel search input *)
+            Some { state with search_input = None }
+
+        | `Enter, _ ->
+            (* Confirm search - spawn Domain to populate search table *)
+            if String.length input > 0 then
+              let slot = state.current_slot in
+              let slot_num = slot + 1 in  (* DB tables are 1-indexed *)
+
+              (* Spawn background search Domain *)
+              let domain_handle =
+                Domain.spawn (fun () ->
+                  Query.populate_search_results state.db ~run_id:state.run_id ~slot:slot_num ~search_term:input
+                )
+              in
+
+              (* Update search slots *)
+              let new_slots = Array.copy state.search_slots in
+              new_slots.(slot) <- Some { search_term = input; domain_handle = Some domain_handle };
+
+              Some {
+                state with
+                search_input = None;
+                search_slots = new_slots;
+                current_slot = (slot + 1) mod 4;
+              }
+            else
+              (* Empty input - just cancel *)
+              Some { state with search_input = None }
+
+        | `Backspace, _ ->
+            (* Remove last character *)
+            let new_input =
+              if String.length input > 0 then
+                String.sub input 0 (String.length input - 1)
+              else
+                input
+            in
+            Some { state with search_input = Some new_input }
+
+        | `ASCII c, _ when c >= ' ' && c <= '~' ->
+            (* Add printable character *)
+            Some { state with search_input = Some (input ^ String.make 1 c) }
+
+        | _ -> Some state
+    )
+    | None -> (
+        (* Normal navigation mode *)
+        match key with
+        | `ASCII 'q', _ | `Escape, _ -> None (* Quit *)
+
+        | `ASCII '/', _ ->
+            (* Enter search mode *)
+            Some { state with search_input = Some "" }
+
+        | `Arrow `Up, _ | `ASCII 'k', _ ->
         let new_cursor = max 0 (state.cursor - 1) in
         let new_scroll =
           if new_cursor < state.scroll_offset then new_cursor
@@ -1045,7 +1263,8 @@ module Interactive = struct
           (* Move cursor to bottom of current view *)
           Some { state with cursor = bottom_of_screen }
 
-    | _ -> Some state
+        | _ -> Some state
+    )
 
   (** Main interactive loop *)
   let run db run_id =
@@ -1063,6 +1282,9 @@ module Interactive = struct
       show_times = true;
       values_first = true;
       max_entry_id;
+      search_slots = Array.make 4 None;
+      current_slot = 0;
+      search_input = None;
     } in
 
     let term = Term.create () in
