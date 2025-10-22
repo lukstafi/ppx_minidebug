@@ -148,20 +148,11 @@ Rendered as:
 **schema_version** - Schema version tracking
 - `version`: Current schema version
 
-**search_results_1..4** - Cached search results (4 slots for concurrent searches)
-- `run_id`: Foreign key to runs table
-- `entry_id`: Entry identifier matching search pattern
-- `seq_id`: Sequence ID within entry
-- `search_term`: The search pattern that matched
-
-Each search slot persists results in the database, enabling instant restore on TUI restart and concurrent search with different highlight colors.
-
 ### Indexes
 
 - `idx_value_hash`: Hash index on `value_atoms(value_hash)` for O(1) deduplication
 - `idx_entries_header`: Index on `entries(run_id, header_entry_id)` for finding scope headers
 - `idx_entries_depth`: Index on `entries(run_id, depth)` for depth queries
-- `idx_search_results_N_lookup`: Index on `search_results_N(run_id, entry_id, seq_id)` for O(1) search result lookup (N=1..4)
 
 ## Deduplication Strategy
 
@@ -189,8 +180,10 @@ When a sexp value exceeds a threshold size (default: 10 atoms), the database bac
 - Values at the same indentation level are siblings
 
 **Synthetic entries:**
-- Boxified entries use negative `seq_id` values (e.g., -1, -2, -3...)
-- Each decomposed scope gets a synthetic `entry_id` from a negative counter
+- Boxified entries use negative `entry_id` values (e.g., -1, -2, -3, ...)
+- Regular logged entries use positive `entry_id` values (1, 2, 3, ...)
+- Both positive and negative entries can have positive or negative `seq_id` values
+- Each decomposed scope gets a unique synthetic `entry_id` from a negative counter
 - Synthetic entries properly nest to preserve structure
 
 **Benefits:**
@@ -253,19 +246,29 @@ The TUI mode provides an interactive terminal interface with:
 - Home/End: Jump to first/last entry
 
 **Search:**
-- `/`: Enter search mode
+- `/`: Enter search mode (supports 4 concurrent searches: S1, S2, S3, S4)
 - Type pattern and press Enter to search
 - `n`: Jump to next search result
 - `N`: Jump to previous search result
+- `Q`: Set quiet path filter (stops highlight propagation at matching ancestors)
+- `o`: Toggle search ordering (Ascending/Descending entry_id)
 - Search runs concurrently in background Domain
-- Matched entries highlighted with path to root
+- Matched entries highlighted with full ancestor path to root
 - Auto-expand entries to show search results
+- Incremental highlighting (results appear as search progresses)
+
+**Search Features:**
+- **Multi-slot search**: 4 concurrent search slots (S1-S4) with different highlight colors
+- **Quiet path filtering**: Stop ancestor highlighting at paths matching regex
+- **Eager scope fetching**: On-demand database queries for ancestor entries
+- **Search ordering**: Choose ASC (newest-neg → oldest-neg → oldest-pos → newest-pos) or DESC
+- **In-memory results**: Search results stored in memory (not persisted to database)
 
 **Display:**
 - Entry IDs shown in left margin for reference
 - Elapsed times displayed when available
 - Progress indicator for ongoing searches
-- Search results persisted in database for instant restore on TUI restart
+- Search order shown in header ("Search: Asc" or "Search: Desc")
 
 ### Direct SQL Queries
 
@@ -380,7 +383,8 @@ ppx_minidebug 3.0+ uses optimized "Fast mode" for database writes:
 - **Between top-level traces**: Database unlocked and readable by other processes
 - **TUI/query tools**: Can read database when not actively writing
 - **Multiple runtimes**: Each writes to separate versioned file, no conflicts
-- **Search operations**: Use in-memory hash table (no TUI persistence)
+- **Search operations**: Use in-memory hash tables (not persisted to database)
+- **Eager ancestor fetching**: Search performs on-demand DB queries for ancestor scope entries
 
 This allows the TUI to inspect traces between function calls while maintaining high write performance during tracing.
 
@@ -397,7 +401,10 @@ This allows the TUI to inspect traces between function calls while maintaining h
 ✅ **Fast mode with top-level transactions** (~100x write performance improvement)
 ✅ **File versioning for multi-runtime safety**
 ✅ **Interactive TUI** with navigation, search, expand/collapse
-✅ **Concurrent search** with background Domain and persistent results
+✅ **Multi-slot concurrent search** (4 slots) with background Domain and in-memory results
+✅ **Incremental search highlighting** with eager ancestor fetching
+✅ **Quiet path filtering** to stop highlight propagation at boundaries
+✅ **Configurable search ordering** (Ascending/Descending entry_id)
 ✅ **Large value decomposition** (boxify with indentation-based parsing)
 ✅ **Automatic signal handling** for safe commits on interruption
 
