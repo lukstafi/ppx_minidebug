@@ -1,0 +1,167 @@
+Run #1
+Command: ./test_boxify_cache.exe
+
+[debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+  [value] tree
+    Node
+    root
+    [value] 
+      shared
+      (Leaf 1)
+      (Leaf 2)
+      (Node nested ((Leaf 3) (Leaf 4) (Leaf 5)))
+      (Leaf 6)
+      (Leaf 7)
+    [value] 
+      Node
+      middle
+      [value] 
+        shared
+        (Leaf 1)
+        (Leaf 2)
+        (Node nested ((Leaf 3) (Leaf 4) (Leaf 5)))
+        (Leaf 6)
+        (Leaf 7)
+      (Leaf 10)
+    [value] 
+      shared
+      (Leaf 1)
+      (Leaf 2)
+      (Node nested ((Leaf 3) (Leaf 4) (Leaf 5)))
+      (Leaf 6)
+      (Leaf 7)
+  [debug] mapped @ test/test_boxify_cache.ml:18:10-18:16
+    [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+      [value] tree
+        Node
+        shared
+        (Leaf 1)
+        (Leaf 2)
+        (Node nested ((Leaf 3) (Leaf 4) (Leaf 5)))
+        (Leaf 6)
+        (Leaf 7)
+      [debug] mapped @ test/test_boxify_cache.ml:18:10-18:16
+        [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+          tree = (Leaf 1)
+          process_tree => 1
+        [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+          tree = (Leaf 2)
+          process_tree => 2
+        [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+          tree = (Node nested ((Leaf 3) (Leaf 4) (Leaf 5)))
+          [debug] mapped @ test/test_boxify_cache.ml:18:10-18:16
+            [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+              tree = (Leaf 3)
+              process_tree => 3
+            [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+              tree = (Leaf 4)
+              process_tree => 4
+            [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+              tree = (Leaf 5)
+              process_tree => 5
+            mapped => (3 4 5)
+          process_tree => 12
+        [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+          tree = (Leaf 6)
+          process_tree => 6
+        [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+          tree = (Leaf 7)
+          process_tree => 7
+        mapped => (1 2 12 6 7)
+      process_tree => 28
+    [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+      [value] tree
+        Node
+        middle
+        [value] 
+          shared
+          (Leaf 1)
+          (Leaf 2)
+          (Node nested ((Leaf 3) (Leaf 4) (Leaf 5)))
+          (Leaf 6)
+          (Leaf 7)
+        (Leaf 10)
+      [debug] mapped @ test/test_boxify_cache.ml:18:10-18:16
+        [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+          [value] tree
+            Node
+            shared
+            (Leaf 1)
+            (Leaf 2)
+            (Node nested ((Leaf 3) (Leaf 4) (Leaf 5)))
+            (Leaf 6)
+            (Leaf 7)
+          [debug] mapped @ test/test_boxify_cache.ml:18:10-18:16
+            [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+              tree = (Leaf 1)
+              process_tree => 1
+            [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+              tree = (Leaf 2)
+              process_tree => 2
+            [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+              tree = (Node nested ((Leaf 3) (Leaf 4) (Leaf 5)))
+              [debug] mapped @ test/test_boxify_cache.ml:18:10-18:16
+                [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+                  tree = (Leaf 3)
+                  process_tree => 3
+                [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+                  tree = (Leaf 4)
+                  process_tree => 4
+                [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+                  tree = (Leaf 5)
+                  process_tree => 5
+                mapped => (3 4 5)
+              process_tree => 12
+            [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+              tree = (Leaf 6)
+              process_tree => 6
+            [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+              tree = (Leaf 7)
+              process_tree => 7
+            mapped => (1 2 12 6 7)
+          process_tree => 28
+        [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+          tree = (Leaf 10)
+          process_tree => 10
+        mapped => (28 10)
+      process_tree => 38
+    [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+      [value] tree
+        Node
+        shared
+        (Leaf 1)
+        (Leaf 2)
+        (Node nested ((Leaf 3) (Leaf 4) (Leaf 5)))
+        (Leaf 6)
+        (Leaf 7)
+      [debug] mapped @ test/test_boxify_cache.ml:18:10-18:16
+        [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+          tree = (Leaf 1)
+          process_tree => 1
+        [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+          tree = (Leaf 2)
+          process_tree => 2
+        [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+          tree = (Node nested ((Leaf 3) (Leaf 4) (Leaf 5)))
+          [debug] mapped @ test/test_boxify_cache.ml:18:10-18:16
+            [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+              tree = (Leaf 3)
+              process_tree => 3
+            [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+              tree = (Leaf 4)
+              process_tree => 4
+            [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+              tree = (Leaf 5)
+              process_tree => 5
+            mapped => (3 4 5)
+          process_tree => 12
+        [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+          tree = (Leaf 6)
+          process_tree => 6
+        [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
+          tree = (Leaf 7)
+          process_tree => 7
+        mapped => (1 2 12 6 7)
+      process_tree => 28
+    mapped => (28 38 28)
+  process_tree => 94

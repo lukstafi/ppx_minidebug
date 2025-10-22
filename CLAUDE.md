@@ -29,6 +29,23 @@ Version 3.0.0 transitions from static file generation (PrintBox/Flushing) to dat
 
 ## Key Architecture Insights
 
+### PPX Preprocessor (Frontend)
+The preprocessor transforms annotated bindings into instrumented code with logging calls:
+
+- **Extension points**: `%debug_sexp`, `%debug_pp`, `%debug_show`, `%track_sexp`, etc.
+- **Type annotations required**: The PPX needs type information to generate logging calls
+  - For function parameters and return values: `let%debug_sexp foo (x : int) (y : string) : t = ...`
+  - For local bindings: `let z : int = x + y in ...`
+  - Without type annotations, the PPX cannot determine how to serialize the value
+  - Adding and removing type annotations controls how much gets logged
+- **Sexp conversion**: `%debug_sexp` requires `[@@deriving sexp]` or `ppx_sexp_conv` for custom types
+- **Code generation**: Each annotated binding gets:
+  - `let module Debug_runtime = (val _get_local_debug_runtime ()) in` - fetches runtime instance
+  - `Debug_runtime.open_log` - creates scope entry
+  - `Debug_runtime.log_value_{sexp,pp,show}` - logs parameters/results
+  - `Debug_runtime.close_log` - finalizes scope
+- **Lazy evaluation**: All logged values wrapped in `lazy` to defer serialization until log level check passes
+
 ### Database Backend Design (3.0+)
 - **Lazy initialization**: Database only created when first log occurs - crucial for production code
 - **Content-addressed storage**: `value_atoms` table uses MD5 hash for O(1) deduplication
@@ -41,6 +58,11 @@ Version 3.0.0 transitions from static file generation (PrintBox/Flushing) to dat
 - **`finish_and_cleanup()` optional**: For short-lived processes, OS cleanup is sufficient; database remains valid
 - **Path filtering**: `should_log` in `open_log` prevents entries from being created (not just hidden)
 - **Lazy value forcing**: `log_value_*` functions ALWAYS force lazy values with `Lazy.force` to get actual content
+- **Boxify caching**: Recursive sexp structures are cached in memory during decomposition
+  - `SexpCache` module uses hashtable to map sexp hash → scope_id
+  - On cache hit, creates a reference entry instead of reprocessing the sexp
+  - Dramatically reduces database size for repeated substructures (trees, lists, maps)
+  - Works at all recursion levels in `boxify`, not just top-level values
 
 ### Critical Gotchas
 1. **Database creation is lazy**: If `should_log` always returns false (e.g., log_level=0, aggressive filtering), no database file is created

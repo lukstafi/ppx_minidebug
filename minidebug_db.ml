@@ -240,6 +240,22 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
   let orphaned_seq_counters =
     ref [] (* Per-scope_id counters for orphaned logs: (scope_id * seq_counter) list *)
 
+  (** Cache for boxified sexp structures - maps sexp hash to scope_id.
+      Enables deduplication of repeated substructures. *)
+  module SexpCache = struct
+    let cache : (int, int) Hashtbl.t = Hashtbl.create 100
+
+    let hash sexp = Hashtbl.hash sexp
+
+    let find_opt sexp =
+      let h = hash sexp in
+      Hashtbl.find_opt cache h
+
+    let add sexp scope_id =
+      let h = hash sexp in
+      Hashtbl.add cache h scope_id
+  end
+
   (** Initialize database connection *)
   let initialize_database base_filename =
     (* Get unique run number from global counter - ensures no conflicts between
@@ -768,7 +784,60 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     let rec loop ~is_toplevel ~depth ~parent_eid ~get_seq sexp =
       let message = if is_toplevel then (match descr with Some d -> d | None -> "") else "" in
       let is_result = is_toplevel && is_result in
-      if sexp_size sexp < boxify_threshold then (
+
+      (* Check cache for this sexp - reuse existing scope_id if found *)
+      match SexpCache.find_opt sexp with
+      | Some cached_scope_id when not is_toplevel ->
+          (* Cache hit! Reuse the existing scope_id instead of creating new entries.
+             We create a reference to the cached scope by inserting a header entry that
+             points to it. The scope already exists in entry_parents, so we skip that insertion.
+             Only cache non-toplevel sexps to preserve descr/is_result. *)
+          let seq_id = get_seq () in
+          let db = get_db () in
+          let intern = get_intern () in
+
+          (* Intern the message if present *)
+          let message_value_id = if message = "" then None
+            else Some (ValueIntern.intern intern ~value_type:"message" message) in
+
+          (* Get elapsed time *)
+          let elapsed_start = Mtime_clock.elapsed () in
+          let elapsed_ns =
+            match Int64.unsigned_to_int @@ Mtime.Span.to_uint64_ns elapsed_start with
+            | None -> 0
+            | Some ns -> ns
+          in
+
+          (* Insert header row that references the cached scope (no entry_parents insert needed) *)
+          let stmt =
+            Sqlite3.prepare db
+              "INSERT INTO entries (scope_id, seq_id, child_scope_id, depth, \
+               message_value_id, elapsed_start_ns, elapsed_end_ns, is_result, \
+               log_level, entry_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          in
+          Sqlite3.bind_int stmt 1 parent_eid |> ignore;
+          Sqlite3.bind_int stmt 2 seq_id |> ignore;
+          Sqlite3.bind_int stmt 3 cached_scope_id |> ignore;
+          Sqlite3.bind_int stmt 4 depth |> ignore;
+          (match message_value_id with
+           | Some mid -> Sqlite3.bind_int stmt 5 mid
+           | None -> Sqlite3.bind stmt 5 Sqlite3.Data.NULL) |> ignore;
+          Sqlite3.bind_int stmt 6 elapsed_ns |> ignore;
+          Sqlite3.bind_int stmt 7 elapsed_ns |> ignore;
+          Sqlite3.bind_int stmt 8 0 |> ignore;
+          Sqlite3.bind_int stmt 9 !log_level |> ignore;
+          Sqlite3.bind_text stmt 10 "value" |> ignore;
+
+          (match Sqlite3.step stmt with
+           | Sqlite3.Rc.DONE -> ()
+           | rc -> failwith (Printf.sprintf "Failed to insert cached reference: %s" (Sqlite3.Rc.to_string rc)));
+          Sqlite3.finalize stmt |> ignore;
+          incr num_inserted
+      | _ ->
+          (* Cache miss or toplevel - process normally and cache the result *)
+          let scope_before_processing = !boxify_scope_id_counter in
+          let process_and_cache () =
+            if sexp_size sexp < boxify_threshold then (
         (* Small enough - insert as single entry with pretty-printed content *)
         let content = Sexplib0.Sexp.to_string_hum sexp in
         (* Check for multi-line and parse indentation if needed *)
@@ -825,6 +894,18 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
         | List l ->
             (* Process each element of the list directly under current parent *)
             List.iter (fun child -> loop ~is_toplevel:false ~depth:(depth + 1) ~parent_eid ~get_seq child) l
+          in
+
+          (* Process the sexp *)
+          process_and_cache ();
+
+          (* After processing, cache the scope_id for this sexp (if we created a new scope).
+             We cache the most recent synthetic scope created during this sexp's processing. *)
+          if not is_toplevel && scope_before_processing <> !boxify_scope_id_counter then (
+            (* A new scope was created - cache it *)
+            let created_scope_id = !boxify_scope_id_counter in
+            SexpCache.add sexp created_scope_id
+          )
     in
 
     loop ~is_toplevel:true ~depth ~parent_eid:parent_scope_id ~get_seq:get_next_seq sexp;

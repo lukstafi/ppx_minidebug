@@ -436,3 +436,28 @@
  (alias runtest)
  (action
   (diff debugger_no_debug_if.expected.log debugger_no_debug_if.log)))
+
+(executable
+ (name test_boxify_cache)
+ (modules test_boxify_cache)
+ (libraries sexplib0 minidebug_db)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_sexp_conv)))
+
+(rule
+ (targets debugger_boxify_cache.db debugger_boxify_cache.log)
+ (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
+ (action
+  (progn
+   (run %{dep:test_boxify_cache.exe})
+   (with-stdout-to
+    debugger_boxify_cache.log
+    (pipe-stdout
+     (run %{dep:../bin/minidebug_view.exe} debugger_boxify_cache.db show)
+     (run %{dep:../bin/filter_test_output.exe}))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_boxify_cache.expected.log debugger_boxify_cache.log)))
