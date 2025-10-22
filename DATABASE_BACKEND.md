@@ -440,10 +440,9 @@ This allows the TUI to inspect traces between function calls while maintaining h
 ## Next Steps (Phase 2+)
 
 1. **Enhanced Structure Storage**: Use `structure_value_id` for JSON-based structure metadata
-2. **Advanced Deduplication**: Template-based structural sharing for repeated record shapes
-3. **Cross-Run State**: PrevRun diff integration for state persistence
-4. **Performance Metrics**: Query timing, cache hit rates, deduplication statistics
-5. Optional **GUI Server and Client**: REST API for pagination, search, lazy loading; Web-based client with rich tree visualization
+2. **Cross-Run State**: PrevRun diff integration for state persistence
+3. **Performance Metrics**: Query timing, cache hit rates, deduplication statistics
+4. Optional **GUI Server and Client**: REST API for pagination, search, lazy loading; Web-based client with rich tree visualization
 
 ## Testing
 
