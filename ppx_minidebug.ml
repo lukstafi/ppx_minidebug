@@ -152,13 +152,13 @@ let open_log ?(message = "") ~loc ~log_level track_or_explicit =
         ~start_colnum:[%e A.eint ~loc (loc.loc_start.pos_cnum - loc.loc_start.pos_bol)]
         ~end_lnum:[%e A.eint ~loc loc.loc_end.pos_lnum]
         ~end_colnum:[%e A.eint ~loc (loc.loc_end.pos_cnum - loc.loc_end.pos_bol)]
-        ~message:[%e A.estring ~loc message] ~entry_id:__entry_id
+        ~message:[%e A.estring ~loc message] ~scope_id:__scope_id
         ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
         [%e lift_track_or_explicit ~loc track_or_explicit]]
 
 let open_log_no_source ~message ~loc ~log_level track_or_explicit =
   [%expr
-    Debug_runtime.open_log_no_source ~message:[%e message] ~entry_id:__entry_id
+    Debug_runtime.open_log_no_source ~message:[%e message] ~scope_id:__scope_id
       ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
       [%e lift_track_or_explicit ~loc track_or_explicit]]
 
@@ -167,7 +167,7 @@ let close_log ~loc =
     Debug_runtime.close_log
       ~fname:[%e A.estring ~loc loc.loc_start.pos_fname]
       ~start_lnum:[%e A.eint ~loc loc.loc_start.pos_lnum]
-      ~entry_id:__entry_id]
+      ~scope_id:__scope_id]
 
 let to_descr context ~loc ~descr_loc typ =
   match descr_loc with
@@ -210,7 +210,7 @@ let log_value_sexp context ~loc ~typ ?descr_loc ~is_explicit ~is_result ~log_lev
       [%expr
         Debug_runtime.log_value_sexp
           ?descr:[%e to_descr context ~loc ~descr_loc typ]
-          ~entry_id:__entry_id
+          ~scope_id:__scope_id
           ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
           ~is_result:[%e A.ebool ~loc is_result]
           (lazy ([%sexp_of: [%t typ]] [%e exp]))]
@@ -242,7 +242,7 @@ let log_value_pp context ~loc ~typ ?descr_loc ~is_explicit ~is_result ~log_level
       [%expr
         Debug_runtime.log_value_pp
           ?descr:[%e to_descr context ~loc ~descr_loc typ]
-          ~entry_id:__entry_id
+          ~scope_id:__scope_id
           ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
           ~pp:[%e converter] ~is_result:[%e A.ebool ~loc is_result]
           (lazy [%e exp])]
@@ -270,7 +270,7 @@ let log_value_show context ~loc ~typ ?descr_loc ~is_explicit ~is_result ~log_lev
       [%expr
         Debug_runtime.log_value_show
           ?descr:[%e to_descr context ~loc ~descr_loc typ]
-          ~entry_id:__entry_id
+          ~scope_id:__scope_id
           ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
           ~is_result:[%e A.ebool ~loc is_result]
           (lazy ([%show: [%t typ]] [%e exp]))]
@@ -287,7 +287,7 @@ let log_value_printbox context ~loc ~log_level exp =
   @@ fun () ->
   incr global_log_count;
   [%expr
-    Debug_runtime.log_value_printbox ~entry_id:__entry_id
+    Debug_runtime.log_value_printbox ~scope_id:__scope_id
       ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
       [%e exp]]
 
@@ -300,14 +300,14 @@ let log_string ~loc ~descr_loc ~log_level s =
     [%expr
       Debug_runtime.log_value_show
         ~descr:[%e A.estring ~loc:descr_loc.loc descr_loc.txt]
-        ~entry_id:__entry_id
+        ~scope_id:__scope_id
         ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
         ~is_result:false
         (lazy [%e A.estring ~loc s])]
 
 let log_string_with_descr ~loc ~message ~log_level s =
   [%expr
-    Debug_runtime.log_value_show ~descr:[%e message] ~entry_id:__entry_id
+    Debug_runtime.log_value_show ~descr:[%e message] ~scope_id:__scope_id
       ~log_level:[%e ll_to_expr ~digit_loc:loc log_level]
       ~is_result:false
       (lazy [%e A.estring ~loc s])]
@@ -617,10 +617,10 @@ let entry_with_interrupts context ~loc ?descr_loc ?message ~log_count_before ?he
     in
     let expr =
       let loc = ghost_loc in
-      [%expr Debug_runtime.get_entry_id ()]
+      [%expr Debug_runtime.get_scope_id ()]
     in
     A.pexp_let ~loc Nonrecursive
-      [ A.value_binding ~loc:ghost_loc ~pat:(A.pvar ~loc:ghost_loc "__entry_id") ~expr ]
+      [ A.value_binding ~loc:ghost_loc ~pat:(A.pvar ~loc:ghost_loc "__scope_id") ~expr ]
       body
 
 let debug_body context callback ~loc ~message ~descr_loc ~log_count_before ~arg_logs typ
@@ -1237,12 +1237,12 @@ let traverse_expression =
           in
           let expr =
             let loc = ghost_loc in
-            [%expr Debug_runtime.get_entry_id ()]
+            [%expr Debug_runtime.get_scope_id ()]
           in
           A.pexp_let ~loc Nonrecursive
             [
               A.value_binding ~loc:ghost_loc
-                ~pat:(A.pvar ~loc:ghost_loc "__entry_id")
+                ~pat:(A.pvar ~loc:ghost_loc "__scope_id")
                 ~expr;
             ]
             body
@@ -1507,12 +1507,12 @@ let traverse_expression =
                 in
                 let expr =
                   let loc = ghost_loc in
-                  [%expr Debug_runtime.get_entry_id ()]
+                  [%expr Debug_runtime.get_scope_id ()]
                 in
                 A.pexp_let ~loc Nonrecursive
                   [
                     A.value_binding ~loc:ghost_loc
-                      ~pat:(A.pvar ~loc:ghost_loc "__entry_id")
+                      ~pat:(A.pvar ~loc:ghost_loc "__scope_id")
                       ~expr;
                   ]
                   body
@@ -1549,12 +1549,12 @@ let traverse_expression =
                     in
                     let expr =
                       let loc = ghost_loc in
-                      [%expr Debug_runtime.get_entry_id ()]
+                      [%expr Debug_runtime.get_scope_id ()]
                     in
                     A.pexp_let ~loc Nonrecursive
                       [
                         A.value_binding ~loc:ghost_loc
-                          ~pat:(A.pvar ~loc:ghost_loc "__entry_id")
+                          ~pat:(A.pvar ~loc:ghost_loc "__scope_id")
                           ~expr;
                       ]
                       body)
@@ -1614,12 +1614,12 @@ let traverse_expression =
               in
               let expr =
                 let loc = ghost_loc in
-                [%expr Debug_runtime.get_entry_id ()]
+                [%expr Debug_runtime.get_scope_id ()]
               in
               A.pexp_let ~loc Nonrecursive
                 [
                   A.value_binding ~loc:ghost_loc
-                    ~pat:(A.pvar ~loc:ghost_loc "__entry_id")
+                    ~pat:(A.pvar ~loc:ghost_loc "__scope_id")
                     ~expr;
                 ]
                 body
@@ -1664,12 +1664,12 @@ let traverse_expression =
               in
               let expr =
                 let loc = ghost_loc in
-                [%expr Debug_runtime.get_entry_id ()]
+                [%expr Debug_runtime.get_scope_id ()]
               in
               A.pexp_let ~loc Nonrecursive
                 [
                   A.value_binding ~loc:ghost_loc
-                    ~pat:(A.pvar ~loc:ghost_loc "__entry_id")
+                    ~pat:(A.pvar ~loc:ghost_loc "__scope_id")
                     ~expr;
                 ]
                 body

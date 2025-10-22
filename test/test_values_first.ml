@@ -14,6 +14,5 @@ let%debug_show compute (a : int) (b : int) : int =
 let () =
   let _ = compute 3 2 in
   let db = Minidebug_client.Client.open_db "test_values_first.db" in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true
-    (Minidebug_client.Client.get_latest_run db |> Option.get).run_id;
+  Minidebug_client.Client.show_trace db ~values_first_mode:true;
   ()

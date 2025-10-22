@@ -20,7 +20,7 @@ let () =
   Printf.printf "Result: %d\n%!" result;
   (* $MDX part-end *)
   let db1 = Minidebug_client.Client.open_db "test_path_filter_1.db" in
-  Minidebug_client.Client.show_trace db1 1;
+  Minidebug_client.Client.show_trace db1;
 
   (* $MDX part-begin=whitelist-function *)
   (* Test 2: Whitelist by function - only logs functions starting with "compute_" *)
@@ -43,7 +43,7 @@ let () =
   Printf.printf "Results: %d, %d\n%!" result1 result2;
   (* $MDX part-end *)
   let db2 = Minidebug_client.Client.open_db "test_path_filter_2.db" in
-  Minidebug_client.Client.show_trace db2 1;
+  Minidebug_client.Client.show_trace db2;
 
   (* Test 3: Blacklist - filter out logs from files matching "test_path_filter.ml" *)
   Printf.printf "\n=== Test 3: Blacklist (blocks test_path_filter.ml) ===\n%!";
@@ -64,7 +64,7 @@ let () =
   (* Test 3 creates no database file - blacklist filters out all logs *)
   (if Sys.file_exists "test_path_filter_3.db" then
      let db3 = Minidebug_client.Client.open_db "test_path_filter_3.db" in
-     Minidebug_client.Client.show_trace db3 1);
+     Minidebug_client.Client.show_trace db3);
 
   (* Test 4: No filter - all logs are output *)
   Printf.printf "\n=== Test 4: No filter (shows all logs) ===\n%!";
@@ -80,4 +80,4 @@ let () =
   Printf.printf "Result: %d\n%!" result;
   (* Test 3 didn't create a file (blacklist filtered all logs), so test 4 gets number 3 *)
   let db4 = Minidebug_client.Client.open_db "test_path_filter_3.db" in
-  Minidebug_client.Client.show_trace db4 1
+  Minidebug_client.Client.show_trace db4

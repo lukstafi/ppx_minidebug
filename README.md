@@ -194,14 +194,14 @@ Note that the timestamps of the log entries are not treated as messages, so are 
 
 For efficiency, the minimal edit distance search is limited, roughly speaking, to a band around the diagonal / greedy best match / forced match. The setting `max_distance_factor` controls the width of the band. (The implementation tweaks that heuristic somewhat to account for the tree structure.)
 
-You can force aligning certain entry IDs via the setting `entry_id_pairs`. The previous run's entry IDs come first in the pairs. See the example [test/debug_diffs_align.ml](test/debug_diffs_align.ml):
+You can force aligning certain entry IDs via the setting `scope_id_pairs`. The previous run's entry IDs come first in the pairs. See the example [test/debug_diffs_align.ml](test/debug_diffs_align.ml):
 
-<!-- $MDX file=test/debug_diffs_align.ml,part=align_entry_ids -->
+<!-- $MDX file=test/debug_diffs_align.ml,part=align_scope_ids -->
 ```ocaml
   let _get_local_debug_runtime =
-    Minidebug_runtime.local_runtime ~values_first_mode:false ~print_entry_ids:true
+    Minidebug_runtime.local_runtime ~values_first_mode:false ~print_scope_ids:true
       ~backend:`Text ~prev_run_file:(prev_run ^ ".raw")
-      ~entry_id_pairs:[ (2, 4); (8, 6) ]
+      ~scope_id_pairs:[ (2, 4); (8, 6) ]
         (* Force mappings: - Entry 2 (early prev) to Entry 4 (middle curr) - Entry 8 (late
            prev) to Entry 6 (in the shorter curr) *)
       curr_run
@@ -268,7 +268,7 @@ The setting `max_nesting_depth` terminates a computation when the given log nest
     with _ -> print_endline "Raised exception."
   in
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false 1;
+  Minidebug_client.Client.show_trace db ~values_first_mode:false;
   [%expect
     {|
     Raised exception.
@@ -317,7 +317,7 @@ Similarly, `max_num_children` raises a failure when the given number of logs wit
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false 1;
+  Minidebug_client.Client.show_trace db ~values_first_mode:false;
   [%expect
     {|
     Raised exception: ppx_minidebug: max_num_children exceeded
@@ -401,7 +401,7 @@ Example that also illustrates disabling tracing:
     with _ -> print_endline "Raised exception."
   in
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false 1;
+  Minidebug_client.Client.show_trace db ~values_first_mode:false;
   [%expect
     {|
     8
@@ -435,7 +435,7 @@ Another example:
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false 1;
+  Minidebug_client.Client.show_trace db ~values_first_mode:false;
   [%expect
     {|
     6
@@ -476,7 +476,7 @@ Explicit logging statements also help with tracking the execution, since they ca
   in
   let () = print_endline @@ Int.to_string result in
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
-  Minidebug_client.Client.show_trace db 1;
+  Minidebug_client.Client.show_trace db;
   [%expect
     {|
     21
@@ -544,7 +544,7 @@ The `%diagn_` extension points further restrict logging to explicit logs only. E
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
-  Minidebug_client.Client.show_trace db 1;
+  Minidebug_client.Client.show_trace db;
   [%expect {|
     336
     91
@@ -574,7 +574,7 @@ At runtime creation, the level can be set via the `~log_level` parameter, or via
     !j
   in
   print_endline @@ Int.to_string (result (rt 9 "Everything") ());
-  Minidebug_client.Client.show_trace (latest_run ()) 1;
+  Minidebug_client.Client.show_trace (latest_run ());
   print_endline @@ Int.to_string (result (rt 0 "Nothing") ());
   (* There is no new run after Nothing, so we just skip invoking the client. *)
   print_endline @@ Int.to_string (result (rt 1 "Error") ());
@@ -643,7 +643,7 @@ Another example from the test suite, notice how the log level of `%log1` overrid
     print_endline @@ Int.to_string @@ baz { first = 7; second = 42 }
   in
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
-  Minidebug_client.Client.show_trace db 1;
+  Minidebug_client.Client.show_trace db;
   [%expect {|
     336
     336
@@ -686,7 +686,7 @@ The extension point `%log_printbox` lets you embed a `PrintBox.t` in the logs di
   in
   let () = foo () in
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
-  Minidebug_client.Client.show_trace db 1;
+  Minidebug_client.Client.show_trace db;
   [%expect {|
     [debug] foo => () @ test/test_expect_test.ml:2615:21-2628:91
       0/0│0/1│0/2│0/3│0/4
@@ -772,7 +772,7 @@ The extension point `%log_entry` lets you shape arbitrary log tree structures. T
            "postscript";
          ]
   in
-  Minidebug_client.Client.show_trace (latest_run ()) 1;
+  Minidebug_client.Client.show_trace (latest_run ());
   [%expect {|
     latest_run: (no-name)
     [diagn] _logging_logic @ test/test_expect_test.ml:2680:17-2680:31
@@ -836,17 +836,17 @@ Take a look at the test `"%logN_block runtime log levels"` in [test_expect_test.
 
 ### Lexical scopes vs. dynamic scopes
 
-We track lexical scoping: every log has access to the `entry_id` number of the lexical scope it is in.
+We track lexical scoping: every log has access to the `scope_id` number of the lexical scope it is in.
 Lexical scopes are computations: bindings, functions, tracked code branches (even if not annotated
 with an extension point, but always within some `ppx_minidebug` registered extension point). There is
 also dynamic scoping: which entry a particular log actually ends up belonging in. We do not
-expose the (lexical) entry id except when passing `~verbose_entry_ids:true` to the renderer. Unlike with the static artifacts versions ppx_minidebug 2.x, if a log's entry is not in the lexical scope, the DB based backend adds that log to its entry in the DB -- even retroactively for closed logs. Thus we no longer have the problem of orphaned entries. Example from the test suite:
+expose the (lexical) entry id except when passing `~verbose_scope_ids:true` to the renderer. Unlike with the static artifacts versions ppx_minidebug 2.x, if a log's entry is not in the lexical scope, the DB based backend adds that log to its entry in the DB -- even retroactively for closed logs. Thus we no longer have the problem of orphaned entries. Example from the test suite:
 
-<!-- $MDX file=test/test_expect_test.ml,part=log_with_print_entry_ids_mixed_up_scopes -->
+<!-- $MDX file=test/test_expect_test.ml,part=log_with_print_scope_ids_mixed_up_scopes -->
 ```ocaml
   let run_num = next_run () in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~print_entry_ids:true db_file_base in
+    let rt = Minidebug_db.debug_db_file ~print_scope_ids:true db_file_base in
     fun () -> rt
   in
   let i = 3 in
@@ -877,7 +877,7 @@ expose the (lexical) entry id except when passing `~verbose_entry_ids:true` to t
   let%debug_show _foobar : unit = !foo1 () in
   let () = !foo2 () in
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
-  Minidebug_client.Client.show_trace db 1;
+  Minidebug_client.Client.show_trace db;
   [%expect {|
     [debug] bar => () @ test/test_expect_test.ml:2369:21-2374:19
       ("This is like", 3, "or", 3.14, "above")
@@ -896,7 +896,7 @@ expose the (lexical) entry id except when passing `~verbose_entry_ids:true` to t
     |}]
 ```
 
-`~verbose_entry_ids:true` tags all logs with entry ids, it shouldn't be needed in regular use.
+`~verbose_scope_ids:true` tags all logs with entry ids, it shouldn't be needed in regular use.
 
  To allow dynamically constructing log trees, when the log's entry is in lexical scope, we add the log at the top of the entry stack, even if it is a sub-entry of the log's entry. For details, see the example for `%log_entry`.
 
@@ -1008,7 +1008,7 @@ The test suite example:
   in
   let () = print_endline @@ Int.to_string @@ loop_changes 7 in
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num2) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false 1;
+  Minidebug_client.Client.show_trace db ~values_first_mode:false;
   [%expect
     {|
     9
@@ -1046,7 +1046,7 @@ The _table of contents_ generation is enabled via `~with_toc_listing:true` or `~
 
 Note: if your flame graph trees run into each other, try setting `~flame_graph_separation:50` or higher.
 
-If you collaborate with someone or take notes, you can pass `~print_entry_ids:true`. In HTML and Markdown, this will output links to the anchors of the corresponding log entries. You can share them to point to specific log file locations.
+If you collaborate with someone or take notes, you can pass `~print_scope_ids:true`. In HTML and Markdown, this will output links to the anchors of the corresponding log entries. You can share them to point to specific log file locations.
 
 Example demonstrating foldable trees in Markdown:
 
@@ -1426,7 +1426,7 @@ As a help in debugging whether the right type information got propagated, we off
       let () = print_endline @@ Int.to_string @@ f 'a' 6 in
       print_endline @@ Int.to_string @@ g 'a' 6 'b' 'c']];
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
-  Minidebug_client.Client.show_trace db 1;
+  Minidebug_client.Client.show_trace db;
   [%expect
     {|
     7
@@ -1461,7 +1461,7 @@ Example from the test suite:
   let rt run_name = Minidebug_db.debug_db_file ~run_name db_file_base in
   let%track_rt_show foo l : int = match (l : int list) with [] -> 7 | y :: _ -> y * 2 in
   let () = print_endline @@ Int.to_string @@ foo (rt "foo-1") [ 7 ] in
-  Minidebug_client.Client.show_trace (latest_run ()) ~values_first_mode:true 1;
+  Minidebug_client.Client.show_trace (latest_run ()) ~values_first_mode:true;
   let%track_rt_show baz : int list -> int = function
     | [] -> 7
     | [ y ] -> y * 2
@@ -1469,9 +1469,9 @@ Example from the test suite:
     | y :: z :: _ -> y + z + 1
   in
   let () = print_endline @@ Int.to_string @@ baz (rt "baz-1") [ 4 ] in
-  Minidebug_client.Client.show_trace (latest_run ()) ~values_first_mode:true 1;
+  Minidebug_client.Client.show_trace (latest_run ()) ~values_first_mode:true;
   let () = print_endline @@ Int.to_string @@ baz (rt "baz-2") [ 4; 5; 6 ] in
-  Minidebug_client.Client.show_trace (latest_run ()) ~values_first_mode:true 1;
+  Minidebug_client.Client.show_trace (latest_run ()) ~values_first_mode:true;
   [%expect
     {|
     14

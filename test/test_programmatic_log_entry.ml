@@ -42,5 +42,4 @@ let () =
          ]
   in
   let db = Minidebug_client.Client.open_db db_file in
-  let latest_run = Minidebug_client.Client.get_latest_run db |> Option.get in
-  Minidebug_client.Client.show_trace db latest_run.run_id
+  Minidebug_client.Client.show_trace db

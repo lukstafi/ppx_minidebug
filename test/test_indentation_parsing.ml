@@ -35,6 +35,5 @@ let () =
   test_multiline_record ();
   test_nested_list ();
   let db = Minidebug_client.Client.open_db "test_indentation_parsing.db" in
-  Minidebug_client.Client.show_trace db
-    (Minidebug_client.Client.get_latest_run db |> Option.get).run_id;
+  Minidebug_client.Client.show_trace db;
   ()

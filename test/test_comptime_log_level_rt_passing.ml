@@ -53,7 +53,7 @@ let () =
     (fun run ->
       print_endline @@ "run: "
       ^ Option.value ~default:"<none>" run.Minidebug_client.Query.run_name;
-      Minidebug_client.Client.show_trace db1 run.run_id)
+      Minidebug_client.Client.show_trace db1)
     (Minidebug_client.Client.list_runs db1);
   (* "nothing" runtime - compile-time log_level=0, no logs generated, no file created *)
   (* File 2: "warning" runtime - compile-time log_level=2, shows ERROR and WARNING *)
@@ -62,5 +62,5 @@ let () =
     (fun run ->
       print_endline @@ "run: "
       ^ Option.value ~default:"<none>" run.Minidebug_client.Query.run_name;
-      Minidebug_client.Client.show_trace db2 run.run_id)
+      Minidebug_client.Client.show_trace db2)
     (Minidebug_client.Client.list_runs db2)

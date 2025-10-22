@@ -21,7 +21,7 @@ open Sexplib0.Sexp_conv
 
 (* Setup database runtime *)
 let _get_local_debug_runtime =
-  let rt = Minidebug_db.debug_db_file ~print_entry_ids:true "trace" in
+  let rt = Minidebug_db.debug_db_file ~print_scope_ids:true "trace" in
   fun () -> rt
 
 (* Instrument functions *)
@@ -52,8 +52,8 @@ val debug_db_file :
   ?time_tagged:time_tagged ->
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
-  ?print_entry_ids:bool ->
-  ?verbose_entry_ids:bool ->
+  ?print_scope_ids:bool ->
+  ?verbose_scope_ids:bool ->
   ?global_prefix:string ->
   ?for_append:bool ->
   ?log_level:int ->
@@ -67,8 +67,8 @@ val debug_db :
   ?time_tagged:time_tagged ->
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
-  ?print_entry_ids:bool ->
-  ?verbose_entry_ids:bool ->
+  ?print_scope_ids:bool ->
+  ?verbose_scope_ids:bool ->
   ?global_prefix:string ->
   ?log_level:int ->
   ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->
@@ -81,7 +81,7 @@ val debug_db :
 ### Tables
 
 **runs** - Trace run metadata
-- `run_id`: Unique run identifier (primary key)
+- `run_id`: Per-process run identifier that determines the DB file suffix
 - `timestamp`: Run start timestamp
 - `elapsed_ns`: Elapsed nanoseconds at run start
 - `command_line`: Command line that started the run
@@ -94,21 +94,19 @@ val debug_db :
 - `size_bytes`: Size of value in bytes
 
 **entry_parents** - Entry parent relationships
-- `run_id`: Foreign key to runs table
-- `entry_id`: Entry identifier (unique within run)
+- `scope_id`: Entry identifier (unique within run)
 - `parent_id`: Parent entry ID (NULL for top-level entries)
 
-**Primary Key:** `(run_id, entry_id)` ensures one parent per entry.
+**Primary Key:** `(scope_id)` ensures one parent per entry.
 
 **entries** - Trace entries (composite key allows chronological ordering of children)
-- `run_id`: Foreign key to runs table
-- `entry_id`: Parent scope ID (all children of a scope share the same entry_id)
+- `scope_id`: Parent scope ID (all children of a scope share the same scope_id)
 - `seq_id`: Chronological position within parent's children
   - `seq_id >= 0`: Regular entries (0, 1, 2...) created by `log_value_*` and `open_log`
   - `seq_id < 0`: Synthetic entries created by `boxify` during sexp decomposition
-- `header_entry_id`: Discriminates row type:
+- `header_scope_id`: Discriminates row type:
   - `NULL` = value row (parameter or result)
-  - Non-NULL = header row opening a new scope (points to new scope's entry_id)
+  - Non-NULL = header row opening a new scope (points to new scope's scope_id)
 - `depth`: Nesting depth
 - `message_value_id`: Foreign key to value_atoms (function name or parameter name)
 - `location_value_id`: Foreign key to value_atoms (source location, only for headers)
@@ -120,22 +118,22 @@ val debug_db :
 - `log_level`: Log level of the entry
 - `entry_type`: Entry type (diagn, debug, track for headers; "value" for values)
 
-**Primary Key:** `(run_id, entry_id, seq_id)` provides unique position for each child.
+**Primary Key:** `(scope_id, seq_id)` provides unique position for each child.
 
-**Example:** For `let%debug_sexp foo (x : int) (y : int) : int list = [x; y; 2*y]` with entry_id=42, nested in scope 10:
+**Example:** For `let%debug_sexp foo (x : int) (y : int) : int list = [x; y; 2*y]` with scope_id=42, nested in scope 10:
 
 entry_parents table:
-| run_id | entry_id | parent_id |
+| scope_id | parent_id |
 |--------|----------|-----------|
-| 1 | 42 | 10 |
+| 42 | 10 |
 
 entries table:
-| run_id | entry_id | seq_id | header_entry_id | message | location | data | is_result |
+| scope_id | seq_id | header_scope_id | message | location | data | is_result |
 |--------|----------|--------|-----------------|---------|----------|------|-----------|
-| 1 | 10 | 5 | 42 | "foo" | "test.ml:10:15" | NULL | false |
-| 1 | 42 | 0 | NULL | "x" | NULL | "7" | false |
-| 1 | 42 | 1 | NULL | "y" | NULL | "8" | false |
-| 1 | 42 | 2 | NULL | "" | NULL | "(7 8 16)" | true |
+| 10 | 5 | 42 | "foo" | "test.ml:10:15" | NULL | false |
+| 42 | 0 | NULL | "x" | NULL | "7" | false |
+| 42 | 1 | NULL | "y" | NULL | "8" | false |
+| 42 | 2 | NULL | "" | NULL | "(7 8 16)" | true |
 
 Rendered as:
 ```
@@ -151,8 +149,8 @@ Rendered as:
 ### Indexes
 
 - `idx_value_hash`: Hash index on `value_atoms(value_hash)` for O(1) deduplication
-- `idx_entries_header`: Index on `entries(run_id, header_entry_id)` for finding scope headers
-- `idx_entries_depth`: Index on `entries(run_id, depth)` for depth queries
+- `idx_entries_header`: Index on `entries(header_scope_id)` for finding scope headers
+- `idx_entries_depth`: Index on `entries(depth)` for depth queries
 
 ## Deduplication Strategy
 
@@ -180,10 +178,10 @@ When a sexp value exceeds a threshold size (default: 10 atoms), the database bac
 - Values at the same indentation level are siblings
 
 **Synthetic entries:**
-- Boxified entries use negative `entry_id` values (e.g., -1, -2, -3, ...)
-- Regular logged entries use positive `entry_id` values (1, 2, 3, ...)
+- Boxified entries use negative `scope_id` values (e.g., -1, -2, -3, ...)
+- Regular logged entries use positive `scope_id` values (1, 2, 3, ...)
 - Both positive and negative entries can have positive or negative `seq_id` values
-- Each decomposed scope gets a unique synthetic `entry_id` from a negative counter
+- Each decomposed scope gets a unique synthetic `scope_id` from a negative counter
 - Synthetic entries properly nest to preserve structure
 
 **Benefits:**
@@ -251,7 +249,7 @@ The TUI mode provides an interactive terminal interface with:
 - `n`: Jump to next search result
 - `N`: Jump to previous search result
 - `Q`: Set quiet path filter (stops highlight propagation at matching ancestors)
-- `o`: Toggle search ordering (Ascending/Descending entry_id)
+- `o`: Toggle search ordering (Ascending/Descending scope_id)
 - Search runs concurrently in background Domain
 - Matched entries highlighted with full ancestor path to root
 - Auto-expand entries to show search results
@@ -284,14 +282,14 @@ SELECT run_id, timestamp, command_line FROM runs;
 
 ```sql
 SELECT
-  e.entry_id,
+  e.scope_id,
   v.value_content as message,
   l.value_content as location
 FROM entries e
 JOIN value_atoms v ON e.message_value_id = v.value_id
 JOIN value_atoms l ON e.location_value_id = l.value_id
-WHERE e.run_id = 1 AND e.depth = 0
-ORDER BY e.entry_id;
+WHERE e.depth = 0
+ORDER BY e.scope_id;
 ```
 
 ### View Entry Tree
@@ -299,7 +297,7 @@ ORDER BY e.entry_id;
 ```sql
 -- Get an entry with its value
 SELECT
-  e.entry_id,
+  e.scope_id,
   e.parent_id,
   e.depth,
   m.value_content as message,
@@ -309,8 +307,7 @@ SELECT
 FROM entries e
 JOIN value_atoms m ON e.message_value_id = m.value_id
 LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
-WHERE e.run_id = 1
-ORDER BY e.entry_id;
+ORDER BY e.scope_id;
 ```
 
 ### Check Deduplication Efficiency
@@ -404,21 +401,17 @@ This allows the TUI to inspect traces between function calls while maintaining h
 ✅ **Multi-slot concurrent search** (4 slots) with background Domain and in-memory results
 ✅ **Incremental search highlighting** with eager ancestor fetching
 ✅ **Quiet path filtering** to stop highlight propagation at boundaries
-✅ **Configurable search ordering** (Ascending/Descending entry_id)
+✅ **Configurable search ordering** (Ascending/Descending scope_id)
 ✅ **Large value decomposition** (boxify with indentation-based parsing)
 ✅ **Automatic signal handling** for safe commits on interruption
 
 ## Next Steps (Phase 2+)
 
-1. **Schema Cleanup**: Remove `run_id` from composite keys - file versioning makes it redundant
-   - Currently: `(run_id, entry_id, seq_num)` primary key
-   - After cleanup: `(entry_id, seq_num)` primary key
-   - Rationale: Each runtime instance gets its own versioned database file, so all entries in a file belong to the same logical run. The `run_id` column is vestigial from the pre-versioning design.
-2. **Enhanced Structure Storage**: Use `structure_value_id` for JSON-based structure metadata
-3. **Advanced Deduplication**: Template-based structural sharing for repeated record shapes
-4. **Cross-Run State**: PrevRun diff integration for state persistence
-5. **Performance Metrics**: Query timing, cache hit rates, deduplication statistics
-6. Optional **GUI Server and Client**: REST API for pagination, search, lazy loading; Web-based client with rich tree visualization
+1. **Enhanced Structure Storage**: Use `structure_value_id` for JSON-based structure metadata
+2. **Advanced Deduplication**: Template-based structural sharing for repeated record shapes
+3. **Cross-Run State**: PrevRun diff integration for state persistence
+4. **Performance Metrics**: Query timing, cache hit rates, deduplication statistics
+5. Optional **GUI Server and Client**: REST API for pagination, search, lazy loading; Web-based client with rich tree visualization
 
 ## Testing
 

@@ -94,7 +94,7 @@ This is a **conservative** estimate. Actual size likely smaller because:
 - SQLite compression and efficient column storage
 - No HTML `<details><summary><span>` tags (massive overhead)
 - No repeated style attributes (`font-family: monospace`, etc.)
-- Binary encoding of integers (entry_id, line numbers, etc.)
+- Binary encoding of integers (scope_id, line numbers, etc.)
 - Bloom filters or similar for fast lookups further optimize storage
 
 **Comparison to raw marshal file (292 MB):**

@@ -1,10 +1,10 @@
 let () =
-  let prev_run = "test_expect_test_entry_id_pairs_prev" in
-  let curr_run = "test_expect_test_entry_id_pairs_curr" in
+  let prev_run = "test_expect_test_scope_id_pairs_prev" in
+  let curr_run = "test_expect_test_scope_id_pairs_curr" in
 
   (* First run - create baseline with several entries *)
   let _get_local_debug_runtime =
-    Minidebug_runtime.local_runtime ~values_first_mode:false ~print_entry_ids:true
+    Minidebug_runtime.local_runtime ~values_first_mode:false ~print_scope_ids:true
       ~backend:`Text prev_run
   in
   let%debug_show _run1 : unit =
@@ -66,11 +66,11 @@ let () =
   D.finish_and_cleanup ());
 
   (* Second run with different structure *)
-  (* $MDX part-begin=align_entry_ids *)
+  (* $MDX part-begin=align_scope_ids *)
   let _get_local_debug_runtime =
-    Minidebug_runtime.local_runtime ~values_first_mode:false ~print_entry_ids:true
+    Minidebug_runtime.local_runtime ~values_first_mode:false ~print_scope_ids:true
       ~backend:`Text ~prev_run_file:(prev_run ^ ".raw")
-      ~entry_id_pairs:[ (2, 4); (8, 6) ]
+      ~scope_id_pairs:[ (2, 4); (8, 6) ]
         (* Force mappings: - Entry 2 (early prev) to Entry 4 (middle curr) - Entry 8 (late
            prev) to Entry 6 (in the shorter curr) *)
       curr_run

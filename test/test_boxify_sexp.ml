@@ -24,6 +24,5 @@ let () =
   test_medium ();
   test_large ();
   let db = Minidebug_client.Client.open_db "test_boxify_sexp.db" in
-  Minidebug_client.Client.show_trace db
-    (Option.get @@ Minidebug_client.Client.get_latest_run db).run_id;
+  Minidebug_client.Client.show_trace db;
   Printf.printf "Test complete.\n%!"

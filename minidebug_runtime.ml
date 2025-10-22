@@ -62,8 +62,8 @@ module type Shared_config = sig
   val time_tagged : time_tagged
   val elapsed_times : elapsed_times
   val location_format : location_format
-  val print_entry_ids : bool
-  val verbose_entry_ids : bool
+  val print_scope_ids : bool
+  val verbose_scope_ids : bool
   val global_prefix : string
   val prefix_all_logs : bool
   val split_files_after : int option
@@ -75,7 +75,7 @@ end
 let elapsed_default = Not_reported
 
 let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
-    ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
+    ?(location_format = Beg_pos) ?(print_scope_ids = false) ?(verbose_scope_ids = false)
     ?(global_prefix = "") ?(prefix_all_logs = false) ?split_files_after
     ?(with_table_of_contents = false) ?(toc_entry = And []) ?(for_append = true)
     ?(log_level = 9) ?path_filter filename : (module Shared_config) =
@@ -165,8 +165,8 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     let time_tagged = time_tagged
     let elapsed_times = elapsed_times
     let location_format = location_format
-    let print_entry_ids = print_entry_ids
-    let verbose_entry_ids = verbose_entry_ids
+    let print_scope_ids = print_scope_ids
+    let verbose_scope_ids = verbose_scope_ids
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let prefix_all_logs = prefix_all_logs
     let split_files_after = split_files_after
@@ -177,7 +177,7 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   (module Result)
 
 module type Debug_runtime = sig
-  val close_log : fname:string -> start_lnum:int -> entry_id:int -> unit
+  val close_log : fname:string -> start_lnum:int -> scope_id:int -> unit
 
   val open_log :
     fname:string ->
@@ -186,21 +186,21 @@ module type Debug_runtime = sig
     end_lnum:int ->
     end_colnum:int ->
     message:string ->
-    entry_id:int ->
+    scope_id:int ->
     log_level:int ->
     [ `Diagn | `Debug | `Track ] ->
     unit
 
   val open_log_no_source :
     message:string ->
-    entry_id:int ->
+    scope_id:int ->
     log_level:int ->
     [ `Diagn | `Debug | `Track ] ->
     unit
 
   val log_value_sexp :
     ?descr:string ->
-    entry_id:int ->
+    scope_id:int ->
     log_level:int ->
     is_result:bool ->
     Sexplib0.Sexp.t Lazy.t ->
@@ -208,7 +208,7 @@ module type Debug_runtime = sig
 
   val log_value_pp :
     ?descr:string ->
-    entry_id:int ->
+    scope_id:int ->
     log_level:int ->
     pp:(Format.formatter -> 'a -> unit) ->
     is_result:bool ->
@@ -217,16 +217,16 @@ module type Debug_runtime = sig
 
   val log_value_show :
     ?descr:string ->
-    entry_id:int ->
+    scope_id:int ->
     log_level:int ->
     is_result:bool ->
     string Lazy.t ->
     unit
 
-  val log_value_printbox : entry_id:int -> log_level:int -> PrintBox.t -> unit
+  val log_value_printbox : scope_id:int -> log_level:int -> PrintBox.t -> unit
   val exceeds_max_nesting : unit -> bool
   val exceeds_max_children : unit -> bool
-  val get_entry_id : unit -> int
+  val get_scope_id : unit -> int
   val max_nesting_depth : int option ref
   val max_num_children : int option ref
   val global_prefix : string
@@ -257,11 +257,11 @@ let time_span ~none ~some ~elapsed ~elapsed_on_close elapsed_times =
       let span_ns = span in
       if span_ns >= 0.01 then some @@ Printf.sprintf "<%.2fns>" span_ns else none ()
 
-let opt_entry_id ~print_entry_ids ~entry_id =
-  if print_entry_ids && entry_id >= 0 then "{#" ^ Int.to_string entry_id ^ "} " else ""
+let opt_scope_id ~print_scope_ids ~scope_id =
+  if print_scope_ids && scope_id >= 0 then "{#" ^ Int.to_string scope_id ^ "} " else ""
 
-let opt_verbose_entry_id ~verbose_entry_ids ~entry_id =
-  if verbose_entry_ids && entry_id >= 0 then "{#" ^ Int.to_string entry_id ^ "} " else ""
+let opt_verbose_scope_id ~verbose_scope_ids ~scope_id =
+  if verbose_scope_ids && scope_id >= 0 then "{#" ^ Int.to_string scope_id ^ "} " else ""
 
 module Flushing (Log_to : Shared_config) : Debug_runtime = struct
   open Log_to
@@ -275,7 +275,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
     num_children : int;
     elapsed : Mtime.span;
     time_tag : string;
-    entry_id : int;
+    scope_id : int;
   }
 
   let check_log_level level = level <= !log_level
@@ -310,26 +310,26 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
             (Format.asprintf "%a" pp_elapsed ())
             (timestamp_to_string ())
 
-  let close_log ~fname ~start_lnum ~entry_id =
+  let close_log ~fname ~start_lnum ~scope_id =
     match (!hidden_entries, !stack) with
-    | hidden_id :: tl, _ when hidden_id = entry_id -> hidden_entries := tl
+    | hidden_id :: tl, _ when hidden_id = scope_id -> hidden_entries := tl
     | _, [] ->
         let log_loc =
-          Printf.sprintf "%s\"%s\":%d: entry_id=%d" global_prefix fname start_lnum
-            entry_id
+          Printf.sprintf "%s\"%s\":%d: scope_id=%d" global_prefix fname start_lnum
+            scope_id
         in
         failwith @@ "ppx_minidebug: close_log must follow an earlier open_log; " ^ log_loc
-    | _, { message; elapsed; time_tag; entry_id = open_entry_id; _ } :: tl -> (
+    | _, { message; elapsed; time_tag; scope_id = open_scope_id; _ } :: tl -> (
         let ch = debug_ch () in
         let elapsed_on_close = time_elapsed () in
         stack := tl;
-        (if open_entry_id <> entry_id then
+        (if open_scope_id <> scope_id then
            let log_loc =
              Printf.sprintf
-               "%s\"%s\":%d: open entry_id=%d, close entry_id=%d, stack entries %s"
-               global_prefix fname start_lnum open_entry_id entry_id
+               "%s\"%s\":%d: open scope_id=%d, close scope_id=%d, stack entries %s"
+               global_prefix fname start_lnum open_scope_id scope_id
                (String.concat ", "
-               @@ List.map (fun { entry_id; _ } -> Int.to_string entry_id) tl)
+               @@ List.map (fun { scope_id; _ } -> Int.to_string scope_id) tl)
            in
            failwith
            @@ "ppx_minidebug: lexical scope of close_log not matching its dynamic scope; "
@@ -349,7 +349,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         | Some toc_ch, (depth, size) :: _ ->
             let span = Mtime.Span.abs_diff elapsed_on_close elapsed in
             if toc_entry_passes ~depth ~size ~span toc_entry then
-              Printf.fprintf toc_ch "%s{#%d} %s%s\n%!" (indent ()) entry_id message
+              Printf.fprintf toc_ch "%s{#%d} %s%s\n%!" (indent ()) scope_id message
                 time_tag);
         match !depth_stack with
         | [] -> ()
@@ -357,11 +357,11 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         | (cur_depth, cur_size) :: (depth, size) :: tl ->
             depth_stack := (max depth (cur_depth + 1), cur_size + size) :: tl)
 
-  let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id
+  let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~scope_id
       ~log_level _track_or_explicit =
     if should_log ~log_level ~fname ~message then (
       let ch = debug_ch () in
-      let message = opt_verbose_entry_id ~verbose_entry_ids ~entry_id ^ message in
+      let message = opt_verbose_scope_id ~verbose_scope_ids ~scope_id ^ message in
       let time_tag =
         match Log_to.time_tagged with
         | Not_tagged -> ""
@@ -369,10 +369,10 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         | Elapsed -> Format.asprintf " %a" pp_elapsed ()
       in
       Printf.fprintf ch "%s%s%s%s begin %!" (indent ()) global_prefix
-        (opt_entry_id ~print_entry_ids ~entry_id)
+        (opt_scope_id ~print_scope_ids ~scope_id)
         message;
       stack :=
-        { message; elapsed = time_elapsed (); time_tag; num_children = 0; entry_id }
+        { message; elapsed = time_elapsed (); time_tag; num_children = 0; scope_id }
         :: !stack;
       (match Log_to.location_format with
       | No_location -> ()
@@ -385,13 +385,13 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
             end_colnum);
       Printf.fprintf ch "%s\n%!" time_tag)
     else (
-      hidden_entries := entry_id :: !hidden_entries;
-      Hashtbl.add filtered_entries_tbl entry_id ())
+      hidden_entries := scope_id :: !hidden_entries;
+      Hashtbl.add filtered_entries_tbl scope_id ())
 
-  let open_log_no_source ~message ~entry_id ~log_level _track_or_explicit =
+  let open_log_no_source ~message ~scope_id ~log_level _track_or_explicit =
     if check_log_level log_level then (
       let ch = debug_ch () in
-      let message = opt_verbose_entry_id ~verbose_entry_ids ~entry_id ^ message in
+      let message = opt_verbose_scope_id ~verbose_scope_ids ~scope_id ^ message in
       let time_tag =
         match Log_to.time_tagged with
         | Not_tagged -> ""
@@ -399,35 +399,35 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         | Elapsed -> Format.asprintf " %a" pp_elapsed ()
       in
       Printf.fprintf ch "%s%s%s%s begin %!" (indent ()) global_prefix
-        (opt_entry_id ~print_entry_ids ~entry_id)
+        (opt_scope_id ~print_scope_ids ~scope_id)
         message;
       stack :=
-        { message; elapsed = time_elapsed (); time_tag; num_children = 0; entry_id }
+        { message; elapsed = time_elapsed (); time_tag; num_children = 0; scope_id }
         :: !stack;
       Printf.fprintf ch "%s\n%!" time_tag)
-    else hidden_entries := entry_id :: !hidden_entries
+    else hidden_entries := scope_id :: !hidden_entries
 
   let opt_global_prefix = if prefix_all_logs then global_prefix else ""
 
-  let bump_stack_entry entry_id =
+  let bump_stack_entry scope_id =
     match !stack with
     | ({ num_children; _ } as entry) :: tl ->
         stack := { entry with num_children = num_children + 1 } :: tl;
         ""
-    | [] -> "{orphaned from #" ^ Int.to_string entry_id ^ "} "
+    | [] -> "{orphaned from #" ^ Int.to_string scope_id ^ "} "
 
-  let log_value_sexp ?descr ~entry_id ~log_level:_ ~is_result:_ lazy_sexp =
-    if not (Hashtbl.mem filtered_entries_tbl entry_id) then
-      let orphaned = bump_stack_entry entry_id in
+  let log_value_sexp ?descr ~scope_id ~log_level:_ ~is_result:_ lazy_sexp =
+    if not (Hashtbl.mem filtered_entries_tbl scope_id) then
+      let orphaned = bump_stack_entry scope_id in
       let descr = match descr with None -> "" | Some d -> d ^ " = " in
       let sexp = Lazy.force lazy_sexp in
       Printf.fprintf (debug_ch ()) "%s%s%s%s%s\n%!" (indent ()) opt_global_prefix orphaned
         descr
         (Sexplib0.Sexp.to_string_hum sexp)
 
-  let log_value_pp ?descr ~entry_id ~log_level:_ ~pp ~is_result:_ lazy_v =
-    if not (Hashtbl.mem filtered_entries_tbl entry_id) then (
-      let orphaned = bump_stack_entry entry_id in
+  let log_value_pp ?descr ~scope_id ~log_level:_ ~pp ~is_result:_ lazy_v =
+    if not (Hashtbl.mem filtered_entries_tbl scope_id) then (
+      let orphaned = bump_stack_entry scope_id in
       let descr = match descr with None -> "" | Some d -> d ^ " = " in
       let v = Lazy.force lazy_v in
       let buf = Buffer.create 512 in
@@ -438,17 +438,17 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
       Printf.fprintf (debug_ch ()) "%s%s%s%s%s\n%!" (indent ()) opt_global_prefix orphaned
         descr v_str)
 
-  let log_value_show ?descr ~entry_id ~log_level:_ ~is_result:_ lazy_v =
-    if not (Hashtbl.mem filtered_entries_tbl entry_id) then
-      let orphaned = bump_stack_entry entry_id in
+  let log_value_show ?descr ~scope_id ~log_level:_ ~is_result:_ lazy_v =
+    if not (Hashtbl.mem filtered_entries_tbl scope_id) then
+      let orphaned = bump_stack_entry scope_id in
       let descr = match descr with None -> "" | Some d -> d ^ " = " in
       let v = Lazy.force lazy_v in
       Printf.fprintf (debug_ch ()) "%s%s%s%s%s\n%!" (indent ()) opt_global_prefix orphaned
         descr v
 
-  let log_value_printbox ~entry_id ~log_level:_ v =
-    if not (Hashtbl.mem filtered_entries_tbl entry_id) then
-      let orphaned = bump_stack_entry entry_id in
+  let log_value_printbox ~scope_id ~log_level:_ v =
+    if not (Hashtbl.mem filtered_entries_tbl scope_id) then
+      let orphaned = bump_stack_entry scope_id in
       let orphaned = if orphaned = "" then "" else " " ^ orphaned in
       let indent = indent () in
       Printf.fprintf (debug_ch ()) "%s%a%s\n%!" opt_global_prefix
@@ -464,7 +464,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
     | [] -> false
     | { num_children; _ } :: _ -> exceeds ~value:num_children ~limit:!max_num_children
 
-  let get_entry_id =
+  let get_scope_id =
     let global_id = ref 0 in
     fun () ->
       incr global_id;
@@ -496,13 +496,13 @@ end
 let default_html_config = PrintBox_html.Config.(tree_summary true default)
 let default_md_config = PrintBox_md.Config.(foldable_trees default)
 
-let anchor_entry_id ~is_pure_text ~entry_id =
-  if entry_id = -1 || is_pure_text then B.empty
+let anchor_scope_id ~is_pure_text ~scope_id =
+  if scope_id = -1 || is_pure_text then B.empty
   else
-    let id = Int.to_string entry_id in
+    let id = Int.to_string scope_id in
     (* TODO(#40): Not outputting a self-link, since we want the anchor in summaries,
        mostly to avoid generating tables in HTML. *)
-    (* let uri = "{#" ^ id ^ "}" in let inner = if print_entry_ids then B.line uri else
+    (* let uri = "{#" ^ id ^ "}" in let inner = if print_scope_ids then B.line uri else
        B.empty in *)
     let anchor = B.anchor ~id B.empty in
     if is_pure_text then B.hlist ~bars:false [ anchor; B.line " " ] else anchor
@@ -593,7 +593,7 @@ module PrevRun = struct
     curr_index : int; (* Index in current run where edit occurred *)
   }
 
-  type diffable = { message : string; depth : int; entry_id : int option; msg_idx : int }
+  type diffable = { message : string; depth : int; scope_id : int option; msg_idx : int }
   type chunk = { messages_with_depth : diffable array }
 
   (* The dynamic programming state *)
@@ -615,14 +615,14 @@ module PrevRun = struct
     max_distance_factor : int;
         (* Maximum distance to consider as a factor of current position *)
     depth_threshold : int; (* New parameter for depth discrepancy threshold *)
-    entry_id_pairs : (int * int) list;
-        (* Maps previous entry_id to current entry_id for forced matches *)
-    entry_id_to_pos : (int, int) Hashtbl.t;
-        (* Maps entry_id to its position in the chunk for the previous run *)
-    curr_entry_id_to_pos : (int, int) Hashtbl.t;
-        (* Maps entry_id to its position in the chunk for the current run *)
+    scope_id_pairs : (int * int) list;
+        (* Maps previous scope_id to current scope_id for forced matches *)
+    scope_id_to_pos : (int, int) Hashtbl.t;
+        (* Maps scope_id to its position in the chunk for the previous run *)
+    curr_scope_id_to_pos : (int, int) Hashtbl.t;
+        (* Maps scope_id to its position in the chunk for the current run *)
     mutable reverse_forced_matches : (int * int) list;
-        (* Remaining forced matches (entry_id for column, row of matching entry_id) sorted
+        (* Remaining forced matches (scope_id for column, row of matching scope_id) sorted
            by column *)
   }
 
@@ -672,35 +672,35 @@ module PrevRun = struct
       min_cost_rows = Hashtbl.create 0;
       max_distance_factor = 200;
       depth_threshold = 1;
-      entry_id_pairs = [];
-      entry_id_to_pos = Hashtbl.create 0;
-      curr_entry_id_to_pos = Hashtbl.create 0;
+      scope_id_pairs = [];
+      scope_id_to_pos = Hashtbl.create 0;
+      curr_scope_id_to_pos = Hashtbl.create 0;
       reverse_forced_matches = [];
     }
 
-  let populate_entry_id_to_pos state chunk =
+  let populate_scope_id_to_pos state chunk =
     Array.iteri
       (fun i md ->
-        match md.entry_id with
-        | Some entry_id -> Hashtbl.add state.entry_id_to_pos entry_id i
+        match md.scope_id with
+        | Some scope_id -> Hashtbl.add state.scope_id_to_pos scope_id i
         | None -> ())
       chunk.messages_with_depth;
     state.reverse_forced_matches <-
       List.filter_map
         (fun (prev_id, curr_id) ->
-          try Some (curr_id, Hashtbl.find state.entry_id_to_pos prev_id)
+          try Some (curr_id, Hashtbl.find state.scope_id_to_pos prev_id)
           with Not_found -> None)
-        state.entry_id_pairs
+        state.scope_id_pairs
       |> List.sort (fun (j0, _) (j1, _) -> Int.compare j0 j1)
 
   let init_run ?prev_file ?diff_ignore_pattern ?(max_distance_factor = 200)
-      ?(depth_threshold = 1) ?(entry_id_pairs = []) curr_file =
+      ?(depth_threshold = 1) ?(scope_id_pairs = []) curr_file =
     let prev_ic = Option.map open_in_bin prev_file in
     let prev_chunk = Option.bind prev_ic load_next_chunk in
     let curr_oc = open_out_bin (curr_file ^ ".raw") in
     Gc.finalise (fun _ -> close_out curr_oc) curr_oc;
-    (* entry_id_to_pos and reverse_forced_matches are initialized in
-       populate_entry_id_to_pos *)
+    (* scope_id_to_pos and reverse_forced_matches are initialized in
+       populate_scope_id_to_pos *)
     let state =
       {
         prev_chunk;
@@ -719,13 +719,13 @@ module PrevRun = struct
         min_cost_rows = Hashtbl.create 1000;
         max_distance_factor;
         depth_threshold;
-        entry_id_pairs;
-        entry_id_to_pos = Hashtbl.create 100;
-        curr_entry_id_to_pos = Hashtbl.create 100;
+        scope_id_pairs;
+        scope_id_to_pos = Hashtbl.create 100;
+        curr_scope_id_to_pos = Hashtbl.create 100;
         reverse_forced_matches = [];
       }
     in
-    Option.iter (populate_entry_id_to_pos state) prev_chunk;
+    Option.iter (populate_scope_id_to_pos state) prev_chunk;
     state
 
   (* Get normalized message either from normalized chunk or by normalizing on demand *)
@@ -890,13 +890,13 @@ module PrevRun = struct
     (* Compute new cells with adaptive pruning - transposed for column-first iteration *)
     for j = state.last_computed_col + 1 to col do
       let curr = Dynarray.get state.curr_chunk j in
-      let forced_entry_id, forced_pos =
+      let forced_scope_id, forced_pos =
         match state.reverse_forced_matches with
         | (curr_id, forced_pos) :: _ -> (curr_id, forced_pos)
         | [] -> (-2, -2)
       in
-      match curr.entry_id with
-      | Some curr_id when curr_id = forced_entry_id ->
+      match curr.scope_id with
+      | Some curr_id when curr_id = forced_scope_id ->
           let center_row = forced_pos in
           state.reverse_forced_matches <- List.tl state.reverse_forced_matches;
           set_dp_value state ~i:center_row ~j (0, center_row - 1, j - 1);
@@ -951,7 +951,7 @@ module PrevRun = struct
 
           (* Due to assymetry in insertions and deletions -- deletions are the default
              fallback -- we incorporate forcing to push min_i up, but not max_i down *)
-          if forced_entry_id <> -2 then
+          if forced_scope_id <> -2 then
             min_i := max 0 (min !min_i (forced_pos - state.max_distance_factor));
 
           (* Track best result *)
@@ -986,13 +986,13 @@ module PrevRun = struct
 
   (* Ensure the message is at the right position in the DP table regardless of when we
      need to compute the match. *)
-  let get_diffable state ~depth ~entry_id message =
+  let get_diffable state ~depth ~scope_id message =
     let msg_idx = Dynarray.length state.curr_chunk in
-    let res = { message; depth; entry_id; msg_idx } in
+    let res = { message; depth; scope_id; msg_idx } in
     try
-      (* Track entry_id to position mapping for the current run *)
-      (match entry_id with
-      | Some eid -> Hashtbl.add state.curr_entry_id_to_pos eid msg_idx
+      (* Track scope_id to position mapping for the current run *)
+      (match scope_id with
+      | Some eid -> Hashtbl.add state.curr_scope_id_to_pos eid msg_idx
       | None -> ());
 
       let _normalized_msg = normalize_message state message in
@@ -1104,7 +1104,7 @@ module PrevRun = struct
         | None -> 0
         | Some chunk -> Array.length chunk.messages_with_depth - 1);
       Hashtbl.clear state.dp_table;
-      Option.iter (populate_entry_id_to_pos state) state.prev_chunk;
+      Option.iter (populate_scope_id_to_pos state) state.prev_chunk;
       state.last_computed_col <- -1;
       state.optimal_edits <- [];
       Hashtbl.clear state.normalized_msgs;
@@ -1206,7 +1206,7 @@ module PrintBox (Log_to : Shared_config) = struct
     uri : string;
     path : string;
     entry_message : string;
-    entry_id : int;
+    scope_id : int;
     body : subentry list;
     depth : int;
     toc_depth : int;
@@ -1329,7 +1329,7 @@ module PrintBox (Log_to : Shared_config) = struct
         uri;
         path;
         entry_message;
-        entry_id;
+        scope_id;
         body;
         depth = _;
         toc_depth = _;
@@ -1352,23 +1352,23 @@ module PrintBox (Log_to : Shared_config) = struct
     let b_path =
       if uri = "" then
         if config.values_first_mode then
-          if entry_id = -1 then B.line entry_message else B.empty
+          if scope_id = -1 then B.line entry_message else B.empty
         else B.line @@ entry_message ^ span
       else
         let inner =
           B.line
           @@
           if config.values_first_mode then
-            if entry_id = -1 then colon path entry_message else path
+            if scope_id = -1 then colon path entry_message else path
           else colon path entry_message ^ span
         in
         hyperlink_path ~uri ~inner
     in
     let is_pure_text = config.backend = `Text in
-    let anchor_id = anchor_entry_id ~is_pure_text ~entry_id in
+    let anchor_id = anchor_scope_id ~is_pure_text ~scope_id in
     let b_path =
-      if print_entry_ids && entry_id <> -1 then
-        let uri = "#" ^ Int.to_string entry_id in
+      if print_scope_ids && scope_id <> -1 then
+        let uri = "#" ^ Int.to_string scope_id in
         let inner = B.line @@ "{" ^ uri ^ "}" in
         if is_pure_text then B.hlist ~bars:false [ b_path; B.line " "; inner ]
         else B.hlist ~bars:false [ b_path; B.link ~uri inner ]
@@ -1378,13 +1378,13 @@ module PrintBox (Log_to : Shared_config) = struct
     if config.values_first_mode then
       let header = B.hlist ~bars:false [ anchor_id; B.line @@ entry_message ^ span ] in
       let hl_header =
-        if entry_id = -1 then B.empty else apply_highlight highlight header
+        if scope_id = -1 then B.empty else apply_highlight highlight header
       in
       let results, body =
-        if entry_id = -1 then (body, [])
+        if scope_id = -1 then (body, [])
         else
           List.partition
-            (fun { result_id; is_result; _ } -> is_result && result_id = entry_id)
+            (fun { result_id; is_result; _ } -> is_result && result_id = scope_id)
             body
       in
       let results_hl =
@@ -1438,7 +1438,7 @@ module PrintBox (Log_to : Shared_config) = struct
       (b_path, B.tree hl_header (unpack ~f:(fun { subtree; _ } -> subtree) body))
 
   let stack_to_toc ~toc_depth ~elapsed_on_close header
-      { entry_id; depth; toc_depth = result_toc_depth; size; elapsed; body; time_tag; _ }
+      { scope_id; depth; toc_depth = result_toc_depth; size; elapsed; body; time_tag; _ }
       =
     let span = Mtime.Span.abs_diff elapsed_on_close elapsed in
     match table_of_contents_ch with
@@ -1451,7 +1451,7 @@ module PrintBox (Log_to : Shared_config) = struct
           | Some prefix, _ | None, `Prefix prefix -> prefix ^ debug_ch_name ()
           | None, `No_hyperlinks -> debug_ch_name ()
         in
-        let uri = prefix ^ "#" ^ Int.to_string entry_id in
+        let uri = prefix ^ "#" ^ Int.to_string scope_id in
         let rec replace_link b =
           match B.view b with
           | B.Frame { sub; stretch } -> B.frame ~stretch @@ replace_link sub
@@ -1589,9 +1589,9 @@ module PrintBox (Log_to : Shared_config) = struct
     try
       while !stack <> [] do
         match !stack with
-        | { entry_id; _ } :: _ ->
+        | { scope_id; _ } :: _ ->
             close_log_impl ~from_snapshot:true ~elapsed_on_close ~fname:"snapshotting"
-              ~start_lnum:(List.length !stack) ~entry_id
+              ~start_lnum:(List.length !stack) ~scope_id
         | _ -> assert false
       done;
       needs_snapshot_reset := true;
@@ -1600,7 +1600,7 @@ module PrintBox (Log_to : Shared_config) = struct
       stack := current_stack;
       raise e
 
-  and close_log_impl ~from_snapshot ~elapsed_on_close ~fname ~start_lnum ~entry_id =
+  and close_log_impl ~from_snapshot ~elapsed_on_close ~fname ~start_lnum ~scope_id =
     let close_tree ~entry ~toc_depth =
       let header, box = stack_to_tree ~elapsed_on_close entry in
       let ch = debug_ch () in
@@ -1627,13 +1627,13 @@ module PrintBox (Log_to : Shared_config) = struct
             flush toc_ch)
     in
     (match !stack with
-    | { entry_id = open_entry_id; _ } :: tl when open_entry_id <> entry_id ->
+    | { scope_id = open_scope_id; _ } :: tl when open_scope_id <> scope_id ->
         let log_loc =
           Printf.sprintf
-            "%s\"%s\":%d: open entry_id=%d, close entry_id=%d, stack entries %s"
-            global_prefix fname start_lnum open_entry_id entry_id
+            "%s\"%s\":%d: open scope_id=%d, close scope_id=%d, stack entries %s"
+            global_prefix fname start_lnum open_scope_id scope_id
             (String.concat ", "
-            @@ List.map (fun { entry_id; _ } -> Int.to_string entry_id) tl)
+            @@ List.map (fun { scope_id; _ } -> Int.to_string scope_id) tl)
         in
         snapshot ();
         failwith
@@ -1641,8 +1641,8 @@ module PrintBox (Log_to : Shared_config) = struct
         ^ log_loc
     | [] ->
         let log_loc =
-          Printf.sprintf "%s\"%s\":%d: entry_id=%d" global_prefix fname start_lnum
-            entry_id
+          Printf.sprintf "%s\"%s\":%d: scope_id=%d" global_prefix fname start_lnum
+            scope_id
         in
         failwith @@ "ppx_minidebug: close_log must follow an earlier open_log; " ^ log_loc
     | _ -> ());
@@ -1663,7 +1663,7 @@ module PrintBox (Log_to : Shared_config) = struct
       | ({
            highlight = hl;
            exclude = _;
-           entry_id = result_id;
+           scope_id = result_id;
            depth = result_depth;
            size = result_size;
            elapsed = elapsed_start;
@@ -1679,7 +1679,7 @@ module PrintBox (Log_to : Shared_config) = struct
              elapsed;
              time_tag;
              entry_message;
-             entry_id;
+             scope_id;
              body;
              depth;
              toc_depth;
@@ -1705,7 +1705,7 @@ module PrintBox (Log_to : Shared_config) = struct
             elapsed;
             time_tag;
             entry_message;
-            entry_id;
+            scope_id;
             body =
               {
                 result_id;
@@ -1728,12 +1728,12 @@ module PrintBox (Log_to : Shared_config) = struct
           []
       | [] -> assert false
 
-  let close_log ~fname ~start_lnum ~entry_id =
+  let close_log ~fname ~start_lnum ~scope_id =
     match !hidden_entries with
-    | hidden_id :: tl when hidden_id = entry_id -> hidden_entries := tl
+    | hidden_id :: tl when hidden_id = scope_id -> hidden_entries := tl
     | _ ->
         let elapsed_on_close = time_elapsed () in
-        close_log_impl ~from_snapshot:false ~elapsed_on_close ~fname ~start_lnum ~entry_id
+        close_log_impl ~from_snapshot:false ~elapsed_on_close ~fname ~start_lnum ~scope_id
 
   let opt_auto_snapshot =
     let last_snapshot = ref @@ time_elapsed () in
@@ -1747,8 +1747,8 @@ module PrintBox (Log_to : Shared_config) = struct
             last_snapshot := now;
             snapshot ())
 
-  let stack_next ~entry_id ~is_result ~result_depth ~result_size (hl, b) =
-    let opt_eid = opt_verbose_entry_id ~verbose_entry_ids ~entry_id in
+  let stack_next ~scope_id ~is_result ~result_depth ~result_size (hl, b) =
+    let opt_eid = opt_verbose_scope_id ~verbose_scope_ids ~scope_id in
     let rec eid b =
       match B.view b with
       | B.Empty -> B.line opt_eid
@@ -1772,7 +1772,7 @@ module PrintBox (Log_to : Shared_config) = struct
             highlight = (if exclude then highlight else hl_or highlight hl);
             body =
               {
-                result_id = entry_id;
+                result_id = scope_id;
                 is_result;
                 highlighted = hl;
                 elapsed_start = elapsed;
@@ -1790,7 +1790,7 @@ module PrintBox (Log_to : Shared_config) = struct
         let elapsed = time_elapsed () in
         let subentry =
           {
-            result_id = entry_id;
+            result_id = scope_id;
             is_result;
             highlighted = hl;
             elapsed_start = elapsed;
@@ -1800,7 +1800,7 @@ module PrintBox (Log_to : Shared_config) = struct
             flame_subtree = "";
           }
         in
-        let entry_message = "{orphaned from #" ^ Int.to_string entry_id ^ "}" in
+        let entry_message = "{orphaned from #" ^ Int.to_string scope_id ^ "}" in
         stack :=
           [
             {
@@ -1813,14 +1813,14 @@ module PrintBox (Log_to : Shared_config) = struct
               uri = "";
               path = "";
               entry_message;
-              entry_id = -1;
+              scope_id = -1;
               body = [ subentry ];
               depth = 1;
               toc_depth = 0;
               size = 1;
             };
           ];
-        close_log ~fname:"orphaned" ~start_lnum:entry_id ~entry_id:(-1)
+        close_log ~fname:"orphaned" ~start_lnum:scope_id ~scope_id:(-1)
 
   let get_highlight diffable =
     let diff_check =
@@ -1831,7 +1831,7 @@ module PrintBox (Log_to : Shared_config) = struct
     | None -> { pattern_match = false; diff_check }
     | Some r -> { pattern_match = Re.execp r diffable.message; diff_check }
 
-  let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~entry_id
+  let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~scope_id
       ~log_level track_or_explicit =
     if should_log ~log_level ~fname ~message then
       let elapsed = time_elapsed () in
@@ -1870,7 +1870,7 @@ module PrintBox (Log_to : Shared_config) = struct
       let highlight =
         get_highlight
         @@ PrevRun.get_diffable !prev_run_state message ~depth:(List.length !stack)
-             ~entry_id:(Some entry_id)
+             ~scope_id:(Some scope_id)
       in
       let entry_message = global_prefix ^ message in
       stack :=
@@ -1884,7 +1884,7 @@ module PrintBox (Log_to : Shared_config) = struct
           elapsed;
           time_tag;
           entry_message;
-          entry_id;
+          scope_id;
           body = [];
           depth = 0;
           toc_depth = 0;
@@ -1892,10 +1892,10 @@ module PrintBox (Log_to : Shared_config) = struct
         }
         :: !stack
     else (
-      hidden_entries := entry_id :: !hidden_entries;
-      Hashtbl.add filtered_entries_tbl entry_id ())
+      hidden_entries := scope_id :: !hidden_entries;
+      Hashtbl.add filtered_entries_tbl scope_id ())
 
-  let open_log_no_source ~message ~entry_id ~log_level track_or_explicit =
+  let open_log_no_source ~message ~scope_id ~log_level track_or_explicit =
     if check_log_level log_level then
       let time_tag =
         match Log_to.time_tagged with
@@ -1909,7 +1909,7 @@ module PrintBox (Log_to : Shared_config) = struct
       let highlight =
         get_highlight
         @@ PrevRun.get_diffable !prev_run_state message ~depth:(List.length !stack)
-             ~entry_id:(Some entry_id)
+             ~scope_id:(Some scope_id)
       in
       let entry_message = global_prefix ^ message in
       stack :=
@@ -1923,14 +1923,14 @@ module PrintBox (Log_to : Shared_config) = struct
           elapsed = time_elapsed ();
           time_tag;
           entry_message;
-          entry_id;
+          scope_id;
           body = [];
           depth = 0;
           toc_depth = 0;
           size = 1;
         }
         :: !stack
-    else hidden_entries := entry_id :: !hidden_entries
+    else hidden_entries := scope_id :: !hidden_entries
 
   let sexp_size sexp =
     let open Sexplib0.Sexp in
@@ -1940,14 +1940,14 @@ module PrintBox (Log_to : Shared_config) = struct
     in
     loop sexp
 
-  let highlight_box ~depth ?body ?loop ~entry_id b =
+  let highlight_box ~depth ?body ?loop ~scope_id b =
     (* Design choice: Don't render headers of multiline values as monospace, to emphasize
        them. *)
     (* Recall the design choice: [exclude] does not apply to its own entry. Therefore, an
        entry "propagates its highlight". *)
     let message = PrintBox_text.to_string_with ~style:false b in
     let hl_header =
-      get_highlight @@ PrevRun.get_diffable !prev_run_state message ~depth ~entry_id
+      get_highlight @@ PrevRun.get_diffable !prev_run_state message ~depth ~scope_id
     in
     let hl_body, b, bs =
       match (body, loop) with
@@ -1972,21 +1972,21 @@ module PrintBox (Log_to : Shared_config) = struct
         Format.pp_print_string ppf s
     | e -> Sexplib0.Sexp.pp_hum ppf e
 
-  let boxify ~descr ~depth ~entry_id sexp =
+  let boxify ~descr ~depth ~scope_id sexp =
     let open Sexplib0.Sexp in
     let rec loop ?(as_tree = false) ~depth sexp =
       if (not as_tree) && sexp_size sexp < config.boxify_sexp_from_size then
-        highlight_box ~depth ~entry_id
+        highlight_box ~depth ~scope_id
         @@ B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
       else
         match sexp with
         (* FIXME: Should we render [List [Atom s]] at [depth] also? *)
         | Atom s ->
-            highlight_box ~depth ~entry_id @@ B.text_with_style B.Style.preformatted s
+            highlight_box ~depth ~scope_id @@ B.text_with_style B.Style.preformatted s
         | List [] -> ({ pattern_match = false; diff_check = (fun () -> None) }, B.empty)
         | List [ s ] -> loop ~depth:(depth + 1) s
         | List (Atom s :: body) ->
-            highlight_box ~depth ~entry_id ~body ~loop:(loop ?as_tree:None)
+            highlight_box ~depth ~scope_id ~body ~loop:(loop ?as_tree:None)
             @@ if as_tree then B.text s else B.text_with_style B.Style.preformatted s
         | List l ->
             let hls, bs = List.split @@ List.map (loop ~depth:(depth + 1)) l in
@@ -1994,11 +1994,11 @@ module PrintBox (Log_to : Shared_config) = struct
     in
     match (sexp, descr) with
     | (Atom s | List [ Atom s ]), Some d ->
-        highlight_box ~depth ~entry_id
+        highlight_box ~depth ~scope_id
         @@ B.text_with_style B.Style.preformatted (d ^ " = " ^ s)
     | (Atom s | List [ Atom s ]), None ->
-        highlight_box ~depth ~entry_id @@ B.text_with_style B.Style.preformatted s
-    | List [], Some d -> highlight_box ~depth ~entry_id @@ B.line d
+        highlight_box ~depth ~scope_id @@ B.text_with_style B.Style.preformatted s
+    | List [], Some d -> highlight_box ~depth ~scope_id @@ B.line d
     | List [], None -> ({ pattern_match = false; diff_check = (fun () -> None) }, B.empty)
     | List l, _ ->
         let str =
@@ -2008,7 +2008,7 @@ module PrintBox (Log_to : Shared_config) = struct
         in
         if String.length str > 0 && String.length str < config.max_inline_sexp_length then
           (* TODO: Design choice: consider not using monospace, at least for descr. *)
-          highlight_box ~depth ~entry_id
+          highlight_box ~depth ~scope_id
           @@ B.text_with_style B.Style.preformatted
           @@ match descr with None -> str | Some d -> d ^ " = " ^ str
         else
@@ -2017,47 +2017,47 @@ module PrintBox (Log_to : Shared_config) = struct
 
   let num_children () = match !stack with [] -> 0 | { body; _ } :: _ -> List.length body
 
-  let log_value_sexp ?descr ~entry_id ~log_level:_ ~is_result lazy_sexp =
-    if not (Hashtbl.mem filtered_entries_tbl entry_id) then (
+  let log_value_sexp ?descr ~scope_id ~log_level:_ ~is_result lazy_sexp =
+    if not (Hashtbl.mem filtered_entries_tbl scope_id) then (
       let sexp = Lazy.force lazy_sexp in
       (if config.boxify_sexp_from_size >= 0 then
-         stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
-         @@ boxify ~descr ~depth:(List.length !stack) ~entry_id:None sexp
+         stack_next ~scope_id ~is_result ~result_depth:0 ~result_size:1
+         @@ boxify ~descr ~depth:(List.length !stack) ~scope_id:None sexp
        else
-         stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
-         @@ highlight_box ~depth:(List.length !stack) ~entry_id:None
+         stack_next ~scope_id ~is_result ~result_depth:0 ~result_size:1
+         @@ highlight_box ~depth:(List.length !stack) ~scope_id:None
          @@
          match descr with
          | None -> B.asprintf_with_style B.Style.preformatted "%a" pp_sexp sexp
          | Some d -> B.asprintf_with_style B.Style.preformatted "%s = %a" d pp_sexp sexp);
       opt_auto_snapshot ())
 
-  let log_value_pp ?descr ~entry_id ~log_level:_ ~pp ~is_result lazy_v =
-    if not (Hashtbl.mem filtered_entries_tbl entry_id) then (
+  let log_value_pp ?descr ~scope_id ~log_level:_ ~pp ~is_result lazy_v =
+    if not (Hashtbl.mem filtered_entries_tbl scope_id) then (
       let v = Lazy.force lazy_v in
-      (stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
-      @@ highlight_box ~depth:(List.length !stack) ~entry_id:None
+      (stack_next ~scope_id ~is_result ~result_depth:0 ~result_size:1
+      @@ highlight_box ~depth:(List.length !stack) ~scope_id:None
       @@
       match descr with
       | None -> B.asprintf_with_style B.Style.preformatted "%a" pp v
       | Some d -> B.asprintf_with_style B.Style.preformatted "%s = %a" d pp v);
       opt_auto_snapshot ())
 
-  let log_value_show ?descr ~entry_id ~log_level:_ ~is_result lazy_v =
-    if not (Hashtbl.mem filtered_entries_tbl entry_id) then (
+  let log_value_show ?descr ~scope_id ~log_level:_ ~is_result lazy_v =
+    if not (Hashtbl.mem filtered_entries_tbl scope_id) then (
       let v = Lazy.force lazy_v in
-      (stack_next ~entry_id ~is_result ~result_depth:0 ~result_size:1
-      @@ highlight_box ~depth:(List.length !stack) ~entry_id:None
+      (stack_next ~scope_id ~is_result ~result_depth:0 ~result_size:1
+      @@ highlight_box ~depth:(List.length !stack) ~scope_id:None
       @@
       match descr with
       | None -> B.sprintf_with_style B.Style.preformatted "%s" v
       | Some d -> B.sprintf_with_style B.Style.preformatted "%s = %s" d v);
       opt_auto_snapshot ())
 
-  let log_value_printbox ~entry_id ~log_level:_ v =
-    if not (Hashtbl.mem filtered_entries_tbl entry_id) then (
-      stack_next ~entry_id ~is_result:false ~result_depth:0 ~result_size:1
-      @@ highlight_box ~depth:(List.length !stack) ~entry_id:None v;
+  let log_value_printbox ~scope_id ~log_level:_ v =
+    if not (Hashtbl.mem filtered_entries_tbl scope_id) then (
+      stack_next ~scope_id ~is_result:false ~result_depth:0 ~result_size:1
+      @@ highlight_box ~depth:(List.length !stack) ~scope_id:None v;
       opt_auto_snapshot ())
 
   let no_debug_if cond =
@@ -2071,7 +2071,7 @@ module PrintBox (Log_to : Shared_config) = struct
 
   let exceeds_max_children () = exceeds ~value:(num_children ()) ~limit:!max_num_children
 
-  let get_entry_id =
+  let get_scope_id =
     let global_id = ref 0 in
     fun () ->
       incr global_id;
@@ -2101,14 +2101,14 @@ module PrintBox (Log_to : Shared_config) = struct
 end
 
 let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
-    ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
+    ?(location_format = Beg_pos) ?(print_scope_ids = false) ?(verbose_scope_ids = false)
     ?(global_prefix = "") ?split_files_after ?(with_toc_listing = false)
     ?(toc_entry = And []) ?(toc_flame_graph = false) ?(flame_graph_separation = 40)
     ?highlight_terms ?exclude_on_path ?(prune_upto = 0) ?(truncate_children = 0)
     ?(for_append = false) ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80)
     ?(backend = `Text) ?hyperlink ?toc_specific_hyperlink ?(values_first_mode = true)
     ?(log_level = 9) ?snapshot_every_sec ?prev_run_file ?diff_ignore_pattern
-    ?max_distance_factor ?(entry_id_pairs = []) ?path_filter filename_stem :
+    ?max_distance_factor ?(scope_id_pairs = []) ?path_filter filename_stem :
     (module PrintBox_runtime) =
   let filename =
     match backend with
@@ -2119,8 +2119,8 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   let with_table_of_contents = toc_flame_graph || with_toc_listing in
   let module Debug =
     PrintBox
-      ((val shared_config ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
-              ~verbose_entry_ids ~global_prefix ~for_append ?split_files_after
+      ((val shared_config ~time_tagged ~elapsed_times ~location_format ~print_scope_ids
+              ~verbose_scope_ids ~global_prefix ~for_append ?split_files_after
               ~with_table_of_contents ~toc_entry ~log_level ?path_filter filename)) in
   Debug.config.backend <- backend;
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
@@ -2146,11 +2146,11 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
   Debug.prev_run_state :=
     PrevRun.init_run ?prev_file:prev_run_file
       ?diff_ignore_pattern:(Option.map Re.compile diff_ignore_pattern)
-      ?max_distance_factor ~entry_id_pairs filename_stem;
+      ?max_distance_factor ~scope_id_pairs filename_stem;
   (module Debug)
 
 let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
-    ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
+    ?(location_format = Beg_pos) ?(print_scope_ids = false) ?(verbose_scope_ids = false)
     ?(global_prefix = "") ?table_of_contents_ch ?(toc_entry = And [])
     ?(boxify_sexp_from_size = 50) ?(max_inline_sexp_length = 80) ?(backend = `Text)
     ?hyperlink ?toc_specific_hyperlink ?highlight_terms ?exclude_on_path ?(prune_upto = 0)
@@ -2179,8 +2179,8 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
     let time_tagged = time_tagged
     let elapsed_times = elapsed_times
     let location_format = location_format
-    let print_entry_ids = print_entry_ids
-    let verbose_entry_ids = verbose_entry_ids
+    let print_scope_ids = print_scope_ids
+    let verbose_scope_ids = verbose_scope_ids
     let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
     let prefix_all_logs = false
     let split_files_after = None
@@ -2204,7 +2204,7 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
 
 let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename
     ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
-    ?(location_format = Beg_pos) ?(print_entry_ids = false) ?(verbose_entry_ids = false)
+    ?(location_format = Beg_pos) ?(print_scope_ids = false) ?(verbose_scope_ids = false)
     ?(global_prefix = "") ?(prefix_all_logs = false) ?split_files_after
     ?(with_table_of_contents = false) ?(toc_entry = And []) ?(for_append = false)
     ?(log_level = 9) ?path_filter () : (module Debug_runtime) =
@@ -2240,8 +2240,8 @@ let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename
           let time_tagged = time_tagged
           let elapsed_times = elapsed_times
           let location_format = location_format
-          let print_entry_ids = print_entry_ids
-          let verbose_entry_ids = verbose_entry_ids
+          let print_scope_ids = print_scope_ids
+          let verbose_scope_ids = verbose_scope_ids
           let global_prefix = if global_prefix = "" then "" else global_prefix ^ " "
           let prefix_all_logs = prefix_all_logs
           let split_files_after = split_files_after
@@ -2251,7 +2251,7 @@ let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename
         end : Shared_config)
     | Some filename, None ->
         let filename = filename ^ ".log" in
-        shared_config ~time_tagged ~elapsed_times ~location_format ~print_entry_ids
+        shared_config ~time_tagged ~elapsed_times ~location_format ~print_scope_ids
           ~global_prefix ?split_files_after ~with_table_of_contents ~toc_entry ~for_append
           ~log_level ?path_filter filename
     | Some _, Some _ ->
@@ -2268,12 +2268,12 @@ let sexp_of_lazy_t sexp_of_a l =
   if Lazy.is_val l then Sexplib0.Sexp.List [ Atom "lazy"; sexp_of_a @@ Lazy.force l ]
   else Sexplib0.Sexp.List [ Atom "lazy"; Atom "<thunk>" ]
 
-let local_runtime ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
-    ?verbose_entry_ids ?global_prefix ?split_files_after ?with_toc_listing ?toc_entry
+let local_runtime ?time_tagged ?elapsed_times ?location_format ?print_scope_ids
+    ?verbose_scope_ids ?global_prefix ?split_files_after ?with_toc_listing ?toc_entry
     ?toc_flame_graph ?flame_graph_separation ?highlight_terms ?exclude_on_path ?prune_upto
     ?truncate_children ?for_append ?boxify_sexp_from_size ?max_inline_sexp_length ?backend
     ?hyperlink ?toc_specific_hyperlink ?values_first_mode ?log_level ?snapshot_every_sec
-    ?prev_run_file ?diff_ignore_pattern ?max_distance_factor ?entry_id_pairs
+    ?prev_run_file ?diff_ignore_pattern ?max_distance_factor ?scope_id_pairs
     ?update_config ?path_filter filename_stem =
   let get_thread_id () = Thread.id (Thread.self ()) in
   let get_debug () : (module PrintBox_runtime) =
@@ -2281,13 +2281,13 @@ let local_runtime ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
       let id = get_thread_id () in
       if id = 0 then filename_stem else Printf.sprintf "%s-%d" filename_stem id
     in
-    debug_file ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
-      ?verbose_entry_ids ?global_prefix ?split_files_after ?with_toc_listing ?toc_entry
+    debug_file ?time_tagged ?elapsed_times ?location_format ?print_scope_ids
+      ?verbose_scope_ids ?global_prefix ?split_files_after ?with_toc_listing ?toc_entry
       ?toc_flame_graph ?flame_graph_separation ?highlight_terms ?exclude_on_path
       ?prune_upto ?truncate_children ?for_append ?boxify_sexp_from_size
       ?max_inline_sexp_length ?backend ?hyperlink ?toc_specific_hyperlink
       ?values_first_mode ?log_level ?snapshot_every_sec ?prev_run_file
-      ?diff_ignore_pattern ?max_distance_factor ?entry_id_pairs ?path_filter filename
+      ?diff_ignore_pattern ?max_distance_factor ?scope_id_pairs ?path_filter filename
   in
   let key = Thread_local_storage.create () in
   let get_local () = Thread_local_storage.get_default ~default:get_debug key in
@@ -2300,7 +2300,7 @@ let local_runtime ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
         (module Debug : Debug_runtime)
 
 let local_runtime_flushing ?table_of_contents_ch ?time_tagged ?elapsed_times
-    ?location_format ?print_entry_ids ?verbose_entry_ids ?global_prefix ?split_files_after
+    ?location_format ?print_scope_ids ?verbose_scope_ids ?global_prefix ?split_files_after
     ?with_table_of_contents ?toc_entry ?for_append ?log_level ?path_filter filename_stem =
   let get_thread_id () = Thread.id (Thread.self ()) in
   let get_debug () =
@@ -2309,14 +2309,14 @@ let local_runtime_flushing ?table_of_contents_ch ?time_tagged ?elapsed_times
       if id = 0 then filename_stem else Printf.sprintf "%s-%d" filename_stem id
     in
     debug_flushing ?table_of_contents_ch ?time_tagged ?elapsed_times ?location_format
-      ?print_entry_ids ?verbose_entry_ids ?global_prefix ?split_files_after
+      ?print_scope_ids ?verbose_scope_ids ?global_prefix ?split_files_after
       ?with_table_of_contents ?toc_entry ?for_append ?log_level ?path_filter ~filename ()
   in
   let key = Thread_local_storage.create () in
   fun () -> Thread_local_storage.get_default ~default:get_debug key
 
 let prefixed_runtime ?debug_ch ?time_tagged ?elapsed_times ?location_format
-    ?print_entry_ids ?verbose_entry_ids ?global_prefix ?table_of_contents_ch ?toc_entry
+    ?print_scope_ids ?verbose_scope_ids ?global_prefix ?table_of_contents_ch ?toc_entry
     ?highlight_terms ?exclude_on_path ?prune_upto ?truncate_children ?values_first_mode
     ?boxify_sexp_from_size ?max_inline_sexp_length ?backend ?hyperlink
     ?toc_specific_hyperlink ?log_level ?snapshot_every_sec ?update_config ?path_filter ()
@@ -2328,8 +2328,8 @@ let prefixed_runtime ?debug_ch ?time_tagged ?elapsed_times ?location_format
       if id = 0 then global_prefix
       else Some (Printf.sprintf "%s-%d" (Option.value ~default:"Thread" global_prefix) id)
     in
-    debug ?debug_ch ?time_tagged ?elapsed_times ?location_format ?print_entry_ids
-      ?verbose_entry_ids ?global_prefix ?table_of_contents_ch ?toc_entry ?highlight_terms
+    debug ?debug_ch ?time_tagged ?elapsed_times ?location_format ?print_scope_ids
+      ?verbose_scope_ids ?global_prefix ?table_of_contents_ch ?toc_entry ?highlight_terms
       ?exclude_on_path ?prune_upto ?truncate_children ?boxify_sexp_from_size
       ?max_inline_sexp_length ?backend ?hyperlink ?toc_specific_hyperlink
       ?values_first_mode ?log_level ?snapshot_every_sec ?path_filter ()
@@ -2345,7 +2345,7 @@ let prefixed_runtime ?debug_ch ?time_tagged ?elapsed_times ?location_format
         (module Debug : Debug_runtime)
 
 let prefixed_runtime_flushing ?debug_ch ?table_of_contents_ch ?time_tagged ?elapsed_times
-    ?location_format ?print_entry_ids ?verbose_entry_ids ?global_prefix ?split_files_after
+    ?location_format ?print_scope_ids ?verbose_scope_ids ?global_prefix ?split_files_after
     ?with_table_of_contents ?toc_entry ?for_append ?log_level ?path_filter () =
   let get_thread_id () = Thread.id (Thread.self ()) in
   let get_debug () =
@@ -2355,7 +2355,7 @@ let prefixed_runtime_flushing ?debug_ch ?table_of_contents_ch ?time_tagged ?elap
       else Some (Printf.sprintf "%s-%d" (Option.value ~default:"Thread" global_prefix) id)
     in
     debug_flushing ?debug_ch ?table_of_contents_ch ?time_tagged ?elapsed_times
-      ?location_format ?print_entry_ids ?verbose_entry_ids ?global_prefix
+      ?location_format ?print_scope_ids ?verbose_scope_ids ?global_prefix
       ~prefix_all_logs:true ?split_files_after ?with_table_of_contents ?toc_entry
       ?for_append ?log_level ?path_filter ()
   in

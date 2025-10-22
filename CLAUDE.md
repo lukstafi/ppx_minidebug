@@ -32,11 +32,11 @@ Version 3.0.0 transitions from static file generation (PrintBox/Flushing) to dat
 ### Database Backend Design (3.0+)
 - **Lazy initialization**: Database only created when first log occurs - crucial for production code
 - **Content-addressed storage**: `value_atoms` table uses MD5 hash for O(1) deduplication
-- **Composite key schema**: `(run_id, entry_id, seq_num)` primary key allows multiple rows per logical entry
+- **Composite key schema**: `(scope_id, seq_num)` primary key allows multiple rows per logical entry
   - `seq_num >= 0`: Values (1, 2, 3...) created by `log_value_*`, headers created by `open_log`
   - `seq_num < 0`: "Synthetic" scopes and values created by `boxify` during decomposition of sexp values
 - **Entries vs Values design**: Entries are non-leaf nodes (scopes), Values are leaf nodes (parameters/results)
-- **Functor architecture**: `DatabaseBackend` is a functor - each instantiation has isolated state (db, run_id, intern refs)
+- **Functor architecture**: `DatabaseBackend` is a functor - each instantiation has isolated state (db, intern refs)
 - **No contamination**: Multiple runtime instances writing to same file are safe (SQLite handles concurrency)
 - **`finish_and_cleanup()` optional**: For short-lived processes, OS cleanup is sufficient; database remains valid
 - **Path filtering**: `should_log` in `open_log` prevents entries from being created (not just hidden)

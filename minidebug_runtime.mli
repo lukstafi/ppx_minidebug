@@ -30,8 +30,8 @@ module type Shared_config = sig
   val time_tagged : time_tagged
   val elapsed_times : elapsed_times
   val location_format : location_format
-  val print_entry_ids : bool
-  val verbose_entry_ids : bool
+  val print_scope_ids : bool
+  val verbose_scope_ids : bool
   val global_prefix : string
   val prefix_all_logs : bool
   val split_files_after : int option
@@ -44,8 +44,8 @@ val shared_config :
   ?time_tagged:time_tagged ->
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
-  ?print_entry_ids:bool ->
-  ?verbose_entry_ids:bool ->
+  ?print_scope_ids:bool ->
+  ?verbose_scope_ids:bool ->
   ?global_prefix:string ->
   ?prefix_all_logs:bool ->
   ?split_files_after:int ->
@@ -71,9 +71,9 @@ val shared_config :
     times include printing out logs, therefore might not be reliable for profiling. In the
     runtime creation functions, [elapsed_times] defaults to [Not_reported].
 
-    If [print_entry_ids] is true, the [entry_id] identifiers are printed on log headers
-    with the syntax [{#ID}]; by default they are omitted. If [verbose_entry_ids] is true,
-    the [entry_id] identifiers are also printed on logged values.
+    If [print_scope_ids] is true, the [scope_id] identifiers are printed on log headers
+    with the syntax [{#ID}]; by default they are omitted. If [verbose_scope_ids] is true,
+    the [scope_id] identifiers are also printed on logged values.
 
     If [global_prefix] is given, the log header messages (and the log closing messages for
     the flushing backend) are prefixed with it.
@@ -109,7 +109,7 @@ val shared_config :
      [ppx_minidebug]} syntax extension, provide a module called [Debug_runtime] with this
     signature in scope of the instrumented code. *)
 module type Debug_runtime = sig
-  val close_log : fname:string -> start_lnum:int -> entry_id:int -> unit
+  val close_log : fname:string -> start_lnum:int -> scope_id:int -> unit
 
   val open_log :
     fname:string ->
@@ -118,21 +118,21 @@ module type Debug_runtime = sig
     end_lnum:int ->
     end_colnum:int ->
     message:string ->
-    entry_id:int ->
+    scope_id:int ->
     log_level:int ->
     [ `Diagn | `Debug | `Track ] ->
     unit
 
   val open_log_no_source :
     message:string ->
-    entry_id:int ->
+    scope_id:int ->
     log_level:int ->
     [ `Diagn | `Debug | `Track ] ->
     unit
 
   val log_value_sexp :
     ?descr:string ->
-    entry_id:int ->
+    scope_id:int ->
     log_level:int ->
     is_result:bool ->
     Sexplib0.Sexp.t Lazy.t ->
@@ -140,7 +140,7 @@ module type Debug_runtime = sig
 
   val log_value_pp :
     ?descr:string ->
-    entry_id:int ->
+    scope_id:int ->
     log_level:int ->
     pp:(Format.formatter -> 'a -> unit) ->
     is_result:bool ->
@@ -149,16 +149,16 @@ module type Debug_runtime = sig
 
   val log_value_show :
     ?descr:string ->
-    entry_id:int ->
+    scope_id:int ->
     log_level:int ->
     is_result:bool ->
     string Lazy.t ->
     unit
 
-  val log_value_printbox : entry_id:int -> log_level:int -> PrintBox.t -> unit
+  val log_value_printbox : scope_id:int -> log_level:int -> PrintBox.t -> unit
   val exceeds_max_nesting : unit -> bool
   val exceeds_max_children : unit -> bool
-  val get_entry_id : unit -> int
+  val get_scope_id : unit -> int
   val max_nesting_depth : int option ref
   val max_num_children : int option ref
   val global_prefix : string
@@ -301,8 +301,8 @@ val debug_file :
   ?time_tagged:time_tagged ->
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
-  ?print_entry_ids:bool ->
-  ?verbose_entry_ids:bool ->
+  ?print_scope_ids:bool ->
+  ?verbose_scope_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?with_toc_listing:bool ->
@@ -325,7 +325,7 @@ val debug_file :
   ?prev_run_file:string ->
   ?diff_ignore_pattern:Re.t ->
   ?max_distance_factor:int ->
-  ?entry_id_pairs:(int * int) list ->
+  ?scope_id_pairs:(int * int) list ->
   ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->
   string ->
   (module PrintBox_runtime)
@@ -347,7 +347,7 @@ val debug_file :
     parameter (default 50) controls how far to search around a center row when computing
     edit distances between runs - higher values may find more matches but will be slower.
 
-    If [entry_id_pairs] is provided, the diffing algorithm will force matches between
+    If [scope_id_pairs] is provided, the diffing algorithm will force matches between
     specific entry IDs from the previous run and the current run. Each pair
     [(prev_id, curr_id)] indicates that entry [prev_id] from the previous run should be
     matched with entry [curr_id] from the current run. This is useful for ensuring
@@ -362,8 +362,8 @@ val debug :
   ?time_tagged:time_tagged ->
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
-  ?print_entry_ids:bool ->
-  ?verbose_entry_ids:bool ->
+  ?print_scope_ids:bool ->
+  ?verbose_scope_ids:bool ->
   ?global_prefix:string ->
   ?table_of_contents_ch:out_channel ->
   ?toc_entry:toc_entry_criteria ->
@@ -395,8 +395,8 @@ val debug_flushing :
   ?time_tagged:time_tagged ->
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
-  ?print_entry_ids:bool ->
-  ?verbose_entry_ids:bool ->
+  ?print_scope_ids:bool ->
+  ?verbose_scope_ids:bool ->
   ?global_prefix:string ->
   ?prefix_all_logs:bool ->
   ?split_files_after:int ->
@@ -424,8 +424,8 @@ val local_runtime :
   ?time_tagged:time_tagged ->
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
-  ?print_entry_ids:bool ->
-  ?verbose_entry_ids:bool ->
+  ?print_scope_ids:bool ->
+  ?verbose_scope_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?with_toc_listing:bool ->
@@ -448,7 +448,7 @@ val local_runtime :
   ?prev_run_file:string ->
   ?diff_ignore_pattern:Re.t ->
   ?max_distance_factor:int ->
-  ?entry_id_pairs:(int * int) list ->
+  ?scope_id_pairs:(int * int) list ->
   ?update_config:(printbox_config -> unit) ->
   ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->
   string ->
@@ -464,8 +464,8 @@ val local_runtime_flushing :
   ?time_tagged:time_tagged ->
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
-  ?print_entry_ids:bool ->
-  ?verbose_entry_ids:bool ->
+  ?print_scope_ids:bool ->
+  ?verbose_scope_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?with_table_of_contents:bool ->
@@ -485,8 +485,8 @@ val prefixed_runtime :
   ?time_tagged:time_tagged ->
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
-  ?print_entry_ids:bool ->
-  ?verbose_entry_ids:bool ->
+  ?print_scope_ids:bool ->
+  ?verbose_scope_ids:bool ->
   ?global_prefix:string ->
   ?table_of_contents_ch:out_channel ->
   ?toc_entry:toc_entry_criteria ->
@@ -522,8 +522,8 @@ val prefixed_runtime_flushing :
   ?time_tagged:time_tagged ->
   ?elapsed_times:elapsed_times ->
   ?location_format:location_format ->
-  ?print_entry_ids:bool ->
-  ?verbose_entry_ids:bool ->
+  ?print_scope_ids:bool ->
+  ?verbose_scope_ids:bool ->
   ?global_prefix:string ->
   ?split_files_after:int ->
   ?with_table_of_contents:bool ->

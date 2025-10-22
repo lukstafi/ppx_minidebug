@@ -3,7 +3,7 @@ open Sexplib0.Sexp_conv
 (* Setup database runtime *)
 let _get_local_debug_runtime =
   let rt =
-    Minidebug_db.debug_db_file ~print_entry_ids:true ~verbose_entry_ids:true
+    Minidebug_db.debug_db_file ~print_scope_ids:true ~verbose_scope_ids:true
       "debugger_no_debug_if"
   in
   fun () -> rt

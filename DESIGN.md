@@ -29,18 +29,16 @@ CREATE TABLE value_atoms (
 
 -- Tree structure: maps each scope to its parent
 CREATE TABLE entry_parents (
-  run_id INTEGER NOT NULL,
-  entry_id INTEGER NOT NULL,  -- Scope ID
+  scope_id INTEGER NOT NULL,  -- Scope ID
   parent_id INTEGER,           -- Parent scope ID (NULL for roots)
-  PRIMARY KEY (run_id, entry_id)
+  PRIMARY KEY (scope_id)
 );
 
--- Trace entries: composite key (run_id, entry_id, seq_id)
+-- Trace entries: composite key (scope_id, seq_id)
 CREATE TABLE entries (
-  run_id INTEGER NOT NULL,
-  entry_id INTEGER NOT NULL,     -- Scope ID (groups all rows for this scope)
+  scope_id INTEGER NOT NULL,     -- Scope ID (groups all rows for this scope)
   seq_id INTEGER NOT NULL,        -- Position within parent's children (0, 1, 2...)
-  header_entry_id INTEGER,        -- NULL for values; points to child scope for headers
+  header_scope_id INTEGER,        -- NULL for values; points to child scope for headers
   depth INTEGER NOT NULL,
   message_value_id INTEGER REFERENCES value_atoms(value_id),
   location_value_id INTEGER REFERENCES value_atoms(value_id),
@@ -51,16 +49,16 @@ CREATE TABLE entries (
   is_result BOOLEAN DEFAULT FALSE,
   log_level INTEGER,
   entry_type TEXT,
-  PRIMARY KEY (run_id, entry_id, seq_id)
+  PRIMARY KEY (scope_id, seq_id)
 );
 ```
 
 **Key Concepts:**
-- **entry_id**: Represents a scope (function call). All rows belonging to that scope share the same `entry_id`.
+- **scope_id**: Represents a scope (function call). All rows belonging to that scope share the same `scope_id`.
 - **seq_id**: Chronological position within the parent scope (0, 1, 2...).
-- **header_entry_id**:
+- **header_scope_id**:
   - `NULL`: This row is a value (parameter/result)
-  - `Non-NULL`: This row is a header that opens scope `header_entry_id`
+  - `Non-NULL`: This row is a header that opens scope `header_scope_id`
 - **Deduplication**: Value content is hashed and stored once in `value_atoms`, referenced by ID.
 
 **Example:**
@@ -71,13 +69,13 @@ let%debug_sexp foo (x : int) (y : int) : int = x + y
 Database rows (assuming foo is called from scope 10):
 ```
 entry_parents:
-  (entry_id=42, parent_id=10)  -- foo's parent relationship
+  (scope_id=42, parent_id=10)  -- foo's parent relationship
 
 entries:
-  (run_id=1, entry_id=10, seq_id=0, header_entry_id=42)  -- header opening scope 42
-  (run_id=1, entry_id=42, seq_id=0, header_entry_id=NULL, message="x", data="5")
-  (run_id=1, entry_id=42, seq_id=1, header_entry_id=NULL, message="y", data="10")
-  (run_id=1, entry_id=42, seq_id=2, header_entry_id=NULL, is_result=true, data="15")
+  (scope_id=10, seq_id=0, header_scope_id=42)  -- header opening scope 42
+  (scope_id=42, seq_id=0, header_scope_id=NULL, message="x", data="5")
+  (scope_id=42, seq_id=1, header_scope_id=NULL, message="y", data="10")
+  (scope_id=42, seq_id=2, header_scope_id=NULL, is_result=true, data="15")
 ```
 
 ### Client Library ([minidebug_client.ml](minidebug_client.ml))
@@ -141,10 +139,9 @@ minidebug_view trace.db interactive   # Launch TUI (alias: tui)
 (* Core state *)
 type view_state = {
   db : Sqlite3.db;
-  run_id : int;
   cursor : int;              (* Current cursor position *)
   scroll_offset : int;        (* Top visible item index *)
-  expanded : (int, unit) Hashtbl.t;  (* Set of expanded entry_ids *)
+  expanded : (int, unit) Hashtbl.t;  (* Set of expanded scope_ids *)
   visible_items : visible_item array; (* Flattened view *)
   show_times : bool;
   values_first : bool;
@@ -155,7 +152,7 @@ let rec flatten_tree ~expanded ~depth items acc =
   List.fold_left (fun acc item ->
     let visible = { entry = item.entry; indent_level = depth; ... } in
     let acc = visible :: acc in
-    if is_expanded item.entry.entry_id then
+    if is_expanded item.entry.scope_id then
       flatten_tree ~expanded ~depth:(depth + 1) item.children acc
     else acc
   ) acc items
@@ -214,12 +211,12 @@ minidebug_view trace.db tui
 
 ### Programmatic Queries
 ```ocaml
-let client = Minidebug_client.Client.open_db "trace.db" in
+let client = Minidebug_client.Client.open_db "trace_1.db" in
 let run = Minidebug_client.Client.get_latest_run client in
 match run with
 | Some r ->
-    Printf.printf "Run #%d had %d entries\n" r.run_id
-      (List.length (Minidebug_client.Query.get_entries client.db ~run_id:r.run_id ()))
+    Printf.printf "Run 1 had %d entries\n"
+      (List.length (Minidebug_client.Query.get_entries client.db ()))
 | None -> ()
 ```
 

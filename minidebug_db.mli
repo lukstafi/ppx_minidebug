@@ -42,8 +42,8 @@ val debug_db_file :
   ?time_tagged:Minidebug_runtime.time_tagged ->
   ?elapsed_times:Minidebug_runtime.elapsed_times ->
   ?location_format:Minidebug_runtime.location_format ->
-  ?print_entry_ids:bool ->
-  ?verbose_entry_ids:bool ->
+  ?print_scope_ids:bool ->
+  ?verbose_scope_ids:bool ->
   ?run_name:string ->
   ?for_append:bool ->
   ?log_level:int ->
@@ -57,8 +57,8 @@ val debug_db :
   ?time_tagged:Minidebug_runtime.time_tagged ->
   ?elapsed_times:Minidebug_runtime.elapsed_times ->
   ?location_format:Minidebug_runtime.location_format ->
-  ?print_entry_ids:bool ->
-  ?verbose_entry_ids:bool ->
+  ?print_scope_ids:bool ->
+  ?verbose_scope_ids:bool ->
   ?run_name:string ->
   ?log_level:int ->
   ?path_filter:[ `Whitelist of Re.re | `Blacklist of Re.re ] ->

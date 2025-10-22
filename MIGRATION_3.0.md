@@ -173,7 +173,7 @@ SELECT
 FROM entries e
 JOIN value_atoms m ON e.message_value_id = m.value_id
 JOIN value_atoms l ON e.location_value_id = l.value_id
-WHERE e.run_id = 1 AND e.depth = 0
+WHERE e.depth = 0
 ORDER BY e.entry_id;"
 ```
 
@@ -188,7 +188,6 @@ SELECT
 FROM entries e
 JOIN value_atoms m ON e.message_value_id = m.value_id
 LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
-WHERE e.run_id = 1
 ORDER BY e.entry_id;"
 ```
 
