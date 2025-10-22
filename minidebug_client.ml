@@ -518,11 +518,12 @@ module Query = struct
   let populate_search_results db_path ~search_term ~quiet_path ~search_order ~completed_ref ~results_table =
     (* Log to file for debugging since TUI occupies terminal *)
     let log_debug msg =
-      try
-        let oc = open_out_gen [Open_append; Open_creat] 0o644 "./minidebug_search.log" in
+      ignore msg
+      (* try
+        let oc = open_out_gen [Open_append; Open_creat] 0o644 "/tmp/minidebug_search.log" in
         Printf.fprintf oc "[%s] %s\n" (Unix.gettimeofday () |> string_of_float) msg;
         close_out oc
-      with _ -> ()
+      with _ -> () *)
     in
 
     Printexc.record_backtrace true;
@@ -1126,12 +1127,12 @@ module Interactive = struct
   type slot_map = search_slot SlotMap.t
 
   let log_debug msg =
-    try
-      let oc = open_out_gen [Open_append; Open_creat] 0o644 "./minidebug_client.log" in
+    ignore msg
+    (* try
+      let oc = open_out_gen [Open_append; Open_creat] 0o644 "/tmp/minidebug_client.log" in
       Printf.fprintf oc "[%s] %s\n" (Unix.gettimeofday () |> string_of_float) msg;
       close_out oc
-    with _ -> ()
-  let logged_debug = Hashtbl.create 100
+    with _ -> () *)
 
   (** Check if an entry matches any active search (returns slot number 1-4, or None).
       Checks slots in reverse chronological order to prioritize more recent searches.
@@ -1142,13 +1143,6 @@ module Interactive = struct
         match SlotMap.find_opt slot_number search_slots with
         | Some slot when Hashtbl.mem slot.results (scope_id, seq_id) ->
             Some slot_number
-            | Some slot ->
-              (* DEBUG: *)
-              if Hashtbl.length slot.results > 20 && not (Hashtbl.mem logged_debug (scope_id, seq_id)) then (
-                Hashtbl.add logged_debug (scope_id, seq_id) ();
-                log_debug (Printf.sprintf "DEBUG: %s %d %d (%d matches)" slot.search_term scope_id seq_id (Hashtbl.length slot.results));
-                Hashtbl.iter (fun key () -> log_debug (Printf.sprintf "  search highlight: %d %d" (fst key) (snd key))) slot.results);
-                None
         | _ ->
           if slot_number = current_slot then
             None
