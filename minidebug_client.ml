@@ -35,6 +35,23 @@ module Query = struct
     database_size_kb : int;
   }
 
+  (** Helper: normalize db_path by removing versioned suffix (_N.db -> .db).
+      Examples: debug_1.db -> debug.db, debug_23.db -> debug.db, debug.db -> debug.db *)
+  let normalize_db_path db_path =
+    let base = Filename.remove_extension db_path in
+    let ext = Filename.extension db_path in
+    (* Check if base ends with _N where N is a number *)
+    let normalized_base =
+      match String.rindex_opt base '_' with
+      | None -> base
+      | Some idx ->
+          let suffix = String.sub base (idx + 1) (String.length base - idx - 1) in
+          if String.length suffix > 0 && String.for_all (fun c -> c >= '0' && c <= '9') suffix
+          then String.sub base 0 idx  (* Remove _N *)
+          else base
+    in
+    normalized_base ^ ext
+
   (** Get all runs from metadata database.
       For versioned databases (schema v3+), this queries the metadata DB.
       Falls back to querying the versioned DB for backwards compatibility. *)
@@ -74,8 +91,9 @@ module Query = struct
 
   (** Get all runs - tries metadata DB first, falls back to versioned DB for old schemas *)
   let get_runs db_path =
-    (* Try metadata DB first (schema v3+) *)
-    let base = Filename.remove_extension db_path in
+    (* Normalize path (debug_1.db -> debug.db) then look for metadata DB *)
+    let normalized = normalize_db_path db_path in
+    let base = Filename.remove_extension normalized in
     let meta_path = Printf.sprintf "%s_meta.db" base in
     match get_runs_from_meta_db meta_path with
     | [] ->
@@ -86,7 +104,9 @@ module Query = struct
 
   (** Get latest run ID from metadata database *)
   let get_latest_run_id db_path =
-    let base = Filename.remove_extension db_path in
+    (* Normalize path (debug_1.db -> debug.db) then look for metadata DB *)
+    let normalized = normalize_db_path db_path in
+    let base = Filename.remove_extension normalized in
     let meta_path = Printf.sprintf "%s_meta.db" base in
     if not (Sys.file_exists meta_path) then None
     else
