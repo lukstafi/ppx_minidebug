@@ -5,9 +5,9 @@ module CFormat = Format
 (** Query layer for database access *)
 module Query = struct
   type entry = {
-    entry_id : int; (* Scope ID - groups all rows for a scope *)
+    scope_id : int; (* Scope ID - groups all rows for a scope *)
     seq_id : int; (* Position within parent's children *)
-    header_entry_id : int option; (* NULL for values, points to new scope for headers *)
+    child_scope_id : int option; (* NULL for values, points to new scope for headers *)
     depth : int;
     message : string;
     location : string option;
@@ -78,13 +78,13 @@ module Query = struct
     run_id
 
   (** Get entries for a specific run *)
-  let get_entries db ~run_id ?parent_id ?max_depth () =
+  let get_entries db ?parent_id ?max_depth () =
     let base_query =
       {|
       SELECT
-        e.entry_id,
+        e.scope_id,
         e.seq_id,
-        e.header_entry_id,
+        e.child_scope_id,
         e.depth,
         m.value_content as message,
         l.value_content as location,
@@ -98,29 +98,27 @@ module Query = struct
       LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
       LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
       LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
-      WHERE e.run_id = ?
     |}
     in
 
     let query =
       match (parent_id, max_depth) with
-      | None, None -> base_query ^ " ORDER BY e.entry_id, e.seq_id"
-      | Some _, None -> base_query ^ " AND e.entry_id = ? ORDER BY e.entry_id, e.seq_id"
-      | None, Some _ -> base_query ^ " AND e.depth <= ? ORDER BY e.entry_id, e.seq_id"
+      | None, None -> base_query ^ " ORDER BY e.scope_id, e.seq_id"
+      | Some _, None -> base_query ^ " WHERE e.scope_id = ? ORDER BY e.scope_id, e.seq_id"
+      | None, Some _ -> base_query ^ " WHERE e.depth <= ? ORDER BY e.scope_id, e.seq_id"
       | Some _, Some _ ->
           base_query
-          ^ " AND e.entry_id = ? AND e.depth <= ? ORDER BY e.entry_id, e.seq_id"
+          ^ " WHERE e.scope_id = ? AND e.depth <= ? ORDER BY e.scope_id, e.seq_id"
     in
 
     let stmt = Sqlite3.prepare db query in
-    Sqlite3.bind_int stmt 1 run_id |> ignore;
     (match (parent_id, max_depth) with
     | None, None -> ()
-    | Some pid, None -> Sqlite3.bind_int stmt 2 pid |> ignore
-    | None, Some d -> Sqlite3.bind_int stmt 2 d |> ignore
+    | Some pid, None -> Sqlite3.bind_int stmt 1 pid |> ignore
+    | None, Some d -> Sqlite3.bind_int stmt 1 d |> ignore
     | Some pid, Some d ->
-        Sqlite3.bind_int stmt 2 pid |> ignore;
-        Sqlite3.bind_int stmt 3 d |> ignore);
+        Sqlite3.bind_int stmt 1 pid |> ignore;
+        Sqlite3.bind_int stmt 2 d |> ignore);
 
     let entries = ref [] in
     let rec loop () =
@@ -128,9 +126,9 @@ module Query = struct
       | Sqlite3.Rc.ROW ->
           let entry =
             {
-              entry_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+              scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
               seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
-              header_entry_id =
+              child_scope_id =
                 (match Sqlite3.column stmt 2 with
                 | Sqlite3.Data.INT id -> Some (Int64.to_int id)
                 | _ -> None);
@@ -214,8 +212,8 @@ module Query = struct
     stats
 
   (** Search entries by regex pattern *)
-  let search_entries db ~run_id ~pattern =
-    let entries = get_entries db ~run_id () in
+  let search_entries db ~pattern =
+    let entries = get_entries db () in
     let re = Re.compile (Re.Pcre.re pattern) in
     List.filter
       (fun entry ->
@@ -224,10 +222,9 @@ module Query = struct
         || match entry.data with Some d -> Re.execp re d | None -> false)
       entries
 
-  (** Get maximum entry_id for a run *)
-  let get_max_entry_id db ~run_id =
-    let stmt = Sqlite3.prepare db "SELECT MAX(entry_id) FROM entries WHERE run_id = ?" in
-    Sqlite3.bind_int stmt 1 run_id |> ignore;
+  (** Get maximum scope_id for a run *)
+  let get_max_scope_id db =
+    let stmt = Sqlite3.prepare db "SELECT MAX(scope_id) FROM entries" in
     let max_id =
       match Sqlite3.step stmt with
       | Sqlite3.Rc.ROW -> (
@@ -239,16 +236,16 @@ module Query = struct
     Sqlite3.finalize stmt |> ignore;
     Option.value ~default:0 max_id
 
-  (** Get only root entries efficiently - roots are those with entry_id=0 *)
-  let get_root_entries db ~run_id ~with_values =
+  (** Get only root entries efficiently - roots are those with scope_id=0 *)
+  let get_root_entries db ~with_values =
     let query =
       if with_values then
         (* Get entries at depth 0 and 1 - roots and their immediate children *)
         {|
       SELECT
-        e.entry_id,
+        e.scope_id,
         e.seq_id,
-        e.header_entry_id,
+        e.child_scope_id,
         e.depth,
         m.value_content as message,
         l.value_content as location,
@@ -262,16 +259,16 @@ module Query = struct
       LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
       LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
       LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
-      WHERE e.run_id = ? AND e.depth <= 1
-      ORDER BY e.entry_id, e.seq_id
+      WHERE e.depth <= 1
+      ORDER BY e.scope_id, e.seq_id
     |}
       else
-        (* Get only headers at root level (entry_id=0, header_entry_id NOT NULL) *)
+        (* Get only headers at root level (scope_id=0, child_scope_id NOT NULL) *)
         {|
       SELECT
-        e.entry_id,
+        e.scope_id,
         e.seq_id,
-        e.header_entry_id,
+        e.child_scope_id,
         e.depth,
         m.value_content as message,
         l.value_content as location,
@@ -285,13 +282,12 @@ module Query = struct
       LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
       LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
       LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
-      WHERE e.run_id = ? AND e.entry_id = 0 AND e.header_entry_id IS NOT NULL
+      WHERE e.scope_id = 0 AND e.child_scope_id IS NOT NULL
       ORDER BY e.seq_id
     |}
     in
 
     let stmt = Sqlite3.prepare db query in
-    Sqlite3.bind_int stmt 1 run_id |> ignore;
 
     let entries = ref [] in
     let rec loop () =
@@ -299,9 +295,9 @@ module Query = struct
       | Sqlite3.Rc.ROW ->
           let entry =
             {
-              entry_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+              scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
               seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
-              header_entry_id =
+              child_scope_id =
                 (match Sqlite3.column stmt 2 with
                 | Sqlite3.Data.INT id -> Some (Int64.to_int id)
                 | _ -> None);
@@ -337,18 +333,17 @@ module Query = struct
     List.rev !entries
 
   (** Check if an entry has any children (efficient query) *)
-  let has_children db ~run_id ~parent_entry_id =
+  let has_children db ~parent_scope_id =
     let query =
       {|
       SELECT 1
       FROM entries
-      WHERE run_id = ? AND entry_id = ?
+      WHERE scope_id = ?
       LIMIT 1
     |}
     in
     let stmt = Sqlite3.prepare db query in
-    Sqlite3.bind_int stmt 1 run_id |> ignore;
-    Sqlite3.bind_int stmt 2 parent_entry_id |> ignore;
+    Sqlite3.bind_int stmt 1 parent_scope_id |> ignore;
     let has_child =
       match Sqlite3.step stmt with
       | Sqlite3.Rc.ROW -> true
@@ -357,18 +352,17 @@ module Query = struct
     Sqlite3.finalize stmt |> ignore;
     has_child
 
-  (** Get parent entry_id for a given entry *)
-  let get_parent_id db ~run_id ~entry_id =
+  (** Get parent scope_id for a given entry *)
+  let get_parent_id db ~scope_id =
     let query =
       {|
       SELECT parent_id
       FROM entry_parents
-      WHERE run_id = ? AND entry_id = ?
+      WHERE scope_id = ?
     |}
     in
     let stmt = Sqlite3.prepare db query in
-    Sqlite3.bind_int stmt 1 run_id |> ignore;
-    Sqlite3.bind_int stmt 2 entry_id |> ignore;
+    Sqlite3.bind_int stmt 1 scope_id |> ignore;
 
     let parent_id =
       match Sqlite3.step stmt with
@@ -382,13 +376,13 @@ module Query = struct
     Sqlite3.finalize stmt |> ignore;
     parent_id
 
-  let get_scope_children db ~run_id ~parent_entry_id =
+  let get_scope_children db ~parent_scope_id =
     let query =
       {|
       SELECT
-        e.entry_id,
+        e.scope_id,
         e.seq_id,
-        e.header_entry_id,
+        e.child_scope_id,
         e.depth,
         m.value_content as message,
         l.value_content as location,
@@ -402,14 +396,13 @@ module Query = struct
       LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
       LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
       LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
-      WHERE e.run_id = ? AND e.entry_id = ?
+      WHERE e.scope_id = ?
       ORDER BY e.seq_id
     |}
     in
 
     let stmt = Sqlite3.prepare db query in
-    Sqlite3.bind_int stmt 1 run_id |> ignore;
-    Sqlite3.bind_int stmt 2 parent_entry_id |> ignore;
+    Sqlite3.bind_int stmt 1 parent_scope_id |> ignore;
 
     let entries = ref [] in
     let rec loop () =
@@ -417,9 +410,9 @@ module Query = struct
       | Sqlite3.Rc.ROW ->
           let entry =
             {
-              entry_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+              scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
               seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
-              header_entry_id =
+              child_scope_id =
                 (match Sqlite3.column stmt 2 with
                 | Sqlite3.Data.INT id -> Some (Int64.to_int id)
                 | _ -> None);
@@ -455,14 +448,14 @@ module Query = struct
     List.rev !entries
 
   (** Search ordering strategy.
-      Note: entry_id temporal order is split by sign:
+      Note: scope_id temporal order is split by sign:
       - Positive IDs: 1 (oldest), 2, 3, ... 60311 (newest) - increasing = later
       - Negative IDs: -1 (oldest), -2, -3, ... -17774560 (newest) - more negative = later
 
       Neither ordering is chronological due to the sign split! *)
   type search_order =
-    | AscendingIds  (* ORDER BY entry_id ASC: newest-neg → oldest-neg → oldest-pos → newest-pos *)
-    | DescendingIds (* ORDER BY entry_id DESC: newest-pos → oldest-pos → oldest-neg → newest-neg *)
+    | AscendingIds  (* ORDER BY scope_id ASC: newest-neg → oldest-neg → oldest-pos → newest-pos *)
+    | DescendingIds (* ORDER BY scope_id DESC: newest-pos → oldest-pos → oldest-neg → newest-neg *)
 
   (** Populate search results hash table with entries matching search term.
       This is meant to run in a background Domain. Opens its own DB connection.
@@ -475,7 +468,7 @@ module Query = struct
       immediately upon finding each match for real-time UI updates.
 
       Writes results to shared hash table (lock-free concurrent writes are safe). *)
-  let populate_search_results db_path ~run_id ~search_term ~quiet_path ~search_order ~completed_ref ~results_table =
+  let populate_search_results db_path ~search_term ~quiet_path ~search_order ~completed_ref ~results_table =
     (* Log to file for debugging since TUI occupies terminal *)
     let log_debug msg =
       try
@@ -531,28 +524,26 @@ module Query = struct
 
       (* Helper to insert an entry into search results hash table *)
       let insert_entry entry =
-        Hashtbl.replace results_table (entry.entry_id, entry.seq_id) ()
+        Hashtbl.replace results_table (entry.scope_id, entry.seq_id) ()
       in
 
       (* Stream entries, find matches, and build scope index in one pass *)
       let order_clause = match search_order with
-        | AscendingIds -> "ORDER BY e.entry_id ASC, e.seq_id ASC"  (* Negative IDs first, then positive *)
-        | DescendingIds -> "ORDER BY e.entry_id DESC, e.seq_id ASC"  (* Positive IDs first, then negative *)
+        | AscendingIds -> "ORDER BY e.scope_id ASC, e.seq_id ASC"  (* Negative IDs first, then positive *)
+        | DescendingIds -> "ORDER BY e.scope_id DESC, e.seq_id ASC"  (* Positive IDs first, then negative *)
       in
       let query = Printf.sprintf
-        {|SELECT e.entry_id, e.seq_id, e.header_entry_id, e.depth,
+        {|SELECT e.scope_id, e.seq_id, e.child_scope_id, e.depth,
                  m.value_content as message, l.value_content as location, d.value_content as data,
                  e.elapsed_start_ns, e.elapsed_end_ns, e.is_result, e.log_level, e.entry_type
           FROM entries e
           LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
           LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
           LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
-          WHERE e.run_id = ?
           %s|}
         order_clause
       in
       let query_stmt = Sqlite3.prepare db query in
-      Sqlite3.bind_int query_stmt 1 run_id |> ignore;
 
       let scope_by_id = Hashtbl.create 1024 in
       let processed_count = ref 0 in
@@ -567,25 +558,24 @@ module Query = struct
         | None ->
             (* Not in cache - fetch from database and cache it *)
             let query = {|
-              SELECT e.entry_id, e.seq_id, e.header_entry_id, e.depth,
+              SELECT e.scope_id, e.seq_id, e.child_scope_id, e.depth,
                      m.value_content as message, l.value_content as location, d.value_content as data,
                      e.elapsed_start_ns, e.elapsed_end_ns, e.is_result, e.log_level, e.entry_type
               FROM entries e
               LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
               LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
               LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
-              WHERE e.run_id = ? AND e.header_entry_id = ?
+              WHERE e.child_scope_id = ?
               LIMIT 1
             |} in
             let stmt = Sqlite3.prepare db query in
-            Sqlite3.bind_int stmt 1 run_id |> ignore;
-            Sqlite3.bind_int stmt 2 scope_id |> ignore;
+            Sqlite3.bind_int stmt 1 scope_id |> ignore;
             let result = match Sqlite3.step stmt with
               | Sqlite3.Rc.ROW ->
                   let entry = {
-                    entry_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+                    scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
                     seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
-                    header_entry_id = (match Sqlite3.column stmt 2 with
+                    child_scope_id = (match Sqlite3.column stmt 2 with
                       | Sqlite3.Data.INT id -> Some (Int64.to_int id)
                       | _ -> None);
                     depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
@@ -609,14 +599,14 @@ module Query = struct
 
       (* Helper to propagate highlights to ancestors immediately *)
       let propagate_to_ancestors entry =
-        (* For headers: entry.entry_id is the parent scope that contains this header
-           For values: entry.entry_id is also the parent scope
-           So we always want to start by highlighting the direct parent (entry.entry_id at seq_id=0),
+        (* For headers: entry.scope_id is the parent scope that contains this header
+           For values: entry.scope_id is also the parent scope
+           So we always want to start by highlighting the direct parent (entry.scope_id at seq_id=0),
            then propagate to its ancestors. *)
-        log_debug (Printf.sprintf "propagate_to_ancestors: entry_id=%d, seq_id=%d, message='%s'" entry.entry_id entry.seq_id entry.message);
+        log_debug (Printf.sprintf "propagate_to_ancestors: scope_id=%d, seq_id=%d, message='%s'" entry.scope_id entry.seq_id entry.message);
 
-        (* First, add the direct parent scope (entry_id at seq_id=0) if it's not already highlighted *)
-        let direct_parent_id = entry.entry_id in
+        (* First, add the direct parent scope (scope_id at seq_id=0) if it's not already highlighted *)
+        let direct_parent_id = entry.scope_id in
         if not (Hashtbl.mem propagated direct_parent_id) then (
           match get_scope_entry direct_parent_id with
           | Some parent_scope when matches_quiet_path parent_scope ->
@@ -631,10 +621,10 @@ module Query = struct
               incr propagation_count;
 
               (* Now propagate to ancestors *)
-              let rec propagate_to_parent current_entry_id =
-                match get_parent_id db ~run_id ~entry_id:current_entry_id with
+              let rec propagate_to_parent current_scope_id =
+                match get_parent_id db ~scope_id:current_scope_id with
                 | None ->
-                    log_debug (Printf.sprintf "  propagate: entry_id=%d has no parent (reached root)" current_entry_id)
+                    log_debug (Printf.sprintf "  propagate: scope_id=%d has no parent (reached root)" current_scope_id)
                 | Some parent_id ->
                     if Hashtbl.mem propagated parent_id then (
                       log_debug (Printf.sprintf "  propagate: parent_id=%d already propagated, stopping" parent_id)
@@ -673,9 +663,9 @@ module Query = struct
             incr processed_count;
 
             let entry = {
-              entry_id = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 0);
+              scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 0);
               seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 1);
-              header_entry_id =
+              child_scope_id =
                 (match Sqlite3.column query_stmt 2 with
                 | Sqlite3.Data.INT id -> Some (Int64.to_int id)
                 | _ -> None);
@@ -691,7 +681,7 @@ module Query = struct
             } in
 
             (* Add to scope index if it's a scope *)
-            (match entry.header_entry_id with
+            (match entry.child_scope_id with
             | Some hid -> Hashtbl.add scope_by_id hid entry
             | None -> ());
 
@@ -744,14 +734,14 @@ module Query = struct
       completed_ref := true
 
   (** Get all ancestor entry IDs from a given entry up to root.
-      Returns list in order [entry_id; parent; grandparent; ...; root]. *)
-  let get_ancestors db ~run_id ~entry_id =
+      Returns list in order [scope_id; parent; grandparent; ...; root]. *)
+  let get_ancestors db ~scope_id =
     let rec collect_ancestors acc current_id =
-      match get_parent_id db ~run_id ~entry_id:current_id with
+      match get_parent_id db ~scope_id:current_id with
       | None -> List.rev acc  (* Reached root *)
       | Some parent_id -> collect_ancestors (parent_id :: acc) parent_id
     in
-    collect_ancestors [entry_id] entry_id
+    collect_ancestors [scope_id] scope_id
 end
 
 (** Tree renderer for terminal output *)
@@ -762,25 +752,25 @@ module Renderer = struct
   let build_tree entries =
     (* Separate headers from values *)
     let headers, _values =
-      List.partition (fun e -> e.Query.header_entry_id <> None) entries
+      List.partition (fun e -> e.Query.child_scope_id <> None) entries
     in
 
     (* Build tree recursively *)
-    let rec build_node header_entry_id =
+    let rec build_node child_scope_id =
       (* Find the header row for this scope *)
       let header =
         List.find
           (fun e ->
-            match e.Query.header_entry_id with
-            | Some hid -> hid = header_entry_id
+            match e.Query.child_scope_id with
+            | Some hid -> hid = child_scope_id
             | None -> false)
           headers
       in
 
-      (* Get all children of this scope (all rows with entry_id = this scope's ID) *)
+      (* Get all children of this scope (all rows with scope_id = this scope's ID) *)
       let children_entries =
         List.filter
-          (fun e -> e.Query.entry_id = header_entry_id)
+          (fun e -> e.Query.scope_id = child_scope_id)
           entries
       in
 
@@ -793,7 +783,7 @@ module Renderer = struct
       let children =
         List.map
           (fun child ->
-            match child.Query.header_entry_id with
+            match child.Query.child_scope_id with
             | Some sub_scope_id ->
                 build_node sub_scope_id (* Recursively build subscope *)
             | None -> { entry = child; children = [] }
@@ -804,9 +794,9 @@ module Renderer = struct
       { entry = header; children }
     in
 
-    (* Find root entries (entry_id = 0, which means they're children of the virtual
+    (* Find root entries (scope_id = 0, which means they're children of the virtual
        root) *)
-    let root_headers = List.filter (fun e -> e.Query.entry_id = 0) headers in
+    let root_headers = List.filter (fun e -> e.Query.scope_id = 0) headers in
 
     (* Sort roots by seq_id *)
     let sorted_roots =
@@ -816,7 +806,7 @@ module Renderer = struct
     (* Build tree for each root *)
     List.map
       (fun root ->
-        match root.Query.header_entry_id with
+        match root.Query.child_scope_id with
         | Some hid -> build_node hid
         | None -> { entry = root; children = [] })
       sorted_roots
@@ -835,7 +825,7 @@ module Renderer = struct
     | None -> None
 
   (** Render tree to string with indentation *)
-  let render_tree ?(show_entry_ids = false) ?(show_times = false) ?(max_depth = None)
+  let render_tree ?(show_scope_ids = false) ?(show_times = false) ?(max_depth = None)
       ?(values_first_mode = false) trees =
     let buf = Buffer.create 1024 in
 
@@ -848,8 +838,8 @@ module Renderer = struct
         Buffer.add_string buf indent;
 
         (* Entry ID (optional) *)
-        if show_entry_ids then
-          Buffer.add_string buf (Printf.sprintf "{#%d} " entry.entry_id);
+        if show_scope_ids then
+          Buffer.add_string buf (Printf.sprintf "{#%d} " entry.scope_id);
 
         (* Split children for values_first_mode *)
         let results, non_results =
@@ -988,8 +978,8 @@ module Renderer = struct
     let buf = Buffer.create 1024 in
 
     (* Separate headers and values *)
-    let headers = List.filter (fun (e : Query.entry) -> e.header_entry_id <> None) entries in
-    let values = List.filter (fun (e : Query.entry) -> e.header_entry_id = None) entries in
+    let headers = List.filter (fun (e : Query.entry) -> e.child_scope_id <> None) entries in
+    let values = List.filter (fun (e : Query.entry) -> e.child_scope_id = None) entries in
 
     (* Sort headers by seq_id *)
     let sorted_headers =
@@ -1017,10 +1007,10 @@ module Renderer = struct
 
         (* Show immediate children values if requested *)
         if with_values then
-          match header.header_entry_id with
+          match header.child_scope_id with
           | Some hid ->
               let child_values =
-                List.filter (fun (v : Query.entry) -> v.entry_id = hid) values
+                List.filter (fun (v : Query.entry) -> v.scope_id = hid) values
                 |> List.sort (fun (a : Query.entry) (b : Query.entry) ->
                        compare a.seq_id b.seq_id)
               in
@@ -1060,7 +1050,7 @@ module Interactive = struct
     else
       Some (Term.event term)  (* Event available *)
 
-  (** Hash set of (entry_id, seq_id) pairs matching a search term.
+  (** Hash set of (scope_id, seq_id) pairs matching a search term.
       This is shared memory written by background Domain, read by main TUI loop. *)
   type search_results = ((int * int), unit) Hashtbl.t
 
@@ -1099,17 +1089,17 @@ module Interactive = struct
   (** Check if an entry matches any active search (returns slot number 1-4, or None).
       Checks slots in reverse chronological order to prioritize more recent searches.
       Slot ordering is determined by current_slot parameter. *)
-  let get_search_match ~search_slots ~entry_id ~seq_id ~current_slot =
+  let get_search_match ~search_slots ~scope_id ~seq_id ~current_slot =
     (* Check slots in reverse chronological order *)
     let rec check_slot slot_number =
         match SlotMap.find_opt slot_number search_slots with
-        | Some slot when Hashtbl.mem slot.results (entry_id, seq_id) ->
+        | Some slot when Hashtbl.mem slot.results (scope_id, seq_id) ->
             Some slot_number
             | Some slot ->
               (* DEBUG: *)
-              if Hashtbl.length slot.results > 20 && not (Hashtbl.mem logged_debug (entry_id, seq_id)) then (
-                Hashtbl.add logged_debug (entry_id, seq_id) ();
-                log_debug (Printf.sprintf "DEBUG: %s %d %d (%d matches)" slot.search_term entry_id seq_id (Hashtbl.length slot.results));
+              if Hashtbl.length slot.results > 20 && not (Hashtbl.mem logged_debug (scope_id, seq_id)) then (
+                Hashtbl.add logged_debug (scope_id, seq_id) ();
+                log_debug (Printf.sprintf "DEBUG: %s %d %d (%d matches)" slot.search_term scope_id seq_id (Hashtbl.length slot.results));
                 Hashtbl.iter (fun key () -> log_debug (Printf.sprintf "  search highlight: %d %d" (fst key) (snd key))) slot.results);
                 None
         | _ ->
@@ -1121,11 +1111,11 @@ module Interactive = struct
     check_slot (SlotNumber.prev current_slot)
 
   (** Find next/previous search result in hash tables (across all entries, not just visible).
-      Returns (entry_id, seq_id) of the next match, or None if no more matches.
-      Search direction: forward=true searches for matches with (entry_id, seq_id) > current,
-                       forward=false searches for matches with (entry_id, seq_id) < current
+      Returns (scope_id, seq_id) of the next match, or None if no more matches.
+      Search direction: forward=true searches for matches with (scope_id, seq_id) > current,
+                       forward=false searches for matches with (scope_id, seq_id) < current
       Note: searches across all 4 search slots. *)
-  let find_next_search_result ~search_slots ~current_entry_id ~current_seq_id ~forward =
+  let find_next_search_result ~search_slots ~current_scope_id ~current_seq_id ~forward =
     (* Collect all matches from all slots into a single list *)
     (* TODO: distinguish ancestor highlights from proper matches *)
     let all_matches = ref [] in
@@ -1133,7 +1123,7 @@ module Interactive = struct
           Hashtbl.iter (fun key () -> all_matches := key :: !all_matches) slot.results
     ) search_slots;
 
-    (* Sort by (entry_id, seq_id) *)
+    (* Sort by (scope_id, seq_id) *)
     let sorted_matches =
       List.sort (fun (e1, s1) (e2, s2) ->
         let c = compare e1 e2 in
@@ -1144,9 +1134,9 @@ module Interactive = struct
     (* Find next/previous match *)
     let compare_fn =
       if forward then
-        fun (e, s) -> e > current_entry_id || (e = current_entry_id && s > current_seq_id)
+        fun (e, s) -> e > current_scope_id || (e = current_scope_id && s > current_seq_id)
       else
-        fun (e, s) -> e < current_entry_id || (e = current_entry_id && s < current_seq_id)
+        fun (e, s) -> e < current_scope_id || (e = current_scope_id && s < current_seq_id)
     in
 
     let candidates = List.filter compare_fn sorted_matches in
@@ -1164,14 +1154,13 @@ module Interactive = struct
   type view_state = {
     db : Sqlite3.db;
     db_path : string; (* Path to database file for spawning Domains *)
-    run_id : int;
     cursor : int; (* Current cursor position in visible items *)
     scroll_offset : int; (* Top visible item index *)
-    expanded : (int, unit) Hashtbl.t; (* Set of expanded entry_ids *)
+    expanded : (int, unit) Hashtbl.t; (* Set of expanded scope_ids *)
     visible_items : visible_item array; (* Flattened view of tree *)
     show_times : bool;
     values_first : bool;
-    max_entry_id : int; (* Maximum entry_id in this run *)
+    max_scope_id : int; (* Maximum scope_id in this run *)
     search_slots : slot_map;
     current_slot : SlotNumber.t; (* Next slot to use *)
     search_input : string option; (* Active search input buffer *)
@@ -1188,28 +1177,28 @@ module Interactive = struct
   }
 
   (** Find closest ancestor with positive ID by walking up the tree *)
-  let rec find_positive_ancestor_id db run_id entry_id =
-    (* Base case: if this entry_id is positive, return it *)
-    if entry_id >= 0 then
-      Some entry_id
+  let rec find_positive_ancestor_id db scope_id =
+    (* Base case: if this scope_id is positive, return it *)
+    if scope_id >= 0 then
+      Some scope_id
     else
-      (* Negative entry_id - walk up to parent *)
-      match Query.get_parent_id db ~run_id ~entry_id with
-      | Some parent_id -> find_positive_ancestor_id db run_id parent_id
+      (* Negative scope_id - walk up to parent *)
+      match Query.get_parent_id db ~scope_id with
+      | Some parent_id -> find_positive_ancestor_id db parent_id
       | None -> None  (* No parent found *)
 
   (** Build visible items list from database using lazy loading *)
-  let build_visible_items db run_id expanded =
+  let build_visible_items db expanded =
     let rec flatten_entry ~depth entry =
       (* Check if this entry actually has children *)
       let is_expandable =
-        match entry.Query.header_entry_id with
-        | Some hid -> Query.has_children db ~run_id ~parent_entry_id:hid
+        match entry.Query.child_scope_id with
+        | Some hid -> Query.has_children db ~parent_scope_id:hid
         | None -> false
       in
-      (* Use header_entry_id as the key - it uniquely identifies this scope *)
+      (* Use child_scope_id as the key - it uniquely identifies this scope *)
       let is_expanded =
-        match entry.header_entry_id with
+        match entry.child_scope_id with
         | Some hid -> Hashtbl.mem expanded hid
         | None -> false
       in
@@ -1223,17 +1212,17 @@ module Interactive = struct
 
       (* Add children if this is expanded *)
       if is_expanded then
-        match entry.header_entry_id with
+        match entry.child_scope_id with
         | Some hid ->
             (* Load children on demand *)
-            let children = Query.get_scope_children db ~run_id ~parent_entry_id:hid in
+            let children = Query.get_scope_children db ~parent_scope_id:hid in
             visible :: List.concat_map (flatten_entry ~depth:(depth + 1)) children
         | None -> [ visible ]
       else [ visible ]
     in
 
     (* Start with root entries *)
-    let roots = Query.get_root_entries db ~run_id ~with_values:false in
+    let roots = Query.get_root_entries db ~with_values:false in
     let items = List.concat_map (flatten_entry ~depth:0) roots in
     Array.of_list items
 
@@ -1242,23 +1231,23 @@ module Interactive = struct
     let entry = item.entry in
 
     (* Check if this entry matches any search (prioritizes more recent searches) *)
-    let search_slot_match = get_search_match ~search_slots ~entry_id:entry.entry_id ~seq_id:entry.seq_id ~current_slot in
+    let search_slot_match = get_search_match ~search_slots ~scope_id:entry.scope_id ~seq_id:entry.seq_id ~current_slot in
 
-    (* Entry ID margin - use header_entry_id for scopes, entry_id for values *)
+    (* Entry ID margin - use child_scope_id for scopes, scope_id for values *)
     (* Don't display negative IDs (used for boxified/decomposed values) *)
     let display_id =
-      match entry.header_entry_id with
+      match entry.child_scope_id with
       | Some hid when hid >= 0 -> Some hid  (* This is a scope/header - show its actual scope ID *)
-      | Some _ -> None  (* Negative header_entry_id - hide it *)
-      | None when entry.entry_id >= 0 -> Some entry.entry_id  (* This is a value - show its parent scope ID *)
-      | None -> None  (* Negative entry_id - hide it *)
+      | Some _ -> None  (* Negative child_scope_id - hide it *)
+      | None when entry.scope_id >= 0 -> Some entry.scope_id  (* This is a value - show its parent scope ID *)
+      | None -> None  (* Negative scope_id - hide it *)
     in
-    let entry_id_str =
+    let scope_id_str =
       match display_id with
       | Some id -> Printf.sprintf "%*d │ " margin_width id
       | None -> String.make (margin_width + 3) ' '  (* Blank margin: spaces + " │ " *)
     in
-    let content_width = width - String.length entry_id_str in
+    let content_width = width - String.length scope_id_str in
 
     let indent = String.make (item.indent_level * 2) ' ' in
 
@@ -1279,7 +1268,7 @@ module Interactive = struct
         (if is_result then "=> " else if message <> "" && data <> "" then "= " else "") ^
         data
       in
-  match item.entry.header_entry_id with
+  match item.entry.child_scope_id with
       | Some _ ->
           (* Header/scope - use message if available, otherwise data, otherwise placeholder *)
           Printf.sprintf "%s%s[%s] %s" indent expansion_mark
@@ -1320,7 +1309,7 @@ module Interactive = struct
         | None -> (A.empty, A.(fg yellow))             (* No match: default (margin still yellow) *)
     in
 
-    I.hcat [ I.string margin_attr entry_id_str; I.string content_attr truncated ]
+    I.hcat [ I.string margin_attr scope_id_str; I.string content_attr truncated ]
 
   (** Render the full screen *)
   let render_screen state term_height term_width =
@@ -1328,27 +1317,27 @@ module Interactive = struct
     let footer_height = 2 in
     let content_height = term_height - header_height - footer_height in
 
-    (* Calculate margin width based on max_entry_id *)
-    let margin_width = String.length (string_of_int state.max_entry_id) in
+    (* Calculate margin width based on max_scope_id *)
+    let margin_width = String.length (string_of_int state.max_scope_id) in
 
     (* Calculate progress indicator - find closest ancestor with positive ID *)
-    let current_entry_id =
+    let current_scope_id =
       if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
         let entry = state.visible_items.(state.cursor).entry in
-        (* For scopes, use header_entry_id; for values, use entry_id *)
+        (* For scopes, use child_scope_id; for values, use scope_id *)
         let id_to_check =
-          match entry.header_entry_id with
+          match entry.child_scope_id with
           | Some hid -> hid
-          | None -> entry.entry_id
+          | None -> entry.scope_id
         in
-        match find_positive_ancestor_id state.db state.run_id id_to_check with
+        match find_positive_ancestor_id state.db id_to_check with
         | Some id -> id
         | None -> 0
       else 0
     in
     let progress_pct =
-      if state.max_entry_id > 0 then
-        float_of_int current_entry_id /. float_of_int state.max_entry_id *. 100.0
+      if state.max_scope_id > 0 then
+        float_of_int current_scope_id /. float_of_int state.max_scope_id *. 100.0
       else 0.0
     in
 
@@ -1373,14 +1362,13 @@ module Interactive = struct
               | Query.DescendingIds -> "Desc"
             in
             let base_info =
-              Printf.sprintf "Run #%d | Items: %d | Times: %s | Values First: %s | Search: %s | Entry: %d/%d (%.1f%%)"
-                state.run_id
+              Printf.sprintf "Items: %d | Times: %s | Values First: %s | Search: %s | Entry: %d/%d (%.1f%%)"
                 (Array.length state.visible_items)
                 (if state.show_times then "ON" else "OFF")
                 (if state.values_first then "ON" else "OFF")
                 search_order_str
-                current_entry_id
-                state.max_entry_id
+                current_scope_id
+                state.max_scope_id
                 progress_pct
             in
             (* Build search status string *)
@@ -1464,16 +1452,16 @@ module Interactive = struct
     if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
       let item = state.visible_items.(state.cursor) in
       if item.is_expandable then (
-        match item.entry.header_entry_id with
+        match item.entry.child_scope_id with
         | Some hid ->
-            (* Use header_entry_id as the unique key for this scope *)
+            (* Use child_scope_id as the unique key for this scope *)
             if Hashtbl.mem state.expanded hid then
               Hashtbl.remove state.expanded hid
             else
               Hashtbl.add state.expanded hid ();
 
             (* Rebuild visible items *)
-            let new_visible = build_visible_items state.db state.run_id state.expanded in
+            let new_visible = build_visible_items state.db state.expanded in
             { state with visible_items = new_visible }
         | None -> state
       ) else state
@@ -1482,28 +1470,28 @@ module Interactive = struct
   (** Find next/previous search result (searches hash tables, not just visible items).
       Returns updated state with cursor moved to the match and path auto-expanded, or None if no match. *)
   let find_and_jump_to_search_result state ~forward =
-    (* Get current entry's (entry_id, seq_id) *)
-    let (current_entry_id, current_seq_id) =
+    (* Get current entry's (scope_id, seq_id) *)
+    let (current_scope_id, current_seq_id) =
       if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
         let entry = state.visible_items.(state.cursor).entry in
-        (entry.entry_id, entry.seq_id)
+        (entry.scope_id, entry.seq_id)
       else
         (0, 0)  (* Start from beginning if cursor invalid *)
     in
 
     (* Query hash tables for next search match *)
     match find_next_search_result ~search_slots:state.search_slots
-      ~current_entry_id ~current_seq_id ~forward with
+      ~current_scope_id ~current_seq_id ~forward with
     | None -> None  (* No more search results *)
-    | Some (target_entry_id, target_seq_id) ->
+    | Some (target_scope_id, target_seq_id) ->
         (* Expand all ancestors of the target entry *)
-        let ancestors = Query.get_ancestors state.db ~run_id:state.run_id ~entry_id:target_entry_id in
+        let ancestors = Query.get_ancestors state.db ~scope_id:target_scope_id in
         List.iter (fun ancestor_id ->
           Hashtbl.replace state.expanded ancestor_id ()
         ) ancestors;
 
         (* Rebuild visible items with expanded path *)
-        let new_visible = build_visible_items state.db state.run_id state.expanded in
+        let new_visible = build_visible_items state.db state.expanded in
 
         (* Find the target entry in the new visible items *)
         let rec find_in_visible idx =
@@ -1511,7 +1499,7 @@ module Interactive = struct
             None  (* Shouldn't happen, but handle gracefully *)
           else
             let item = new_visible.(idx) in
-            if item.entry.entry_id = target_entry_id && item.entry.seq_id = target_seq_id then
+            if item.entry.scope_id = target_scope_id && item.entry.seq_id = target_seq_id then
               Some idx
             else
               find_in_visible (idx + 1)
@@ -1585,7 +1573,7 @@ module Interactive = struct
               (* Spawn background search Domain - pass db_path not db handle *)
               let domain_handle =
                 Domain.spawn (fun () ->
-                  Query.populate_search_results state.db_path ~run_id:state.run_id ~search_term:input ~quiet_path:state.quiet_path ~search_order:state.search_order ~completed_ref ~results_table
+                  Query.populate_search_results state.db_path ~search_term:input ~quiet_path:state.quiet_path ~search_order:state.search_order ~completed_ref ~results_table
                 )
               in
 
@@ -1708,23 +1696,22 @@ module Interactive = struct
     )
 
   (** Main interactive loop *)
-  let run db db_path run_id =
+  let run db db_path =
     let expanded = Hashtbl.create 64 in
-    let visible_items = build_visible_items db run_id expanded in
-    let max_entry_id = Query.get_max_entry_id db ~run_id in
+    let visible_items = build_visible_items db expanded in
+    let max_scope_id = Query.get_max_scope_id db in
 
     (* Initialize empty search slots (no persistence across TUI sessions) *)
     let initial_state = {
       db;
       db_path;
-      run_id;
       cursor = 0;
       scroll_offset = 0;
       expanded;
       visible_items;
       show_times = true;
       values_first = true;
-      max_entry_id;
+      max_scope_id;
       search_slots = SlotMap.empty;
       current_slot = S1;
       search_input = None;
@@ -1803,46 +1790,45 @@ module Client = struct
     Printf.printf "Database size: %d KB\n" stats.database_size_kb
 
   (** Show trace tree for a run *)
-  let show_trace t ?(show_entry_ids = false) ?(show_times = false) ?(max_depth = None)
-      ?(values_first_mode = true) run_id =
-    let entries = Query.get_entries t.db ~run_id () in
+  let show_trace ?(show_scope_ids = false) ?(show_times = false) ?(max_depth = None)
+      ?(values_first_mode = true) t =
+    let entries = Query.get_entries t.db () in
     let trees = Renderer.build_tree entries in
     let output =
-      Renderer.render_tree ~show_entry_ids ~show_times ~max_depth ~values_first_mode trees
+      Renderer.render_tree ~show_scope_ids ~show_times ~max_depth ~values_first_mode trees
     in
     print_string output
 
   (** Show compact trace (function names only) *)
-  let show_compact_trace t run_id =
-    let entries = Query.get_entries t.db ~run_id () in
+  let show_compact_trace t =
+    let entries = Query.get_entries t.db () in
     let trees = Renderer.build_tree entries in
     let output = Renderer.render_compact trees in
     print_string output
 
   (** Show root entries efficiently *)
-  let show_roots t ?(show_times = false) ?(with_values = false) run_id =
-    let entries = Query.get_root_entries t.db ~run_id ~with_values in
+  let show_roots ?(show_times = false) ?(with_values = false) t =
+    let entries = Query.get_root_entries t.db ~with_values in
     let output = Renderer.render_roots ~show_times ~with_values entries in
     print_string output
 
   (** Search entries *)
-  let search t ~run_id ~pattern =
-    let entries = Query.search_entries t.db ~run_id ~pattern in
+  let search t ~pattern =
+    let entries = Query.search_entries t.db ~pattern in
     Printf.printf "Found %d matching entries for pattern '%s':\n\n" (List.length entries)
       pattern;
     List.iter
       (fun entry ->
-        Printf.printf "{#%d} [%s] %s" entry.Query.entry_id entry.entry_type entry.message;
+        Printf.printf "{#%d} [%s] %s" entry.Query.scope_id entry.entry_type entry.message;
         (match entry.location with Some loc -> Printf.printf " @ %s" loc | None -> ());
         Printf.printf "\n";
         match entry.data with Some data -> Printf.printf "  %s\n" data | None -> ())
       entries
 
   (** Export trace to markdown *)
-  let export_markdown t ~run_id ~output_file =
-    let runs = Query.get_runs t.db in
-    let run = List.find_opt (fun r -> r.Query.run_id = run_id) runs in
-    let entries = Query.get_entries t.db ~run_id () in
+  let export_markdown t ~output_file =
+    let run = get_latest_run t in
+    let entries = Query.get_entries t.db () in
     let trees = Renderer.build_tree entries in
 
     let oc = open_out output_file in

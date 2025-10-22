@@ -3,9 +3,9 @@
 (** Query layer for database access *)
 module Query : sig
   type entry = {
-    entry_id : int; (* Scope ID - groups all rows for a scope *)
+    scope_id : int; (* Scope ID - groups all rows for a scope *)
     seq_id : int; (* Position within parent's children *)
-    header_entry_id : int option; (* NULL for values, points to new scope for headers *)
+    child_scope_id : int option; (* NULL for values, points to new scope for headers *)
     depth : int;
     message : string;
     location : string option;
@@ -40,16 +40,16 @@ module Query : sig
   (** Get the ID of the most recent run *)
 
   val get_entries :
-    Sqlite3.db -> run_id:int -> ?parent_id:int -> ?max_depth:int -> unit -> entry list
+    Sqlite3.db -> ?parent_id:int -> ?max_depth:int -> unit -> entry list
   (** Get entries for a specific run, optionally filtered by parent_id and max_depth *)
 
   val get_stats : Sqlite3.db -> string -> stats
   (** Get database statistics including deduplication metrics *)
 
-  val search_entries : Sqlite3.db -> run_id:int -> pattern:string -> entry list
+  val search_entries : Sqlite3.db -> pattern:string -> entry list
   (** Search entries by regex pattern matching message, location, or data *)
 
-  val get_root_entries : Sqlite3.db -> run_id:int -> with_values:bool -> entry list
+  val get_root_entries : Sqlite3.db -> with_values:bool -> entry list
   (** Get only root-level entries efficiently. When [with_values] is true, includes
       immediate children values. Fast for large databases. *)
 end
@@ -65,7 +65,7 @@ module Renderer : sig
   (** Format elapsed time in human-readable units *)
 
   val render_tree :
-    ?show_entry_ids:bool ->
+    ?show_scope_ids:bool ->
     ?show_times:bool ->
     ?max_depth:int option ->
     ?values_first_mode:bool ->
@@ -88,9 +88,9 @@ end
 
 (** Interactive TUI using Notty *)
 module Interactive : sig
-  val run : Sqlite3.db -> string -> int -> unit
+  val run : Sqlite3.db -> string -> unit
   (** Launch interactive terminal UI for exploring a trace run.
-      Arguments: db handle, db_path, run_id
+      Arguments: db handle, db_path
 
       Controls:
       - [↑/↓] or [k/j]: Navigate up/down
@@ -111,38 +111,37 @@ module Client : sig
   (** Close database connection *)
 
   val list_runs : t -> Query.run_info list
-  (** List all runs in the database *)
+  (** List all runs *)
 
   val get_latest_run : t -> Query.run_info option
-  (** Get the most recent run *)
+  (** Get the run in the database *)
 
   val show_run_summary : t -> int -> unit
-  (** Print summary of a specific run *)
+  (** Print summary of the run with the given ID *)
 
   val show_stats : t -> unit
   (** Print database statistics *)
-
+  
   val show_trace :
-    t ->
-    ?show_entry_ids:bool ->
+    ?show_scope_ids:bool ->
     ?show_times:bool ->
     ?max_depth:int option ->
     ?values_first_mode:bool ->
-    int ->
+    t ->
     unit
   (** Print full trace tree for a run. When [values_first_mode] is true (default), result
       values become headers with location/message as children. *)
 
-  val show_compact_trace : t -> int -> unit
+  val show_compact_trace : t ->  unit
   (** Print compact trace (function names only) *)
 
-  val show_roots : t -> ?show_times:bool -> ?with_values:bool -> int -> unit
+  val show_roots : ?show_times:bool -> ?with_values:bool -> t -> unit
   (** Print root entries efficiently. Fast for large databases. When [with_values] is
       true, includes immediate children values. *)
 
-  val search : t -> run_id:int -> pattern:string -> unit
+  val search : t -> pattern:string -> unit
   (** Search and print matching entries *)
 
-  val export_markdown : t -> run_id:int -> output_file:string -> unit
+  val export_markdown : t -> output_file:string -> unit
   (** Export trace to markdown file *)
 end

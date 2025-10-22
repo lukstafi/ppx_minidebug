@@ -9,10 +9,10 @@ USAGE:
 COMMANDS:
   list                    List all runs in database
   stats                   Show database statistics
-  show [run_id]           Show trace tree (latest run if no ID given)
-  interactive [run_id]    Interactive TUI for exploring trace (alias: tui)
-  compact [run_id]        Show compact trace (function names only)
-  roots [run_id]          Show root entries only (fast for large DBs)
+  show                    Show trace tree (latest run if no ID given)
+  interactive             Interactive TUI for exploring trace (alias: tui)
+  compact                 Show compact trace (function names only)
+  roots                   Show root entries only (fast for large DBs)
   search <pattern>        Search entries by regex pattern
   export <file>           Export latest run to markdown
 
@@ -48,19 +48,18 @@ EXAMPLES:
 type command =
   | List
   | Stats
-  | Show of int option
-  | Interactive of int option
-  | Compact of int option
-  | Roots of int option
+  | Show
+  | Interactive
+  | Compact
+  | Roots
   | Search of string
   | Export of string
   | Help
 
 type options = {
-  show_entry_ids : bool;
+  show_scope_ids : bool;
   show_times : bool;
   max_depth : int option;
-  run_id : int option;
   values_first_mode : bool;
   with_values : bool;
 }
@@ -76,10 +75,9 @@ let parse_args () =
       let opts =
         ref
           {
-            show_entry_ids = false;
+            show_scope_ids = false;
             show_times = false;
             max_depth = None;
-            run_id = None;
             values_first_mode = false;
             with_values = false;
           }
@@ -94,36 +92,16 @@ let parse_args () =
             cmd_ref := Stats;
             parse_rest rest
         | "show" :: rest -> (
-            match rest with
-            | id :: rest' when String.length id > 0 && id.[0] <> '-' ->
-                cmd_ref := Show (Some (int_of_string id));
-                parse_rest rest'
-            | _ ->
-                cmd_ref := Show None;
+            cmd_ref := Show;
                 parse_rest rest)
         | ("interactive" | "tui") :: rest -> (
-            match rest with
-            | id :: rest' when String.length id > 0 && id.[0] <> '-' ->
-                cmd_ref := Interactive (Some (int_of_string id));
-                parse_rest rest'
-            | _ ->
-                cmd_ref := Interactive None;
+            cmd_ref := Interactive;
                 parse_rest rest)
         | "compact" :: rest -> (
-            match rest with
-            | id :: rest' when String.length id > 0 && id.[0] <> '-' ->
-                cmd_ref := Compact (Some (int_of_string id));
-                parse_rest rest'
-            | _ ->
-                cmd_ref := Compact None;
+            cmd_ref := Compact;
                 parse_rest rest)
         | "roots" :: rest -> (
-            match rest with
-            | id :: rest' when String.length id > 0 && id.[0] <> '-' ->
-                cmd_ref := Roots (Some (int_of_string id));
-                parse_rest rest'
-            | _ ->
-                cmd_ref := Roots None;
+            cmd_ref := Roots;
                 parse_rest rest)
         | "search" :: pattern :: rest ->
             cmd_ref := Search pattern;
@@ -134,14 +112,11 @@ let parse_args () =
         | "--help" :: _ | "-h" :: _ -> cmd_ref := Help
         | opt :: rest when String.starts_with ~prefix:"--" opt -> (
             match String.split_on_char '=' opt with
-            | [ "--run"; id ] ->
-                opts := { !opts with run_id = Some (int_of_string id) };
-                parse_rest rest
             | [ "--max-depth"; d ] ->
                 opts := { !opts with max_depth = Some (int_of_string d) };
                 parse_rest rest
             | [ "--entry-ids" ] ->
-                opts := { !opts with show_entry_ids = true };
+                opts := { !opts with show_scope_ids = true };
                 parse_rest rest
             | [ "--times" ] ->
                 opts := { !opts with show_times = true };
@@ -193,88 +168,28 @@ let () =
               (Minidebug_client.Renderer.format_elapsed_ns run.elapsed_ns))
           runs
     | Stats -> Minidebug_client.Client.show_stats client
-    | Show run_id_opt ->
-        let run_id =
-          match (run_id_opt, opts.run_id) with
-          | Some id, _ | _, Some id -> id
-          | None, None -> (
-              match Minidebug_client.Client.get_latest_run client with
-              | Some run -> run.run_id
-              | None ->
-                  Printf.eprintf "Error: No runs found in database\n";
-                  exit 1)
-        in
-        Minidebug_client.Client.show_run_summary client run_id;
-        Minidebug_client.Client.show_trace client ~show_entry_ids:opts.show_entry_ids
+    | Show ->
+        Minidebug_client.Client.(show_run_summary client (Option.get (get_latest_run client)).run_id);
+        Minidebug_client.Client.show_trace client ~show_scope_ids:opts.show_scope_ids
           ~show_times:opts.show_times ~max_depth:opts.max_depth
-          ~values_first_mode:opts.values_first_mode run_id
-    | Interactive run_id_opt ->
-        let run_id =
-          match (run_id_opt, opts.run_id) with
-          | Some id, _ | _, Some id -> id
-          | None, None -> (
-              match Minidebug_client.Client.get_latest_run client with
-              | Some run -> run.run_id
-              | None ->
-                  Printf.eprintf "Error: No runs found in database\n";
-                  exit 1)
-        in
+          ~values_first_mode:opts.values_first_mode
+    | Interactive ->
         (* Open database connection for interactive mode.
            Not READONLY so it can see writes from search Domains via WAL. *)
         let db = Sqlite3.db_open db_path in
-        Minidebug_client.Interactive.run db db_path run_id;
+        Minidebug_client.Interactive.run db db_path;
         Sqlite3.db_close db |> ignore
-    | Compact run_id_opt ->
-        let run_id =
-          match (run_id_opt, opts.run_id) with
-          | Some id, _ | _, Some id -> id
-          | None, None -> (
-              match Minidebug_client.Client.get_latest_run client with
-              | Some run -> run.run_id
-              | None ->
-                  Printf.eprintf "Error: No runs found in database\n";
-                  exit 1)
-        in
-        Minidebug_client.Client.show_run_summary client run_id;
-        Minidebug_client.Client.show_compact_trace client run_id
-    | Roots run_id_opt ->
-        let run_id =
-          match (run_id_opt, opts.run_id) with
-          | Some id, _ | _, Some id -> id
-          | None, None -> (
-              match Minidebug_client.Client.get_latest_run client with
-              | Some run -> run.run_id
-              | None ->
-                  Printf.eprintf "Error: No runs found in database\n";
-                  exit 1)
-        in
-        Minidebug_client.Client.show_run_summary client run_id;
+    | Compact ->
+        Minidebug_client.Client.(show_run_summary client (Option.get (get_latest_run client)).run_id);
+        Minidebug_client.Client.show_compact_trace client
+    | Roots ->
+        Minidebug_client.Client.(show_run_summary client (Option.get (get_latest_run client)).run_id);
         Minidebug_client.Client.show_roots client ~show_times:opts.show_times
-          ~with_values:opts.with_values run_id
+          ~with_values:opts.with_values
     | Search pattern ->
-        let run_id =
-          match opts.run_id with
-          | Some id -> id
-          | None -> (
-              match Minidebug_client.Client.get_latest_run client with
-              | Some run -> run.run_id
-              | None ->
-                  Printf.eprintf "Error: No runs found in database\n";
-                  exit 1)
-        in
-        Minidebug_client.Client.search client ~run_id ~pattern
+        Minidebug_client.Client.search client ~pattern
     | Export file ->
-        let run_id =
-          match opts.run_id with
-          | Some id -> id
-          | None -> (
-              match Minidebug_client.Client.get_latest_run client with
-              | Some run -> run.run_id
-              | None ->
-                  Printf.eprintf "Error: No runs found in database\n";
-                  exit 1)
-        in
-        Minidebug_client.Client.export_markdown client ~run_id ~output_file:file
+        Minidebug_client.Client.export_markdown client ~output_file:file
     | Help ->
         print_endline usage_msg;
         exit 0
