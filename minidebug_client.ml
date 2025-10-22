@@ -458,34 +458,40 @@ module Query = struct
       This is meant to run in a background Domain. Opens its own DB connection.
       Sets completed_ref to true when finished.
       Propagates highlights to ancestors unless quiet_path matches.
+
+      Implementation: Interleaves stepping through the main search query with
+      issuing ancestor lookup queries (via get_parent_id). SQLite handles
+      multiple active prepared statements without issue. Propagates highlights
+      immediately upon finding each match for real-time UI updates.
+
       Writes results to shared hash table (lock-free concurrent writes are safe). *)
   let populate_search_results db_path ~run_id ~search_term ~quiet_path ~completed_ref ~results_table =
     (* Log to file for debugging since TUI occupies terminal *)
-    let log_error msg =
+    let log_debug msg =
       try
-        let oc = open_out_gen [Open_append; Open_creat] 0o644 "/tmp/minidebug_search.log" in
+        let oc = open_out_gen [Open_append; Open_creat] 0o644 "./minidebug_search.log" in
         Printf.fprintf oc "[%s] %s\n" (Unix.gettimeofday () |> string_of_float) msg;
         close_out oc
       with _ -> ()
     in
 
     Printexc.record_backtrace true;
-    log_error (Printf.sprintf "Starting search for '%s', quiet_path=%s" search_term
+    log_debug (Printf.sprintf "Starting search for '%s', quiet_path=%s" search_term
       (match quiet_path with Some q -> "'" ^ q ^ "'" | None -> "None"));
 
     (* Open a new database connection for this Domain (read-only for querying) *)
-    log_error (Printf.sprintf "Opening database: %s" db_path);
+    log_debug (Printf.sprintf "Opening database: %s" db_path);
     let db = Sqlite3.db_open ~mode:`READONLY db_path in
-    log_error "Database opened successfully";
+    log_debug "Database opened successfully";
 
     try
       (* Clear the results hash table *)
-      log_error "Clearing results hash table...";
+      log_debug "Clearing results hash table...";
       Hashtbl.clear results_table;
-      log_error "Cleared results hash table";
+      log_debug "Cleared results hash table";
 
       (* Stream entries instead of loading all into memory (DB is huge!) *)
-      log_error "Streaming entries and searching...";
+      log_debug "Streaming entries and searching...";
 
       (* Compile regexes once for efficiency *)
       let search_regex = Re.Str.regexp_string search_term in
@@ -533,49 +539,40 @@ module Query = struct
       Sqlite3.bind_int query_stmt 1 run_id |> ignore;
 
       let scope_by_id = Hashtbl.create 1024 in
-      let matches_to_propagate = ref [] in
       let processed_count = ref 0 in
       let match_count = ref 0 in
       let propagated = Hashtbl.create 64 in  (* Track propagated ancestors to avoid duplicates *)
       let propagation_count = ref 0 in
 
-      (* Helper to propagate highlights to ancestors incrementally *)
-      let propagate_batch () =
-        List.iter (fun entry ->
-          let this_entry_id =
-            match entry.header_entry_id with
-            | Some hid -> hid
-            | None -> entry.entry_id
-          in
+      (* Helper to propagate highlights to ancestors immediately *)
+      let propagate_to_ancestors entry =
+        let this_entry_id =
+          match entry.header_entry_id with
+          | Some hid -> hid
+          | None -> entry.entry_id
+        in
 
-          let rec propagate_to_parent current_entry_id =
-            match get_parent_id db ~run_id ~entry_id:current_entry_id with
-            | None -> ()
-            | Some parent_id ->
-                if not (Hashtbl.mem propagated parent_id) then (
-                  Hashtbl.add propagated parent_id ();
-                  match Hashtbl.find_opt scope_by_id parent_id with
-                  | Some parent_entry when not (matches_quiet_path parent_entry) ->
-                      insert_entry parent_entry;
-                      incr propagation_count;
-                      propagate_to_parent parent_id
-                  | _ -> ()
-                )
-          in
-          propagate_to_parent this_entry_id
-        ) !matches_to_propagate;
-        matches_to_propagate := []  (* Clear the batch after propagation *)
+        let rec propagate_to_parent current_entry_id =
+          match get_parent_id db ~run_id ~entry_id:current_entry_id with
+          | None -> ()
+          | Some parent_id ->
+              if not (Hashtbl.mem propagated parent_id) then (
+                Hashtbl.add propagated parent_id ();
+                match Hashtbl.find_opt scope_by_id parent_id with
+                | Some parent_entry when not (matches_quiet_path parent_entry) ->
+                    insert_entry parent_entry;
+                    incr propagation_count;
+                    propagate_to_parent parent_id
+                | _ -> ()
+              )
+        in
+        propagate_to_parent this_entry_id
       in
 
       let rec process_rows () =
         match Sqlite3.step query_stmt with
         | Sqlite3.Rc.ROW ->
             incr processed_count;
-            if !processed_count mod 100000 = 0 then (
-              log_error (Printf.sprintf "Processed %d entries, found %d matches" !processed_count !match_count);
-              (* Propagate ancestors for matches found so far *)
-              propagate_batch ()
-            );
 
             let entry = {
               entry_id = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 0);
@@ -614,10 +611,13 @@ module Query = struct
             if matches then (
               incr match_count;
               insert_entry entry;
-              (* Mark for ancestor propagation if not a quiet_path match *)
+              (* Propagate to ancestors immediately if not a quiet_path match *)
               if not (matches_quiet_path entry) then
-                matches_to_propagate := entry :: !matches_to_propagate
+                propagate_to_ancestors entry
             );
+            if !processed_count mod 100000 = 0 then
+              log_debug (Printf.sprintf "Processed %d entries, found %d matches, propagated %d ancestors"
+                          !processed_count !match_count !propagation_count);
 
             process_rows ()
         | Sqlite3.Rc.DONE -> ()
@@ -626,22 +626,18 @@ module Query = struct
 
       process_rows ();
       Sqlite3.finalize query_stmt |> ignore;
-      log_error (Printf.sprintf "Streaming complete. Processed %d entries, found %d matches, %d scopes"
-                   !processed_count !match_count (Hashtbl.length scope_by_id));
-
-      (* Propagate any remaining matches *)
-      propagate_batch ();
-      log_error (Printf.sprintf "Propagation complete. Total ancestors highlighted: %d" !propagation_count);
+      log_debug (Printf.sprintf "Search complete. Processed %d entries, found %d matches, %d scopes, %d ancestors highlighted"
+                   !processed_count !match_count (Hashtbl.length scope_by_id) !propagation_count);
 
       (* Close the database connection *)
       Sqlite3.db_close db |> ignore;
 
-      log_error "Search completed successfully";
+      log_debug "Search completed successfully";
 
       (* Signal completion via shared memory *)
       completed_ref := true
     with exn ->
-      log_error (Printf.sprintf "ERROR: %s\n%s" (Printexc.to_string exn) (Printexc.get_backtrace ()));
+      log_debug (Printf.sprintf "ERROR: %s\n%s" (Printexc.to_string exn) (Printexc.get_backtrace ()));
       (* Close database on error *)
       (try Sqlite3.db_close db |> ignore with _ -> ());
       (* Still mark as completed even on error *)
@@ -975,26 +971,54 @@ module Interactive = struct
     results : search_results; (* Shared hash table written by Domain *)
   }
 
+  module SlotNumber = struct
+    type t = S1 | S2 | S3 | S4
+    let compare = compare
+    let next = function
+      | S1 -> S2
+      | S2 -> S3
+      | S3 -> S4
+      | S4 -> S1
+    let prev = function
+      | S1 -> S4
+      | S2 -> S1
+      | S3 -> S2
+      | S4 -> S3
+  end
+  module SlotMap = Map.Make(SlotNumber)
+  type slot_map = search_slot SlotMap.t
+
+  let log_debug msg =
+    try
+      let oc = open_out_gen [Open_append; Open_creat] 0o644 "./minidebug_client.log" in
+      Printf.fprintf oc "[%s] %s\n" (Unix.gettimeofday () |> string_of_float) msg;
+      close_out oc
+    with _ -> ()
+  let logged_debug = Hashtbl.create 100
+
   (** Check if an entry matches any active search (returns slot number 1-4, or None).
       Checks slots in reverse chronological order to prioritize more recent searches.
       Slot ordering is determined by current_slot parameter. *)
   let get_search_match ~search_slots ~entry_id ~seq_id ~current_slot =
-    (* Check slots in reverse chronological order:
-       most recent = (current_slot - 1 + 4) mod 4, then (current_slot - 2 + 4) mod 4, etc. *)
-    let rec check_slot_offset offset =
-      if offset >= 4 then
-        None
-      else
-        let slot_index = (current_slot - 1 - offset + 8) mod 4 in
-        let slot_num = slot_index + 1 in  (* Slot numbers are 1-indexed for display *)
-
-        match search_slots.(slot_index) with
+    (* Check slots in reverse chronological order *)
+    let rec check_slot slot_number =
+        match SlotMap.find_opt slot_number search_slots with
         | Some slot when Hashtbl.mem slot.results (entry_id, seq_id) ->
-            Some slot_num
+            Some slot_number
+            | Some slot ->
+              (* DEBUG: *)
+              if Hashtbl.length slot.results > 20 && not (Hashtbl.mem logged_debug (entry_id, seq_id)) then (
+                Hashtbl.add logged_debug (entry_id, seq_id) ();
+                log_debug (Printf.sprintf "DEBUG: %s %d %d (%d matches)" slot.search_term entry_id seq_id (Hashtbl.length slot.results));
+                Hashtbl.iter (fun key () -> log_debug (Printf.sprintf "  search highlight: %d %d" (fst key) (snd key))) slot.results);
+                None
         | _ ->
-            check_slot_offset (offset + 1)
+          if slot_number = current_slot then
+            None
+          else
+            check_slot (SlotNumber.prev slot_number)
     in
-    check_slot_offset 0
+    check_slot (SlotNumber.prev current_slot)
 
   (** Find next/previous search result in hash tables (across all entries, not just visible).
       Returns (entry_id, seq_id) of the next match, or None if no more matches.
@@ -1003,11 +1027,10 @@ module Interactive = struct
       Note: searches across all 4 search slots. *)
   let find_next_search_result ~search_slots ~current_entry_id ~current_seq_id ~forward =
     (* Collect all matches from all slots into a single list *)
+    (* TODO: distinguish ancestor highlights from proper matches *)
     let all_matches = ref [] in
-    Array.iter (function
-      | Some slot ->
+    SlotMap.iter (fun _idx slot ->
           Hashtbl.iter (fun key () -> all_matches := key :: !all_matches) slot.results
-      | None -> ()
     ) search_slots;
 
     (* Sort by (entry_id, seq_id) *)
@@ -1038,12 +1061,6 @@ module Interactive = struct
       | [] -> None
       | x :: _ -> Some x
 
-  (** Get count of search results for a given slot *)
-  let get_search_count ~search_slot =
-    match search_slot with
-    | Some slot -> Hashtbl.length slot.results
-    | None -> 0
-
   type view_state = {
     db : Sqlite3.db;
     db_path : string; (* Path to database file for spawning Domains *)
@@ -1055,8 +1072,8 @@ module Interactive = struct
     show_times : bool;
     values_first : bool;
     max_entry_id : int; (* Maximum entry_id in this run *)
-    search_slots : search_slot option array; (* 4 search slots, indexed 0-3 *)
-    current_slot : int; (* Next slot to use (0-3) *)
+    search_slots : slot_map;
+    current_slot : SlotNumber.t; (* Next slot to use *)
     search_input : string option; (* Active search input buffer *)
     quiet_path_input : string option; (* Active quiet path input buffer *)
     quiet_path : string option; (* Shared quiet path filter - stops highlight propagation *)
@@ -1195,11 +1212,11 @@ module Interactive = struct
         (A.(bg lightblue ++ fg black), A.(bg lightblue ++ fg black))
       else
         match search_slot_match with
-        | Some 1 -> (A.(fg green), A.(fg green))       (* Search slot 1: green *)
-        | Some 2 -> (A.(fg cyan), A.(fg cyan))         (* Search slot 2: cyan *)
-        | Some 3 -> (A.(fg magenta), A.(fg magenta))   (* Search slot 3: magenta *)
-        | Some 4 -> (A.(fg yellow), A.(fg yellow))     (* Search slot 4: yellow *)
-        | _ -> (A.empty, A.(fg yellow))                (* No match: default (margin still yellow) *)
+        | Some S1 -> (A.(fg green), A.(fg green))       (* Search slot 1: green *)
+        | Some S2 -> (A.(fg cyan), A.(fg cyan))         (* Search slot 2: cyan *)
+        | Some S3 -> (A.(fg magenta), A.(fg magenta))   (* Search slot 3: magenta *)
+        | Some S4 -> (A.(fg yellow), A.(fg yellow))     (* Search slot 4: yellow *)
+        | None -> (A.empty, A.(fg yellow))             (* No match: default (margin still yellow) *)
     in
 
     I.hcat [ I.string margin_attr entry_id_str; I.string content_attr truncated ]
@@ -1263,13 +1280,10 @@ module Interactive = struct
             (* Build search status string *)
             let search_status =
               let active_searches = ref [] in
-              Array.iteri (fun idx slot_opt ->
-                match slot_opt with
-                | Some slot ->
-                    let slot_num = idx + 1 in
-                    let count = get_search_count ~search_slot:slot_opt in
-                    let color_name = match slot_num with
-                      | 1 -> "G" | 2 -> "C" | 3 -> "M" | 4 -> "Y" | _ -> "?" in
+              SlotMap.iter (fun idx slot ->
+                    let count = Hashtbl.length slot.results in
+                    let color_name = match idx with
+                      | S1 -> "G" | S2 -> "C" | S3 -> "M" | S4 -> "Y" in
                     (* Show [...] while running, just [...] when complete *)
                     let count_str =
                       if !(slot.completed_ref) then
@@ -1278,7 +1292,6 @@ module Interactive = struct
                         Printf.sprintf "[%d...]" count
                     in
                     active_searches := Printf.sprintf "%s:%s%s" color_name slot.search_term count_str :: !active_searches
-                | None -> ()
               ) state.search_slots;
               if !active_searches = [] then ""
               else " | " ^ String.concat " " (List.rev !active_searches)
@@ -1471,14 +1484,13 @@ module Interactive = struct
               in
 
               (* Update search slots *)
-              let new_slots = Array.copy state.search_slots in
-              new_slots.(slot) <- Some { search_term = input; domain_handle = Some domain_handle; completed_ref; results = results_table };
+              let new_slots = SlotMap.update slot (fun _ -> Some { search_term = input; domain_handle = Some domain_handle; completed_ref; results = results_table }) state.search_slots in
 
               Some {
                 state with
                 search_input = None;
                 search_slots = new_slots;
-                current_slot = (slot + 1) mod 4;
+                current_slot = SlotNumber.next slot;
               }
             else
               (* Empty input - just cancel *)
@@ -1588,8 +1600,6 @@ module Interactive = struct
     let max_entry_id = Query.get_max_entry_id db ~run_id in
 
     (* Initialize empty search slots (no persistence across TUI sessions) *)
-    let initial_search_slots = Array.make 4 None in
-
     let initial_state = {
       db;
       db_path;
@@ -1601,8 +1611,8 @@ module Interactive = struct
       show_times = true;
       values_first = true;
       max_entry_id;
-      search_slots = initial_search_slots;
-      current_slot = 0;
+      search_slots = SlotMap.empty;
+      current_slot = S1;
       search_input = None;
       quiet_path_input = None;
       quiet_path = None;
@@ -1615,8 +1625,8 @@ module Interactive = struct
       let image = render_screen state term_height term_width in
       Term.image term image;
 
-      (* Poll every 100ms to check for search updates *)
-      match event_with_timeout term 0.1 with
+      (* Poll every second to check for search updates *)
+      match event_with_timeout term 1.0 with
       | Some event ->
           (match event with
           | `Key key ->
