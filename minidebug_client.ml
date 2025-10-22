@@ -611,37 +611,60 @@ module Query = struct
       let propagate_to_ancestors entry =
         (* For headers: entry.entry_id is the parent scope that contains this header
            For values: entry.entry_id is also the parent scope
-           So we always want to start propagation from entry.entry_id *)
-        let rec propagate_to_parent current_entry_id =
-          match get_parent_id db ~run_id ~entry_id:current_entry_id with
-          | None ->
-              log_debug (Printf.sprintf "  propagate: entry_id=%d has no parent (reached root)" current_entry_id)
-          | Some parent_id ->
-              if Hashtbl.mem propagated parent_id then (
-                log_debug (Printf.sprintf "  propagate: parent_id=%d already propagated, stopping" parent_id)
-              ) else (
-                log_debug (Printf.sprintf "  propagate: checking parent_id=%d" parent_id);
-                (* Eagerly fetch parent entry if not in cache *)
-                match get_scope_entry parent_id with
-                | Some parent_entry when matches_quiet_path parent_entry ->
-                    (* Parent matches quiet_path, stop propagation.
-                       IMPORTANT: Mark in propagated table so other matches also stop here! *)
-                    Hashtbl.add propagated parent_id ();
-                    log_debug (Printf.sprintf "  propagate: parent_id=%d matches quiet_path, marking and stopping propagation" parent_id)
-                | Some parent_entry ->
-                    (* Parent found and doesn't match quiet_path - mark it and continue *)
-                    Hashtbl.add propagated parent_id ();
-                    log_debug (Printf.sprintf "  propagate: parent_id=%d doesn't match quiet_path, adding to results" parent_id);
-                    insert_entry parent_entry;
-                    incr propagation_count;
-                    propagate_to_parent parent_id
-                | None ->
-                    (* Parent entry not found in database - shouldn't happen but handle gracefully *)
-                    log_debug (Printf.sprintf "  propagate: parent_id=%d not found in database, stopping" parent_id)
-              )
-        in
+           So we always want to start by highlighting the direct parent (entry.entry_id at seq_id=0),
+           then propagate to its ancestors. *)
         log_debug (Printf.sprintf "propagate_to_ancestors: entry_id=%d, seq_id=%d, message='%s'" entry.entry_id entry.seq_id entry.message);
-        propagate_to_parent entry.entry_id
+
+        (* First, add the direct parent scope (entry_id at seq_id=0) if it's not already highlighted *)
+        let direct_parent_id = entry.entry_id in
+        if not (Hashtbl.mem propagated direct_parent_id) then (
+          match get_scope_entry direct_parent_id with
+          | Some parent_scope when matches_quiet_path parent_scope ->
+              (* Direct parent matches quiet_path - mark it but don't add to results, stop here *)
+              Hashtbl.add propagated direct_parent_id ();
+              log_debug (Printf.sprintf "  propagate: direct parent %d matches quiet_path, stopping" direct_parent_id)
+          | Some parent_scope ->
+              (* Direct parent doesn't match quiet_path - add it and propagate upward *)
+              Hashtbl.add propagated direct_parent_id ();
+              log_debug (Printf.sprintf "  propagate: adding direct parent %d to results" direct_parent_id);
+              insert_entry parent_scope;
+              incr propagation_count;
+
+              (* Now propagate to ancestors *)
+              let rec propagate_to_parent current_entry_id =
+                match get_parent_id db ~run_id ~entry_id:current_entry_id with
+                | None ->
+                    log_debug (Printf.sprintf "  propagate: entry_id=%d has no parent (reached root)" current_entry_id)
+                | Some parent_id ->
+                    if Hashtbl.mem propagated parent_id then (
+                      log_debug (Printf.sprintf "  propagate: parent_id=%d already propagated, stopping" parent_id)
+                    ) else (
+                      log_debug (Printf.sprintf "  propagate: checking parent_id=%d" parent_id);
+                      (* Eagerly fetch parent entry if not in cache *)
+                      match get_scope_entry parent_id with
+                      | Some parent_entry when matches_quiet_path parent_entry ->
+                          (* Parent matches quiet_path, stop propagation.
+                             IMPORTANT: Mark in propagated table so other matches also stop here! *)
+                          Hashtbl.add propagated parent_id ();
+                          log_debug (Printf.sprintf "  propagate: parent_id=%d matches quiet_path, marking and stopping propagation" parent_id)
+                      | Some parent_entry ->
+                          (* Parent found and doesn't match quiet_path - mark it and continue *)
+                          Hashtbl.add propagated parent_id ();
+                          log_debug (Printf.sprintf "  propagate: parent_id=%d doesn't match quiet_path, adding to results" parent_id);
+                          insert_entry parent_entry;
+                          incr propagation_count;
+                          propagate_to_parent parent_id
+                      | None ->
+                          (* Parent entry not found in database - shouldn't happen but handle gracefully *)
+                          log_debug (Printf.sprintf "  propagate: parent_id=%d not found in database, stopping" parent_id)
+                    )
+              in
+              propagate_to_parent direct_parent_id
+          | None ->
+              log_debug (Printf.sprintf "  propagate: direct parent %d not found in database" direct_parent_id)
+        ) else (
+          log_debug (Printf.sprintf "  propagate: direct parent %d already propagated" direct_parent_id)
+        )
       in
 
       let rec process_rows () =
