@@ -33,8 +33,9 @@ module Query : sig
     database_size_kb : int;
   }
 
-  val get_runs : Sqlite3.db -> run_info list
-  (** Get all runs from database, ordered by run_id descending *)
+  val get_runs : string -> run_info list
+  (** Get all runs from metadata database (schema v3+), given the versioned DB path.
+      Automatically finds the corresponding <name>_meta.db file. *)
 
   val get_latest_run_id : Sqlite3.db -> int option
   (** Get the ID of the most recent run *)

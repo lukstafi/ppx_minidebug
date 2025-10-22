@@ -9,20 +9,37 @@ module CFormat = Format
 (** Schema management and database initialization *)
 module Schema = struct
   (** Database schema version for migration management *)
-  let schema_version = 2
+  let schema_version = 3
 
-  (** Initialize database tables if they don't exist *)
-  let initialize_db db =
-    (* Run table definitions *)
+  (** Initialize metadata database with runs table.
+      The metadata DB tracks all runs across versioned database files. *)
+  let initialize_meta_db db =
     Sqlite3.exec db
       {|CREATE TABLE IF NOT EXISTS runs (
           run_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          run_name TEXT,
           timestamp TEXT NOT NULL,
           elapsed_ns INTEGER NOT NULL,
           command_line TEXT,
-          run_name TEXT
+          db_file TEXT NOT NULL,
+          status TEXT DEFAULT 'active'
         )|}
     |> ignore;
+    Sqlite3.exec db "CREATE INDEX IF NOT EXISTS idx_runs_timestamp ON runs(timestamp DESC)"
+    |> ignore;
+    Sqlite3.exec db "CREATE INDEX IF NOT EXISTS idx_runs_name ON runs(run_name)"
+    |> ignore;
+
+    (* Schema version tracking for metadata DB *)
+    Sqlite3.exec db
+      {|CREATE TABLE IF NOT EXISTS schema_version (
+          version INTEGER PRIMARY KEY
+        )|}
+    |> ignore;
+    Sqlite3.exec db "INSERT OR IGNORE INTO schema_version (version) VALUES (3)" |> ignore
+
+  (** Initialize versioned database tables (no runs table - that's in metadata DB) *)
+  let initialize_db db =
 
     (* Value atoms table for content-addressed storage *)
     Sqlite3.exec db
@@ -211,6 +228,8 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
 
   let db_path = ref None
   let db = ref None
+  let meta_db = ref None  (* Metadata database handle *)
+  let run_id = ref None   (* Run ID from metadata database *)
   let intern = ref None
   let transaction_started = ref false (* Track if we've started the long-running transaction *)
   let stack : entry_info list ref = ref []
@@ -234,7 +253,17 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
       Printf.sprintf "%s_%d%s" base run_number ext
     in
 
-    (* Delete existing file if present (safe because we have a unique run_number) *)
+    (* Open/create metadata database: debug.db -> debug_meta.db *)
+    let meta_filename =
+      let base = Filename.remove_extension base_filename in
+      Printf.sprintf "%s_meta.db" base
+    in
+    let meta_handle = Sqlite3.db_open meta_filename in
+    Sqlite3.busy_timeout meta_handle 5000;
+    Schema.initialize_meta_db meta_handle;
+    meta_db := Some meta_handle;
+
+    (* Delete existing versioned file if present (safe because we have a unique run_number) *)
     if Sys.file_exists filename then Sys.remove filename;
 
     let db_handle = Sqlite3.db_open filename in
@@ -254,7 +283,7 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     (* Create value interning context *)
     intern := Some (ValueIntern.create db_handle);
 
-    (* Create new run *)
+    (* Create new run record in metadata DB *)
     let timestamp =
       let buf = Buffer.create 512 in
       let formatter = CFormat.formatter_of_buffer buf in
@@ -269,24 +298,29 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
       | Some ns -> ns
     in
     let cmd = String.concat " " (Array.to_list Sys.argv) in
-    let run_name = if global_prefix = "" then None else Some global_prefix in
+    let run_name_str = if global_prefix = "" then None else Some global_prefix in
 
     let stmt =
-      Sqlite3.prepare db_handle
-        "INSERT INTO runs (timestamp, elapsed_ns, command_line, run_name) VALUES (?, ?, \
-         ?, ?)"
+      Sqlite3.prepare meta_handle
+        "INSERT INTO runs (run_name, timestamp, elapsed_ns, command_line, db_file, status) \
+         VALUES (?, ?, ?, ?, ?, ?)"
     in
-    Sqlite3.bind_text stmt 1 timestamp |> ignore;
-    Sqlite3.bind_int stmt 2 elapsed_ns |> ignore;
-    Sqlite3.bind_text stmt 3 cmd |> ignore;
-    (match run_name with
-    | Some name -> Sqlite3.bind_text stmt 4 name
-    | None -> Sqlite3.bind stmt 4 Sqlite3.Data.NULL)
+    (match run_name_str with
+    | Some name -> Sqlite3.bind_text stmt 1 name
+    | None -> Sqlite3.bind stmt 1 Sqlite3.Data.NULL)
     |> ignore;
+    Sqlite3.bind_text stmt 2 timestamp |> ignore;
+    Sqlite3.bind_int stmt 3 elapsed_ns |> ignore;
+    Sqlite3.bind_text stmt 4 cmd |> ignore;
+    Sqlite3.bind_text stmt 5 (Filename.basename filename) |> ignore;
+    Sqlite3.bind_text stmt 6 "active" |> ignore;
     (match Sqlite3.step stmt with
     | Sqlite3.Rc.DONE -> ()
-    | _ -> failwith "Failed to create run");
+    | _ -> failwith "Failed to create run in metadata DB");
     Sqlite3.finalize stmt |> ignore;
+
+    (* Get the run_id that was just inserted *)
+    run_id := Some (Int64.to_int (Sqlite3.last_insert_rowid meta_handle));
 
     (* Register at_exit handler to automatically commit on normal exit *)
     at_exit (fun () ->
@@ -1186,7 +1220,14 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
         (match !intern with Some intern -> ValueIntern.finalize intern | None -> ());
         Sqlite3.db_close db_handle |> ignore;
         db := None;
-        intern := None
+        run_id := None;
+        intern := None;
+
+        (* Close metadata database *)
+        (match !meta_db with
+        | Some meta_handle -> Sqlite3.db_close meta_handle |> ignore
+        | None -> ());
+        meta_db := None
 end
 
 (** Create a database-specific config that doesn't create file channels *)

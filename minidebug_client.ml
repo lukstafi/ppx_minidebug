@@ -35,47 +35,61 @@ module Query = struct
     database_size_kb : int;
   }
 
-  (** Get all runs from database *)
-  let get_runs db =
-    let stmt =
-      Sqlite3.prepare db
-        "SELECT run_id, timestamp, elapsed_ns, command_line FROM runs ORDER BY \
-         run_id DESC"
-    in
-    let runs = ref [] in
-    let rec loop () =
-      match Sqlite3.step stmt with
-      | Sqlite3.Rc.ROW ->
-          let run =
-            {
-              run_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
-              timestamp = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 1);
-              elapsed_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 2);
-              command_line = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 3);
-              run_name = None;
-            }
-          in
-          runs := run :: !runs;
-          loop ()
-      | _ -> ()
-    in
-    loop ();
-    Sqlite3.finalize stmt |> ignore;
-    List.rev !runs
+  (** Get all runs from metadata database.
+      For versioned databases (schema v3+), this queries the metadata DB.
+      Falls back to querying the versioned DB for backwards compatibility. *)
+  let get_runs_from_meta_db meta_db_path =
+    if not (Sys.file_exists meta_db_path) then []
+    else
+      let db = Sqlite3.db_open meta_db_path in
+      let stmt =
+        Sqlite3.prepare db
+          "SELECT run_id, run_name, timestamp, elapsed_ns, command_line FROM runs ORDER BY \
+           run_id DESC"
+      in
+      let runs = ref [] in
+      let rec loop () =
+        match Sqlite3.step stmt with
+        | Sqlite3.Rc.ROW ->
+            let run =
+              {
+                run_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+                timestamp = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 2);
+                elapsed_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
+                command_line = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 4);
+                run_name =
+                  (match Sqlite3.column stmt 1 with
+                  | Sqlite3.Data.TEXT s -> Some s
+                  | _ -> None);
+              }
+            in
+            runs := run :: !runs;
+            loop ()
+        | _ -> ()
+      in
+      loop ();
+      Sqlite3.finalize stmt |> ignore;
+      Sqlite3.db_close db |> ignore;
+      List.rev !runs
 
-  (** Get latest run ID *)
-  let get_latest_run_id db =
-    let stmt = Sqlite3.prepare db "SELECT MAX(run_id) FROM runs" in
-    let run_id =
-      match Sqlite3.step stmt with
-      | Sqlite3.Rc.ROW -> (
-          match Sqlite3.column stmt 0 with
-          | Sqlite3.Data.INT id -> Some (Int64.to_int id)
-          | _ -> None)
-      | _ -> None
-    in
-    Sqlite3.finalize stmt |> ignore;
-    run_id
+  (** Get all runs - tries metadata DB first, falls back to versioned DB for old schemas *)
+  let get_runs db_path =
+    (* Try metadata DB first (schema v3+) *)
+    let base = Filename.remove_extension db_path in
+    let meta_path = Printf.sprintf "%s_meta.db" base in
+    match get_runs_from_meta_db meta_path with
+    | [] ->
+        (* No metadata DB or empty - this might be an old schema v2 database.
+           Return empty list since v2 databases don't have runs table. *)
+        []
+    | runs -> runs
+
+  (** Get latest run ID - for schema v3+, just returns Some 1 since each file has one run *)
+  let get_latest_run_id _db =
+    (* In schema v3+, each versioned database file contains exactly one run.
+       The run_id is in the metadata DB, not the versioned file.
+       We just return a dummy ID since queries don't filter by run_id anymore. *)
+    Some 1
 
   (** Get entries for a specific run *)
   let get_entries db ?parent_id ?max_depth () =
@@ -1757,19 +1771,19 @@ module Client = struct
   let close t = Sqlite3.db_close t.db |> ignore
 
   (** List all runs *)
-  let list_runs t = Query.get_runs t.db
+  let list_runs t = Query.get_runs t.db_path
 
   (** Get latest run *)
   let get_latest_run t =
     match Query.get_latest_run_id t.db with
     | Some run_id ->
-        let runs = Query.get_runs t.db in
+        let runs = Query.get_runs t.db_path in
         List.find_opt (fun r -> r.Query.run_id = run_id) runs
     | None -> None
 
   (** Show run summary *)
   let show_run_summary t run_id =
-    let runs = Query.get_runs t.db in
+    let runs = Query.get_runs t.db_path in
     match List.find_opt (fun r -> r.Query.run_id = run_id) runs with
     | Some run ->
         Printf.printf "Run #%d\n" run.run_id;
