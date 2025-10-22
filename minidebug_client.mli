@@ -37,8 +37,8 @@ module Query : sig
   (** Get all runs from metadata database (schema v3+), given the versioned DB path.
       Automatically finds the corresponding <name>_meta.db file. *)
 
-  val get_latest_run_id : Sqlite3.db -> int option
-  (** Get the ID of the most recent run *)
+  val get_latest_run_id : string -> int option
+  (** Get the ID of the most recent run from metadata DB, given the versioned DB path *)
 
   val get_entries :
     Sqlite3.db -> ?parent_id:int -> ?max_depth:int -> unit -> entry list

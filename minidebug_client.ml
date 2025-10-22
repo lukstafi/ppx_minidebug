@@ -84,12 +84,25 @@ module Query = struct
         []
     | runs -> runs
 
-  (** Get latest run ID - for schema v3+, just returns Some 1 since each file has one run *)
-  let get_latest_run_id _db =
-    (* In schema v3+, each versioned database file contains exactly one run.
-       The run_id is in the metadata DB, not the versioned file.
-       We just return a dummy ID since queries don't filter by run_id anymore. *)
-    Some 1
+  (** Get latest run ID from metadata database *)
+  let get_latest_run_id db_path =
+    let base = Filename.remove_extension db_path in
+    let meta_path = Printf.sprintf "%s_meta.db" base in
+    if not (Sys.file_exists meta_path) then None
+    else
+      let db = Sqlite3.db_open meta_path in
+      let stmt = Sqlite3.prepare db "SELECT MAX(run_id) FROM runs" in
+      let run_id =
+        match Sqlite3.step stmt with
+        | Sqlite3.Rc.ROW -> (
+            match Sqlite3.column stmt 0 with
+            | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+            | _ -> None)
+        | _ -> None
+      in
+      Sqlite3.finalize stmt |> ignore;
+      Sqlite3.db_close db |> ignore;
+      run_id
 
   (** Get entries for a specific run *)
   let get_entries db ?parent_id ?max_depth () =
@@ -1775,7 +1788,7 @@ module Client = struct
 
   (** Get latest run *)
   let get_latest_run t =
-    match Query.get_latest_run_id t.db with
+    match Query.get_latest_run_id t.db_path with
     | Some run_id ->
         let runs = Query.get_runs t.db_path in
         List.find_opt (fun r -> r.Query.run_id = run_id) runs
