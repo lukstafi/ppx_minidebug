@@ -601,15 +601,17 @@ module Query = struct
           | None ->
               log_debug (Printf.sprintf "  propagate: entry_id=%d has no parent (reached root)" current_entry_id)
           | Some parent_id ->
-              if Hashtbl.mem propagated parent_id then
-                log_debug (Printf.sprintf "  propagate: parent_id=%d already propagated, skipping" parent_id)
-              else (
+              if Hashtbl.mem propagated parent_id then (
+                log_debug (Printf.sprintf "  propagate: parent_id=%d already propagated, stopping" parent_id)
+              ) else (
                 log_debug (Printf.sprintf "  propagate: checking parent_id=%d" parent_id);
                 (* Eagerly fetch parent entry if not in cache *)
                 match get_scope_entry parent_id with
                 | Some parent_entry when matches_quiet_path parent_entry ->
-                    (* Parent matches quiet_path, stop propagation - do NOT mark in propagated table *)
-                    log_debug (Printf.sprintf "  propagate: parent_id=%d matches quiet_path, stopping propagation" parent_id)
+                    (* Parent matches quiet_path, stop propagation.
+                       IMPORTANT: Mark in propagated table so other matches also stop here! *)
+                    Hashtbl.add propagated parent_id ();
+                    log_debug (Printf.sprintf "  propagate: parent_id=%d matches quiet_path, marking and stopping propagation" parent_id)
                 | Some parent_entry ->
                     (* Parent found and doesn't match quiet_path - mark it and continue *)
                     Hashtbl.add propagated parent_id ();
