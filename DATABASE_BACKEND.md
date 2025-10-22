@@ -380,7 +380,7 @@ ppx_minidebug 3.0+ uses optimized "Fast mode" for database writes:
 - **Between top-level traces**: Database unlocked and readable by other processes
 - **TUI/query tools**: Can read database when not actively writing
 - **Multiple runtimes**: Each writes to separate versioned file, no conflicts
-- **Search operations**: Use separate read connection with transactions and WAL checkpointing
+- **Search operations**: Use in-memory hash table (no TUI persistence)
 
 This allows the TUI to inspect traces between function calls while maintaining high write performance during tracing.
 
@@ -390,7 +390,6 @@ This allows the TUI to inspect traces between function calls while maintaining h
 - O(log n) tree traversal via parent_id index
 - DELETE journal mode (fast, simple)
 - NORMAL synchronous mode for speed
-- WAL checkpointing in search operations to prevent unbounded growth
 
 ## Implemented Features (3.0+)
 
@@ -409,11 +408,10 @@ This allows the TUI to inspect traces between function calls while maintaining h
    - After cleanup: `(entry_id, seq_num)` primary key
    - Rationale: Each runtime instance gets its own versioned database file, so all entries in a file belong to the same logical run. The `run_id` column is vestigial from the pre-versioning design.
 2. **Enhanced Structure Storage**: Use `structure_value_id` for JSON-based structure metadata
-3. **GUI Server**: REST API for pagination, search, lazy loading
-4. **GUI Client**: Web-based client with rich tree visualization
-5. **Cross-Run State**: PrevRun diff integration for state persistence
-6. **Advanced Deduplication**: Template-based structural sharing for repeated record shapes
-7. **Performance Metrics**: Query timing, cache hit rates, deduplication statistics
+3. **Advanced Deduplication**: Template-based structural sharing for repeated record shapes
+4. **Cross-Run State**: PrevRun diff integration for state persistence
+5. **Performance Metrics**: Query timing, cache hit rates, deduplication statistics
+6. Optional **GUI Server and Client**: REST API for pagination, search, lazy loading; Web-based client with rich tree visualization
 
 ## Testing
 
