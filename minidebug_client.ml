@@ -544,29 +544,86 @@ module Query = struct
       let propagated = Hashtbl.create 64 in  (* Track propagated ancestors to avoid duplicates *)
       let propagation_count = ref 0 in
 
+      (* Helper to eagerly fetch and cache a scope entry by ID *)
+      let get_scope_entry scope_id =
+        match Hashtbl.find_opt scope_by_id scope_id with
+        | Some entry -> Some entry
+        | None ->
+            (* Not in cache - fetch from database and cache it *)
+            let query = {|
+              SELECT e.entry_id, e.seq_id, e.header_entry_id, e.depth,
+                     m.value_content as message, l.value_content as location, d.value_content as data,
+                     e.elapsed_start_ns, e.elapsed_end_ns, e.is_result, e.log_level, e.entry_type
+              FROM entries e
+              LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
+              LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
+              LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
+              WHERE e.run_id = ? AND e.header_entry_id = ?
+              LIMIT 1
+            |} in
+            let stmt = Sqlite3.prepare db query in
+            Sqlite3.bind_int stmt 1 run_id |> ignore;
+            Sqlite3.bind_int stmt 2 scope_id |> ignore;
+            let result = match Sqlite3.step stmt with
+              | Sqlite3.Rc.ROW ->
+                  let entry = {
+                    entry_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+                    seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
+                    header_entry_id = (match Sqlite3.column stmt 2 with
+                      | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+                      | _ -> None);
+                    depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
+                    message = (match Sqlite3.column stmt 4 with Sqlite3.Data.TEXT s -> s | _ -> "");
+                    location = (match Sqlite3.column stmt 5 with Sqlite3.Data.TEXT s -> Some s | _ -> None);
+                    data = (match Sqlite3.column stmt 6 with Sqlite3.Data.TEXT s -> Some s | _ -> None);
+                    elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
+                    elapsed_end_ns = (match Sqlite3.column stmt 8 with Sqlite3.Data.INT i -> Some (Int64.to_int i) | _ -> None);
+                    is_result = (match Sqlite3.Data.to_bool (Sqlite3.column stmt 9) with Some b -> b | None -> false);
+                    log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
+                    entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
+                  } in
+                  Hashtbl.add scope_by_id scope_id entry;
+                  log_debug (Printf.sprintf "  get_scope_entry: fetched and cached scope %d" scope_id);
+                  Some entry
+              | _ -> None
+            in
+            Sqlite3.finalize stmt |> ignore;
+            result
+      in
+
       (* Helper to propagate highlights to ancestors immediately *)
       let propagate_to_ancestors entry =
-        let this_entry_id =
-          match entry.header_entry_id with
-          | Some hid -> hid
-          | None -> entry.entry_id
-        in
-
+        (* For headers: entry.entry_id is the parent scope that contains this header
+           For values: entry.entry_id is also the parent scope
+           So we always want to start propagation from entry.entry_id *)
         let rec propagate_to_parent current_entry_id =
           match get_parent_id db ~run_id ~entry_id:current_entry_id with
-          | None -> ()
+          | None ->
+              log_debug (Printf.sprintf "  propagate: entry_id=%d has no parent (reached root)" current_entry_id)
           | Some parent_id ->
-              if not (Hashtbl.mem propagated parent_id) then (
-                Hashtbl.add propagated parent_id ();
-                match Hashtbl.find_opt scope_by_id parent_id with
-                | Some parent_entry when not (matches_quiet_path parent_entry) ->
+              if Hashtbl.mem propagated parent_id then
+                log_debug (Printf.sprintf "  propagate: parent_id=%d already propagated, skipping" parent_id)
+              else (
+                log_debug (Printf.sprintf "  propagate: checking parent_id=%d" parent_id);
+                (* Eagerly fetch parent entry if not in cache *)
+                match get_scope_entry parent_id with
+                | Some parent_entry when matches_quiet_path parent_entry ->
+                    (* Parent matches quiet_path, stop propagation - do NOT mark in propagated table *)
+                    log_debug (Printf.sprintf "  propagate: parent_id=%d matches quiet_path, stopping propagation" parent_id)
+                | Some parent_entry ->
+                    (* Parent found and doesn't match quiet_path - mark it and continue *)
+                    Hashtbl.add propagated parent_id ();
+                    log_debug (Printf.sprintf "  propagate: parent_id=%d doesn't match quiet_path, adding to results" parent_id);
                     insert_entry parent_entry;
                     incr propagation_count;
                     propagate_to_parent parent_id
-                | _ -> ()
+                | None ->
+                    (* Parent entry not found in database - shouldn't happen but handle gracefully *)
+                    log_debug (Printf.sprintf "  propagate: parent_id=%d not found in database, stopping" parent_id)
               )
         in
-        propagate_to_parent this_entry_id
+        log_debug (Printf.sprintf "propagate_to_ancestors: entry_id=%d, seq_id=%d, message='%s'" entry.entry_id entry.seq_id entry.message);
+        propagate_to_parent entry.entry_id
       in
 
       let rec process_rows () =
@@ -626,8 +683,10 @@ module Query = struct
 
       process_rows ();
       Sqlite3.finalize query_stmt |> ignore;
-      log_debug (Printf.sprintf "Search complete. Processed %d entries, found %d matches, %d scopes, %d ancestors highlighted"
-                   !processed_count !match_count (Hashtbl.length scope_by_id) !propagation_count);
+      log_debug (Printf.sprintf "Search complete. Processed %d entries, found %d matches, propagated %d ancestors"
+                   !processed_count !match_count !propagation_count);
+      log_debug (Printf.sprintf "Scope cache size: %d, Total results: %d"
+                   (Hashtbl.length scope_by_id) (Hashtbl.length results_table));
 
       (* Close the database connection *)
       Sqlite3.db_close db |> ignore;
