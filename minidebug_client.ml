@@ -1092,11 +1092,20 @@ module Interactive = struct
   let event_with_timeout term timeout_sec =
     (* Get the input file descriptor from stdin *)
     let stdin_fd = Unix.stdin in
-    let (ready, _, _) = Unix.select [stdin_fd] [] [] timeout_sec in
-    if ready = [] then
-      None  (* Timeout *)
-    else
-      Some (Term.event term)  (* Event available *)
+    (* Retry select on EINTR (interrupted system call) *)
+    let rec select_with_retry () =
+      try
+        let (ready, _, _) = Unix.select [stdin_fd] [] [] timeout_sec in
+        if ready = [] then
+          None  (* Timeout *)
+        else
+          Some (Term.event term)  (* Event available *)
+      with
+      | Unix.Unix_error (Unix.EINTR, _, _) ->
+          (* Interrupted by signal (e.g., SIGWINCH on terminal resize) - retry *)
+          select_with_retry ()
+    in
+    select_with_retry ()
 
   (** Hash set of (scope_id, seq_id) pairs matching a search term.
       This is shared memory written by background Domain, read by main TUI loop. *)
@@ -1125,14 +1134,6 @@ module Interactive = struct
   end
   module SlotMap = Map.Make(SlotNumber)
   type slot_map = search_slot SlotMap.t
-
-  let log_debug msg =
-    ignore msg
-    (* try
-      let oc = open_out_gen [Open_append; Open_creat] 0o644 "/tmp/minidebug_client.log" in
-      Printf.fprintf oc "[%s] %s\n" (Unix.gettimeofday () |> string_of_float) msg;
-      close_out oc
-    with _ -> () *)
 
   (** Check if an entry matches any active search (returns slot number 1-4, or None).
       Checks slots in reverse chronological order to prioritize more recent searches.
