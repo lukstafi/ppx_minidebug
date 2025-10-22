@@ -1769,8 +1769,8 @@ module Interactive = struct
       let image = render_screen state term_height term_width in
       Term.image term image;
 
-      (* Poll every second to check for search updates *)
-      match event_with_timeout term 1.0 with
+      (* Poll every 1/5th of a second to check for search updates *)
+      match event_with_timeout term 0.2 with
       | Some event ->
           (match event with
           | `Key key ->
