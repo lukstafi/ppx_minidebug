@@ -154,19 +154,50 @@ Rendered as:
 
 ## Deduplication Strategy
 
-The database backend uses content-addressed storage to deduplicate values:
+The database backend uses multiple levels of deduplication:
+
+### 1. Content-Addressed Value Storage
+
+Values are deduplicated via hash-based interning:
 
 1. **Hash-based interning**: Values are hashed (MD5) before storage
 2. **Lookup before insert**: Check if hash exists before inserting new value
 3. **Reference counting**: Multiple entries reference the same value_id
 4. **All value types deduplicated**: Messages, locations, and logged values are all interned
 
-### Example Deduplication
-
-For Fibonacci sequence:
+**Example (Fibonacci sequence):**
 - Value `1` appears many times → stored once, referenced multiple times
 - Location `test.ml:10:15-12:20` → stored once for all calls from that location
 - Message `fib` → stored once for all recursive calls
+
+### 2. Recursive Sexp Caching (3.0.1+)
+
+During boxify decomposition, repeated sexp substructures are cached in memory:
+
+1. **Hash-based cache**: `SexpCache` maps sexp hash → scope_id
+2. **Cache check at every recursion level**: Before processing any sexp, check if already decomposed
+3. **Reference creation on cache hit**: Create header entry pointing to cached scope_id, skip decomposition
+4. **Automatic population**: Cache populated during first decomposition, reused for subsequent identical structures
+
+**Benefits:**
+- **Memory savings**: Identical substructures stored once, referenced multiple times
+- **Time savings**: Skip decomposition and database insertion for cached sexps
+- **Deep deduplication**: Works at all recursion levels, not just top-level values
+- **Zero overhead when unique**: O(1) hash lookup with negligible cost
+
+**Example (repeated tree structures):**
+```ocaml
+let shared = Node ("shared", [Leaf 1; Leaf 2; Node ("nested", [Leaf 3])]) in
+let tree = Node ("root", [shared; Node ("middle", [shared]); shared])
+```
+
+Results in scope_id for `shared` subtree being reused 3x instead of storing 3 copies.
+
+**Particularly effective for:**
+- Recursive data structures (trees, lists, maps)
+- Repeated error messages or result types
+- Shared environment/context values
+- Map subtrees (when using `Base.Map.to_tree` for structure preservation)
 
 ## Large Value Decomposition (Boxify)
 
@@ -403,6 +434,7 @@ This allows the TUI to inspect traces between function calls while maintaining h
 ✅ **Quiet path filtering** to stop highlight propagation at boundaries
 ✅ **Configurable search ordering** (Ascending/Descending scope_id)
 ✅ **Large value decomposition** (boxify with indentation-based parsing)
+✅ **Recursive sexp caching** (3.0.1+) for structural deduplication
 ✅ **Automatic signal handling** for safe commits on interruption
 
 ## Next Steps (Phase 2+)
