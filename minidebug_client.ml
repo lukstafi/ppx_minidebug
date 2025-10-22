@@ -454,6 +454,16 @@ module Query = struct
     Sqlite3.finalize stmt |> ignore;
     List.rev !entries
 
+  (** Search ordering strategy.
+      Note: entry_id temporal order is split by sign:
+      - Positive IDs: 1 (oldest), 2, 3, ... 60311 (newest) - increasing = later
+      - Negative IDs: -1 (oldest), -2, -3, ... -17774560 (newest) - more negative = later
+
+      Neither ordering is chronological due to the sign split! *)
+  type search_order =
+    | AscendingIds  (* ORDER BY entry_id ASC: newest-neg → oldest-neg → oldest-pos → newest-pos *)
+    | DescendingIds (* ORDER BY entry_id DESC: newest-pos → oldest-pos → oldest-neg → newest-neg *)
+
   (** Populate search results hash table with entries matching search term.
       This is meant to run in a background Domain. Opens its own DB connection.
       Sets completed_ref to true when finished.
@@ -465,7 +475,7 @@ module Query = struct
       immediately upon finding each match for real-time UI updates.
 
       Writes results to shared hash table (lock-free concurrent writes are safe). *)
-  let populate_search_results db_path ~run_id ~search_term ~quiet_path ~completed_ref ~results_table =
+  let populate_search_results db_path ~run_id ~search_term ~quiet_path ~search_order ~completed_ref ~results_table =
     (* Log to file for debugging since TUI occupies terminal *)
     let log_debug msg =
       try
@@ -525,7 +535,11 @@ module Query = struct
       in
 
       (* Stream entries, find matches, and build scope index in one pass *)
-      let query_stmt = Sqlite3.prepare db
+      let order_clause = match search_order with
+        | AscendingIds -> "ORDER BY e.entry_id ASC, e.seq_id ASC"  (* Negative IDs first, then positive *)
+        | DescendingIds -> "ORDER BY e.entry_id DESC, e.seq_id ASC"  (* Positive IDs first, then negative *)
+      in
+      let query = Printf.sprintf
         {|SELECT e.entry_id, e.seq_id, e.header_entry_id, e.depth,
                  m.value_content as message, l.value_content as location, d.value_content as data,
                  e.elapsed_start_ns, e.elapsed_end_ns, e.is_result, e.log_level, e.entry_type
@@ -534,8 +548,10 @@ module Query = struct
           LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
           LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
           WHERE e.run_id = ?
-          ORDER BY e.entry_id, e.seq_id|}
+          %s|}
+        order_clause
       in
+      let query_stmt = Sqlite3.prepare db query in
       Sqlite3.bind_int query_stmt 1 run_id |> ignore;
 
       let scope_by_id = Hashtbl.create 1024 in
@@ -1138,6 +1154,7 @@ module Interactive = struct
     search_input : string option; (* Active search input buffer *)
     quiet_path_input : string option; (* Active quiet path input buffer *)
     quiet_path : string option; (* Shared quiet path filter - stops highlight propagation *)
+    search_order : Query.search_order; (* Ordering for search results *)
   }
 
   and visible_item = {
@@ -1328,12 +1345,17 @@ module Interactive = struct
                   (Printf.sprintf "Search: %s_" input)
         | None ->
             (* Show run info and search status *)
+            let search_order_str = match state.search_order with
+              | Query.AscendingIds -> "Asc"
+              | Query.DescendingIds -> "Desc"
+            in
             let base_info =
-              Printf.sprintf "Run #%d | Items: %d | Times: %s | Values First: %s | Entry: %d/%d (%.1f%%)"
+              Printf.sprintf "Run #%d | Items: %d | Times: %s | Values First: %s | Search: %s | Entry: %d/%d (%.1f%%)"
                 state.run_id
                 (Array.length state.visible_items)
                 (if state.show_times then "ON" else "OFF")
                 (if state.values_first then "ON" else "OFF")
+                search_order_str
                 current_entry_id
                 state.max_entry_id
                 progress_pct
@@ -1403,7 +1425,7 @@ module Interactive = struct
             | Some _ ->
                 "[Enter] Confirm search | [Esc] Cancel | [Backspace] Delete"
             | None ->
-                "[↑/↓] Navigate | [PgUp/PgDn] Page | [n/N] Next/Prev Match | [Enter] Expand | [/] Search | [Q] Quiet path | [t] Times | [v] Values | [q] Quit"
+                "[↑/↓] Navigate | [PgUp/PgDn] Page | [n/N] Next/Prev Match | [Enter] Expand | [/] Search | [Q] Quiet path | [t] Times | [v] Values | [o] Order | [q] Quit"
         )
       in
       I.vcat [
@@ -1540,7 +1562,7 @@ module Interactive = struct
               (* Spawn background search Domain - pass db_path not db handle *)
               let domain_handle =
                 Domain.spawn (fun () ->
-                  Query.populate_search_results state.db_path ~run_id:state.run_id ~search_term:input ~quiet_path:state.quiet_path ~completed_ref ~results_table
+                  Query.populate_search_results state.db_path ~run_id:state.run_id ~search_term:input ~quiet_path:state.quiet_path ~search_order:state.search_order ~completed_ref ~results_table
                 )
               in
 
@@ -1613,6 +1635,14 @@ module Interactive = struct
     | `ASCII 'v', _ ->
         Some { state with values_first = not state.values_first }
 
+    | `ASCII 'o', _ ->
+        (* Toggle search order *)
+        let new_order = match state.search_order with
+          | Query.AscendingIds -> Query.DescendingIds
+          | Query.DescendingIds -> Query.AscendingIds
+        in
+        Some { state with search_order = new_order }
+
     | `Page `Up, _ ->
         (* Page Up: Move cursor to top of screen, then scroll up by content_height - 1 *)
         if state.cursor = state.scroll_offset then
@@ -1677,6 +1707,7 @@ module Interactive = struct
       search_input = None;
       quiet_path_input = None;
       quiet_path = None;
+      search_order = Query.AscendingIds;  (* Default: uses index efficiently *)
     } in
 
     let term = Term.create () in
