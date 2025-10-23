@@ -1296,7 +1296,7 @@ module Interactive = struct
       | None -> None  (* No parent found *)
 
   (** Build visible items list from database using lazy loading *)
-  let build_visible_items db expanded =
+  let build_visible_items db expanded values_first =
     let rec flatten_entry ~depth entry =
       (* Check if this entry actually has children *)
       let is_expandable =
@@ -1324,7 +1324,28 @@ module Interactive = struct
         | Some hid ->
             (* Load children on demand *)
             let children = Query.get_scope_children db ~parent_scope_id:hid in
-            visible :: List.concat_map (flatten_entry ~depth:(depth + 1)) children
+            (* In values_first mode, check if we have a single result child to combine *)
+            let children_to_show =
+              if values_first then
+                let results, non_results = List.partition (fun e -> e.Query.is_result) children in
+                match results with
+                | [ single_result ] ->
+                    (* Check if the single result has no children of its own *)
+                    let result_has_children =
+                      match single_result.child_scope_id with
+                      | Some hid -> Query.has_children db ~parent_scope_id:hid
+                      | None -> false
+                    in
+                    if not result_has_children then
+                      (* Single childless result: skip it, will be combined with header *)
+                      non_results
+                    else
+                      (* Result has children: show all *)
+                      children
+                | _ -> children (* Multiple results or no results: show all *)
+              else children
+            in
+            visible :: List.concat_map (flatten_entry ~depth:(depth + 1)) children_to_show
         | None -> [ visible ]
       else [ visible ]
     in
@@ -1335,7 +1356,7 @@ module Interactive = struct
     Array.of_list items
 
   (** Render a single line *)
-  let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots ~current_slot item =
+  let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots ~current_slot ~db ~values_first item =
     let entry = item.entry in
 
     (* Check if this entry matches any search (prioritizes more recent searches) *)
@@ -1368,21 +1389,58 @@ module Interactive = struct
 
     (* Entry content *)
     let content =
-      let display_text =
-        let message = entry.message in
-        let data = Option.value ~default:"" entry.data in
-        let is_result = entry.is_result in
-        (if message <> "" then message ^ " " else "") ^
-        (if is_result then "=> " else if message <> "" && data <> "" then "= " else "") ^
-        data
-      in
-  match item.entry.child_scope_id with
+      match item.entry.child_scope_id with
+      | Some hid when values_first && item.is_expanded ->
+          (* Header/scope in values_first mode: check for single result child to combine *)
+          let children = Query.get_scope_children db ~parent_scope_id:hid in
+          let results, _non_results = List.partition (fun e -> e.Query.is_result) children in
+          (match results with
+          | [ single_result ] ->
+              (* Check if the single result has no children of its own *)
+              let result_has_children =
+                match single_result.child_scope_id with
+                | Some hid -> Query.has_children db ~parent_scope_id:hid
+                | None -> false
+              in
+              if not result_has_children then
+                (* Combine result with header: [type] message => result_data *)
+                let result_data = Option.value ~default:"" single_result.data in
+                let result_msg = single_result.message in
+                let combined_result =
+                  if result_msg <> "" && result_msg <> entry.message then
+                    Printf.sprintf " => %s = %s" result_msg result_data
+                  else
+                    Printf.sprintf " => %s" result_data
+                in
+                Printf.sprintf "%s%s[%s] %s%s" indent expansion_mark
+                  entry.entry_type entry.message combined_result
+              else
+                (* Result has children: normal rendering *)
+                Printf.sprintf "%s%s[%s] %s" indent expansion_mark
+                  entry.entry_type entry.message
+          | _ ->
+              (* Multiple results or no results: normal rendering *)
+              Printf.sprintf "%s%s[%s] %s" indent expansion_mark
+                entry.entry_type entry.message)
       | Some _ ->
-          (* Header/scope - use message if available, otherwise data, otherwise placeholder *)
+          (* Header/scope - normal rendering *)
+          let display_text =
+            let message = entry.message in
+            let data = Option.value ~default:"" entry.data in
+            (if message <> "" then message else data)
+          in
           Printf.sprintf "%s%s[%s] %s" indent expansion_mark
             entry.entry_type display_text
       | None ->
           (* Value *)
+          let display_text =
+            let message = entry.message in
+            let data = Option.value ~default:"" entry.data in
+            let is_result = entry.is_result in
+            (if message <> "" then message ^ " " else "") ^
+            (if is_result then "=> " else if message <> "" && data <> "" then "= " else "") ^
+            data
+          in
           Printf.sprintf "%s  %s" indent display_text
     in
 
@@ -1521,7 +1579,7 @@ module Interactive = struct
     for i = visible_start to visible_end - 1 do
       let is_selected = i = state.cursor in
       let item = state.visible_items.(i) in
-      let line = render_line ~width:term_width ~is_selected ~show_times:state.show_times ~margin_width ~search_slots:state.search_slots ~current_slot:state.current_slot item in
+      let line = render_line ~width:term_width ~is_selected ~show_times:state.show_times ~margin_width ~search_slots:state.search_slots ~current_slot:state.current_slot ~db:state.db ~values_first:state.values_first item in
       content_lines := line :: !content_lines
     done;
 
@@ -1569,7 +1627,7 @@ module Interactive = struct
               Hashtbl.add state.expanded hid ();
 
             (* Rebuild visible items *)
-            let new_visible = build_visible_items state.db state.expanded in
+            let new_visible = build_visible_items state.db state.expanded state.values_first in
             { state with visible_items = new_visible }
         | None -> state
       ) else state
@@ -1599,7 +1657,7 @@ module Interactive = struct
         ) ancestors;
 
         (* Rebuild visible items with expanded path *)
-        let new_visible = build_visible_items state.db state.expanded in
+        let new_visible = build_visible_items state.db state.expanded state.values_first in
 
         (* Find the target entry in the new visible items *)
         let rec find_in_visible idx =
@@ -1752,7 +1810,9 @@ module Interactive = struct
         Some { state with show_times = not state.show_times }
 
     | `ASCII 'v', _ ->
-        Some { state with values_first = not state.values_first }
+        let new_values_first = not state.values_first in
+        let new_visible = build_visible_items state.db state.expanded new_values_first in
+        Some { state with values_first = new_values_first; visible_items = new_visible }
 
     | `ASCII 'o', _ ->
         (* Toggle search order *)
@@ -1806,7 +1866,8 @@ module Interactive = struct
   (** Main interactive loop *)
   let run db db_path =
     let expanded = Hashtbl.create 64 in
-    let visible_items = build_visible_items db expanded in
+    let values_first = true in
+    let visible_items = build_visible_items db expanded values_first in
     let max_scope_id = Query.get_max_scope_id db in
 
     (* Initialize empty search slots (no persistence across TUI sessions) *)
@@ -1818,7 +1879,7 @@ module Interactive = struct
       expanded;
       visible_items;
       show_times = true;
-      values_first = true;
+      values_first;
       max_scope_id;
       search_slots = SlotMap.empty;
       current_slot = S1;
