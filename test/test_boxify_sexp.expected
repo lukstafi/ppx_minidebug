@@ -2,8 +2,7 @@
 [debug] test_small @ test/test_boxify_sexp.ml:11:28-13:45
   ("This is the" 2 "log line")
 [debug] test_medium @ test/test_boxify_sexp.ml:15:29-17:104
-  [value] 
-    item1
+  [value] item1
     item2
     item3
     item4
@@ -14,12 +13,17 @@
     item9
     item10
 [debug] test_large @ test/test_boxify_sexp.ml:19:28-21:73
-  [value] 
-    <scope>
-    (a 1)
-    (b 2)
-    (c 3)
-    (d 4)
-    (e 5)
-    (f 6)
+  [value] <scope>
+    [value] a
+      1
+    [value] b
+      2
+    [value] c
+      3
+    [value] d
+      4
+    [value] e
+      5
+    [value] f
+      6
 Test complete.

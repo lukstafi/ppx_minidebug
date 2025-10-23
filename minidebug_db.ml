@@ -240,12 +240,16 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
   let orphaned_seq_counters =
     ref [] (* Per-scope_id counters for orphaned logs: (scope_id * seq_counter) list *)
 
-  (** Cache for boxified sexp structures - maps sexp hash to scope_id.
-      Enables deduplication of repeated substructures. *)
+  (** Cache for boxified sexp structures - maps sexp content hash to scope_id.
+      Enables deduplication of repeated substructures.
+      Uses MD5 hash of sexp string for proper content-based deduplication. *)
   module SexpCache = struct
-    let cache : (int, int) Hashtbl.t = Hashtbl.create 100
+    let cache : (string, int) Hashtbl.t = Hashtbl.create 1000
 
-    let hash sexp = Hashtbl.hash sexp
+    let hash sexp =
+      (* Use MD5 hash of the sexp string representation for proper content equality *)
+      let str = Sexplib0.Sexp.to_string sexp in
+      Digest.to_hex (Digest.string str)
 
     let find_opt sexp =
       let h = hash sexp in
@@ -673,96 +677,6 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
         failwith err_msg);
     Sqlite3.finalize stmt |> ignore
 
-  (** Entry type for parsed indentation structure *)
-  type indent_entry =
-    | Value of int * int * string  (* seq_id, depth, content *)
-    | Header of int * int * int * string * indent_entry list  (* seq_id, new_scope_id, depth, content, children *)
-
-  (** Parse indentation structure of a multi-line string.
-      Returns a list of entries where indentation increases create sub-scopes.
-      get_seq_id is a callback to allocate fresh seq_ids. *)
-  let parse_indentation ~base_depth ~get_seq_id str =
-    let lines = String.split_on_char '\n' str in
-    let non_empty_lines = List.filter (fun s -> String.trim s <> "") lines in
-
-    if List.length non_empty_lines <= 1 then
-      (* Single line or empty - no structure to parse *)
-      []
-    else
-      let get_indent line =
-        let rec count_spaces i =
-          if i >= String.length line then i
-          else match line.[i] with
-          | ' ' | '\t' -> count_spaces (i + 1)
-          | _ -> i
-        in
-        count_spaces 0
-      in
-
-      (* Find minimum indentation to use as baseline *)
-      let min_indent =
-        List.fold_left
-          (fun acc line -> min acc (get_indent line))
-          max_int
-          non_empty_lines
-      in
-
-      (* Convert lines to (relative_indent, content) pairs *)
-      let indent_lines = List.map (fun line ->
-        let indent = get_indent line in
-        let content = String.trim line in
-        (indent - min_indent, content)
-      ) non_empty_lines in
-
-      (* Build tree: look ahead to see if next line is indented more *)
-      let rec process_lines = function
-        | [] -> []
-        | [(indent, content)] ->
-            (* Last line - always a value *)
-            [Value (get_seq_id (), base_depth + (indent / 2), content)]
-        | (indent, content) :: ((next_indent, _) :: _ as rest) when next_indent > indent ->
-            (* Next line is more indented - make this a header *)
-            let seq = get_seq_id () in
-            let new_scope_id = get_boxify_scope_id () in
-            let children, remaining = collect_children (next_indent, indent) rest in
-            let header = Header (seq, new_scope_id, base_depth + (indent / 2), content, children) in
-            header :: process_lines remaining
-        | (indent, content) :: rest ->
-            (* Same or less indentation - regular value *)
-            let value = Value (get_seq_id (), base_depth + (indent / 2), content) in
-            value :: process_lines rest
-
-      and collect_children (target_indent, parent_indent) = function
-        | [] -> ([], [])
-        | ((indent, content) :: rest) when indent = target_indent ->
-            (* Direct child at target indentation *)
-            let child = Value (get_seq_id (), base_depth + (indent / 2), content) in
-            let more_children, remaining = collect_children (target_indent, parent_indent) rest in
-            (child :: more_children, remaining)
-        | ((indent, _content) :: _rest) as all when indent > target_indent ->
-            (* Deeper indentation - skip for now (simplified) *)
-            ([], all)
-        | remaining ->
-            (* Back to parent level or less indentation *)
-            ([], remaining)
-      in
-
-      process_lines indent_lines
-
-  (** Insert indentation entries into database *)
-  let rec insert_indent_entries ~message ~is_result ~parent_scope_id entries =
-    List.iter (function
-      | Value (seq, depth, content) ->
-          insert_value_entry ~scope_id:parent_scope_id ~seq_id:seq ~depth ~message
-            ~content_str:content ~is_result
-      | Header (seq, new_scope_id, depth, content, children) ->
-          (* Insert header with data *)
-          insert_header_with_data ~parent_scope_id ~seq_id:seq ~new_scope_id ~depth ~message
-            ~content_str:content ~is_result;
-          (* Recursively insert children under the new scope_id *)
-          insert_indent_entries ~message:"" ~is_result:false ~parent_scope_id:new_scope_id children
-    ) entries
-
   (** Boxify a sexp: split it into multiple database entries with synthetic scope_ids.
       Directly inserts entries into the database, creating proper nested scope structure.
       Returns the number of entries inserted.
@@ -786,6 +700,7 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
       let is_result = is_toplevel && is_result in
 
       (* Check cache for this sexp - reuse existing scope_id if found *)
+      (* Uses MD5 content hash to avoid collisions from structurally similar sexps *)
       match SexpCache.find_opt sexp with
       | Some cached_scope_id when not is_toplevel ->
           (* Cache hit! Reuse the existing scope_id instead of creating new entries.
@@ -796,9 +711,22 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
           let db = get_db () in
           let intern = get_intern () in
 
+          (* Get the first atom from the cached sexp for the data field *)
+          let first_atom = match sexp with
+            | Atom s -> Some s
+            | List (Atom s :: _) -> Some s
+            | List _ -> Some "<scope>"
+          in
+
           (* Intern the message if present *)
           let message_value_id = if message = "" then None
             else Some (ValueIntern.intern intern ~value_type:"message" message) in
+
+          (* Intern data if present *)
+          let data_value_id = match first_atom with
+            | Some d -> Some (ValueIntern.intern intern ~value_type:"value" d)
+            | None -> None
+          in
 
           (* Get elapsed time *)
           let elapsed_start = Mtime_clock.elapsed () in
@@ -812,8 +740,8 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
           let stmt =
             Sqlite3.prepare db
               "INSERT INTO entries (scope_id, seq_id, child_scope_id, depth, \
-               message_value_id, elapsed_start_ns, elapsed_end_ns, is_result, \
-               log_level, entry_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+               message_value_id, data_value_id, elapsed_start_ns, elapsed_end_ns, is_result, \
+               log_level, entry_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
           in
           Sqlite3.bind_int stmt 1 parent_eid |> ignore;
           Sqlite3.bind_int stmt 2 seq_id |> ignore;
@@ -822,11 +750,14 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
           (match message_value_id with
            | Some mid -> Sqlite3.bind_int stmt 5 mid
            | None -> Sqlite3.bind stmt 5 Sqlite3.Data.NULL) |> ignore;
-          Sqlite3.bind_int stmt 6 elapsed_ns |> ignore;
+          (match data_value_id with
+           | Some did -> Sqlite3.bind_int stmt 6 did
+           | None -> Sqlite3.bind stmt 6 Sqlite3.Data.NULL) |> ignore;
           Sqlite3.bind_int stmt 7 elapsed_ns |> ignore;
-          Sqlite3.bind_int stmt 8 0 |> ignore;
-          Sqlite3.bind_int stmt 9 !log_level |> ignore;
-          Sqlite3.bind_text stmt 10 "value" |> ignore;
+          Sqlite3.bind_int stmt 8 elapsed_ns |> ignore;
+          Sqlite3.bind_int stmt 9 0 |> ignore;
+          Sqlite3.bind_int stmt 10 !log_level |> ignore;
+          Sqlite3.bind_text stmt 11 "value" |> ignore;
 
           (match Sqlite3.step stmt with
            | Sqlite3.Rc.DONE -> ()
@@ -835,77 +766,72 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
           incr num_inserted
       | _ ->
           (* Cache miss or toplevel - process normally and cache the result *)
-          let scope_before_processing = !boxify_scope_id_counter in
-          let process_and_cache () =
-            if sexp_size sexp < boxify_threshold then (
-        (* Small enough - insert as single entry with pretty-printed content *)
-        let content = Sexplib0.Sexp.to_string_hum sexp in
-        (* Check for multi-line and parse indentation if needed *)
-        let indent_entries = parse_indentation ~base_depth:depth ~get_seq_id:get_seq content in
-        if indent_entries = [] then (
-          insert_value_entry ~scope_id:parent_eid ~seq_id:(get_seq ()) ~depth
-            ~message ~content_str:content ~is_result;
-          incr num_inserted
-        ) else (
-          insert_indent_entries ~message ~is_result ~parent_scope_id:parent_eid indent_entries;
-          let count_entries entries =
-            let rec count = function
-              | Value _ -> 1
-              | Header (_, _, _, _, children) -> 1 + List.fold_left (fun acc child -> acc + count child) 0 children
-            in
-            List.fold_left (fun acc entry -> acc + count entry) 0 entries
-          in
-          num_inserted := !num_inserted + count_entries indent_entries
-        )
-      ) else
-        match sexp with
-        | Atom s ->
-            insert_value_entry ~scope_id:parent_eid ~seq_id:(get_seq ()) ~depth
-              ~message ~content_str:s ~is_result;
-            incr num_inserted
-        | List [] ->
-            if is_toplevel then (
-              if message <> "" || is_result then (
+          (* Process the sexp and return the scope_id created for it (if any) *)
+          let process_and_return_scope () =
+            (* Check structure FIRST before applying size threshold.
+               Always decompose List (Atom _ :: _) structures (ADT constructors)
+               regardless of size to preserve navigable tree structure. *)
+            match sexp with
+            | List (Atom s :: body) ->
+                (* Create a synthetic scope with first atom as header *)
+                let synthetic_id = get_boxify_scope_id () in
+                (* Insert header entry with first atom as content *)
+                insert_header_with_data ~parent_scope_id:parent_eid ~seq_id:(get_seq ())
+                  ~new_scope_id:synthetic_id ~depth ~message ~content_str:s
+                  ~is_result;
+                incr num_inserted;
+                (* Create new seq counter for the synthetic scope *)
+                let synthetic_seq = ref 0 in
+                let get_synthetic_seq () =
+                  let s = !synthetic_seq in
+                  incr synthetic_seq;
+                  s
+                in
+                (* Recursively process remaining elements under the synthetic scope *)
+                List.iter (fun child -> loop ~is_toplevel:false ~depth:(depth + 1) ~parent_eid:synthetic_id ~get_seq:get_synthetic_seq child) body;
+                (* Return the scope_id we created for THIS sexp *)
+                Some synthetic_id
+            | List body when is_toplevel ->
+                loop ~is_toplevel ~depth ~parent_eid ~get_seq (List (Atom "<scope>" :: body));
+                None
+            | _ when sexp_size sexp < boxify_threshold ->
+                (* Small enough - insert as single entry with pretty-printed content *)
+                let content = Sexplib0.Sexp.to_string_hum sexp in
                 insert_value_entry ~scope_id:parent_eid ~seq_id:(get_seq ()) ~depth
-                  ~message ~content_str:"()" ~is_result;
-                incr num_inserted
-              )
-            )
-        | List [ s ] -> loop ~is_toplevel ~depth:(depth + 1) ~parent_eid ~get_seq s
-        | List (Atom s :: body) ->
-            (* Create a synthetic scope with first atom as header *)
-            let synthetic_id = get_boxify_scope_id () in
-            (* Insert header entry with first atom as content *)
-            insert_header_with_data ~parent_scope_id:parent_eid ~seq_id:(get_seq ())
-              ~new_scope_id:synthetic_id ~depth ~message ~content_str:s
-              ~is_result;
-            incr num_inserted;
-            (* Create new seq counter for the synthetic scope *)
-            let synthetic_seq = ref 0 in
-            let get_synthetic_seq () =
-              let s = !synthetic_seq in
-              incr synthetic_seq;
-              s
-            in
-            (* Recursively process remaining elements under the synthetic scope *)
-            List.iter (fun child -> loop ~is_toplevel:false ~depth:(depth + 1) ~parent_eid:synthetic_id ~get_seq:get_synthetic_seq child) body
-        | List body when is_toplevel ->
-          loop ~is_toplevel ~depth ~parent_eid ~get_seq (List (Atom "<scope>" :: body))
-        | List l ->
-            (* Process each element of the list directly under current parent *)
-            List.iter (fun child -> loop ~is_toplevel:false ~depth:(depth + 1) ~parent_eid ~get_seq child) l
+                  ~message ~content_str:content ~is_result;
+                incr num_inserted;
+                None
+            | Atom s ->
+                insert_value_entry ~scope_id:parent_eid ~seq_id:(get_seq ()) ~depth
+                  ~message ~content_str:s ~is_result;
+                incr num_inserted;
+                None
+            | List [] ->
+                if is_toplevel then (
+                  if message <> "" || is_result then (
+                    insert_value_entry ~scope_id:parent_eid ~seq_id:(get_seq ()) ~depth
+                      ~message ~content_str:"()" ~is_result;
+                    incr num_inserted
+                  )
+                );
+                None
+            | List [ s ] ->
+                loop ~is_toplevel ~depth:(depth + 1) ~parent_eid ~get_seq s;
+                None
+            | List l ->
+                (* Process each element of the list directly under current parent *)
+                List.iter (fun child -> loop ~is_toplevel:false ~depth:(depth + 1) ~parent_eid ~get_seq child) l;
+                None
           in
 
-          (* Process the sexp *)
-          process_and_cache ();
+          (* Process the sexp and get the scope_id created for it *)
+          let created_scope_id_opt = process_and_return_scope () in
 
-          (* After processing, cache the scope_id for this sexp (if we created a new scope).
-             We cache the most recent synthetic scope created during this sexp's processing. *)
-          if not is_toplevel && scope_before_processing <> !boxify_scope_id_counter then (
-            (* A new scope was created - cache it *)
-            let created_scope_id = !boxify_scope_id_counter in
-            SexpCache.add sexp created_scope_id
-          )
+          (* Cache the scope_id if one was created and this is not a toplevel sexp *)
+          match created_scope_id_opt with
+          | Some created_scope_id when not is_toplevel ->
+              SexpCache.add sexp created_scope_id
+          | _ -> ()
     in
 
     loop ~is_toplevel:true ~depth ~parent_eid:parent_scope_id ~get_seq:get_next_seq sexp;
@@ -1044,41 +970,9 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
         ()
       )
       else (
-        (* Small sexp - pretty print and potentially parse indentation *)
+        (* Small sexp - pretty print and log as-is *)
         let content = Sexplib0.Sexp.to_string_hum sexp in
-        let depth =
-          match List.find_opt (fun e -> e.scope_id = scope_id) !stack with
-          | Some parent_entry -> parent_entry.depth + 1
-          | None -> List.length !stack
-        in
-        let parent_entry = List.find_opt (fun e -> e.scope_id = scope_id) !stack in
-        let seq_counter = ref (match parent_entry with Some p -> p.num_children | None -> 0) in
-        let get_seq_id () =
-          let s = !seq_counter in
-          incr seq_counter;
-          s
-        in
-        let indent_entries = parse_indentation ~base_depth:depth ~get_seq_id content in
-        if indent_entries = [] then
-          (* Single line - log as-is *)
-          log_value_common ~descr ~scope_id ~log_level ~is_result content
-        else (
-          (* Multi-line - insert with proper nesting based on indentation *)
-          insert_indent_entries ~message:(Option.value ~default:"" descr)
-            ~is_result ~parent_scope_id:scope_id indent_entries;
-          (* Update parent's num_children counter *)
-          let count_entries entries =
-            let rec count = function
-              | Value _ -> 1
-              | Header (_, _, _, _, children) -> 1 + List.fold_left (fun acc child -> acc + count child) 0 children
-            in
-            List.fold_left (fun acc entry -> acc + count entry) 0 entries
-          in
-          match List.find_opt (fun e -> e.scope_id = scope_id) !stack with
-          | Some parent_entry ->
-              parent_entry.num_children <- parent_entry.num_children + count_entries indent_entries
-          | None -> ()
-        )
+        log_value_common ~descr ~scope_id ~log_level ~is_result content
       )
 
   let log_value_pp ?descr ~scope_id ~log_level ~pp ~is_result v =

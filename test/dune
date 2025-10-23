@@ -461,3 +461,17 @@
  (alias runtest)
  (action
   (diff debugger_boxify_cache.expected.log debugger_boxify_cache.log)))
+
+(test
+ (name test_sexp_structure)
+ (modules test_sexp_structure)
+ (libraries sexplib0)
+ (preprocess
+  (pps ppx_sexp_conv)))
+
+(test
+ (name test_binary_tree)
+ (modules test_binary_tree)
+ (libraries sexplib0 minidebug_db)
+ (preprocess
+  (pps ppx_minidebug ppx_sexp_conv)))

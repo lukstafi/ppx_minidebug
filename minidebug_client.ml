@@ -947,9 +947,25 @@ module Renderer = struct
             List.iter (render_node ~indent:child_indent ~depth:(depth + 1)) non_results
         | true, _, _ ->
             (* Normal rendering mode - scope with children *)
+            (* For synthetic scopes (no location), show data inline with message *)
+            let is_synthetic = entry.location = None in
+
             (* Message and type *)
             Buffer.add_string buf
-              (Printf.sprintf "[%s] %s" entry.entry_type entry.message);
+              (Printf.sprintf "[%s]" entry.entry_type);
+
+            (* Show message and/or data *)
+            (match (entry.message, entry.data, is_synthetic) with
+            | (msg, Some data, true) when msg <> "" ->
+                (* Synthetic scope with both message and data: show as "message: data" *)
+                Buffer.add_string buf (Printf.sprintf " %s: %s" msg data)
+            | ("", Some data, true) ->
+                (* Synthetic scope with only data: show just data *)
+                Buffer.add_string buf (Printf.sprintf " %s" data)
+            | (msg, _, _) when msg <> "" ->
+                (* Has message: show it *)
+                Buffer.add_string buf (Printf.sprintf " %s" msg)
+            | _ -> ());
 
             (* Location *)
             (match entry.location with
@@ -966,9 +982,9 @@ module Renderer = struct
 
             Buffer.add_string buf "\n";
 
-            (* Data (if present and not a leaf) *)
+            (* Data (if present and not synthetic) *)
             (match entry.data with
-            | Some data when has_children ->
+            | Some data when has_children && not is_synthetic ->
                 Buffer.add_string buf (indent ^ "  ");
                 Buffer.add_string buf data;
                 Buffer.add_string buf "\n"

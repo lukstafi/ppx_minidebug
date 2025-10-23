@@ -1,10 +1,8 @@
 [debug] test_multiline_record @ test/test_indentation_parsing.ml:16:37-23:38
-  [value] 
-    ((very_long_field_name_one value_one) (very_long_field_name_two value_two)
-    (very_long_field_name_three value_three))
+  ((very_long_field_name_one value_one) (very_long_field_name_two value_two)
+ (very_long_field_name_three value_three))
 [debug] test_nested_list @ test/test_indentation_parsing.ml:25:32-32:40
-  [value] 
-    ((key_number_one_with_long_name "This is a value with substantial length")
-    (key_number_two_also_very_long
+  ((key_number_one_with_long_name "This is a value with substantial length")
+ (key_number_two_also_very_long
   "Another value that contributes to line length")
-  (key_three_similarly_lengthy "Final value to ensure proper formatting"))
+ (key_three_similarly_lengthy "Final value to ensure proper formatting"))

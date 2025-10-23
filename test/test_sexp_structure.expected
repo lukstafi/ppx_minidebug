@@ -1,0 +1,16 @@
+Testing sexp structure for tree type:
+
+Leaf 5:
+(Leaf 5)
+
+Node ("root", [Leaf 1; Leaf 2]):
+(Node root ((Leaf 1) (Leaf 2)))
+
+Node ("parent", [Node ("child", [Leaf 1; Leaf 2]); Leaf 3]):
+(Node parent ((Node child ((Leaf 1) (Leaf 2))) (Leaf 3)))
+
+shared_subtree:
+(Node shared
+ ((Leaf 1) (Leaf 2) (Node nested ((Leaf 3) (Leaf 4) (Leaf 5))) (Leaf 6)
+  (Leaf 7)))
+
