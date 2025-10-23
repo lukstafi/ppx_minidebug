@@ -572,8 +572,8 @@ module Query = struct
       in
 
       (* Helper to insert an entry into search results hash table *)
-      let insert_entry entry =
-        Hashtbl.replace results_table (entry.scope_id, entry.seq_id) ()
+      let insert_entry ?(is_match=false) entry =
+        Hashtbl.replace results_table (entry.scope_id, entry.seq_id) is_match
       in
 
       (* Stream entries, find matches, and build scope index in one pass *)
@@ -676,7 +676,7 @@ module Query = struct
               (* Direct parent doesn't match quiet_path - add it and propagate upward *)
               Hashtbl.add propagated direct_parent_id ();
               log_debug (Printf.sprintf "  propagate: adding direct parent %d to results" direct_parent_id);
-              insert_entry parent_scope;
+              insert_entry ~is_match:false parent_scope;
               incr propagation_count;
 
               (* Now propagate to ancestors *)
@@ -700,7 +700,7 @@ module Query = struct
                           (* Parent found and doesn't match quiet_path - mark it and continue *)
                           Hashtbl.add propagated parent_id ();
                           log_debug (Printf.sprintf "  propagate: parent_id=%d doesn't match quiet_path, adding to results" parent_id);
-                          insert_entry parent_entry;
+                          insert_entry ~is_match:false parent_entry;
                           incr propagation_count;
                           propagate_to_parent parent_id
                       | None ->
@@ -773,7 +773,7 @@ module Query = struct
                     false  (* Already highlighted, nothing to do *)
                   else
                     (* Check if any entries in this scope (hid) are already highlighted *)
-                    let scope_has_match = Hashtbl.fold (fun (sid, _) () acc ->
+                    let scope_has_match = Hashtbl.fold (fun (sid, _) _is_match acc ->
                       acc || sid = hid
                     ) results_table false in
                     if scope_has_match then (
@@ -785,14 +785,14 @@ module Query = struct
 
             if matches then (
               incr match_count;
-              insert_entry entry;
+              insert_entry ~is_match:true entry;
               (* Propagate to ancestors immediately if not a quiet_path match *)
               if not (matches_quiet_path entry) then
                 propagate_to_ancestors entry
             ) else if retroactive_highlight then (
               (* This scope header doesn't match search but has matching descendants - highlight it *)
               if not (matches_quiet_path entry) then (
-                insert_entry entry;
+                insert_entry ~is_match:false entry;
                 Hashtbl.add propagated (Option.get entry.child_scope_id) ();
                 incr propagation_count;
                 (* Continue propagating to this scope's ancestors *)
@@ -1171,9 +1171,10 @@ module Interactive = struct
     in
     select_with_retry ()
 
-  (** Hash set of (scope_id, seq_id) pairs matching a search term.
+  (** Hash table of (scope_id, seq_id) pairs matching a search term.
+      Value: true = actual search match, false = propagated ancestor highlight.
       This is shared memory written by background Domain, read by main TUI loop. *)
-  type search_results = ((int * int), unit) Hashtbl.t
+  type search_results = ((int * int), bool) Hashtbl.t
 
   type search_slot = {
     search_term : string;
@@ -1222,11 +1223,12 @@ module Interactive = struct
                        forward=false searches for matches with (scope_id, seq_id) < current
       Note: searches across all 4 search slots. *)
   let find_next_search_result ~search_slots ~current_scope_id ~current_seq_id ~forward =
-    (* Collect all matches from all slots into a single list *)
-    (* TODO: distinguish ancestor highlights from proper matches *)
+    (* Collect all actual matches (not propagated highlights) from all slots into a single list *)
     let all_matches = ref [] in
     SlotMap.iter (fun _idx slot ->
-          Hashtbl.iter (fun key () -> all_matches := key :: !all_matches) slot.results
+          Hashtbl.iter (fun key is_match ->
+            if is_match then all_matches := key :: !all_matches
+          ) slot.results
     ) search_slots;
 
     (* Sort by (scope_id, seq_id) *)
