@@ -2,15 +2,68 @@
 
 ### Added
 
-- TODO
+- **Database backend** with SQLite storage (`minidebug_db.ml`)
+  - Content-addressed value deduplication via MD5 hashing (O(1) lookup)
+  - Recursive sexp caching during boxify decomposition for structural deduplication
+  - Large value decomposition (boxify) with indentation-based parsing into nested scopes
+  - Schema versioning with automatic migration support (currently v3)
+  - Separate metadata database for tracking runs across versioned files
+- **Fast mode performance optimization** (~100x speedup)
+  - Top-level transaction scoping (BEGIN when stack empty, COMMIT when stack clears)
+  - DELETE journal with synchronous=OFF (trades durability for speed)
+  - Signal handlers (SIGINT, SIGTERM) and at_exit for safe commits
+- **File versioning** to prevent runtime conflicts
+  - Global atomic counter assigns unique run numbers (debug_1.db, debug_2.db, etc.)
+  - Symlink from base name to latest versioned file
+  - Multiple runtime instances in same process write to separate files
+- **Interactive TUI** (`minidebug_view db.db tui`)
+  - Navigation: arrow keys/j/k, PageUp/PageDown, Home/End
+  - Search: `/` for multi-slot concurrent search (4 slots: S1-S4) with background Domain
+  - Search result navigation: `n`/`N` jump to next/previous match with auto-expand
+  - Quiet path filtering: `Q` stops highlight propagation at matching ancestors
+  - Configurable search ordering: `o` toggles Ascending/Descending scope_id
+  - Expand/collapse: Space toggles selected entry
+  - Real-time incremental search results with ancestor path highlighting
+- **CLI tool** (`minidebug_view`) for database inspection
+  - `stats`: Database statistics and deduplication metrics
+  - `show`: Render trace tree with configurable depth/format
+  - `compact`: Function names only view with timing
+  - `search`: CLI-based pattern search
+  - `export`: Export to markdown format
+  - `roots`: Efficient top-level entry queries for large databases
 
 ### Changed
 
-- TODO
+- **Breaking**: Database backend is now the default and recommended approach
+- **Breaking**: Static file generation (PrintBox/Flushing) marked as deprecated
+- **Breaking**: Removed HTML/Markdown output, PrevRun diffs, file splitting, multifile output
+- **Breaking**: Database schema field renames in v2:
+  - `entry_id` → `scope_id` (identifies parent scope)
+  - `header_entry_id` → `child_scope_id` (points to child scope)
+  - `show_entry_ids` → `show_scope_ids`
+- **Breaking**: Removed `run_id` from composite keys (file versioning guarantees one run per file)
+- Migration from static backends: change `Minidebug_runtime.debug_file` to `Minidebug_db.debug_db_file`
+- `global_prefix` parameter renamed to `run_name` and stored in metadata database
+- `finish_and_cleanup()` now optional (automatic at_exit handlers in Fast mode)
+- Database created lazily (no file if log_level=0 or all logs filtered)
+- `values_first_mode` default changed to `true` for better rendering
 
 ### Fixed
 
-- TODO
+- TUI crash on EINTR from Unix.select (terminal resize signals)
+- Search highlight propagation to ancestors in TUI (retroactive highlighting for boxified values)
+- Quiet path filter propagation (proper boundary marking)
+- Multiple runtime instances writing to same database (file versioning eliminates conflicts)
+- Memory issues with large databases (streaming instead of loading all entries)
+- Boxify hash collisions (MD5 content hash instead of Hashtbl.hash)
+- Boxify cross-recursion scope_id reference bug
+- Database path resolution for versioned files in metadata queries
+- Chronological ordering of trace output (unified seq_id ordering)
+- Parameter/result value ordering (parameters before results)
+- Retroactive `no_debug_if` implementation for database backend
+- `%log_entry` dynamic scoping with database backend
+- Orphaned logs support (query database for next available seq_id)
+- Multiple tests migrated to database backend with proper expectations
 
 ## [2.4.0] -- 2025-10-03
 
