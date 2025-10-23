@@ -519,7 +519,8 @@ module Query = struct
     (* Log to file for debugging since TUI occupies terminal *)
     let log_debug msg =
       ignore msg
-      (* try
+      (* Uncomment to enable debug logging:
+      try
         let oc = open_out_gen [Open_append; Open_creat] 0o644 "/tmp/minidebug_search.log" in
         Printf.fprintf oc "[%s] %s\n" (Unix.gettimeofday () |> string_of_float) msg;
         close_out oc
@@ -599,12 +600,18 @@ module Query = struct
       let propagated = Hashtbl.create 64 in  (* Track propagated ancestors to avoid duplicates *)
       let propagation_count = ref 0 in
 
-      (* Helper to eagerly fetch and cache a scope entry by ID *)
+      (* Helper to eagerly fetch and cache a scope entry by ID.
+         Strategy: First check cache, then query for the header entry that creates this scope.
+         For incremental updates, we accept that some parent headers may not be found yet
+         (they'll be highlighted when the streaming query reaches them). *)
       let get_scope_entry scope_id =
         match Hashtbl.find_opt scope_by_id scope_id with
         | Some entry -> Some entry
         | None ->
-            (* Not in cache - fetch from database and cache it *)
+            (* Not in cache - fetch from database and cache it.
+               Query finds the header entry that creates scope_id (child_scope_id = scope_id).
+               NOTE: For incremental updates during streaming, this may return None if the
+               header hasn't been scanned yet. That's OK - we'll highlight it when we reach it. *)
             let query = {|
               SELECT e.scope_id, e.seq_id, e.child_scope_id, e.depth,
                      m.value_content as message, l.value_content as location, d.value_content as data,
@@ -639,7 +646,11 @@ module Query = struct
                   Hashtbl.add scope_by_id scope_id entry;
                   log_debug (Printf.sprintf "  get_scope_entry: fetched and cached scope %d" scope_id);
                   Some entry
-              | _ -> None
+              | _ ->
+                  (* Header not found - either it doesn't exist, or hasn't been scanned yet in streaming mode.
+                     For incremental updates, we'll just skip this ancestor for now. *)
+                  log_debug (Printf.sprintf "  get_scope_entry: scope %d header not found (may not be scanned yet)" scope_id);
+                  None
             in
             Sqlite3.finalize stmt |> ignore;
             result
@@ -744,12 +755,49 @@ module Query = struct
                   | None -> false)
             in
 
+            (* Also check if this is a scope header that should be retroactively highlighted
+               because one of its descendants was already matched (when child was scanned before parent).
+
+               This handles the case where:
+               1. A child entry was matched during streaming
+               2. propagate_to_ancestors was called, which tried to fetch this header via get_scope_entry
+               3. But this header hadn't been scanned yet, so get_scope_entry returned None
+               4. The scope_id was marked in 'propagated' table, but the header entry was never added to results_table
+               5. Now we're scanning the actual header entry - we need to add it if its scope has matches *)
+            let retroactive_highlight =
+              match entry.child_scope_id with
+              | Some hid ->
+                  (* Check if THIS HEADER ENTRY is already in results_table *)
+                  let header_already_highlighted = Hashtbl.mem results_table (entry.scope_id, entry.seq_id) in
+                  if header_already_highlighted then
+                    false  (* Already highlighted, nothing to do *)
+                  else
+                    (* Check if any entries in this scope (hid) are already highlighted *)
+                    let scope_has_match = Hashtbl.fold (fun (sid, _) () acc ->
+                      acc || sid = hid
+                    ) results_table false in
+                    if scope_has_match then (
+                      log_debug (Printf.sprintf "  Retroactive highlight: scope header (scope_id=%d,seq_id=%d) for child_scope_id=%d has matching descendants" entry.scope_id entry.seq_id hid);
+                      true
+                    ) else false
+              | None -> false
+            in
+
             if matches then (
               incr match_count;
               insert_entry entry;
               (* Propagate to ancestors immediately if not a quiet_path match *)
               if not (matches_quiet_path entry) then
                 propagate_to_ancestors entry
+            ) else if retroactive_highlight then (
+              (* This scope header doesn't match search but has matching descendants - highlight it *)
+              if not (matches_quiet_path entry) then (
+                insert_entry entry;
+                Hashtbl.add propagated (Option.get entry.child_scope_id) ();
+                incr propagation_count;
+                (* Continue propagating to this scope's ancestors *)
+                propagate_to_ancestors entry
+              )
             );
             if !processed_count mod 100000 = 0 then
               log_debug (Printf.sprintf "Processed %d entries, found %d matches, propagated %d ancestors"

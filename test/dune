@@ -463,6 +463,13 @@
   (diff debugger_boxify_cache.expected.log debugger_boxify_cache.log)))
 
 (test
+ (name test_highlight_propagation)
+ (modules test_highlight_propagation)
+ (libraries sexplib0 minidebug_db minidebug_client)
+ (preprocess
+  (pps ppx_minidebug ppx_sexp_conv)))
+
+(test
  (name test_sexp_structure)
  (modules test_sexp_structure)
  (libraries sexplib0)
