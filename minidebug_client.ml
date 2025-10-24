@@ -958,9 +958,10 @@ module Renderer = struct
             (match entry.data with Some data -> Buffer.add_string buf data | None -> ());
 
             Buffer.add_string buf "\n"
-        | true, true, [ result_child ] when result_child.children = [] ->
+        | true, true, [ result_child ] when result_child.children = [] && result_child.entry.child_scope_id = None ->
             (* Scope node with single value result in values_first_mode: combine on one line *)
             (* Format: [type] message => result.message result_value <time> @ location *)
+            (* NOTE: Only combine if result is a simple value, not a scope/header *)
             Buffer.add_string buf
               (Printf.sprintf "[%s] %s" entry.entry_type entry.message);
 
@@ -1042,7 +1043,7 @@ module Renderer = struct
             let child_indent = indent ^ "  " in
             if values_first_mode then
               match results with
-              | [ result_child ] when result_child.children = [] ->
+              | [ result_child ] when result_child.children = [] && result_child.entry.child_scope_id = None ->
                   (* Single value result was combined with header, skip it *)
                   List.iter
                     (render_node ~indent:child_indent ~depth:(depth + 1))
@@ -1330,13 +1331,9 @@ module Interactive = struct
                 let results, non_results = List.partition (fun e -> e.Query.is_result) children in
                 match results with
                 | [ single_result ] ->
-                    (* Check if the single result has no children of its own *)
-                    let result_has_children =
-                      match single_result.child_scope_id with
-                      | Some hid -> Query.has_children db ~parent_scope_id:hid
-                      | None -> false
-                    in
-                    if not result_has_children then
+                    (* Don't combine if result is itself a scope/header (e.g., synthetic scopes from boxify).
+                       Only combine simple value results with their parent headers. *)
+                    if single_result.child_scope_id = None then
                       (* Single childless result: normally skip it (will be combined with header).
                          BUT: if this result is a search match, we must show it separately! *)
                       let result_is_search_match =
@@ -1404,13 +1401,9 @@ module Interactive = struct
           let results, _non_results = List.partition (fun e -> e.Query.is_result) children in
           (match results with
           | [ single_result ] ->
-              (* Check if the single result has no children of its own *)
-              let result_has_children =
-                match single_result.child_scope_id with
-                | Some hid -> Query.has_children db ~parent_scope_id:hid
-                | None -> false
-              in
-              if not result_has_children then
+              (* Don't combine if result is itself a scope/header (e.g., synthetic scopes from boxify).
+                 Only combine simple value results with their parent headers. *)
+              if single_result.child_scope_id = None then
                 (* Combine result with header: [type] message => result_data *)
                 let result_data = Option.value ~default:"" single_result.data in
                 let result_msg = single_result.message in
@@ -1428,8 +1421,16 @@ module Interactive = struct
                   entry.entry_type entry.message
           | _ ->
               (* Multiple results or no results: normal rendering *)
+              (* For synthetic scopes (no location), show data inline with message *)
+              let is_synthetic = entry.location = None in
+              let display_text = match (entry.message, entry.data, is_synthetic) with
+                | (msg, Some data, true) when msg <> "" -> Printf.sprintf "%s: %s" msg data
+                | ("", Some data, true) -> data
+                | (msg, _, _) when msg <> "" -> msg
+                | _ -> ""
+              in
               Printf.sprintf "%s%s[%s] %s" indent expansion_mark
-                entry.entry_type entry.message)
+                entry.entry_type display_text)
       | Some _ ->
           (* Header/scope - normal rendering *)
           let display_text =
