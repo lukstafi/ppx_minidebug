@@ -1611,7 +1611,7 @@ module Interactive = struct
             | Some _ ->
                 "[Enter] Confirm search | [Esc] Cancel | [Backspace] Delete"
             | None ->
-                "[↑/↓] Navigate | [PgUp/PgDn] Page | [n/N] Next/Prev Match | [Enter] Expand | [/] Search | [Q] Quiet path | [t] Times | [v] Values | [o] Order | [q] Quit"
+                "[↑/↓] Navigate | [Home/End] First/Last | [PgUp/PgDn] Page | [u/d] Quarter | [n/N] Next/Prev Match | [Enter/Space] Expand | [/] Search | [Q] Quiet | [t] Times | [v] Values | [o] Order | [q] Quit"
         )
       in
       I.vcat [
@@ -1819,7 +1819,17 @@ module Interactive = struct
         in
         Some { state with cursor = new_cursor; scroll_offset = new_scroll }
 
-    | `Enter, _ ->
+    | `Home, _ ->
+        (* Jump to first entry *)
+        Some { state with cursor = 0; scroll_offset = 0 }
+
+    | `End, _ ->
+        (* Jump to last entry *)
+        let max_cursor = Array.length state.visible_items - 1 in
+        let new_scroll = max 0 (max_cursor - content_height + 1) in
+        Some { state with cursor = max_cursor; scroll_offset = new_scroll }
+
+    | `Enter, _ | `ASCII ' ', _ ->
         Some (toggle_expansion state)
 
     | `ASCII 't', _ ->
@@ -1862,6 +1872,26 @@ module Interactive = struct
         else
           (* Move cursor to bottom of current view *)
           Some { state with cursor = bottom_of_screen }
+
+    | `ASCII 'u', _ ->
+        (* Quarter-page Up: Scroll up by content_height / 4 *)
+        let quarter_page = max 1 (content_height / 4) in
+        let new_cursor = max 0 (state.cursor - quarter_page) in
+        let new_scroll = max 0 (min state.scroll_offset new_cursor) in
+        Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+
+    | `ASCII 'd', _ ->
+        (* Quarter-page Down: Scroll down by content_height / 4 *)
+        let max_cursor = Array.length state.visible_items - 1 in
+        let quarter_page = max 1 (content_height / 4) in
+        let new_cursor = min max_cursor (state.cursor + quarter_page) in
+        let new_scroll =
+          if new_cursor >= state.scroll_offset + content_height then
+            min (max 0 (max_cursor - content_height + 1))
+                (new_cursor - content_height + 1)
+          else state.scroll_offset
+        in
+        Some { state with cursor = new_cursor; scroll_offset = new_scroll }
 
     | `ASCII 'n', _ ->
         (* Next search result - searches entire DB and auto-expands path *)

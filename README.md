@@ -68,10 +68,11 @@ minidebug_view trace.db tui
 ```
 
 **Navigation:**
-- `↑`/`↓` or `j`/`k`: Move cursor
-- `Space`: Expand/collapse entry
-- `PgUp`/`PgDown`: Page navigation
+- `↑`/`↓` or `j`/`k`: Move cursor up/down
 - `Home`/`End`: Jump to first/last entry
+- `PgUp`/`PgDown` (or `Fn+↑`/`Fn+↓`): Page navigation
+- `u`/`d`: Quarter-page navigation (1/4 screen)
+- `Enter` or `Space`: Expand/collapse entry
 
 **Search:**
 - `/`: Open search prompt (supports 4 concurrent searches: S1-S4)
@@ -79,7 +80,9 @@ minidebug_view trace.db tui
 - `Q`: Set quiet path filter (stops highlight propagation at matching ancestors)
 - `o`: Toggle search ordering (Ascending/Descending scope_id)
 
-**Other:**
+**Display:**
+- `t`: Toggle elapsed times
+- `v`: Toggle values-first mode
 - `q`: Quit
 
 ![Screenshot showing search results with highlighted paths](doc/tui-search_results.png)
