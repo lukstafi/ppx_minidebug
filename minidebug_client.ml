@@ -1296,7 +1296,7 @@ module Interactive = struct
       | None -> None  (* No parent found *)
 
   (** Build visible items list from database using lazy loading *)
-  let build_visible_items db expanded values_first =
+  let build_visible_items db expanded values_first ~search_slots ~current_slot =
     let rec flatten_entry ~depth entry =
       (* Check if this entry actually has children *)
       let is_expandable =
@@ -1337,8 +1337,16 @@ module Interactive = struct
                       | None -> false
                     in
                     if not result_has_children then
-                      (* Single childless result: skip it, will be combined with header *)
-                      non_results
+                      (* Single childless result: normally skip it (will be combined with header).
+                         BUT: if this result is a search match, we must show it separately! *)
+                      let result_is_search_match =
+                        get_search_match ~search_slots ~scope_id:single_result.scope_id
+                          ~seq_id:single_result.seq_id ~current_slot <> None
+                      in
+                      if result_is_search_match then
+                        children  (* Show all children including the matched result *)
+                      else
+                        non_results  (* Skip result, combine with header *)
                     else
                       (* Result has children: show all *)
                       children
@@ -1627,7 +1635,7 @@ module Interactive = struct
               Hashtbl.add state.expanded hid ();
 
             (* Rebuild visible items *)
-            let new_visible = build_visible_items state.db state.expanded state.values_first in
+            let new_visible = build_visible_items state.db state.expanded state.values_first ~search_slots:state.search_slots ~current_slot:state.current_slot in
             { state with visible_items = new_visible }
         | None -> state
       ) else state
@@ -1650,19 +1658,22 @@ module Interactive = struct
       ~current_scope_id ~current_seq_id ~forward with
     | None -> None  (* No more search results *)
     | Some (target_scope_id, target_seq_id) ->
-        (* Expand all ancestors of the target entry *)
+        (* Expand all ancestors of the target entry.
+           get_ancestors returns [target_scope_id; parent; grandparent; ...].
+           Since target entry lives inside target_scope_id, we must expand target_scope_id
+           and all its ancestors to make the path visible. *)
         let ancestors = Query.get_ancestors state.db ~scope_id:target_scope_id in
         List.iter (fun ancestor_id ->
           Hashtbl.replace state.expanded ancestor_id ()
         ) ancestors;
 
         (* Rebuild visible items with expanded path *)
-        let new_visible = build_visible_items state.db state.expanded state.values_first in
+        let new_visible = build_visible_items state.db state.expanded state.values_first ~search_slots:state.search_slots ~current_slot:state.current_slot in
 
         (* Find the target entry in the new visible items *)
         let rec find_in_visible idx =
           if idx >= Array.length new_visible then
-            None  (* Shouldn't happen, but handle gracefully *)
+            None  (* Entry not found after expansion - may be filtered or invalid *)
           else
             let item = new_visible.(idx) in
             if item.entry.scope_id = target_scope_id && item.entry.seq_id = target_seq_id then
@@ -1672,7 +1683,11 @@ module Interactive = struct
         in
 
         match find_in_visible 0 with
-        | None -> None  (* Couldn't find target in visible items *)
+        | None ->
+            (* Couldn't find target in visible items - return updated state anyway
+               so user sees the expanded path. The target may become visible after
+               manual navigation. *)
+            Some { state with visible_items = new_visible }
         | Some new_cursor ->
             (* Calculate scroll offset to center the match on screen *)
             let (_, term_height) = Term.size (Term.create ()) in
@@ -1811,7 +1826,7 @@ module Interactive = struct
 
     | `ASCII 'v', _ ->
         let new_values_first = not state.values_first in
-        let new_visible = build_visible_items state.db state.expanded new_values_first in
+        let new_visible = build_visible_items state.db state.expanded new_values_first ~search_slots:state.search_slots ~current_slot:state.current_slot in
         Some { state with values_first = new_values_first; visible_items = new_visible }
 
     | `ASCII 'o', _ ->
@@ -1867,7 +1882,9 @@ module Interactive = struct
   let run db db_path =
     let expanded = Hashtbl.create 64 in
     let values_first = true in
-    let visible_items = build_visible_items db expanded values_first in
+    (* Initialize with empty search slots for initial build *)
+    let empty_search_slots = SlotMap.empty in
+    let visible_items = build_visible_items db expanded values_first ~search_slots:empty_search_slots ~current_slot:S1 in
     let max_scope_id = Query.get_max_scope_id db in
 
     (* Initialize empty search slots (no persistence across TUI sessions) *)
