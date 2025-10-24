@@ -334,6 +334,8 @@ Two-level deduplication minimizes database size:
 
 Example: Logging a list of 1000 identical trees stores each unique tree structure only once.
 
+This scales to much bigger logging loads, in particular when the sharing opportunity is exposed. Taking full benefit of deduplication requires some work on / adaptation of the debugged program, because persistent data-structures in OCaml typically don't expose the underlying tree structure, and their default `sexp_of` conversions serialize into flat lists. 
+
 ## Type Annotations
 
 `ppx_minidebug` requires type annotations to determine how to serialize values:
