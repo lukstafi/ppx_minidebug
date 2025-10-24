@@ -30,6 +30,8 @@ depends: [
   "thread-local-storage" {>= "0.2"}
   "mdx" {>= "2.5.0"}
   "sqlite3"
+  "notty" {>= "0.2"}
+  "nottui-unix"
 ]
 build: [
   ["dune" "subst"] {dev}

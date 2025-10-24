@@ -60,6 +60,9 @@
    (>= 0.2))
   (mdx
    (>= 2.5.0))
-  sqlite3)
+  sqlite3
+  (notty
+   (>= 0.2))
+  nottui-unix)
  (tags
   (logger debugger "printf debugging")))
