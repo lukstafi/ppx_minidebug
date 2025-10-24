@@ -1,7 +1,7 @@
 (include_subdirs unqualified)
 
 (documentation
- (mld_files index))
+ (mld_files index index_legacy))
 
 (executable
  (name sync_to_md)
@@ -22,5 +22,5 @@
   (run %{dep:sync_to_md.exe})))
 
 (mdx
- (files index.mld)
+ (files index_legacy.mld)
  (libraries minidebug_runtime))

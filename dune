@@ -44,5 +44,5 @@
  (libraries sqlite3 re re.pcre unix notty notty.unix))
 
 (mdx
- (files README.md)
+ (files README_LEGACY.md)
  (libraries minidebug_runtime))
