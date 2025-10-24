@@ -26,7 +26,7 @@ let foo (x : int) =
       Debug_runtime.log_value_show ?descr:(Some "x") ~scope_id:__scope_id
         ~log_level:1 ~is_result:false (lazy (([%show : int]) x)));
      ();
-     (match let y =
+     (match let y : int =
               let __scope_id = Debug_runtime.get_scope_id () in
               Debug_runtime.open_log
                 ~fname:"test_debug_log_level_consistency.ml" ~start_lnum:8

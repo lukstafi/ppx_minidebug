@@ -8,7 +8,7 @@ let foo (x : int) =
     Debug_runtime.log_value_sexp ?descr:(Some "x") ~scope_id:__scope_id
       ~log_level:1 ~is_result:false (lazy (([%sexp_of : int]) x)));
    ();
-   (match let y =
+   (match let y : int =
             let __scope_id = Debug_runtime.get_scope_id () in
             Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:8
               ~start_colnum:6 ~end_lnum:8 ~end_colnum:7 ~message:"y"
@@ -52,7 +52,7 @@ let bar (x : t) =
     Debug_runtime.log_value_sexp ?descr:(Some "x") ~scope_id:__scope_id
       ~log_level:1 ~is_result:false (lazy (([%sexp_of : t]) x)));
    ();
-   (match let y =
+   (match let y : int =
             let __scope_id = Debug_runtime.get_scope_id () in
             Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:16
               ~start_colnum:6 ~end_lnum:16 ~end_colnum:7 ~message:"y"
@@ -93,7 +93,7 @@ let baz (x : t) =
     Debug_runtime.log_value_sexp ?descr:(Some "x") ~scope_id:__scope_id
       ~log_level:1 ~is_result:false (lazy (([%sexp_of : t]) x)));
    ();
-   (match let (y, z) as _yz =
+   (match let ((y, z) as _yz) : (int * int) =
             let __scope_id = Debug_runtime.get_scope_id () in
             Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:22
               ~start_colnum:17 ~end_lnum:22 ~end_colnum:20 ~message:"_yz"
@@ -112,7 +112,7 @@ let baz (x : t) =
                  (Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
                     ~start_lnum:22 ~scope_id:__scope_id;
                   raise e)) in
-          let (u, w) as _uw =
+          let ((u, w) as _uw) : (int * int) =
             let __scope_id = Debug_runtime.get_scope_id () in
             Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:23
               ~start_colnum:17 ~end_lnum:23 ~end_colnum:20 ~message:"_uw"
@@ -153,7 +153,7 @@ let lab ~x:(x : int) =
     Debug_runtime.log_value_sexp ?descr:(Some "x") ~scope_id:__scope_id
       ~log_level:1 ~is_result:false (lazy (([%sexp_of : int]) x)));
    ();
-   (match let y =
+   (match let y : int =
             let __scope_id = Debug_runtime.get_scope_id () in
             Debug_runtime.open_log ~fname:"test_debug_sexp.ml" ~start_lnum:29
               ~start_colnum:6 ~end_lnum:29 ~end_colnum:7 ~message:"y"
@@ -204,7 +204,7 @@ let rec loop (depth : int) (x : t) =
               loop (depth + 1)
                 { first = (x.second + 1); second = (x.first / 2) }
             else
-              (let y =
+              (let y : int =
                  let __scope_id = Debug_runtime.get_scope_id () in
                  Debug_runtime.open_log ~fname:"test_debug_sexp.ml"
                    ~start_lnum:38 ~start_colnum:8 ~end_lnum:38 ~end_colnum:9
@@ -225,7 +225,7 @@ let rec loop (depth : int) (x : t) =
                       (Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
                          ~start_lnum:38 ~scope_id:__scope_id;
                        raise e)) in
-               let z =
+               let z : int =
                  let __scope_id = Debug_runtime.get_scope_id () in
                  Debug_runtime.open_log ~fname:"test_debug_sexp.ml"
                    ~start_lnum:39 ~start_colnum:8 ~end_lnum:39 ~end_colnum:9

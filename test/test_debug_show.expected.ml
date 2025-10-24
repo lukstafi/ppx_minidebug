@@ -11,7 +11,7 @@ let foo (x : int) =
       Debug_runtime.log_value_show ?descr:(Some "x") ~scope_id:__scope_id
         ~log_level:1 ~is_result:false (lazy (([%show : int]) x)));
      ();
-     (match let y =
+     (match let y : int =
               let __scope_id = Debug_runtime.get_scope_id () in
               Debug_runtime.open_log ~fname:"test_debug_show.ml"
                 ~start_lnum:6 ~start_colnum:6 ~end_lnum:6 ~end_colnum:7
@@ -58,7 +58,7 @@ let bar (x : t) =
       Debug_runtime.log_value_show ?descr:(Some "x") ~scope_id:__scope_id
         ~log_level:1 ~is_result:false (lazy (([%show : t]) x)));
      ();
-     (match let y =
+     (match let y : int =
               let __scope_id = Debug_runtime.get_scope_id () in
               Debug_runtime.open_log ~fname:"test_debug_show.ml"
                 ~start_lnum:14 ~start_colnum:6 ~end_lnum:14 ~end_colnum:7
@@ -102,7 +102,7 @@ let baz (x : t) =
       Debug_runtime.log_value_show ?descr:(Some "x") ~scope_id:__scope_id
         ~log_level:1 ~is_result:false (lazy (([%show : t]) x)));
      ();
-     (match let (y, z) as _yz =
+     (match let ((y, z) as _yz) : (int * int) =
               let __scope_id = Debug_runtime.get_scope_id () in
               Debug_runtime.open_log ~fname:"test_debug_show.ml"
                 ~start_lnum:20 ~start_colnum:17 ~end_lnum:20 ~end_colnum:20
@@ -157,7 +157,7 @@ let rec loop (depth : int) (x : t) =
                 loop (depth + 1)
                   { first = (x.second + 1); second = (x.first / 2) }
               else
-                (let y =
+                (let y : int =
                    let __scope_id = Debug_runtime.get_scope_id () in
                    Debug_runtime.open_log ~fname:"test_debug_show.ml"
                      ~start_lnum:29 ~start_colnum:8 ~end_lnum:29
@@ -180,7 +180,7 @@ let rec loop (depth : int) (x : t) =
                         (Debug_runtime.close_log ~fname:"test_debug_show.ml"
                            ~start_lnum:29 ~scope_id:__scope_id;
                          raise e)) in
-                 let z =
+                 let z : int =
                    let __scope_id = Debug_runtime.get_scope_id () in
                    Debug_runtime.open_log ~fname:"test_debug_show.ml"
                      ~start_lnum:30 ~start_colnum:8 ~end_lnum:30

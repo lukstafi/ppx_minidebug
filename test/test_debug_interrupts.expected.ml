@@ -53,7 +53,7 @@ let rec loop_exceeded (x : int) =
              ~scope_id:__scope_id ~log_level:1 ~is_result:false
              (lazy (([%show : int]) x)));
           ();
-          (match let z =
+          (match let z : int =
                    let __scope_id = Debug_runtime.get_scope_id () in
                    if Debug_runtime.exceeds_max_children ()
                    then
@@ -216,7 +216,7 @@ let bar () =
                                  ?descr:(Some "i : int") ~scope_id:__scope_id
                                  ~log_level:1 ~is_result:false
                                  (lazy (([%show : int]) i));
-                               (match let _baz =
+                               (match let _baz : int =
                                         let __scope_id =
                                           Debug_runtime.get_scope_id () in
                                         if

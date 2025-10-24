@@ -15,7 +15,7 @@ let bar (x : t) =
       Debug_runtime.log_value_pp ?descr:(Some "x") ~scope_id:__scope_id
         ~log_level:1 ~pp ~is_result:false (lazy x));
      ();
-     (match let y =
+     (match let y : num =
               let __scope_id = Debug_runtime.get_scope_id () in
               Debug_runtime.open_log ~fname:"test_debug_pp.ml" ~start_lnum:9
                 ~start_colnum:6 ~end_lnum:9 ~end_colnum:7 ~message:"y"
@@ -59,7 +59,7 @@ let baz (x : t) =
       Debug_runtime.log_value_pp ?descr:(Some "x") ~scope_id:__scope_id
         ~log_level:1 ~pp ~is_result:false (lazy x));
      ();
-     (match let { first = y; second = z } as _yz =
+     (match let ({ first = y; second = z } as _yz) : t =
               let __scope_id = Debug_runtime.get_scope_id () in
               Debug_runtime.open_log ~fname:"test_debug_pp.ml" ~start_lnum:15
                 ~start_colnum:36 ~end_lnum:15 ~end_colnum:39 ~message:"_yz"
@@ -113,7 +113,7 @@ let rec loop (depth : num) (x : t) =
                 loop (depth + 1)
                   { first = (x.second + 1); second = (x.first / 2) }
               else
-                (let y =
+                (let y : num =
                    let __scope_id = Debug_runtime.get_scope_id () in
                    Debug_runtime.open_log ~fname:"test_debug_pp.ml"
                      ~start_lnum:24 ~start_colnum:8 ~end_lnum:24
@@ -136,7 +136,7 @@ let rec loop (depth : num) (x : t) =
                         (Debug_runtime.close_log ~fname:"test_debug_pp.ml"
                            ~start_lnum:24 ~scope_id:__scope_id;
                          raise e)) in
-                 let z =
+                 let z : num =
                    let __scope_id = Debug_runtime.get_scope_id () in
                    Debug_runtime.open_log ~fname:"test_debug_pp.ml"
                      ~start_lnum:25 ~start_colnum:8 ~end_lnum:25

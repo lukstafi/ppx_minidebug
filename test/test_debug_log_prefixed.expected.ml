@@ -11,7 +11,7 @@ let rec loop_exceeded (x : int) =
         ~message:"loop_exceeded" ~scope_id:__scope_id ~log_level:1 `Diagn;
       ());
      ();
-     (match let z =
+     (match let z : int =
               Debug_runtime.log_value_show ?descr:None ~scope_id:__scope_id
                 ~log_level:2 ~is_result:false
                 (lazy (([%show : (string * int)]) ("inside loop", (x : int))));
@@ -55,7 +55,7 @@ let bar () =
                      Debug_runtime.log_value_show ?descr:(Some "i")
                        ~scope_id:__scope_id ~log_level:1 ~is_result:false
                        (lazy (([%show : int]) i));
-                     (match let _baz =
+                     (match let _baz : int =
                               let __scope_id = Debug_runtime.get_scope_id () in
                               Debug_runtime.open_log
                                 ~fname:"test_debug_log_prefixed.ml"
