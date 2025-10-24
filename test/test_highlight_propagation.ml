@@ -39,4 +39,5 @@ let () =
   print_string output;
 
   Sqlite3.db_close db |> ignore;
-  Printf.printf "\nSUCCESS: Database with nested structures created and queried successfully.\n%!"
+  Printf.printf
+    "\nSUCCESS: Database with nested structures created and queried successfully.\n%!"

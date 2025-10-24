@@ -1,7 +1,7 @@
 === Test structural splitting with threshold (size 10) ===
 [debug] test_small @ test/test_boxify_sexp.ml:11:28-13:45
   ("This is the" 2 "log line")
-[debug] test_medium @ test/test_boxify_sexp.ml:15:29-17:104
+[debug] test_medium @ test/test_boxify_sexp.ml:15:29-29:8
   [value] item1
     item2
     item3
@@ -12,7 +12,7 @@
     item8
     item9
     item10
-[debug] test_large @ test/test_boxify_sexp.ml:19:28-21:73
+[debug] test_large @ test/test_boxify_sexp.ml:31:28-33:73
   [value] <scope>
     [value] a
       1

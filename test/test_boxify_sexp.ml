@@ -14,7 +14,19 @@ let () =
   in
   let%debug_sexp test_medium () : unit =
     (* Medium sexp - will be structurally split (11 atoms >= 10) *)
-    [%log [ "item1"; "item2"; "item3"; "item4"; "item5"; "item6"; "item7"; "item8"; "item9"; "item10" ]]
+    [%log
+      [
+        "item1";
+        "item2";
+        "item3";
+        "item4";
+        "item5";
+        "item6";
+        "item7";
+        "item8";
+        "item9";
+        "item10";
+      ]]
   in
   let%debug_sexp test_large () : unit =
     (* Large sexp with nested structure - will be structurally split *)

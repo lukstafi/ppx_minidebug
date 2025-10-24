@@ -25,24 +25,15 @@ let () =
   let shared_subtree =
     Node
       ( "shared",
-        [
-          Leaf 1;
-          Leaf 2;
-          Node ("nested", [ Leaf 3; Leaf 4; Leaf 5 ]);
-          Leaf 6;
-          Leaf 7;
-        ] )
+        [ Leaf 1; Leaf 2; Node ("nested", [ Leaf 3; Leaf 4; Leaf 5 ]); Leaf 6; Leaf 7 ] )
   in
 
   (* Create a tree with repeated references to the same structure *)
   let tree =
     Node
       ( "root",
-        [
-          shared_subtree;
-          Node ("middle", [ shared_subtree; Leaf 10 ]);
-          shared_subtree;
-        ] )
+        [ shared_subtree; Node ("middle", [ shared_subtree; Leaf 10 ]); shared_subtree ]
+      )
   in
 
   let result = process_tree tree in

@@ -35,8 +35,8 @@ module Query = struct
     database_size_kb : int;
   }
 
-  (** Helper: normalize db_path by removing versioned suffix (_N.db -> .db).
-      Examples: debug_1.db -> debug.db, debug_23.db -> debug.db, debug.db -> debug.db *)
+  (** Helper: normalize db_path by removing versioned suffix (_N.db -> .db). Examples:
+      debug_1.db -> debug.db, debug_23.db -> debug.db, debug.db -> debug.db *)
   let normalize_db_path db_path =
     let base = Filename.remove_extension db_path in
     let ext = Filename.extension db_path in
@@ -46,23 +46,25 @@ module Query = struct
       | None -> base
       | Some idx ->
           let suffix = String.sub base (idx + 1) (String.length base - idx - 1) in
-          if String.length suffix > 0 && String.for_all (fun c -> c >= '0' && c <= '9') suffix
-          then String.sub base 0 idx  (* Remove _N *)
+          if
+            String.length suffix > 0
+            && String.for_all (fun c -> c >= '0' && c <= '9') suffix
+          then String.sub base 0 idx (* Remove _N *)
           else base
     in
     normalized_base ^ ext
 
-  (** Get all runs from metadata database.
-      For versioned databases (schema v3+), this queries the metadata DB.
-      Falls back to querying the versioned DB for backwards compatibility. *)
+  (** Get all runs from metadata database. For versioned databases (schema v3+), this
+      queries the metadata DB. Falls back to querying the versioned DB for backwards
+      compatibility. *)
   let get_runs_from_meta_db meta_db_path =
     if not (Sys.file_exists meta_db_path) then []
     else
       let db = Sqlite3.db_open meta_db_path in
       let stmt =
         Sqlite3.prepare db
-          "SELECT run_id, run_name, timestamp, elapsed_ns, command_line FROM runs ORDER BY \
-           run_id DESC"
+          "SELECT run_id, run_name, timestamp, elapsed_ns, command_line FROM runs ORDER \
+           BY run_id DESC"
       in
       let runs = ref [] in
       let rec loop () =
@@ -89,7 +91,8 @@ module Query = struct
       Sqlite3.db_close db |> ignore;
       List.rev !runs
 
-  (** Get all runs - tries metadata DB first, falls back to versioned DB for old schemas *)
+  (** Get all runs - tries metadata DB first, falls back to versioned DB for old schemas
+  *)
   let get_runs db_path =
     (* Normalize path (debug_1.db -> debug.db) then look for metadata DB *)
     let normalized = normalize_db_path db_path in
@@ -97,8 +100,8 @@ module Query = struct
     let meta_path = Printf.sprintf "%s_meta.db" base in
     match get_runs_from_meta_db meta_path with
     | [] ->
-        (* No metadata DB or empty - this might be an old schema v2 database.
-           Return empty list since v2 databases don't have runs table. *)
+        (* No metadata DB or empty - this might be an old schema v2 database. Return empty
+           list since v2 databases don't have runs table. *)
         []
     | runs -> runs
 
@@ -181,9 +184,7 @@ module Query = struct
                 | _ -> None);
               depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
               message =
-                (match Sqlite3.column stmt 4 with
-                | Sqlite3.Data.TEXT s -> s
-                | _ -> "");
+                (match Sqlite3.column stmt 4 with Sqlite3.Data.TEXT s -> s | _ -> "");
               location =
                 (match Sqlite3.column stmt 5 with
                 | Sqlite3.Data.TEXT s -> Some s
@@ -350,9 +351,7 @@ module Query = struct
                 | _ -> None);
               depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
               message =
-                (match Sqlite3.column stmt 4 with
-                | Sqlite3.Data.TEXT s -> s
-                | _ -> "");
+                (match Sqlite3.column stmt 4 with Sqlite3.Data.TEXT s -> s | _ -> "");
               location =
                 (match Sqlite3.column stmt 5 with
                 | Sqlite3.Data.TEXT s -> Some s
@@ -391,11 +390,7 @@ module Query = struct
     in
     let stmt = Sqlite3.prepare db query in
     Sqlite3.bind_int stmt 1 parent_scope_id |> ignore;
-    let has_child =
-      match Sqlite3.step stmt with
-      | Sqlite3.Rc.ROW -> true
-      | _ -> false
-    in
+    let has_child = match Sqlite3.step stmt with Sqlite3.Rc.ROW -> true | _ -> false in
     Sqlite3.finalize stmt |> ignore;
     has_child
 
@@ -465,9 +460,7 @@ module Query = struct
                 | _ -> None);
               depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
               message =
-                (match Sqlite3.column stmt 4 with
-                | Sqlite3.Data.TEXT s -> s
-                | _ -> "");
+                (match Sqlite3.column stmt 4 with Sqlite3.Data.TEXT s -> s | _ -> "");
               location =
                 (match Sqlite3.column stmt 5 with
                 | Sqlite3.Data.TEXT s -> Some s
@@ -494,42 +487,41 @@ module Query = struct
     Sqlite3.finalize stmt |> ignore;
     List.rev !entries
 
-  (** Search ordering strategy.
-      Note: scope_id temporal order is split by sign:
+  (** Search ordering strategy. Note: scope_id temporal order is split by sign:
       - Positive IDs: 1 (oldest), 2, 3, ... 60311 (newest) - increasing = later
       - Negative IDs: -1 (oldest), -2, -3, ... -17774560 (newest) - more negative = later
 
       Neither ordering is chronological due to the sign split! *)
   type search_order =
-    | AscendingIds  (* ORDER BY scope_id ASC: newest-neg → oldest-neg → oldest-pos → newest-pos *)
-    | DescendingIds (* ORDER BY scope_id DESC: newest-pos → oldest-pos → oldest-neg → newest-neg *)
+    | AscendingIds
+      (* ORDER BY scope_id ASC: newest-neg → oldest-neg → oldest-pos → newest-pos *)
+    | DescendingIds
+  (* ORDER BY scope_id DESC: newest-pos → oldest-pos → oldest-neg → newest-neg *)
 
-  (** Populate search results hash table with entries matching search term.
-      This is meant to run in a background Domain. Opens its own DB connection.
-      Sets completed_ref to true when finished.
-      Propagates highlights to ancestors unless quiet_path matches.
+  (** Populate search results hash table with entries matching search term. This is meant
+      to run in a background Domain. Opens its own DB connection. Sets completed_ref to
+      true when finished. Propagates highlights to ancestors unless quiet_path matches.
 
-      Implementation: Interleaves stepping through the main search query with
-      issuing ancestor lookup queries (via get_parent_id). SQLite handles
-      multiple active prepared statements without issue. Propagates highlights
-      immediately upon finding each match for real-time UI updates.
+      Implementation: Interleaves stepping through the main search query with issuing
+      ancestor lookup queries (via get_parent_id). SQLite handles multiple active prepared
+      statements without issue. Propagates highlights immediately upon finding each match
+      for real-time UI updates.
 
       Writes results to shared hash table (lock-free concurrent writes are safe). *)
-  let populate_search_results db_path ~search_term ~quiet_path ~search_order ~completed_ref ~results_table =
+  let populate_search_results db_path ~search_term ~quiet_path ~search_order
+      ~completed_ref ~results_table =
     (* Log to file for debugging since TUI occupies terminal *)
     let log_debug msg =
       ignore msg
-      (* Uncomment to enable debug logging:
-      try
-        let oc = open_out_gen [Open_append; Open_creat] 0o644 "/tmp/minidebug_search.log" in
-        Printf.fprintf oc "[%s] %s\n" (Unix.gettimeofday () |> string_of_float) msg;
-        close_out oc
-      with _ -> () *)
+      (* Uncomment to enable debug logging: try let oc = open_out_gen [Open_append;
+         Open_creat] 0o644 "/tmp/minidebug_search.log" in Printf.fprintf oc "[%s] %s\n"
+         (Unix.gettimeofday () |> string_of_float) msg; close_out oc with _ -> () *)
     in
 
     Printexc.record_backtrace true;
-    log_debug (Printf.sprintf "Starting search for '%s', quiet_path=%s" search_term
-      (match quiet_path with Some q -> "'" ^ q ^ "'" | None -> "None"));
+    log_debug
+      (Printf.sprintf "Starting search for '%s', quiet_path=%s" search_term
+         (match quiet_path with Some q -> "'" ^ q ^ "'" | None -> "None"));
 
     (* Open a new database connection for this Domain (read-only for querying) *)
     log_debug (Printf.sprintf "Opening database: %s" db_path);
@@ -561,28 +553,31 @@ module Query = struct
       let matches_quiet_path entry =
         match quiet_path_regex with
         | None -> false
-        | Some qp_regex ->
+        | Some qp_regex -> (
             contains_match entry.message qp_regex
             || (match entry.location with
-                | Some loc -> contains_match loc qp_regex
-                | None -> false)
-            || (match entry.data with
-                | Some d -> contains_match d qp_regex
-                | None -> false)
+               | Some loc -> contains_match loc qp_regex
+               | None -> false)
+            || match entry.data with Some d -> contains_match d qp_regex | None -> false)
       in
 
       (* Helper to insert an entry into search results hash table *)
-      let insert_entry ?(is_match=false) entry =
+      let insert_entry ?(is_match = false) entry =
         Hashtbl.replace results_table (entry.scope_id, entry.seq_id) is_match
       in
 
       (* Stream entries, find matches, and build scope index in one pass *)
-      let order_clause = match search_order with
-        | AscendingIds -> "ORDER BY e.scope_id ASC, e.seq_id ASC"  (* Negative IDs first, then positive *)
-        | DescendingIds -> "ORDER BY e.scope_id DESC, e.seq_id ASC"  (* Positive IDs first, then negative *)
+      let order_clause =
+        match search_order with
+        | AscendingIds ->
+            "ORDER BY e.scope_id ASC, e.seq_id ASC"
+            (* Negative IDs first, then positive *)
+        | DescendingIds -> "ORDER BY e.scope_id DESC, e.seq_id ASC"
+        (* Positive IDs first, then negative *)
       in
-      let query = Printf.sprintf
-        {|SELECT e.scope_id, e.seq_id, e.child_scope_id, e.depth,
+      let query =
+        Printf.sprintf
+          {|SELECT e.scope_id, e.seq_id, e.child_scope_id, e.depth,
                  m.value_content as message, l.value_content as location, d.value_content as data,
                  e.elapsed_start_ns, e.elapsed_end_ns, e.is_result, e.log_level, e.entry_type
           FROM entries e
@@ -590,29 +585,32 @@ module Query = struct
           LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
           LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
           %s|}
-        order_clause
+          order_clause
       in
       let query_stmt = Sqlite3.prepare db query in
 
       let scope_by_id = Hashtbl.create 1024 in
       let processed_count = ref 0 in
       let match_count = ref 0 in
-      let propagated = Hashtbl.create 64 in  (* Track propagated ancestors to avoid duplicates *)
+      let propagated = Hashtbl.create 64 in
+      (* Track propagated ancestors to avoid duplicates *)
       let propagation_count = ref 0 in
 
-      (* Helper to eagerly fetch and cache a scope entry by ID.
-         Strategy: First check cache, then query for the header entry that creates this scope.
-         For incremental updates, we accept that some parent headers may not be found yet
-         (they'll be highlighted when the streaming query reaches them). *)
+      (* Helper to eagerly fetch and cache a scope entry by ID. Strategy: First check
+         cache, then query for the header entry that creates this scope. For incremental
+         updates, we accept that some parent headers may not be found yet (they'll be
+         highlighted when the streaming query reaches them). *)
       let get_scope_entry scope_id =
         match Hashtbl.find_opt scope_by_id scope_id with
         | Some entry -> Some entry
         | None ->
-            (* Not in cache - fetch from database and cache it.
-               Query finds the header entry that creates scope_id (child_scope_id = scope_id).
-               NOTE: For incremental updates during streaming, this may return None if the
-               header hasn't been scanned yet. That's OK - we'll highlight it when we reach it. *)
-            let query = {|
+            (* Not in cache - fetch from database and cache it. Query finds the header
+               entry that creates scope_id (child_scope_id = scope_id). NOTE: For
+               incremental updates during streaming, this may return None if the header
+               hasn't been scanned yet. That's OK - we'll highlight it when we reach
+               it. *)
+            let query =
+              {|
               SELECT e.scope_id, e.seq_id, e.child_scope_id, e.depth,
                      m.value_content as message, l.value_content as location, d.value_content as data,
                      e.elapsed_start_ns, e.elapsed_end_ns, e.is_result, e.log_level, e.entry_type
@@ -622,34 +620,61 @@ module Query = struct
               LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
               WHERE e.child_scope_id = ?
               LIMIT 1
-            |} in
+            |}
+            in
             let stmt = Sqlite3.prepare db query in
             Sqlite3.bind_int stmt 1 scope_id |> ignore;
-            let result = match Sqlite3.step stmt with
+            let result =
+              match Sqlite3.step stmt with
               | Sqlite3.Rc.ROW ->
-                  let entry = {
-                    scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
-                    seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
-                    child_scope_id = (match Sqlite3.column stmt 2 with
-                      | Sqlite3.Data.INT id -> Some (Int64.to_int id)
-                      | _ -> None);
-                    depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
-                    message = (match Sqlite3.column stmt 4 with Sqlite3.Data.TEXT s -> s | _ -> "");
-                    location = (match Sqlite3.column stmt 5 with Sqlite3.Data.TEXT s -> Some s | _ -> None);
-                    data = (match Sqlite3.column stmt 6 with Sqlite3.Data.TEXT s -> Some s | _ -> None);
-                    elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
-                    elapsed_end_ns = (match Sqlite3.column stmt 8 with Sqlite3.Data.INT i -> Some (Int64.to_int i) | _ -> None);
-                    is_result = (match Sqlite3.Data.to_bool (Sqlite3.column stmt 9) with Some b -> b | None -> false);
-                    log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
-                    entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
-                  } in
+                  let entry =
+                    {
+                      scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+                      seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
+                      child_scope_id =
+                        (match Sqlite3.column stmt 2 with
+                        | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+                        | _ -> None);
+                      depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
+                      message =
+                        (match Sqlite3.column stmt 4 with
+                        | Sqlite3.Data.TEXT s -> s
+                        | _ -> "");
+                      location =
+                        (match Sqlite3.column stmt 5 with
+                        | Sqlite3.Data.TEXT s -> Some s
+                        | _ -> None);
+                      data =
+                        (match Sqlite3.column stmt 6 with
+                        | Sqlite3.Data.TEXT s -> Some s
+                        | _ -> None);
+                      elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
+                      elapsed_end_ns =
+                        (match Sqlite3.column stmt 8 with
+                        | Sqlite3.Data.INT i -> Some (Int64.to_int i)
+                        | _ -> None);
+                      is_result =
+                        (match Sqlite3.Data.to_bool (Sqlite3.column stmt 9) with
+                        | Some b -> b
+                        | None -> false);
+                      log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
+                      entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
+                    }
+                  in
                   Hashtbl.add scope_by_id scope_id entry;
-                  log_debug (Printf.sprintf "  get_scope_entry: fetched and cached scope %d" scope_id);
+                  log_debug
+                    (Printf.sprintf "  get_scope_entry: fetched and cached scope %d"
+                       scope_id);
                   Some entry
               | _ ->
-                  (* Header not found - either it doesn't exist, or hasn't been scanned yet in streaming mode.
-                     For incremental updates, we'll just skip this ancestor for now. *)
-                  log_debug (Printf.sprintf "  get_scope_entry: scope %d header not found (may not be scanned yet)" scope_id);
+                  (* Header not found - either it doesn't exist, or hasn't been scanned
+                     yet in streaming mode. For incremental updates, we'll just skip this
+                     ancestor for now. *)
+                  log_debug
+                    (Printf.sprintf
+                       "  get_scope_entry: scope %d header not found (may not be scanned \
+                        yet)"
+                       scope_id);
                   None
             in
             Sqlite3.finalize stmt |> ignore;
@@ -658,24 +683,33 @@ module Query = struct
 
       (* Helper to propagate highlights to ancestors immediately *)
       let propagate_to_ancestors entry =
-        (* For headers: entry.scope_id is the parent scope that contains this header
-           For values: entry.scope_id is also the parent scope
-           So we always want to start by highlighting the direct parent (entry.scope_id at seq_id=0),
-           then propagate to its ancestors. *)
-        log_debug (Printf.sprintf "propagate_to_ancestors: scope_id=%d, seq_id=%d, message='%s'" entry.scope_id entry.seq_id entry.message);
+        (* For headers: entry.scope_id is the parent scope that contains this header For
+           values: entry.scope_id is also the parent scope So we always want to start by
+           highlighting the direct parent (entry.scope_id at seq_id=0), then propagate to
+           its ancestors. *)
+        log_debug
+          (Printf.sprintf "propagate_to_ancestors: scope_id=%d, seq_id=%d, message='%s'"
+             entry.scope_id entry.seq_id entry.message);
 
-        (* First, add the direct parent scope (scope_id at seq_id=0) if it's not already highlighted *)
+        (* First, add the direct parent scope (scope_id at seq_id=0) if it's not already
+           highlighted *)
         let direct_parent_id = entry.scope_id in
-        if not (Hashtbl.mem propagated direct_parent_id) then (
+        if not (Hashtbl.mem propagated direct_parent_id) then
           match get_scope_entry direct_parent_id with
           | Some parent_scope when matches_quiet_path parent_scope ->
-              (* Direct parent matches quiet_path - mark it but don't add to results, stop here *)
+              (* Direct parent matches quiet_path - mark it but don't add to results, stop
+                 here *)
               Hashtbl.add propagated direct_parent_id ();
-              log_debug (Printf.sprintf "  propagate: direct parent %d matches quiet_path, stopping" direct_parent_id)
+              log_debug
+                (Printf.sprintf
+                   "  propagate: direct parent %d matches quiet_path, stopping"
+                   direct_parent_id)
           | Some parent_scope ->
               (* Direct parent doesn't match quiet_path - add it and propagate upward *)
               Hashtbl.add propagated direct_parent_id ();
-              log_debug (Printf.sprintf "  propagate: adding direct parent %d to results" direct_parent_id);
+              log_debug
+                (Printf.sprintf "  propagate: adding direct parent %d to results"
+                   direct_parent_id);
               insert_entry ~is_match:false parent_scope;
               incr propagation_count;
 
@@ -683,37 +717,59 @@ module Query = struct
               let rec propagate_to_parent current_scope_id =
                 match get_parent_id db ~scope_id:current_scope_id with
                 | None ->
-                    log_debug (Printf.sprintf "  propagate: scope_id=%d has no parent (reached root)" current_scope_id)
+                    log_debug
+                      (Printf.sprintf
+                         "  propagate: scope_id=%d has no parent (reached root)"
+                         current_scope_id)
                 | Some parent_id ->
-                    if Hashtbl.mem propagated parent_id then (
-                      log_debug (Printf.sprintf "  propagate: parent_id=%d already propagated, stopping" parent_id)
-                    ) else (
-                      log_debug (Printf.sprintf "  propagate: checking parent_id=%d" parent_id);
+                    if Hashtbl.mem propagated parent_id then
+                      log_debug
+                        (Printf.sprintf
+                           "  propagate: parent_id=%d already propagated, stopping"
+                           parent_id)
+                    else (
+                      log_debug
+                        (Printf.sprintf "  propagate: checking parent_id=%d" parent_id);
                       (* Eagerly fetch parent entry if not in cache *)
                       match get_scope_entry parent_id with
                       | Some parent_entry when matches_quiet_path parent_entry ->
-                          (* Parent matches quiet_path, stop propagation.
-                             IMPORTANT: Mark in propagated table so other matches also stop here! *)
+                          (* Parent matches quiet_path, stop propagation. IMPORTANT: Mark
+                             in propagated table so other matches also stop here! *)
                           Hashtbl.add propagated parent_id ();
-                          log_debug (Printf.sprintf "  propagate: parent_id=%d matches quiet_path, marking and stopping propagation" parent_id)
+                          log_debug
+                            (Printf.sprintf
+                               "  propagate: parent_id=%d matches quiet_path, marking \
+                                and stopping propagation"
+                               parent_id)
                       | Some parent_entry ->
-                          (* Parent found and doesn't match quiet_path - mark it and continue *)
+                          (* Parent found and doesn't match quiet_path - mark it and
+                             continue *)
                           Hashtbl.add propagated parent_id ();
-                          log_debug (Printf.sprintf "  propagate: parent_id=%d doesn't match quiet_path, adding to results" parent_id);
+                          log_debug
+                            (Printf.sprintf
+                               "  propagate: parent_id=%d doesn't match quiet_path, \
+                                adding to results"
+                               parent_id);
                           insert_entry ~is_match:false parent_entry;
                           incr propagation_count;
                           propagate_to_parent parent_id
                       | None ->
-                          (* Parent entry not found in database - shouldn't happen but handle gracefully *)
-                          log_debug (Printf.sprintf "  propagate: parent_id=%d not found in database, stopping" parent_id)
-                    )
+                          (* Parent entry not found in database - shouldn't happen but
+                             handle gracefully *)
+                          log_debug
+                            (Printf.sprintf
+                               "  propagate: parent_id=%d not found in database, stopping"
+                               parent_id))
               in
               propagate_to_parent direct_parent_id
           | None ->
-              log_debug (Printf.sprintf "  propagate: direct parent %d not found in database" direct_parent_id)
-        ) else (
-          log_debug (Printf.sprintf "  propagate: direct parent %d already propagated" direct_parent_id)
-        )
+              log_debug
+                (Printf.sprintf "  propagate: direct parent %d not found in database"
+                   direct_parent_id)
+        else
+          log_debug
+            (Printf.sprintf "  propagate: direct parent %d already propagated"
+               direct_parent_id)
       in
 
       let rec process_rows () =
@@ -721,23 +777,40 @@ module Query = struct
         | Sqlite3.Rc.ROW ->
             incr processed_count;
 
-            let entry = {
-              scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 0);
-              seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 1);
-              child_scope_id =
-                (match Sqlite3.column query_stmt 2 with
-                | Sqlite3.Data.INT id -> Some (Int64.to_int id)
-                | _ -> None);
-              depth = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 3);
-              message = (match Sqlite3.column query_stmt 4 with Sqlite3.Data.TEXT s -> s | _ -> "");
-              location = (match Sqlite3.column query_stmt 5 with Sqlite3.Data.TEXT s -> Some s | _ -> None);
-              data = (match Sqlite3.column query_stmt 6 with Sqlite3.Data.TEXT s -> Some s | _ -> None);
-              elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 7);
-              elapsed_end_ns = (match Sqlite3.column query_stmt 8 with Sqlite3.Data.INT i -> Some (Int64.to_int i) | _ -> None);
-              is_result = (match Sqlite3.Data.to_bool (Sqlite3.column query_stmt 9) with Some b -> b | None -> false);
-              log_level = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 10);
-              entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column query_stmt 11);
-            } in
+            let entry =
+              {
+                scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 0);
+                seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 1);
+                child_scope_id =
+                  (match Sqlite3.column query_stmt 2 with
+                  | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+                  | _ -> None);
+                depth = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 3);
+                message =
+                  (match Sqlite3.column query_stmt 4 with
+                  | Sqlite3.Data.TEXT s -> s
+                  | _ -> "");
+                location =
+                  (match Sqlite3.column query_stmt 5 with
+                  | Sqlite3.Data.TEXT s -> Some s
+                  | _ -> None);
+                data =
+                  (match Sqlite3.column query_stmt 6 with
+                  | Sqlite3.Data.TEXT s -> Some s
+                  | _ -> None);
+                elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 7);
+                elapsed_end_ns =
+                  (match Sqlite3.column query_stmt 8 with
+                  | Sqlite3.Data.INT i -> Some (Int64.to_int i)
+                  | _ -> None);
+                is_result =
+                  (match Sqlite3.Data.to_bool (Sqlite3.column query_stmt 9) with
+                  | Some b -> b
+                  | None -> false);
+                log_level = Sqlite3.Data.to_int_exn (Sqlite3.column query_stmt 10);
+                entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column query_stmt 11);
+              }
+            in
 
             (* Add to scope index if it's a scope *)
             (match entry.child_scope_id with
@@ -748,38 +821,50 @@ module Query = struct
             let matches =
               contains_match entry.message search_regex
               || (match entry.location with
-                  | Some loc -> contains_match loc search_regex
-                  | None -> false)
-              || (match entry.data with
-                  | Some d -> contains_match d search_regex
-                  | None -> false)
+                 | Some loc -> contains_match loc search_regex
+                 | None -> false)
+              ||
+              match entry.data with
+              | Some d -> contains_match d search_regex
+              | None -> false
             in
 
-            (* Also check if this is a scope header that should be retroactively highlighted
-               because one of its descendants was already matched (when child was scanned before parent).
+            (* Also check if this is a scope header that should be retroactively
+               highlighted because one of its descendants was already matched (when child
+               was scanned before parent).
 
-               This handles the case where:
-               1. A child entry was matched during streaming
-               2. propagate_to_ancestors was called, which tried to fetch this header via get_scope_entry
-               3. But this header hadn't been scanned yet, so get_scope_entry returned None
-               4. The scope_id was marked in 'propagated' table, but the header entry was never added to results_table
-               5. Now we're scanning the actual header entry - we need to add it if its scope has matches *)
+               This handles the case where: 1. A child entry was matched during streaming
+               2. propagate_to_ancestors was called, which tried to fetch this header via
+               get_scope_entry 3. But this header hadn't been scanned yet, so
+               get_scope_entry returned None 4. The scope_id was marked in 'propagated'
+               table, but the header entry was never added to results_table 5. Now we're
+               scanning the actual header entry - we need to add it if its scope has
+               matches *)
             let retroactive_highlight =
               match entry.child_scope_id with
               | Some hid ->
                   (* Check if THIS HEADER ENTRY is already in results_table *)
-                  let header_already_highlighted = Hashtbl.mem results_table (entry.scope_id, entry.seq_id) in
-                  if header_already_highlighted then
-                    false  (* Already highlighted, nothing to do *)
+                  let header_already_highlighted =
+                    Hashtbl.mem results_table (entry.scope_id, entry.seq_id)
+                  in
+                  if header_already_highlighted then false
+                    (* Already highlighted, nothing to do *)
                   else
                     (* Check if any entries in this scope (hid) are already highlighted *)
-                    let scope_has_match = Hashtbl.fold (fun (sid, _) _is_match acc ->
-                      acc || sid = hid
-                    ) results_table false in
+                    let scope_has_match =
+                      Hashtbl.fold
+                        (fun (sid, _) _is_match acc -> acc || sid = hid)
+                        results_table false
+                    in
                     if scope_has_match then (
-                      log_debug (Printf.sprintf "  Retroactive highlight: scope header (scope_id=%d,seq_id=%d) for child_scope_id=%d has matching descendants" entry.scope_id entry.seq_id hid);
-                      true
-                    ) else false
+                      log_debug
+                        (Printf.sprintf
+                           "  Retroactive highlight: scope header \
+                            (scope_id=%d,seq_id=%d) for child_scope_id=%d has matching \
+                            descendants"
+                           entry.scope_id entry.seq_id hid);
+                      true)
+                    else false
               | None -> false
             in
 
@@ -787,21 +872,23 @@ module Query = struct
               incr match_count;
               insert_entry ~is_match:true entry;
               (* Propagate to ancestors immediately if not a quiet_path match *)
-              if not (matches_quiet_path entry) then
-                propagate_to_ancestors entry
-            ) else if retroactive_highlight then (
-              (* This scope header doesn't match search but has matching descendants - highlight it *)
-              if not (matches_quiet_path entry) then (
+              if not (matches_quiet_path entry) then propagate_to_ancestors entry)
+            else if retroactive_highlight then
+              if
+                (* This scope header doesn't match search but has matching descendants -
+                   highlight it *)
+                not (matches_quiet_path entry)
+              then (
                 insert_entry ~is_match:false entry;
                 Hashtbl.add propagated (Option.get entry.child_scope_id) ();
                 incr propagation_count;
                 (* Continue propagating to this scope's ancestors *)
-                propagate_to_ancestors entry
-              )
-            );
+                propagate_to_ancestors entry);
             if !processed_count mod 100000 = 0 then
-              log_debug (Printf.sprintf "Processed %d entries, found %d matches, propagated %d ancestors"
-                          !processed_count !match_count !propagation_count);
+              log_debug
+                (Printf.sprintf
+                   "Processed %d entries, found %d matches, propagated %d ancestors"
+                   !processed_count !match_count !propagation_count);
 
             process_rows ()
         | Sqlite3.Rc.DONE -> ()
@@ -810,10 +897,15 @@ module Query = struct
 
       process_rows ();
       Sqlite3.finalize query_stmt |> ignore;
-      log_debug (Printf.sprintf "Search complete. Processed %d entries, found %d matches, propagated %d ancestors"
-                   !processed_count !match_count !propagation_count);
-      log_debug (Printf.sprintf "Scope cache size: %d, Total results: %d"
-                   (Hashtbl.length scope_by_id) (Hashtbl.length results_table));
+      log_debug
+        (Printf.sprintf
+           "Search complete. Processed %d entries, found %d matches, propagated %d \
+            ancestors"
+           !processed_count !match_count !propagation_count);
+      log_debug
+        (Printf.sprintf "Scope cache size: %d, Total results: %d"
+           (Hashtbl.length scope_by_id)
+           (Hashtbl.length results_table));
 
       (* Close the database connection *)
       Sqlite3.db_close db |> ignore;
@@ -823,21 +915,23 @@ module Query = struct
       (* Signal completion via shared memory *)
       completed_ref := true
     with exn ->
-      log_debug (Printf.sprintf "ERROR: %s\n%s" (Printexc.to_string exn) (Printexc.get_backtrace ()));
+      log_debug
+        (Printf.sprintf "ERROR: %s\n%s" (Printexc.to_string exn)
+           (Printexc.get_backtrace ()));
       (* Close database on error *)
       (try Sqlite3.db_close db |> ignore with _ -> ());
       (* Still mark as completed even on error *)
       completed_ref := true
 
-  (** Get all ancestor entry IDs from a given entry up to root.
-      Returns list in order [scope_id; parent; grandparent; ...; root]. *)
+  (** Get all ancestor entry IDs from a given entry up to root. Returns list in order
+      [scope_id; parent; grandparent; ...; root]. *)
   let get_ancestors db ~scope_id =
     let rec collect_ancestors acc current_id =
       match get_parent_id db ~scope_id:current_id with
-      | None -> List.rev acc  (* Reached root *)
+      | None -> List.rev acc (* Reached root *)
       | Some parent_id -> collect_ancestors (parent_id :: acc) parent_id
     in
-    collect_ancestors [scope_id] scope_id
+    collect_ancestors [ scope_id ] scope_id
 end
 
 (** Tree renderer for terminal output *)
@@ -865,9 +959,7 @@ module Renderer = struct
 
       (* Get all children of this scope (all rows with scope_id = this scope's ID) *)
       let children_entries =
-        List.filter
-          (fun e -> e.Query.scope_id = child_scope_id)
-          entries
+        List.filter (fun e -> e.Query.scope_id = child_scope_id) entries
       in
 
       (* Sort by seq_id *)
@@ -950,15 +1042,14 @@ module Renderer = struct
         | false, _, _ ->
             (* Leaf node: display as "name = value" or "name => value" for results *)
             if entry.message <> "" then
-              if entry.is_result then
-                Buffer.add_string buf (entry.message ^ " => ")
-              else
-                Buffer.add_string buf (entry.message ^ " = ");
+              if entry.is_result then Buffer.add_string buf (entry.message ^ " => ")
+              else Buffer.add_string buf (entry.message ^ " = ");
 
             (match entry.data with Some data -> Buffer.add_string buf data | None -> ());
 
             Buffer.add_string buf "\n"
-        | true, true, [ result_child ] when result_child.children = [] && result_child.entry.child_scope_id = None ->
+        | true, true, [ result_child ]
+          when result_child.children = [] && result_child.entry.child_scope_id = None ->
             (* Scope node with single value result in values_first_mode: combine on one line *)
             (* Format: [type] message => result.message result_value <time> @ location *)
             (* NOTE: Only combine if result is a simple value, not a scope/header *)
@@ -1000,18 +1091,17 @@ module Renderer = struct
             let is_synthetic = entry.location = None in
 
             (* Message and type *)
-            Buffer.add_string buf
-              (Printf.sprintf "[%s]" entry.entry_type);
+            Buffer.add_string buf (Printf.sprintf "[%s]" entry.entry_type);
 
             (* Show message and/or data *)
             (match (entry.message, entry.data, is_synthetic) with
-            | (msg, Some data, true) when msg <> "" ->
+            | msg, Some data, true when msg <> "" ->
                 (* Synthetic scope with both message and data: show as "message: data" *)
                 Buffer.add_string buf (Printf.sprintf " %s: %s" msg data)
-            | ("", Some data, true) ->
+            | "", Some data, true ->
                 (* Synthetic scope with only data: show just data *)
                 Buffer.add_string buf (Printf.sprintf " %s" data)
-            | (msg, _, _) when msg <> "" ->
+            | msg, _, _ when msg <> "" ->
                 (* Has message: show it *)
                 Buffer.add_string buf (Printf.sprintf " %s" msg)
             | _ -> ());
@@ -1041,9 +1131,11 @@ module Renderer = struct
 
             (* Children *)
             let child_indent = indent ^ "  " in
-            if values_first_mode then
+            if values_first_mode then (
               match results with
-              | [ result_child ] when result_child.children = [] && result_child.entry.child_scope_id = None ->
+              | [ result_child ]
+                when result_child.children = []
+                     && result_child.entry.child_scope_id = None ->
                   (* Single value result was combined with header, skip it *)
                   List.iter
                     (render_node ~indent:child_indent ~depth:(depth + 1))
@@ -1053,7 +1145,7 @@ module Renderer = struct
                   List.iter (render_node ~indent:child_indent ~depth:(depth + 1)) results;
                   List.iter
                     (render_node ~indent:child_indent ~depth:(depth + 1))
-                    non_results
+                    non_results)
             else
               List.iter
                 (render_node ~indent:child_indent ~depth:(depth + 1))
@@ -1087,16 +1179,21 @@ module Renderer = struct
     Buffer.contents buf
 
   (** Render root entries as a flat list *)
-  let render_roots ?(show_times = false) ?(with_values = false) (entries : Query.entry list) =
+  let render_roots ?(show_times = false) ?(with_values = false)
+      (entries : Query.entry list) =
     let buf = Buffer.create 1024 in
 
     (* Separate headers and values *)
-    let headers = List.filter (fun (e : Query.entry) -> e.child_scope_id <> None) entries in
+    let headers =
+      List.filter (fun (e : Query.entry) -> e.child_scope_id <> None) entries
+    in
     let values = List.filter (fun (e : Query.entry) -> e.child_scope_id = None) entries in
 
     (* Sort headers by seq_id *)
     let sorted_headers =
-      List.sort (fun (a : Query.entry) (b : Query.entry) -> compare a.seq_id b.seq_id) headers
+      List.sort
+        (fun (a : Query.entry) (b : Query.entry) -> compare a.seq_id b.seq_id)
+        headers
     in
 
     List.iter
@@ -1130,12 +1227,11 @@ module Renderer = struct
               List.iter
                 (fun (child : Query.entry) ->
                   Buffer.add_string buf "  ";
-                  if child.is_result then (
+                  if child.is_result then
                     if child.message <> "" then
                       Buffer.add_string buf (child.message ^ " => ")
-                    else
-                      Buffer.add_string buf "=> "
-                  ) else if child.message <> "" then
+                    else Buffer.add_string buf "=> "
+                  else if child.message <> "" then
                     Buffer.add_string buf (child.message ^ " = ");
                   (match child.data with
                   | Some data -> Buffer.add_string buf data
@@ -1160,22 +1256,19 @@ module Interactive = struct
     (* Retry select on EINTR (interrupted system call) *)
     let rec select_with_retry () =
       try
-        let (ready, _, _) = Unix.select [stdin_fd] [] [] timeout_sec in
-        if ready = [] then
-          None  (* Timeout *)
-        else
-          Some (Term.event term)  (* Event available *)
-      with
-      | Unix.Unix_error (Unix.EINTR, _, _) ->
-          (* Interrupted by signal (e.g., SIGWINCH on terminal resize) - retry *)
-          select_with_retry ()
+        let ready, _, _ = Unix.select [ stdin_fd ] [] [] timeout_sec in
+        if ready = [] then None (* Timeout *) else Some (Term.event term)
+        (* Event available *)
+      with Unix.Unix_error (Unix.EINTR, _, _) ->
+        (* Interrupted by signal (e.g., SIGWINCH on terminal resize) - retry *)
+        select_with_retry ()
     in
     select_with_retry ()
 
-  (** Hash table of (scope_id, seq_id) pairs matching a search term.
-      Value: true = actual search match, false = propagated ancestor highlight.
-      This is shared memory written by background Domain, read by main TUI loop. *)
-  type search_results = ((int * int), bool) Hashtbl.t
+  type search_results = (int * int, bool) Hashtbl.t
+  (** Hash table of (scope_id, seq_id) pairs matching a search term. Value: true = actual
+      search match, false = propagated ancestor highlight. This is shared memory written
+      by background Domain, read by main TUI loop. *)
 
   type search_slot = {
     search_term : string;
@@ -1186,66 +1279,61 @@ module Interactive = struct
 
   module SlotNumber = struct
     type t = S1 | S2 | S3 | S4
+
     let compare = compare
-    let next = function
-      | S1 -> S2
-      | S2 -> S3
-      | S3 -> S4
-      | S4 -> S1
-    let prev = function
-      | S1 -> S4
-      | S2 -> S1
-      | S3 -> S2
-      | S4 -> S3
+    let next = function S1 -> S2 | S2 -> S3 | S3 -> S4 | S4 -> S1
+    let prev = function S1 -> S4 | S2 -> S1 | S3 -> S2 | S4 -> S3
   end
-  module SlotMap = Map.Make(SlotNumber)
+
+  module SlotMap = Map.Make (SlotNumber)
+
   type slot_map = search_slot SlotMap.t
 
   (** Check if an entry matches any active search (returns slot number 1-4, or None).
-      Checks slots in reverse chronological order to prioritize more recent searches.
-      Slot ordering is determined by current_slot parameter. *)
+      Checks slots in reverse chronological order to prioritize more recent searches. Slot
+      ordering is determined by current_slot parameter. *)
   let get_search_match ~search_slots ~scope_id ~seq_id ~current_slot =
     (* Check slots in reverse chronological order *)
     let rec check_slot slot_number =
-        match SlotMap.find_opt slot_number search_slots with
-        | Some slot when Hashtbl.mem slot.results (scope_id, seq_id) ->
-            Some slot_number
-        | _ ->
-          if slot_number = current_slot then
-            None
-          else
-            check_slot (SlotNumber.prev slot_number)
+      match SlotMap.find_opt slot_number search_slots with
+      | Some slot when Hashtbl.mem slot.results (scope_id, seq_id) -> Some slot_number
+      | _ ->
+          if slot_number = current_slot then None
+          else check_slot (SlotNumber.prev slot_number)
     in
     check_slot (SlotNumber.prev current_slot)
 
-  (** Find next/previous search result in hash tables (across all entries, not just visible).
-      Returns (scope_id, seq_id) of the next match, or None if no more matches.
-      Search direction: forward=true searches for matches with (scope_id, seq_id) > current,
-                       forward=false searches for matches with (scope_id, seq_id) < current
-      Note: searches across all 4 search slots. *)
+  (** Find next/previous search result in hash tables (across all entries, not just
+      visible). Returns (scope_id, seq_id) of the next match, or None if no more matches.
+      Search direction: forward=true searches for matches with (scope_id, seq_id) >
+      current, forward=false searches for matches with (scope_id, seq_id) < current Note:
+      searches across all 4 search slots. *)
   let find_next_search_result ~search_slots ~current_scope_id ~current_seq_id ~forward =
-    (* Collect all actual matches (not propagated highlights) from all slots into a single list *)
+    (* Collect all actual matches (not propagated highlights) from all slots into a single
+       list *)
     let all_matches = ref [] in
-    SlotMap.iter (fun _idx slot ->
-          Hashtbl.iter (fun key is_match ->
-            if is_match then all_matches := key :: !all_matches
-          ) slot.results
-    ) search_slots;
+    SlotMap.iter
+      (fun _idx slot ->
+        Hashtbl.iter
+          (fun key is_match -> if is_match then all_matches := key :: !all_matches)
+          slot.results)
+      search_slots;
 
     (* Sort by (scope_id, seq_id) *)
     let sorted_matches =
-      List.sort (fun (e1, s1) (e2, s2) ->
-        let c = compare e1 e2 in
-        if c = 0 then compare s1 s2 else c
-      ) !all_matches
+      List.sort
+        (fun (e1, s1) (e2, s2) ->
+          let c = compare e1 e2 in
+          if c = 0 then compare s1 s2 else c)
+        !all_matches
     in
 
     (* Find next/previous match *)
     let compare_fn =
-      if forward then
-        fun (e, s) -> e > current_scope_id || (e = current_scope_id && s > current_seq_id)
-      else
-        fun (e, s) -> e < current_scope_id || (e = current_scope_id && s < current_seq_id)
+      if forward then fun (e, s) ->
+        e > current_scope_id || (e = current_scope_id && s > current_seq_id)
+      else fun (e, s) ->
+        e < current_scope_id || (e = current_scope_id && s < current_seq_id)
     in
 
     let candidates = List.filter compare_fn sorted_matches in
@@ -1274,7 +1362,8 @@ module Interactive = struct
     current_slot : SlotNumber.t; (* Next slot to use *)
     search_input : string option; (* Active search input buffer *)
     quiet_path_input : string option; (* Active quiet path input buffer *)
-    quiet_path : string option; (* Shared quiet path filter - stops highlight propagation *)
+    quiet_path : string option;
+        (* Shared quiet path filter - stops highlight propagation *)
     search_order : Query.search_order; (* Ordering for search results *)
   }
 
@@ -1288,13 +1377,12 @@ module Interactive = struct
   (** Find closest ancestor with positive ID by walking up the tree *)
   let rec find_positive_ancestor_id db scope_id =
     (* Base case: if this scope_id is positive, return it *)
-    if scope_id >= 0 then
-      Some scope_id
+    if scope_id >= 0 then Some scope_id
     else
       (* Negative scope_id - walk up to parent *)
       match Query.get_parent_id db ~scope_id with
       | Some parent_id -> find_positive_ancestor_id db parent_id
-      | None -> None  (* No parent found *)
+      | None -> None (* No parent found *)
 
   (** Build visible items list from database using lazy loading *)
   let build_visible_items db expanded values_first ~search_slots ~current_slot =
@@ -1312,12 +1400,7 @@ module Interactive = struct
         | None -> false
       in
 
-      let visible = {
-        entry;
-        indent_level = depth;
-        is_expandable;
-        is_expanded;
-      } in
+      let visible = { entry; indent_level = depth; is_expandable; is_expanded } in
 
       (* Add children if this is expanded *)
       if is_expanded then
@@ -1328,22 +1411,26 @@ module Interactive = struct
             (* In values_first mode, check if we have a single result child to combine *)
             let children_to_show =
               if values_first then
-                let results, non_results = List.partition (fun e -> e.Query.is_result) children in
+                let results, non_results =
+                  List.partition (fun e -> e.Query.is_result) children
+                in
                 match results with
                 | [ single_result ] ->
-                    (* Don't combine if result is itself a scope/header (e.g., synthetic scopes from boxify).
-                       Only combine simple value results with their parent headers. *)
+                    (* Don't combine if result is itself a scope/header (e.g., synthetic
+                       scopes from boxify). Only combine simple value results with their
+                       parent headers. *)
                     if single_result.child_scope_id = None then
-                      (* Single childless result: normally skip it (will be combined with header).
-                         BUT: if this result is a search match, we must show it separately! *)
+                      (* Single childless result: normally skip it (will be combined with
+                         header). BUT: if this result is a search match, we must show it
+                         separately! *)
                       let result_is_search_match =
                         get_search_match ~search_slots ~scope_id:single_result.scope_id
-                          ~seq_id:single_result.seq_id ~current_slot <> None
+                          ~seq_id:single_result.seq_id ~current_slot
+                        <> None
                       in
-                      if result_is_search_match then
-                        children  (* Show all children including the matched result *)
-                      else
-                        non_results  (* Skip result, combine with header *)
+                      if result_is_search_match then children
+                        (* Show all children including the matched result *)
+                      else non_results (* Skip result, combine with header *)
                     else
                       (* Result has children: show all *)
                       children
@@ -1361,25 +1448,31 @@ module Interactive = struct
     Array.of_list items
 
   (** Render a single line *)
-  let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots ~current_slot ~db ~values_first item =
+  let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
+      ~current_slot ~db ~values_first item =
     let entry = item.entry in
 
     (* Check if this entry matches any search (prioritizes more recent searches) *)
-    let search_slot_match = get_search_match ~search_slots ~scope_id:entry.scope_id ~seq_id:entry.seq_id ~current_slot in
+    let search_slot_match =
+      get_search_match ~search_slots ~scope_id:entry.scope_id ~seq_id:entry.seq_id
+        ~current_slot
+    in
 
     (* Entry ID margin - use child_scope_id for scopes, scope_id for values *)
     (* Don't display negative IDs (used for boxified/decomposed values) *)
     let display_id =
       match entry.child_scope_id with
-      | Some hid when hid >= 0 -> Some hid  (* This is a scope/header - show its actual scope ID *)
-      | Some _ -> None  (* Negative child_scope_id - hide it *)
-      | None when entry.scope_id >= 0 -> Some entry.scope_id  (* This is a value - show its parent scope ID *)
-      | None -> None  (* Negative scope_id - hide it *)
+      | Some hid when hid >= 0 ->
+          Some hid (* This is a scope/header - show its actual scope ID *)
+      | Some _ -> None (* Negative child_scope_id - hide it *)
+      | None when entry.scope_id >= 0 ->
+          Some entry.scope_id (* This is a value - show its parent scope ID *)
+      | None -> None (* Negative scope_id - hide it *)
     in
     let scope_id_str =
       match display_id with
       | Some id -> Printf.sprintf "%*d │ " margin_width id
-      | None -> String.make (margin_width + 3) ' '  (* Blank margin: spaces + " │ " *)
+      | None -> String.make (margin_width + 3) ' ' (* Blank margin: spaces + " │ " *)
     in
     let content_width = width - String.length scope_id_str in
 
@@ -1387,22 +1480,24 @@ module Interactive = struct
 
     (* Expansion indicator *)
     let expansion_mark =
-      if item.is_expandable then
-        if item.is_expanded then "▼ " else "▶ "
-      else "  "
+      if item.is_expandable then if item.is_expanded then "▼ " else "▶ " else "  "
     in
 
     (* Entry content *)
     let content =
       match item.entry.child_scope_id with
-      | Some hid when values_first && item.is_expanded ->
-          (* Header/scope in values_first mode: check for single result child to combine *)
+      | Some hid when values_first && item.is_expanded -> (
+          (* Header/scope in values_first mode: check for single result child to
+             combine *)
           let children = Query.get_scope_children db ~parent_scope_id:hid in
-          let results, _non_results = List.partition (fun e -> e.Query.is_result) children in
-          (match results with
+          let results, _non_results =
+            List.partition (fun e -> e.Query.is_result) children
+          in
+          match results with
           | [ single_result ] ->
-              (* Don't combine if result is itself a scope/header (e.g., synthetic scopes from boxify).
-                 Only combine simple value results with their parent headers. *)
+              (* Don't combine if result is itself a scope/header (e.g., synthetic scopes
+                 from boxify). Only combine simple value results with their parent
+                 headers. *)
               if single_result.child_scope_id = None then
                 (* Combine result with header: [type] message => result_data *)
                 let result_data = Option.value ~default:"" single_result.data in
@@ -1410,45 +1505,46 @@ module Interactive = struct
                 let combined_result =
                   if result_msg <> "" && result_msg <> entry.message then
                     Printf.sprintf " => %s = %s" result_msg result_data
-                  else
-                    Printf.sprintf " => %s" result_data
+                  else Printf.sprintf " => %s" result_data
                 in
-                Printf.sprintf "%s%s[%s] %s%s" indent expansion_mark
-                  entry.entry_type entry.message combined_result
+                Printf.sprintf "%s%s[%s] %s%s" indent expansion_mark entry.entry_type
+                  entry.message combined_result
               else
                 (* Result has children: normal rendering *)
-                Printf.sprintf "%s%s[%s] %s" indent expansion_mark
-                  entry.entry_type entry.message
+                Printf.sprintf "%s%s[%s] %s" indent expansion_mark entry.entry_type
+                  entry.message
           | _ ->
               (* Multiple results or no results: normal rendering *)
               (* For synthetic scopes (no location), show data inline with message *)
               let is_synthetic = entry.location = None in
-              let display_text = match (entry.message, entry.data, is_synthetic) with
-                | (msg, Some data, true) when msg <> "" -> Printf.sprintf "%s: %s" msg data
-                | ("", Some data, true) -> data
-                | (msg, _, _) when msg <> "" -> msg
+              let display_text =
+                match (entry.message, entry.data, is_synthetic) with
+                | msg, Some data, true when msg <> "" -> Printf.sprintf "%s: %s" msg data
+                | "", Some data, true -> data
+                | msg, _, _ when msg <> "" -> msg
                 | _ -> ""
               in
-              Printf.sprintf "%s%s[%s] %s" indent expansion_mark
-                entry.entry_type display_text)
+              Printf.sprintf "%s%s[%s] %s" indent expansion_mark entry.entry_type
+                display_text)
       | Some _ ->
           (* Header/scope - normal rendering *)
           let display_text =
             let message = entry.message in
             let data = Option.value ~default:"" entry.data in
-            (if message <> "" then message else data)
+            if message <> "" then message else data
           in
-          Printf.sprintf "%s%s[%s] %s" indent expansion_mark
-            entry.entry_type display_text
+          Printf.sprintf "%s%s[%s] %s" indent expansion_mark entry.entry_type display_text
       | None ->
           (* Value *)
           let display_text =
             let message = entry.message in
             let data = Option.value ~default:"" entry.data in
             let is_result = entry.is_result in
-            (if message <> "" then message ^ " " else "") ^
-            (if is_result then "=> " else if message <> "" && data <> "" then "= " else "") ^
-            data
+            (if message <> "" then message ^ " " else "")
+            ^ (if is_result then "=> "
+               else if message <> "" && data <> "" then "= "
+               else "")
+            ^ data
           in
           Printf.sprintf "%s  %s" indent display_text
     in
@@ -1466,22 +1562,22 @@ module Interactive = struct
     let truncated =
       if String.length full_text > content_width then
         String.sub full_text 0 (content_width - 3) ^ "..."
-      else
-        full_text
+      else full_text
     in
 
     (* Determine highlighting colors based on search match and selection *)
-    let (content_attr, margin_attr) =
+    let content_attr, margin_attr =
       if is_selected then
         (* Selection takes priority - blue background *)
         (A.(bg lightblue ++ fg black), A.(bg lightblue ++ fg black))
       else
         match search_slot_match with
-        | Some S1 -> (A.(fg green), A.(fg green))       (* Search slot 1: green *)
-        | Some S2 -> (A.(fg cyan), A.(fg cyan))         (* Search slot 2: cyan *)
-        | Some S3 -> (A.(fg magenta), A.(fg magenta))   (* Search slot 3: magenta *)
-        | Some S4 -> (A.(fg yellow), A.(fg yellow))     (* Search slot 4: yellow *)
-        | None -> (A.empty, A.(fg yellow))             (* No match: default (margin still yellow) *)
+        | Some S1 -> (A.(fg green), A.(fg green)) (* Search slot 1: green *)
+        | Some S2 -> (A.(fg cyan), A.(fg cyan)) (* Search slot 2: cyan *)
+        | Some S3 -> (A.(fg magenta), A.(fg magenta)) (* Search slot 3: magenta *)
+        | Some S4 -> (A.(fg yellow), A.(fg yellow)) (* Search slot 4: yellow *)
+        | None -> (A.empty, A.(fg yellow))
+      (* No match: default (margin still yellow) *)
     in
 
     I.hcat [ I.string margin_attr scope_id_str; I.string content_attr truncated ]
@@ -1501,9 +1597,7 @@ module Interactive = struct
         let entry = state.visible_items.(state.cursor).entry in
         (* For scopes, use child_scope_id; for values, use scope_id *)
         let id_to_check =
-          match entry.child_scope_id with
-          | Some hid -> hid
-          | None -> entry.scope_id
+          match entry.child_scope_id with Some hid -> hid | None -> entry.scope_id
         in
         match find_positive_ancestor_id state.db id_to_check with
         | Some id -> id
@@ -1522,73 +1616,75 @@ module Interactive = struct
         match state.quiet_path_input with
         | Some input ->
             (* Show quiet_path input prompt *)
-            I.string A.(fg lightred)
-              (Printf.sprintf "Quiet Path: %s_" input)
+            I.string A.(fg lightred) (Printf.sprintf "Quiet Path: %s_" input)
         | None -> (
             match state.search_input with
             | Some input ->
                 (* Show search input prompt *)
-                I.string A.(fg lightyellow)
-                  (Printf.sprintf "Search: %s_" input)
-        | None ->
-            (* Show run info and search status *)
-            let search_order_str = match state.search_order with
-              | Query.AscendingIds -> "Asc"
-              | Query.DescendingIds -> "Desc"
-            in
-            let base_info =
-              Printf.sprintf "Items: %d | Times: %s | Values First: %s | Search: %s | Entry: %d/%d (%.1f%%)"
-                (Array.length state.visible_items)
-                (if state.show_times then "ON" else "OFF")
-                (if state.values_first then "ON" else "OFF")
-                search_order_str
-                current_scope_id
-                state.max_scope_id
-                progress_pct
-            in
-            (* Build search status string *)
-            let search_status =
-              let active_searches = ref [] in
-              SlotMap.iter (fun idx slot ->
-                    let count = Hashtbl.length slot.results in
-                    let color_name = match idx with
-                      | S1 -> "G" | S2 -> "C" | S3 -> "M" | S4 -> "Y" in
-                    (* Show [...] while running, just [...] when complete *)
-                    let count_str =
-                      if !(slot.completed_ref) then
-                        Printf.sprintf "[%d]" count
-                      else
-                        Printf.sprintf "[%d...]" count
-                    in
-                    active_searches := Printf.sprintf "%s:%s%s" color_name slot.search_term count_str :: !active_searches
-              ) state.search_slots;
-              if !active_searches = [] then ""
-              else " | " ^ String.concat " " (List.rev !active_searches)
-            in
-            (* Add quiet_path indicator if set *)
-            let quiet_info =
-              match state.quiet_path with
-              | Some qp -> Printf.sprintf " | Q:%s" qp
-              | None -> ""
-            in
-            I.string A.(fg lightcyan) (base_info ^ search_status ^ quiet_info)
-        )
+                I.string A.(fg lightyellow) (Printf.sprintf "Search: %s_" input)
+            | None ->
+                (* Show run info and search status *)
+                let search_order_str =
+                  match state.search_order with
+                  | Query.AscendingIds -> "Asc"
+                  | Query.DescendingIds -> "Desc"
+                in
+                let base_info =
+                  Printf.sprintf
+                    "Items: %d | Times: %s | Values First: %s | Search: %s | Entry: \
+                     %d/%d (%.1f%%)"
+                    (Array.length state.visible_items)
+                    (if state.show_times then "ON" else "OFF")
+                    (if state.values_first then "ON" else "OFF")
+                    search_order_str current_scope_id state.max_scope_id progress_pct
+                in
+                (* Build search status string *)
+                let search_status =
+                  let active_searches = ref [] in
+                  SlotMap.iter
+                    (fun idx slot ->
+                      let count = Hashtbl.length slot.results in
+                      let color_name =
+                        match idx with S1 -> "G" | S2 -> "C" | S3 -> "M" | S4 -> "Y"
+                      in
+                      (* Show [...] while running, just [...] when complete *)
+                      let count_str =
+                        if !(slot.completed_ref) then Printf.sprintf "[%d]" count
+                        else Printf.sprintf "[%d...]" count
+                      in
+                      active_searches :=
+                        Printf.sprintf "%s:%s%s" color_name slot.search_term count_str
+                        :: !active_searches)
+                    state.search_slots;
+                  if !active_searches = [] then ""
+                  else " | " ^ String.concat " " (List.rev !active_searches)
+                in
+                (* Add quiet_path indicator if set *)
+                let quiet_info =
+                  match state.quiet_path with
+                  | Some qp -> Printf.sprintf " | Q:%s" qp
+                  | None -> ""
+                in
+                I.string A.(fg lightcyan) (base_info ^ search_status ^ quiet_info))
       in
-      I.vcat [
-        line1;
-        I.string A.(fg white) (String.make term_width '-');
-      ]
+      I.vcat [ line1; I.string A.(fg white) (String.make term_width '-') ]
     in
 
     (* Content lines *)
     let visible_start = state.scroll_offset in
-    let visible_end = min (visible_start + content_height) (Array.length state.visible_items) in
+    let visible_end =
+      min (visible_start + content_height) (Array.length state.visible_items)
+    in
 
     let content_lines = ref [] in
     for i = visible_start to visible_end - 1 do
       let is_selected = i = state.cursor in
       let item = state.visible_items.(i) in
-      let line = render_line ~width:term_width ~is_selected ~show_times:state.show_times ~margin_width ~search_slots:state.search_slots ~current_slot:state.current_slot ~db:state.db ~values_first:state.values_first item in
+      let line =
+        render_line ~width:term_width ~is_selected ~show_times:state.show_times
+          ~margin_width ~search_slots:state.search_slots ~current_slot:state.current_slot
+          ~db:state.db ~values_first:state.values_first item
+      in
       content_lines := line :: !content_lines
     done;
 
@@ -1604,20 +1700,20 @@ module Interactive = struct
     let footer =
       let help_text =
         match state.quiet_path_input with
-        | Some _ ->
-            "[Enter] Confirm quiet path | [Esc] Cancel | [Backspace] Delete"
+        | Some _ -> "[Enter] Confirm quiet path | [Esc] Cancel | [Backspace] Delete"
         | None -> (
             match state.search_input with
-            | Some _ ->
-                "[Enter] Confirm search | [Esc] Cancel | [Backspace] Delete"
+            | Some _ -> "[Enter] Confirm search | [Esc] Cancel | [Backspace] Delete"
             | None ->
-                "[↑/↓] Navigate | [Home/End] First/Last | [PgUp/PgDn] Page | [u/d] Quarter | [n/N] Next/Prev Match | [Enter/Space] Expand | [/] Search | [Q] Quiet | [t] Times | [v] Values | [o] Order | [q] Quit"
-        )
+                "[↑/↓] Navigate | [Home/End] First/Last | [PgUp/PgDn] Page | [u/d] \
+                 Quarter | [n/N] Next/Prev Match | [Enter/Space] Expand | [/] Search | \
+                 [Q] Quiet | [t] Times | [v] Values | [o] Order | [q] Quit")
       in
-      I.vcat [
-        I.string A.(fg white) (String.make term_width '-');
-        I.string A.(fg lightcyan) help_text;
-      ]
+      I.vcat
+        [
+          I.string A.(fg white) (String.make term_width '-');
+          I.string A.(fg lightcyan) help_text;
+        ]
     in
 
     I.vcat [ header; content; footer ]
@@ -1626,80 +1722,92 @@ module Interactive = struct
   let toggle_expansion state =
     if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
       let item = state.visible_items.(state.cursor) in
-      if item.is_expandable then (
+      if item.is_expandable then
         match item.entry.child_scope_id with
         | Some hid ->
             (* Use child_scope_id as the unique key for this scope *)
-            if Hashtbl.mem state.expanded hid then
-              Hashtbl.remove state.expanded hid
-            else
-              Hashtbl.add state.expanded hid ();
+            if Hashtbl.mem state.expanded hid then Hashtbl.remove state.expanded hid
+            else Hashtbl.add state.expanded hid ();
 
             (* Rebuild visible items *)
-            let new_visible = build_visible_items state.db state.expanded state.values_first ~search_slots:state.search_slots ~current_slot:state.current_slot in
+            let new_visible =
+              build_visible_items state.db state.expanded state.values_first
+                ~search_slots:state.search_slots ~current_slot:state.current_slot
+            in
             { state with visible_items = new_visible }
         | None -> state
-      ) else state
+      else state
     else state
 
   (** Find next/previous search result (searches hash tables, not just visible items).
-      Returns updated state with cursor moved to the match and path auto-expanded, or None if no match. *)
+      Returns updated state with cursor moved to the match and path auto-expanded, or None
+      if no match. *)
   let find_and_jump_to_search_result state ~forward =
     (* Get current entry's (scope_id, seq_id) *)
-    let (current_scope_id, current_seq_id) =
+    let current_scope_id, current_seq_id =
       if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
         let entry = state.visible_items.(state.cursor).entry in
         (entry.scope_id, entry.seq_id)
-      else
-        (0, 0)  (* Start from beginning if cursor invalid *)
+      else (0, 0)
+      (* Start from beginning if cursor invalid *)
     in
 
     (* Query hash tables for next search match *)
-    match find_next_search_result ~search_slots:state.search_slots
-      ~current_scope_id ~current_seq_id ~forward with
-    | None -> None  (* No more search results *)
-    | Some (target_scope_id, target_seq_id) ->
-        (* Expand all ancestors of the target entry.
-           get_ancestors returns [target_scope_id; parent; grandparent; ...].
-           Since target entry lives inside target_scope_id, we must expand target_scope_id
-           and all its ancestors to make the path visible. *)
+    match
+      find_next_search_result ~search_slots:state.search_slots ~current_scope_id
+        ~current_seq_id ~forward
+    with
+    | None -> None (* No more search results *)
+    | Some (target_scope_id, target_seq_id) -> (
+        (* Expand all ancestors of the target entry. get_ancestors returns
+           [target_scope_id; parent; grandparent; ...]. Since target entry lives inside
+           target_scope_id, we must expand target_scope_id and all its ancestors to make
+           the path visible. *)
         let ancestors = Query.get_ancestors state.db ~scope_id:target_scope_id in
-        List.iter (fun ancestor_id ->
-          Hashtbl.replace state.expanded ancestor_id ()
-        ) ancestors;
+        List.iter
+          (fun ancestor_id -> Hashtbl.replace state.expanded ancestor_id ())
+          ancestors;
 
         (* Rebuild visible items with expanded path *)
-        let new_visible = build_visible_items state.db state.expanded state.values_first ~search_slots:state.search_slots ~current_slot:state.current_slot in
+        let new_visible =
+          build_visible_items state.db state.expanded state.values_first
+            ~search_slots:state.search_slots ~current_slot:state.current_slot
+        in
 
         (* Find the target entry in the new visible items *)
         let rec find_in_visible idx =
-          if idx >= Array.length new_visible then
-            None  (* Entry not found after expansion - may be filtered or invalid *)
+          if idx >= Array.length new_visible then None
+            (* Entry not found after expansion - may be filtered or invalid *)
           else
             let item = new_visible.(idx) in
-            if item.entry.scope_id = target_scope_id && item.entry.seq_id = target_seq_id then
-              Some idx
-            else
-              find_in_visible (idx + 1)
+            if item.entry.scope_id = target_scope_id && item.entry.seq_id = target_seq_id
+            then Some idx
+            else find_in_visible (idx + 1)
         in
 
         match find_in_visible 0 with
         | None ->
-            (* Couldn't find target in visible items - return updated state anyway
-               so user sees the expanded path. The target may become visible after
-               manual navigation. *)
+            (* Couldn't find target in visible items - return updated state anyway so user
+               sees the expanded path. The target may become visible after manual
+               navigation. *)
             Some { state with visible_items = new_visible }
         | Some new_cursor ->
             (* Calculate scroll offset to center the match on screen *)
-            let (_, term_height) = Term.size (Term.create ()) in
+            let _, term_height = Term.size (Term.create ()) in
             let content_height = term_height - 4 in
             let new_scroll =
               if new_cursor < state.scroll_offset then new_cursor
               else if new_cursor >= state.scroll_offset + content_height then
-                max 0 (new_cursor - content_height / 2)
+                max 0 (new_cursor - (content_height / 2))
               else state.scroll_offset
             in
-            Some { state with cursor = new_cursor; scroll_offset = new_scroll; visible_items = new_visible }
+            Some
+              {
+                state with
+                cursor = new_cursor;
+                scroll_offset = new_scroll;
+                visible_items = new_visible;
+              })
 
   (** Handle key events *)
   let handle_key state key term_height =
@@ -1712,202 +1820,204 @@ module Interactive = struct
         | `Escape, _ ->
             (* Cancel quiet_path input *)
             Some { state with quiet_path_input = None }
-
         | `Enter, _ ->
             (* Confirm quiet_path *)
             let new_quiet_path = if String.length input > 0 then Some input else None in
             Some { state with quiet_path_input = None; quiet_path = new_quiet_path }
-
         | `Backspace, _ ->
             (* Remove last character *)
             let new_input =
-              if String.length input > 0 then
-                String.sub input 0 (String.length input - 1)
-              else
-                input
+              if String.length input > 0 then String.sub input 0 (String.length input - 1)
+              else input
             in
             Some { state with quiet_path_input = Some new_input }
-
         | `ASCII c, _ when c >= ' ' && c <= '~' ->
             (* Add printable character *)
             Some { state with quiet_path_input = Some (input ^ String.make 1 c) }
-
-        | _ -> Some state
-    )
+        | _ -> Some state)
     | None -> (
         (* Handle search input mode *)
         match state.search_input with
         | Some input -> (
-        match key with
-        | `Escape, _ ->
-            (* Cancel search input *)
-            Some { state with search_input = None }
+            match key with
+            | `Escape, _ ->
+                (* Cancel search input *)
+                Some { state with search_input = None }
+            | `Enter, _ ->
+                (* Confirm search - spawn Domain to populate search hash table *)
+                if String.length input > 0 then
+                  let slot = state.current_slot in
 
-        | `Enter, _ ->
-            (* Confirm search - spawn Domain to populate search hash table *)
-            if String.length input > 0 then
-              let slot = state.current_slot in
+                  (* Create shared completion flag and results hash table *)
+                  let completed_ref = ref false in
+                  let results_table = Hashtbl.create 1024 in
 
-              (* Create shared completion flag and results hash table *)
-              let completed_ref = ref false in
-              let results_table = Hashtbl.create 1024 in
+                  (* Spawn background search Domain - pass db_path not db handle *)
+                  let domain_handle =
+                    Domain.spawn (fun () ->
+                        Query.populate_search_results state.db_path ~search_term:input
+                          ~quiet_path:state.quiet_path ~search_order:state.search_order
+                          ~completed_ref ~results_table)
+                  in
 
-              (* Spawn background search Domain - pass db_path not db handle *)
-              let domain_handle =
-                Domain.spawn (fun () ->
-                  Query.populate_search_results state.db_path ~search_term:input ~quiet_path:state.quiet_path ~search_order:state.search_order ~completed_ref ~results_table
-                )
-              in
+                  (* Update search slots *)
+                  let new_slots =
+                    SlotMap.update slot
+                      (fun _ ->
+                        Some
+                          {
+                            search_term = input;
+                            domain_handle = Some domain_handle;
+                            completed_ref;
+                            results = results_table;
+                          })
+                      state.search_slots
+                  in
 
-              (* Update search slots *)
-              let new_slots = SlotMap.update slot (fun _ -> Some { search_term = input; domain_handle = Some domain_handle; completed_ref; results = results_table }) state.search_slots in
-
-              Some {
-                state with
-                search_input = None;
-                search_slots = new_slots;
-                current_slot = SlotNumber.next slot;
-              }
-            else
-              (* Empty input - just cancel *)
-              Some { state with search_input = None }
-
-        | `Backspace, _ ->
-            (* Remove last character *)
-            let new_input =
-              if String.length input > 0 then
-                String.sub input 0 (String.length input - 1)
-              else
-                input
-            in
-            Some { state with search_input = Some new_input }
-
-        | `ASCII c, _ when c >= ' ' && c <= '~' ->
-            (* Add printable character *)
-            Some { state with search_input = Some (input ^ String.make 1 c) }
-
-        | _ -> Some state
-    )
-    | None -> (
-        (* Normal navigation mode *)
-        match key with
-        | `ASCII 'q', _ | `Escape, _ -> None (* Quit *)
-
-        | `ASCII '/', _ ->
-            (* Enter search mode *)
-            Some { state with search_input = Some "" }
-
-        | `ASCII 'Q', _ ->
-            (* Enter quiet_path mode *)
-            Some { state with quiet_path_input = Some (Option.value ~default:"" state.quiet_path) }
-
-        | `Arrow `Up, _ | `ASCII 'k', _ ->
-        let new_cursor = max 0 (state.cursor - 1) in
-        let new_scroll =
-          if new_cursor < state.scroll_offset then new_cursor
-          else state.scroll_offset
-        in
-        Some { state with cursor = new_cursor; scroll_offset = new_scroll }
-
-    | `Arrow `Down, _ | `ASCII 'j', _ ->
-        let max_cursor = Array.length state.visible_items - 1 in
-        let new_cursor = min max_cursor (state.cursor + 1) in
-        let new_scroll =
-          if new_cursor >= state.scroll_offset + content_height then
-            new_cursor - content_height + 1
-          else state.scroll_offset
-        in
-        Some { state with cursor = new_cursor; scroll_offset = new_scroll }
-
-    | `Home, _ ->
-        (* Jump to first entry *)
-        Some { state with cursor = 0; scroll_offset = 0 }
-
-    | `End, _ ->
-        (* Jump to last entry *)
-        let max_cursor = Array.length state.visible_items - 1 in
-        let new_scroll = max 0 (max_cursor - content_height + 1) in
-        Some { state with cursor = max_cursor; scroll_offset = new_scroll }
-
-    | `Enter, _ | `ASCII ' ', _ ->
-        Some (toggle_expansion state)
-
-    | `ASCII 't', _ ->
-        Some { state with show_times = not state.show_times }
-
-    | `ASCII 'v', _ ->
-        let new_values_first = not state.values_first in
-        let new_visible = build_visible_items state.db state.expanded new_values_first ~search_slots:state.search_slots ~current_slot:state.current_slot in
-        Some { state with values_first = new_values_first; visible_items = new_visible }
-
-    | `ASCII 'o', _ ->
-        (* Toggle search order *)
-        let new_order = match state.search_order with
-          | Query.AscendingIds -> Query.DescendingIds
-          | Query.DescendingIds -> Query.AscendingIds
-        in
-        Some { state with search_order = new_order }
-
-    | `Page `Up, _ ->
-        (* Page Up: Move cursor to top of screen, then scroll up by content_height - 1 *)
-        if state.cursor = state.scroll_offset then
-          (* Cursor already at top - scroll up one page, keeping one row overlap *)
-          let new_scroll = max 0 (state.scroll_offset - (content_height - 1)) in
-          let new_cursor = new_scroll in
-          Some { state with cursor = new_cursor; scroll_offset = new_scroll }
-        else
-          (* Move cursor to top of current view *)
-          Some { state with cursor = state.scroll_offset }
-
-    | `Page `Down, _ ->
-        (* Page Down: Move cursor to bottom of screen, then scroll down by content_height - 1 *)
-        let max_cursor = Array.length state.visible_items - 1 in
-        let bottom_of_screen = min max_cursor (state.scroll_offset + content_height - 1) in
-        if state.cursor = bottom_of_screen then
-          (* Cursor already at bottom - scroll down one page, keeping one row overlap *)
-          let new_scroll = min (max 0 (max_cursor - content_height + 1))
-                               (state.scroll_offset + (content_height - 1)) in
-          let new_cursor = min max_cursor (new_scroll + content_height - 1) in
-          Some { state with cursor = new_cursor; scroll_offset = new_scroll }
-        else
-          (* Move cursor to bottom of current view *)
-          Some { state with cursor = bottom_of_screen }
-
-    | `ASCII 'u', _ ->
-        (* Quarter-page Up: Scroll up by content_height / 4 *)
-        let quarter_page = max 1 (content_height / 4) in
-        let new_cursor = max 0 (state.cursor - quarter_page) in
-        let new_scroll = max 0 (min state.scroll_offset new_cursor) in
-        Some { state with cursor = new_cursor; scroll_offset = new_scroll }
-
-    | `ASCII 'd', _ ->
-        (* Quarter-page Down: Scroll down by content_height / 4 *)
-        let max_cursor = Array.length state.visible_items - 1 in
-        let quarter_page = max 1 (content_height / 4) in
-        let new_cursor = min max_cursor (state.cursor + quarter_page) in
-        let new_scroll =
-          if new_cursor >= state.scroll_offset + content_height then
-            min (max 0 (max_cursor - content_height + 1))
-                (new_cursor - content_height + 1)
-          else state.scroll_offset
-        in
-        Some { state with cursor = new_cursor; scroll_offset = new_scroll }
-
-    | `ASCII 'n', _ ->
-        (* Next search result - searches entire DB and auto-expands path *)
-        (match find_and_jump_to_search_result state ~forward:true with
-        | Some new_state -> Some new_state
-        | None -> Some state)  (* No more results, stay in place *)
-
-    | `ASCII 'N', _ ->
-        (* Previous search result - searches entire DB and auto-expands path *)
-        (match find_and_jump_to_search_result state ~forward:false with
-        | Some new_state -> Some new_state
-        | None -> Some state)  (* No more results, stay in place *)
-
-        | _ -> Some state
-    )
-    )
+                  Some
+                    {
+                      state with
+                      search_input = None;
+                      search_slots = new_slots;
+                      current_slot = SlotNumber.next slot;
+                    }
+                else
+                  (* Empty input - just cancel *)
+                  Some { state with search_input = None }
+            | `Backspace, _ ->
+                (* Remove last character *)
+                let new_input =
+                  if String.length input > 0 then
+                    String.sub input 0 (String.length input - 1)
+                  else input
+                in
+                Some { state with search_input = Some new_input }
+            | `ASCII c, _ when c >= ' ' && c <= '~' ->
+                (* Add printable character *)
+                Some { state with search_input = Some (input ^ String.make 1 c) }
+            | _ -> Some state)
+        | None -> (
+            (* Normal navigation mode *)
+            match key with
+            | `ASCII 'q', _ | `Escape, _ -> None (* Quit *)
+            | `ASCII '/', _ ->
+                (* Enter search mode *)
+                Some { state with search_input = Some "" }
+            | `ASCII 'Q', _ ->
+                (* Enter quiet_path mode *)
+                Some
+                  {
+                    state with
+                    quiet_path_input = Some (Option.value ~default:"" state.quiet_path);
+                  }
+            | `Arrow `Up, _ | `ASCII 'k', _ ->
+                let new_cursor = max 0 (state.cursor - 1) in
+                let new_scroll =
+                  if new_cursor < state.scroll_offset then new_cursor
+                  else state.scroll_offset
+                in
+                Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+            | `Arrow `Down, _ | `ASCII 'j', _ ->
+                let max_cursor = Array.length state.visible_items - 1 in
+                let new_cursor = min max_cursor (state.cursor + 1) in
+                let new_scroll =
+                  if new_cursor >= state.scroll_offset + content_height then
+                    new_cursor - content_height + 1
+                  else state.scroll_offset
+                in
+                Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+            | `Home, _ ->
+                (* Jump to first entry *)
+                Some { state with cursor = 0; scroll_offset = 0 }
+            | `End, _ ->
+                (* Jump to last entry *)
+                let max_cursor = Array.length state.visible_items - 1 in
+                let new_scroll = max 0 (max_cursor - content_height + 1) in
+                Some { state with cursor = max_cursor; scroll_offset = new_scroll }
+            | `Enter, _ | `ASCII ' ', _ -> Some (toggle_expansion state)
+            | `ASCII 't', _ -> Some { state with show_times = not state.show_times }
+            | `ASCII 'v', _ ->
+                let new_values_first = not state.values_first in
+                let new_visible =
+                  build_visible_items state.db state.expanded new_values_first
+                    ~search_slots:state.search_slots ~current_slot:state.current_slot
+                in
+                Some
+                  {
+                    state with
+                    values_first = new_values_first;
+                    visible_items = new_visible;
+                  }
+            | `ASCII 'o', _ ->
+                (* Toggle search order *)
+                let new_order =
+                  match state.search_order with
+                  | Query.AscendingIds -> Query.DescendingIds
+                  | Query.DescendingIds -> Query.AscendingIds
+                in
+                Some { state with search_order = new_order }
+            | `Page `Up, _ ->
+                (* Page Up: Move cursor to top of screen, then scroll up by content_height
+                   - 1 *)
+                if state.cursor = state.scroll_offset then
+                  (* Cursor already at top - scroll up one page, keeping one row
+                     overlap *)
+                  let new_scroll = max 0 (state.scroll_offset - (content_height - 1)) in
+                  let new_cursor = new_scroll in
+                  Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+                else
+                  (* Move cursor to top of current view *)
+                  Some { state with cursor = state.scroll_offset }
+            | `Page `Down, _ ->
+                (* Page Down: Move cursor to bottom of screen, then scroll down by
+                   content_height - 1 *)
+                let max_cursor = Array.length state.visible_items - 1 in
+                let bottom_of_screen =
+                  min max_cursor (state.scroll_offset + content_height - 1)
+                in
+                if state.cursor = bottom_of_screen then
+                  (* Cursor already at bottom - scroll down one page, keeping one row
+                     overlap *)
+                  let new_scroll =
+                    min
+                      (max 0 (max_cursor - content_height + 1))
+                      (state.scroll_offset + (content_height - 1))
+                  in
+                  let new_cursor = min max_cursor (new_scroll + content_height - 1) in
+                  Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+                else
+                  (* Move cursor to bottom of current view *)
+                  Some { state with cursor = bottom_of_screen }
+            | `ASCII 'u', _ ->
+                (* Quarter-page Up: Scroll up by content_height / 4 *)
+                let quarter_page = max 1 (content_height / 4) in
+                let new_cursor = max 0 (state.cursor - quarter_page) in
+                let new_scroll = max 0 (min state.scroll_offset new_cursor) in
+                Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+            | `ASCII 'd', _ ->
+                (* Quarter-page Down: Scroll down by content_height / 4 *)
+                let max_cursor = Array.length state.visible_items - 1 in
+                let quarter_page = max 1 (content_height / 4) in
+                let new_cursor = min max_cursor (state.cursor + quarter_page) in
+                let new_scroll =
+                  if new_cursor >= state.scroll_offset + content_height then
+                    min
+                      (max 0 (max_cursor - content_height + 1))
+                      (new_cursor - content_height + 1)
+                  else state.scroll_offset
+                in
+                Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+            | `ASCII 'n', _ -> (
+                (* Next search result - searches entire DB and auto-expands path *)
+                match find_and_jump_to_search_result state ~forward:true with
+                | Some new_state -> Some new_state
+                | None -> Some state (* No more results, stay in place *))
+            | `ASCII 'N', _ -> (
+                (* Previous search result - searches entire DB and auto-expands path *)
+                match find_and_jump_to_search_result state ~forward:false with
+                | Some new_state -> Some new_state
+                | None -> Some state (* No more results, stay in place *))
+            | _ -> Some state))
 
   (** Main interactive loop *)
   let run db db_path =
@@ -1915,41 +2025,47 @@ module Interactive = struct
     let values_first = true in
     (* Initialize with empty search slots for initial build *)
     let empty_search_slots = SlotMap.empty in
-    let visible_items = build_visible_items db expanded values_first ~search_slots:empty_search_slots ~current_slot:S1 in
+    let visible_items =
+      build_visible_items db expanded values_first ~search_slots:empty_search_slots
+        ~current_slot:S1
+    in
     let max_scope_id = Query.get_max_scope_id db in
 
     (* Initialize empty search slots (no persistence across TUI sessions) *)
-    let initial_state = {
-      db;
-      db_path;
-      cursor = 0;
-      scroll_offset = 0;
-      expanded;
-      visible_items;
-      show_times = true;
-      values_first;
-      max_scope_id;
-      search_slots = SlotMap.empty;
-      current_slot = S1;
-      search_input = None;
-      quiet_path_input = None;
-      quiet_path = None;
-      search_order = Query.AscendingIds;  (* Default: uses index efficiently *)
-    } in
+    let initial_state =
+      {
+        db;
+        db_path;
+        cursor = 0;
+        scroll_offset = 0;
+        expanded;
+        visible_items;
+        show_times = true;
+        values_first;
+        max_scope_id;
+        search_slots = SlotMap.empty;
+        current_slot = S1;
+        search_input = None;
+        quiet_path_input = None;
+        quiet_path = None;
+        search_order = Query.AscendingIds;
+        (* Default: uses index efficiently *)
+      }
+    in
 
     let term = Term.create () in
 
     let rec loop state =
-      let (term_width, term_height) = Term.size term in
+      let term_width, term_height = Term.size term in
       let image = render_screen state term_height term_width in
       Term.image term image;
 
       (* Poll every 1/5th of a second to check for search updates *)
       match event_with_timeout term 0.2 with
-      | Some event ->
-          (match event with
-          | `Key key ->
-              (match handle_key state key term_height with
+      | Some event -> (
+          match event with
+          | `Key key -> (
+              match handle_key state key term_height with
               | Some new_state -> loop new_state
               | None -> ())
           | `Resize _ -> loop state
@@ -2088,8 +2204,7 @@ module Client = struct
          | Some data ->
              if entry.message <> "" then
                Printf.fprintf oc "%s  **%s =>** `%s`\n" indent entry.message data
-             else
-               Printf.fprintf oc "%s  **=>** `%s`\n" indent data
+             else Printf.fprintf oc "%s  **=>** `%s`\n" indent data
          | None -> ());
 
       List.iter (render_node ~depth:(depth + 1)) node.Renderer.children

@@ -91,18 +91,18 @@ let parse_args () =
         | "stats" :: rest ->
             cmd_ref := Stats;
             parse_rest rest
-        | "show" :: rest -> (
+        | "show" :: rest ->
             cmd_ref := Show;
-                parse_rest rest)
-        | ("interactive" | "tui") :: rest -> (
+            parse_rest rest
+        | ("interactive" | "tui") :: rest ->
             cmd_ref := Interactive;
-                parse_rest rest)
-        | "compact" :: rest -> (
+            parse_rest rest
+        | "compact" :: rest ->
             cmd_ref := Compact;
-                parse_rest rest)
-        | "roots" :: rest -> (
+            parse_rest rest
+        | "roots" :: rest ->
             cmd_ref := Roots;
-                parse_rest rest)
+            parse_rest rest
         | "search" :: pattern :: rest ->
             cmd_ref := Search pattern;
             parse_rest rest
@@ -169,27 +169,28 @@ let () =
           runs
     | Stats -> Minidebug_client.Client.show_stats client
     | Show ->
-        Minidebug_client.Client.(show_run_summary client (Option.get (get_latest_run client)).run_id);
+        Minidebug_client.Client.(
+          show_run_summary client (Option.get (get_latest_run client)).run_id);
         Minidebug_client.Client.show_trace client ~show_scope_ids:opts.show_scope_ids
           ~show_times:opts.show_times ~max_depth:opts.max_depth
           ~values_first_mode:opts.values_first_mode
     | Interactive ->
-        (* Open database connection for interactive mode.
-           Not READONLY so it can see writes from search Domains via WAL. *)
+        (* Open database connection for interactive mode. Not READONLY so it can see
+           writes from search Domains via WAL. *)
         let db = Sqlite3.db_open db_path in
         Minidebug_client.Interactive.run db db_path;
         Sqlite3.db_close db |> ignore
     | Compact ->
-        Minidebug_client.Client.(show_run_summary client (Option.get (get_latest_run client)).run_id);
+        Minidebug_client.Client.(
+          show_run_summary client (Option.get (get_latest_run client)).run_id);
         Minidebug_client.Client.show_compact_trace client
     | Roots ->
-        Minidebug_client.Client.(show_run_summary client (Option.get (get_latest_run client)).run_id);
+        Minidebug_client.Client.(
+          show_run_summary client (Option.get (get_latest_run client)).run_id);
         Minidebug_client.Client.show_roots client ~show_times:opts.show_times
           ~with_values:opts.with_values
-    | Search pattern ->
-        Minidebug_client.Client.search client ~pattern
-    | Export file ->
-        Minidebug_client.Client.export_markdown client ~output_file:file
+    | Search pattern -> Minidebug_client.Client.search client ~pattern
+    | Export file -> Minidebug_client.Client.export_markdown client ~output_file:file
     | Help ->
         print_endline usage_msg;
         exit 0

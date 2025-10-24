@@ -40,8 +40,7 @@ module Query : sig
   val get_latest_run_id : string -> int option
   (** Get the ID of the most recent run from metadata DB, given the versioned DB path *)
 
-  val get_entries :
-    Sqlite3.db -> ?parent_id:int -> ?max_depth:int -> unit -> entry list
+  val get_entries : Sqlite3.db -> ?parent_id:int -> ?max_depth:int -> unit -> entry list
   (** Get entries for a specific run, optionally filtered by parent_id and max_depth *)
 
   val get_stats : Sqlite3.db -> string -> stats
@@ -78,8 +77,7 @@ module Renderer : sig
   val render_compact : tree_node list -> string
   (** Render compact summary (just function calls) *)
 
-  val render_roots :
-    ?show_times:bool -> ?with_values:bool -> Query.entry list -> string
+  val render_roots : ?show_times:bool -> ?with_values:bool -> Query.entry list -> string
   (** Render root entries as a flat list. When [with_values] is true, shows immediate
       children values. *)
 
@@ -90,8 +88,8 @@ end
 (** Interactive TUI using Notty *)
 module Interactive : sig
   val run : Sqlite3.db -> string -> unit
-  (** Launch interactive terminal UI for exploring a trace run.
-      Arguments: db handle, db_path
+  (** Launch interactive terminal UI for exploring a trace run. Arguments: db handle,
+      db_path
 
       Controls:
       - [↑/↓] or [k/j]: Navigate up/down
@@ -122,7 +120,7 @@ module Client : sig
 
   val show_stats : t -> unit
   (** Print database statistics *)
-  
+
   val show_trace :
     ?show_scope_ids:bool ->
     ?show_times:bool ->
@@ -133,7 +131,7 @@ module Client : sig
   (** Print full trace tree for a run. When [values_first_mode] is true (default), result
       values become headers with location/message as children. *)
 
-  val show_compact_trace : t ->  unit
+  val show_compact_trace : t -> unit
   (** Print compact trace (function names only) *)
 
   val show_roots : ?show_times:bool -> ?with_values:bool -> t -> unit

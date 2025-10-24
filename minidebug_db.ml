@@ -11,8 +11,8 @@ module Schema = struct
   (** Database schema version for migration management *)
   let schema_version = 3
 
-  (** Initialize metadata database with runs table.
-      The metadata DB tracks all runs across versioned database files. *)
+  (** Initialize metadata database with runs table. The metadata DB tracks all runs across
+      versioned database files. *)
   let initialize_meta_db db =
     Sqlite3.exec db
       {|CREATE TABLE IF NOT EXISTS runs (
@@ -25,10 +25,10 @@ module Schema = struct
           status TEXT DEFAULT 'active'
         )|}
     |> ignore;
-    Sqlite3.exec db "CREATE INDEX IF NOT EXISTS idx_runs_timestamp ON runs(timestamp DESC)"
+    Sqlite3.exec db
+      "CREATE INDEX IF NOT EXISTS idx_runs_timestamp ON runs(timestamp DESC)"
     |> ignore;
-    Sqlite3.exec db "CREATE INDEX IF NOT EXISTS idx_runs_name ON runs(run_name)"
-    |> ignore;
+    Sqlite3.exec db "CREATE INDEX IF NOT EXISTS idx_runs_name ON runs(run_name)" |> ignore;
 
     (* Schema version tracking for metadata DB *)
     Sqlite3.exec db
@@ -40,7 +40,6 @@ module Schema = struct
 
   (** Initialize versioned database tables (no runs table - that's in metadata DB) *)
   let initialize_db db =
-
     (* Value atoms table for content-addressed storage *)
     Sqlite3.exec db
       {|CREATE TABLE IF NOT EXISTS value_atoms (
@@ -87,8 +86,7 @@ module Schema = struct
     Sqlite3.exec db
       "CREATE INDEX IF NOT EXISTS idx_entries_child_scope ON entries(child_scope_id)"
     |> ignore;
-    Sqlite3.exec db
-      "CREATE INDEX IF NOT EXISTS idx_entries_depth ON entries(depth)"
+    Sqlite3.exec db "CREATE INDEX IF NOT EXISTS idx_entries_depth ON entries(depth)"
     |> ignore;
 
     (* Schema version tracking *)
@@ -102,13 +100,13 @@ module Schema = struct
          schema_version)
     |> ignore;
 
-    (* Fast mode: optimize for performance with top-level transactions.
-       - DELETE journal: simpler than WAL, lower overhead
-       - synchronous=OFF: no fsync calls (trades durability for speed)
-       - locking_mode=NORMAL: allows lock release on COMMIT (between top-level scopes)
+    (* Fast mode: optimize for performance with top-level transactions. - DELETE journal:
+       simpler than WAL, lower overhead - synchronous=OFF: no fsync calls (trades
+       durability for speed) - locking_mode=NORMAL: allows lock release on COMMIT (between
+       top-level scopes)
 
-       Each top-level scope is wrapped in BEGIN...COMMIT, giving transaction
-       performance while allowing database access between top-level calls. *)
+       Each top-level scope is wrapped in BEGIN...COMMIT, giving transaction performance
+       while allowing database access between top-level calls. *)
     Sqlite3.exec db "PRAGMA journal_mode=DELETE" |> ignore;
     Sqlite3.exec db "PRAGMA synchronous=OFF" |> ignore
 end
@@ -193,9 +191,9 @@ module type Db_config = sig
   include Minidebug_runtime.Shared_config
 end
 
-(** Global counter for versioning database files.
-    Each runtime instance gets a unique run number to prevent conflicts.
-    This is process-global, shared across all DatabaseBackend functor instances. *)
+(** Global counter for versioning database files. Each runtime instance gets a unique run
+    number to prevent conflicts. This is process-global, shared across all DatabaseBackend
+    functor instances. *)
 let global_run_counter = Atomic.make 0
 
 (** Database backend implementing Debug_runtime interface *)
@@ -228,10 +226,13 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
 
   let db_path = ref None
   let db = ref None
-  let meta_db = ref None  (* Metadata database handle *)
-  let run_id = ref None   (* Run ID from metadata database *)
+  let meta_db = ref None (* Metadata database handle *)
+  let run_id = ref None (* Run ID from metadata database *)
   let intern = ref None
-  let transaction_started = ref false (* Track if we've started the long-running transaction *)
+
+  let transaction_started =
+    ref false (* Track if we've started the long-running transaction *)
+
   let stack : entry_info list ref = ref []
   let hidden_entries = ref []
   let root_seq_counter = ref 0 (* Counter for root-level entries *)
@@ -240,9 +241,9 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
   let orphaned_seq_counters =
     ref [] (* Per-scope_id counters for orphaned logs: (scope_id * seq_counter) list *)
 
-  (** Cache for boxified sexp structures - maps sexp content hash to scope_id.
-      Enables deduplication of repeated substructures.
-      Uses MD5 hash of sexp string for proper content-based deduplication. *)
+  (** Cache for boxified sexp structures - maps sexp content hash to scope_id. Enables
+      deduplication of repeated substructures. Uses MD5 hash of sexp string for proper
+      content-based deduplication. *)
   module SexpCache = struct
     let cache : (string, int) Hashtbl.t = Hashtbl.create 1000
 
@@ -262,8 +263,8 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
 
   (** Initialize database connection *)
   let initialize_database base_filename =
-    (* Get unique run number from global counter - ensures no conflicts between
-       multiple runtime instances in the same process or across processes. *)
+    (* Get unique run number from global counter - ensures no conflicts between multiple
+       runtime instances in the same process or across processes. *)
     let run_number = Atomic.fetch_and_add global_run_counter 1 + 1 in
 
     (* Version the filename with run number: debug.db -> debug_1.db, debug_2.db, etc. *)
@@ -283,7 +284,8 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     Schema.initialize_meta_db meta_handle;
     meta_db := Some meta_handle;
 
-    (* Delete existing versioned file if present (safe because we have a unique run_number) *)
+    (* Delete existing versioned file if present (safe because we have a unique
+       run_number) *)
     if Sys.file_exists filename then Sys.remove filename;
 
     let db_handle = Sqlite3.db_open filename in
@@ -293,12 +295,12 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     db := Some db_handle;
     db_path := Some filename;
 
-    (* Create/update symlink from base filename to versioned file for convenience.
-       This allows tools to reference the base name (debug.db) and get the latest run. *)
+    (* Create/update symlink from base filename to versioned file for convenience. This
+       allows tools to reference the base name (debug.db) and get the latest run. *)
     (try
-      if Sys.file_exists base_filename then Sys.remove base_filename;
-      Unix.symlink (Filename.basename filename) base_filename
-    with _ -> ());
+       if Sys.file_exists base_filename then Sys.remove base_filename;
+       Unix.symlink (Filename.basename filename) base_filename
+     with _ -> ());
 
     (* Create value interning context *)
     intern := Some (ValueIntern.create db_handle);
@@ -322,8 +324,8 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
 
     let stmt =
       Sqlite3.prepare meta_handle
-        "INSERT INTO runs (run_name, timestamp, elapsed_ns, command_line, db_file, status) \
-         VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO runs (run_name, timestamp, elapsed_ns, command_line, db_file, \
+         status) VALUES (?, ?, ?, ?, ?, ?)"
     in
     (match run_name_str with
     | Some name -> Sqlite3.bind_text stmt 1 name
@@ -344,25 +346,22 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
 
     (* Register at_exit handler to automatically commit on normal exit *)
     at_exit (fun () ->
-      try
-        if !transaction_started then (
-          Sqlite3.exec db_handle "COMMIT" |> ignore;
-          transaction_started := false
-        )
-      with _ -> ()
-    );
+        try
+          if !transaction_started then (
+            Sqlite3.exec db_handle "COMMIT" |> ignore;
+            transaction_started := false)
+        with _ -> ());
 
     (* Register signal handlers to commit on interrupt (Ctrl+C, SIGTERM) *)
     let commit_and_exit _signal =
       (try
-        if !transaction_started then begin
-          Sqlite3.exec db_handle "COMMIT" |> ignore;
-          transaction_started := false;
-          Printf.eprintf "\nDebug trace committed to %s before exit.\n%!" filename
-        end
-      with _ -> ());
+         if !transaction_started then (
+           Sqlite3.exec db_handle "COMMIT" |> ignore;
+           transaction_started := false;
+           Printf.eprintf "\nDebug trace committed to %s before exit.\n%!" filename)
+       with _ -> ());
       (* Re-raise signal to allow default handler to run *)
-      raise (Sys.Break)
+      raise Sys.Break
     in
     Sys.set_signal Sys.sigint (Sys.Signal_handle commit_and_exit);
     Sys.set_signal Sys.sigterm (Sys.Signal_handle commit_and_exit)
@@ -383,24 +382,22 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
   let get_intern () = Option.get !intern
   let check_log_level level = level <= !log_level
 
-  (** Start transaction when entering a top-level scope.
-      This is called from open_log when stack is empty. *)
+  (** Start transaction when entering a top-level scope. This is called from open_log when
+      stack is empty. *)
   let begin_toplevel_transaction () =
     if not !transaction_started then (
       let db = get_db () in
       Sqlite3.exec db "BEGIN TRANSACTION" |> ignore;
-      transaction_started := true
-    )
+      transaction_started := true)
 
-  (** Commit transaction when leaving a top-level scope.
-      This is called from close_log when stack becomes empty.
-      This unlocks the database so other processes can read it. *)
+  (** Commit transaction when leaving a top-level scope. This is called from close_log
+      when stack becomes empty. This unlocks the database so other processes can read it.
+  *)
   let commit_toplevel_transaction () =
     if !transaction_started then (
       let db = get_db () in
       Sqlite3.exec db "COMMIT" |> ignore;
-      transaction_started := false
-    )
+      transaction_started := false)
 
   let should_log_path fname message =
     match Log_to.path_filter with
@@ -415,7 +412,7 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
       ~log_level log_type =
     if not (should_log ~log_level ~fname ~message) then
       hidden_entries := scope_id :: !hidden_entries
-    else (
+    else
       let db = get_db () in
       let intern = get_intern () in
       let parent_scope_id, seq_id =
@@ -433,8 +430,7 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
 
       (* Insert into entry_parents table *)
       let parent_stmt =
-        Sqlite3.prepare db
-          "INSERT INTO entry_parents (scope_id, parent_id) VALUES (?, ?)"
+        Sqlite3.prepare db "INSERT INTO entry_parents (scope_id, parent_id) VALUES (?, ?)"
       in
       Sqlite3.bind_int parent_stmt 1 scope_id |> ignore;
       (match parent_scope_id with
@@ -522,9 +518,10 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
           failwith
             (Printf.sprintf
                "Failed to insert header entry: %s (rc=%s)\n\
-                Trying to insert: scope_id=%d, seq_id=%d, child_scope_id=%d, \
-                depth=%d, log_level=%d, entry_type=%s\n\
-                %s" errmsg (Sqlite3.Rc.to_string rc)
+                Trying to insert: scope_id=%d, seq_id=%d, child_scope_id=%d, depth=%d, \
+                log_level=%d, entry_type=%s\n\
+                %s"
+               errmsg (Sqlite3.Rc.to_string rc)
                (match parent_scope_id with None -> 0 | Some pid -> pid)
                seq_id scope_id depth log_level entry_type_str existing_info));
       Sqlite3.finalize stmt |> ignore;
@@ -548,7 +545,6 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
       match !stack with
       | _ :: parent :: _ -> parent.num_children <- parent.num_children + 1
       | _ -> ()
-    )
 
   let open_log_no_source ~message ~scope_id ~log_level log_type =
     open_log ~fname:"" ~start_lnum:0 ~start_colnum:0 ~end_lnum:0 ~end_colnum:0 ~message
@@ -559,16 +555,16 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     decr boxify_scope_id_counter;
     !boxify_scope_id_counter
 
-  (** Helper to insert a header entry with data into the database.
-      Used for indentation-based sub-scopes. *)
-  let insert_header_with_data ~parent_scope_id ~seq_id ~new_scope_id ~depth ~message ~content_str ~is_result =
+  (** Helper to insert a header entry with data into the database. Used for
+      indentation-based sub-scopes. *)
+  let insert_header_with_data ~parent_scope_id ~seq_id ~new_scope_id ~depth ~message
+      ~content_str ~is_result =
     let db = get_db () in
     let intern = get_intern () in
 
     (* Insert into entry_parents table for the new scope *)
     let parent_stmt =
-      Sqlite3.prepare db
-        "INSERT INTO entry_parents (scope_id, parent_id) VALUES (?, ?)"
+      Sqlite3.prepare db "INSERT INTO entry_parents (scope_id, parent_id) VALUES (?, ?)"
     in
     Sqlite3.bind_int parent_stmt 1 new_scope_id |> ignore;
     Sqlite3.bind_int parent_stmt 2 parent_scope_id |> ignore;
@@ -595,9 +591,9 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     (* Insert header row with data into entries table *)
     let stmt =
       Sqlite3.prepare db
-        "INSERT INTO entries (scope_id, seq_id, child_scope_id, depth, \
-         message_value_id, data_value_id, elapsed_start_ns, elapsed_end_ns, is_result, \
-         log_level, entry_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO entries (scope_id, seq_id, child_scope_id, depth, message_value_id, \
+         data_value_id, elapsed_start_ns, elapsed_end_ns, is_result, log_level, \
+         entry_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     in
     Sqlite3.bind_int stmt 1 parent_scope_id |> ignore;
     Sqlite3.bind_int stmt 2 seq_id |> ignore;
@@ -646,9 +642,9 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     (* Insert value row into entries table *)
     let stmt =
       Sqlite3.prepare db
-        "INSERT INTO entries (scope_id, seq_id, child_scope_id, depth, \
-         message_value_id, data_value_id, elapsed_start_ns, elapsed_end_ns, is_result, \
-         log_level, entry_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO entries (scope_id, seq_id, child_scope_id, depth, message_value_id, \
+         data_value_id, elapsed_start_ns, elapsed_end_ns, is_result, log_level, \
+         entry_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     in
     Sqlite3.bind_int stmt 1 scope_id |> ignore;
     Sqlite3.bind_int stmt 2 seq_id |> ignore;
@@ -679,13 +675,14 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
 
   (** Boxify a sexp: split it into multiple database entries with synthetic scope_ids.
       Directly inserts entries into the database, creating proper nested scope structure.
-      Returns the number of entries inserted.
-  *)
+      Returns the number of entries inserted. *)
   let boxify ~descr ~depth ~parent_scope_id ~is_result sexp =
     let open Sexplib0.Sexp in
     (* Get seq_id allocator from parent's counter *)
     let parent_entry = List.find_opt (fun e -> e.scope_id = parent_scope_id) !stack in
-    let seq_counter = ref (match parent_entry with Some p -> p.num_children | None -> 0) in
+    let seq_counter =
+      ref (match parent_entry with Some p -> p.num_children | None -> 0)
+    in
     let get_next_seq () =
       let s = !seq_counter in
       incr seq_counter;
@@ -696,34 +693,40 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     let num_inserted = ref 0 in
 
     let rec loop ~is_toplevel ~depth ~parent_eid ~get_seq sexp =
-      let message = if is_toplevel then (match descr with Some d -> d | None -> "") else "" in
+      let message =
+        if is_toplevel then match descr with Some d -> d | None -> "" else ""
+      in
       let is_result = is_toplevel && is_result in
 
       (* Check cache for this sexp - reuse existing scope_id if found *)
       (* Uses MD5 content hash to avoid collisions from structurally similar sexps *)
       match SexpCache.find_opt sexp with
       | Some cached_scope_id when not is_toplevel ->
-          (* Cache hit! Reuse the existing scope_id instead of creating new entries.
-             We create a reference to the cached scope by inserting a header entry that
-             points to it. The scope already exists in entry_parents, so we skip that insertion.
-             Only cache non-toplevel sexps to preserve descr/is_result. *)
+          (* Cache hit! Reuse the existing scope_id instead of creating new entries. We
+             create a reference to the cached scope by inserting a header entry that
+             points to it. The scope already exists in entry_parents, so we skip that
+             insertion. Only cache non-toplevel sexps to preserve descr/is_result. *)
           let seq_id = get_seq () in
           let db = get_db () in
           let intern = get_intern () in
 
           (* Get the first atom from the cached sexp for the data field *)
-          let first_atom = match sexp with
+          let first_atom =
+            match sexp with
             | Atom s -> Some s
             | List (Atom s :: _) -> Some s
             | List _ -> Some "<scope>"
           in
 
           (* Intern the message if present *)
-          let message_value_id = if message = "" then None
-            else Some (ValueIntern.intern intern ~value_type:"message" message) in
+          let message_value_id =
+            if message = "" then None
+            else Some (ValueIntern.intern intern ~value_type:"message" message)
+          in
 
           (* Intern data if present *)
-          let data_value_id = match first_atom with
+          let data_value_id =
+            match first_atom with
             | Some d -> Some (ValueIntern.intern intern ~value_type:"value" d)
             | None -> None
           in
@@ -736,23 +739,27 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
             | Some ns -> ns
           in
 
-          (* Insert header row that references the cached scope (no entry_parents insert needed) *)
+          (* Insert header row that references the cached scope (no entry_parents insert
+             needed) *)
           let stmt =
             Sqlite3.prepare db
               "INSERT INTO entries (scope_id, seq_id, child_scope_id, depth, \
-               message_value_id, data_value_id, elapsed_start_ns, elapsed_end_ns, is_result, \
-               log_level, entry_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+               message_value_id, data_value_id, elapsed_start_ns, elapsed_end_ns, \
+               is_result, log_level, entry_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \
+               ?)"
           in
           Sqlite3.bind_int stmt 1 parent_eid |> ignore;
           Sqlite3.bind_int stmt 2 seq_id |> ignore;
           Sqlite3.bind_int stmt 3 cached_scope_id |> ignore;
           Sqlite3.bind_int stmt 4 depth |> ignore;
           (match message_value_id with
-           | Some mid -> Sqlite3.bind_int stmt 5 mid
-           | None -> Sqlite3.bind stmt 5 Sqlite3.Data.NULL) |> ignore;
+          | Some mid -> Sqlite3.bind_int stmt 5 mid
+          | None -> Sqlite3.bind stmt 5 Sqlite3.Data.NULL)
+          |> ignore;
           (match data_value_id with
-           | Some did -> Sqlite3.bind_int stmt 6 did
-           | None -> Sqlite3.bind stmt 6 Sqlite3.Data.NULL) |> ignore;
+          | Some did -> Sqlite3.bind_int stmt 6 did
+          | None -> Sqlite3.bind stmt 6 Sqlite3.Data.NULL)
+          |> ignore;
           Sqlite3.bind_int stmt 7 elapsed_ns |> ignore;
           Sqlite3.bind_int stmt 8 elapsed_ns |> ignore;
           Sqlite3.bind_int stmt 9 0 |> ignore;
@@ -760,25 +767,27 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
           Sqlite3.bind_text stmt 11 "value" |> ignore;
 
           (match Sqlite3.step stmt with
-           | Sqlite3.Rc.DONE -> ()
-           | rc -> failwith (Printf.sprintf "Failed to insert cached reference: %s" (Sqlite3.Rc.to_string rc)));
+          | Sqlite3.Rc.DONE -> ()
+          | rc ->
+              failwith
+                (Printf.sprintf "Failed to insert cached reference: %s"
+                   (Sqlite3.Rc.to_string rc)));
           Sqlite3.finalize stmt |> ignore;
           incr num_inserted
-      | _ ->
+      | _ -> (
           (* Cache miss or toplevel - process normally and cache the result *)
           (* Process the sexp and return the scope_id created for it (if any) *)
           let process_and_return_scope () =
-            (* Check structure FIRST before applying size threshold.
-               Always decompose List (Atom _ :: _) structures (ADT constructors)
-               regardless of size to preserve navigable tree structure. *)
+            (* Check structure FIRST before applying size threshold. Always decompose List
+               (Atom _ :: _) structures (ADT constructors) regardless of size to preserve
+               navigable tree structure. *)
             match sexp with
             | List (Atom s :: body) ->
                 (* Create a synthetic scope with first atom as header *)
                 let synthetic_id = get_boxify_scope_id () in
                 (* Insert header entry with first atom as content *)
                 insert_header_with_data ~parent_scope_id:parent_eid ~seq_id:(get_seq ())
-                  ~new_scope_id:synthetic_id ~depth ~message ~content_str:s
-                  ~is_result;
+                  ~new_scope_id:synthetic_id ~depth ~message ~content_str:s ~is_result;
                 incr num_inserted;
                 (* Create new seq counter for the synthetic scope *)
                 let synthetic_seq = ref 0 in
@@ -788,11 +797,16 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
                   s
                 in
                 (* Recursively process remaining elements under the synthetic scope *)
-                List.iter (fun child -> loop ~is_toplevel:false ~depth:(depth + 1) ~parent_eid:synthetic_id ~get_seq:get_synthetic_seq child) body;
+                List.iter
+                  (fun child ->
+                    loop ~is_toplevel:false ~depth:(depth + 1) ~parent_eid:synthetic_id
+                      ~get_seq:get_synthetic_seq child)
+                  body;
                 (* Return the scope_id we created for THIS sexp *)
                 Some synthetic_id
             | List body when is_toplevel ->
-                loop ~is_toplevel ~depth ~parent_eid ~get_seq (List (Atom "<scope>" :: body));
+                loop ~is_toplevel ~depth ~parent_eid ~get_seq
+                  (List (Atom "<scope>" :: body));
                 None
             | _ when sexp_size sexp < boxify_threshold ->
                 (* Small enough - insert as single entry with pretty-printed content *)
@@ -807,20 +821,21 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
                 incr num_inserted;
                 None
             | List [] ->
-                if is_toplevel then (
+                if is_toplevel then
                   if message <> "" || is_result then (
                     insert_value_entry ~scope_id:parent_eid ~seq_id:(get_seq ()) ~depth
                       ~message ~content_str:"()" ~is_result;
-                    incr num_inserted
-                  )
-                );
+                    incr num_inserted);
                 None
             | List [ s ] ->
                 loop ~is_toplevel ~depth:(depth + 1) ~parent_eid ~get_seq s;
                 None
             | List l ->
                 (* Process each element of the list directly under current parent *)
-                List.iter (fun child -> loop ~is_toplevel:false ~depth:(depth + 1) ~parent_eid ~get_seq child) l;
+                List.iter
+                  (fun child ->
+                    loop ~is_toplevel:false ~depth:(depth + 1) ~parent_eid ~get_seq child)
+                  l;
                 None
           in
 
@@ -831,7 +846,7 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
           match created_scope_id_opt with
           | Some created_scope_id when not is_toplevel ->
               SexpCache.add sexp created_scope_id
-          | _ -> ()
+          | _ -> ())
     in
 
     loop ~is_toplevel:true ~depth ~parent_eid:parent_scope_id ~get_seq:get_next_seq sexp;
@@ -958,7 +973,7 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
       (* Force the lazy value to get actual content *)
       let sexp = Lazy.force v in
       if sexp = Sexplib0.Sexp.List [] then ()
-      else if sexp_size sexp >= 10 then (
+      else if sexp_size sexp >= 10 then
         (* Boxify: split into multiple entries with proper nesting *)
         let depth =
           match List.find_opt (fun e -> e.scope_id = scope_id) !stack with
@@ -966,14 +981,14 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
           | None -> List.length !stack
         in
         (* boxify now handles insertion directly and returns number of entries inserted *)
-        let _num_inserted = boxify ~descr ~depth ~parent_scope_id:scope_id ~is_result sexp in
+        let _num_inserted =
+          boxify ~descr ~depth ~parent_scope_id:scope_id ~is_result sexp
+        in
         ()
-      )
-      else (
+      else
         (* Small sexp - pretty print and log as-is *)
         let content = Sexplib0.Sexp.to_string_hum sexp in
         log_value_common ~descr ~scope_id ~log_level ~is_result content
-      )
 
   let log_value_pp ?descr ~scope_id ~log_level ~pp ~is_result v =
     if not (check_log_level log_level) then ()
@@ -1012,8 +1027,7 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
 
         (* Step 1: Look up parent_id from entry_parents table *)
         let parent_stmt =
-          Sqlite3.prepare db
-            "SELECT parent_id FROM entry_parents WHERE scope_id = ?"
+          Sqlite3.prepare db "SELECT parent_id FROM entry_parents WHERE scope_id = ?"
         in
         Sqlite3.bind_int parent_stmt 1 scope_id |> ignore;
         let parent_scope_id =
@@ -1033,7 +1047,8 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
         | Some parent_id ->
             let stmt =
               Sqlite3.prepare db
-                "UPDATE entries SET elapsed_end_ns = ? WHERE scope_id = ? AND child_scope_id = ?"
+                "UPDATE entries SET elapsed_end_ns = ? WHERE scope_id = ? AND \
+                 child_scope_id = ?"
             in
             let elapsed_ns =
               match Int64.unsigned_to_int @@ Mtime.Span.to_uint64_ns elapsed_end with
@@ -1113,8 +1128,8 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
                    matching parent *)
                 let child_stmt =
                   Sqlite3.prepare db
-                    "SELECT DISTINCT child_scope_id FROM entries WHERE scope_id = ? \
-                     AND child_scope_id IS NOT NULL"
+                    "SELECT DISTINCT child_scope_id FROM entries WHERE scope_id = ? AND \
+                     child_scope_id IS NOT NULL"
                 in
                 Sqlite3.bind_int child_stmt 1 parent_scope_id |> ignore;
 
@@ -1149,8 +1164,7 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
           (* Delete the header row for this entry (which has child_scope_id = this
              scope) *)
           let delete_header_stmt =
-            Sqlite3.prepare db
-              "DELETE FROM entries WHERE child_scope_id = ?"
+            Sqlite3.prepare db "DELETE FROM entries WHERE child_scope_id = ?"
           in
           Sqlite3.bind_int delete_header_stmt 1 scope_id |> ignore;
           (match Sqlite3.step delete_header_stmt with
@@ -1173,8 +1187,7 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
 
               (* Delete header *)
               let delete_header_stmt =
-                Sqlite3.prepare db
-                  "DELETE FROM entries WHERE child_scope_id = ?"
+                Sqlite3.prepare db "DELETE FROM entries WHERE child_scope_id = ?"
               in
               Sqlite3.bind_int delete_header_stmt 1 desc_id |> ignore;
               (match Sqlite3.step delete_header_stmt with
@@ -1190,8 +1203,7 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
         (* Commit the transaction if one was started *)
         if !transaction_started then (
           Sqlite3.exec db_handle "COMMIT" |> ignore;
-          transaction_started := false
-        );
+          transaction_started := false);
         (match !intern with Some intern -> ValueIntern.finalize intern | None -> ());
         Sqlite3.db_close db_handle |> ignore;
         db := None;
@@ -1209,8 +1221,8 @@ end
 let db_config ?(time_tagged = Minidebug_runtime.Not_tagged)
     ?(elapsed_times = Minidebug_runtime.Not_reported)
     ?(location_format = Minidebug_runtime.Beg_pos) ?(print_scope_ids = false)
-    ?(verbose_scope_ids = false) ?(run_name = "") ?(log_level = 9)
-    ?path_filter db_filename : (module Db_config) =
+    ?(verbose_scope_ids = false) ?(run_name = "") ?(log_level = 9) ?path_filter
+    db_filename : (module Db_config) =
   let module Config = struct
     let refresh_ch () = false
     let debug_ch () = stdout (* Unused for database backend *)
@@ -1252,8 +1264,7 @@ let debug_db_file ?(time_tagged = Minidebug_runtime.Not_tagged)
 let debug_db ?(debug_ch = stdout) ?(time_tagged = Minidebug_runtime.Not_tagged)
     ?(elapsed_times = Minidebug_runtime.Not_reported)
     ?(location_format = Minidebug_runtime.Beg_pos) ?(print_scope_ids = false)
-    ?(verbose_scope_ids = false) ?(run_name = "") ?(log_level = 9)
-    ?path_filter () =
+    ?(verbose_scope_ids = false) ?(run_name = "") ?(log_level = 9) ?path_filter () =
   (* For database backend, we ignore debug_ch and create a file-based config *)
   let _ = debug_ch in
   let filename = "debug" in
