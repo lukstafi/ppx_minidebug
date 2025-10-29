@@ -16,6 +16,7 @@ COMMANDS:
   search <pattern>          Search entries by regex pattern (basic)
   search-tree <pattern>     Search with full tree context (shows ancestor paths)
   search-subtree <pattern>  Search showing only matching subtrees (pruned)
+  search-at-depth <pattern> <depth>  Search summary at specific depth (TUI-like)
   show-scope <id>           Show specific scope and its descendants
   show-entry <sid> <seq>    Show detailed entry information
   get-ancestors <id>        Get ancestor scope IDs from root to target
@@ -48,6 +49,9 @@ EXAMPLES:
   # Search but stop context at test boundaries
   minidebug_view trace.db search-tree "error" --quiet-path="test_"
 
+  # Get TUI-like summary at depth 4 (for huge traces)
+  minidebug_view trace.db search-at-depth "(id 79)" 4 --quiet-path="env"
+
   # Show specific scope with descendants
   minidebug_view trace.db show-scope 42 --depth=2 --format=json
 
@@ -72,6 +76,7 @@ type command =
   | Search of string
   | SearchTree of string
   | SearchSubtree of string
+  | SearchAtDepth of string * int
   | ShowScope of int
   | ShowEntry of int * int
   | GetAncestors of int
@@ -141,6 +146,9 @@ let parse_args () =
             parse_rest rest
         | "search-subtree" :: pattern :: rest ->
             cmd_ref := SearchSubtree pattern;
+            parse_rest rest
+        | "search-at-depth" :: pattern :: depth_str :: rest ->
+            cmd_ref := SearchAtDepth (pattern, int_of_string depth_str);
             parse_rest rest
         | "show-scope" :: id_str :: rest ->
             cmd_ref := ShowScope (int_of_string id_str);
@@ -267,6 +275,9 @@ let () =
             ~pattern
         in
         ()
+    | SearchAtDepth (pattern, depth) ->
+        Minidebug_client.Client.search_at_depth ~quiet_path:opts.quiet_path
+          ~format:opts.format ~show_times:opts.show_times ~depth client ~pattern
     | ShowScope scope_id ->
         Minidebug_client.Client.show_scope ~format:opts.format ~show_times:opts.show_times
           ~max_depth:opts.max_depth ~show_ancestors:opts.show_ancestors client ~scope_id

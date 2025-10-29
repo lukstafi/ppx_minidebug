@@ -2502,4 +2502,75 @@ module Client = struct
     | `Json ->
         Printf.printf "[ %s ]\n"
           (String.concat ", " (List.map string_of_int child_scope_ids))
+
+  (** Search and show only entries at a specific depth on paths to matches.
+      This gives a TUI-like summary view - shows only the depth-N ancestors
+      of matching entries, filtered by quiet_path. *)
+  let search_at_depth ?(quiet_path = None) ?(format = `Text) ?(show_times = false)
+      ~depth t ~pattern =
+    (* Run search to get results hash table *)
+    let completed_ref = ref false in
+    let results_table = Hashtbl.create 1024 in
+    Query.populate_search_results t.db_path ~search_term:pattern ~quiet_path
+      ~search_order:Query.AscendingIds ~completed_ref ~results_table;
+
+    (* Get all entries and filter to those in results *)
+    let all_entries = Query.get_entries t.db () in
+    let filtered_entries =
+      List.filter
+        (fun e -> Hashtbl.mem results_table (e.Query.scope_id, e.Query.seq_id))
+        all_entries
+    in
+
+    (* Filter to only entries at the specified depth *)
+    let depth_entries =
+      List.filter (fun e -> e.Query.depth = depth) filtered_entries
+      |> List.sort_uniq (fun a b -> compare a.Query.scope_id b.Query.scope_id)
+    in
+
+    (* For deduplication, keep only unique scope_ids at this depth *)
+    let seen = Hashtbl.create 256 in
+    let unique_entries =
+      List.filter
+        (fun e ->
+          match e.Query.child_scope_id with
+          | Some id ->
+              if Hashtbl.mem seen id then false
+              else (
+                Hashtbl.add seen id ();
+                true)
+          | None -> true)
+        depth_entries
+    in
+
+    (* Count actual matches (not propagated ancestors) *)
+    let match_count =
+      Hashtbl.fold
+        (fun _key is_match acc -> if is_match then acc + 1 else acc)
+        results_table 0
+    in
+
+    (* Output *)
+    match format with
+    | `Text ->
+        Printf.printf
+          "Found %d matches for pattern '%s', showing %d unique entries at depth %d:\n\n"
+          match_count pattern (List.length unique_entries) depth;
+        List.iter
+          (fun entry ->
+            Printf.printf "{#%d} [%s] %s" entry.Query.scope_id entry.entry_type
+              entry.message;
+            (match entry.location with
+            | Some loc -> Printf.printf " @ %s" loc
+            | None -> ());
+            (if show_times then
+               match Renderer.elapsed_time entry with
+               | Some elapsed ->
+                   Printf.printf " <%s>" (Renderer.format_elapsed_ns elapsed)
+               | None -> ());
+            Printf.printf "\n")
+          unique_entries
+    | `Json ->
+        let json = Renderer.render_entries_json unique_entries in
+        print_endline json
 end

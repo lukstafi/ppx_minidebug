@@ -210,4 +210,23 @@ module Client : sig
 
   val get_children : ?format:[ `Text | `Json ] -> t -> scope_id:int -> unit
   (** Get and print immediate children scope IDs of a scope *)
+
+  val search_at_depth :
+    ?quiet_path:string option ->
+    ?format:[ `Text | `Json ] ->
+    ?show_times:bool ->
+    depth:int ->
+    t ->
+    pattern:string ->
+    unit
+  (** Search and show only unique entries at a specific depth on paths to matches.
+
+      This provides a TUI-like summary view - shows only the depth-N ancestors
+      of matching entries, giving a high-level overview without overwhelming detail.
+
+      Example: [search_at_depth ~depth:4 ~pattern:"(id 79)" ~quiet_path:"env"]
+      shows only the depth-4 scopes that are ancestors of matches, deduplicated.
+
+      Use case: When [search_tree] returns too many results, use this to see
+      a summary at a shallower depth, then drill down with [show_scope]. *)
 end
