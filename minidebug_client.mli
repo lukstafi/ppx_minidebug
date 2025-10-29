@@ -83,6 +83,15 @@ module Renderer : sig
 
   val elapsed_time : Query.entry -> int option
   (** Calculate elapsed time for an entry in nanoseconds *)
+
+  val render_tree_json : ?max_depth:int option -> tree_node list -> string
+  (** Render tree as JSON array *)
+
+  val render_entries_json : Query.entry list -> string
+  (** Render entries as JSON array *)
+
+  val entry_to_json : Query.entry -> string
+  (** Render single entry as JSON object *)
 end
 
 (** Interactive TUI using Notty *)
@@ -143,4 +152,62 @@ module Client : sig
 
   val export_markdown : t -> output_file:string -> unit
   (** Export trace to markdown file *)
+
+  val search_tree :
+    ?quiet_path:string option ->
+    ?format:[ `Text | `Json ] ->
+    ?show_times:bool ->
+    ?max_depth:int option ->
+    t ->
+    pattern:string ->
+    int
+  (** Search with tree context - shows matching entries with their ancestor paths.
+      Uses efficient ancestor propagation like the TUI.
+      Returns number of matching scopes found.
+
+      Arguments:
+      - [quiet_path]: Stop ancestor propagation when this pattern is matched
+      - [format]: Output format (Text or Json)
+      - [show_times]: Include elapsed times in output
+      - [max_depth]: Limit tree depth
+      - [pattern]: Search pattern (substring match) *)
+
+  val search_subtree :
+    ?quiet_path:string option ->
+    ?format:[ `Text | `Json ] ->
+    ?show_times:bool ->
+    ?max_depth:int option ->
+    t ->
+    pattern:string ->
+    int
+  (** Search and show only matching subtrees, pruning non-matching branches.
+      Returns number of actual matches (not including propagated ancestors).
+
+      This builds a minimal tree containing only paths to matches, unlike
+      [search_tree] which shows full context paths. *)
+
+  val show_scope :
+    ?format:[ `Text | `Json ] ->
+    ?show_times:bool ->
+    ?max_depth:int option ->
+    ?show_ancestors:bool ->
+    t ->
+    scope_id:int ->
+    unit
+  (** Show a specific scope and its descendants.
+
+      Arguments:
+      - [show_ancestors]: If true, shows path from root to this scope instead of descendants *)
+
+  val show_entry : ?format:[ `Text | `Json ] -> t -> scope_id:int -> seq_id:int -> unit
+  (** Show detailed information for a specific entry *)
+
+  val get_ancestors : ?format:[ `Text | `Json ] -> t -> scope_id:int -> unit
+  (** Get and print ancestors of a scope (list of scope IDs from root to target) *)
+
+  val get_parent : ?format:[ `Text | `Json ] -> t -> scope_id:int -> unit
+  (** Get and print parent of a scope *)
+
+  val get_children : ?format:[ `Text | `Json ] -> t -> scope_id:int -> unit
+  (** Get and print immediate children scope IDs of a scope *)
 end

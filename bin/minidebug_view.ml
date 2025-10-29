@@ -7,14 +7,21 @@ USAGE:
   minidebug_view <database> <command> [options]
 
 COMMANDS:
-  list                    List all runs in database
-  stats                   Show database statistics
-  show                    Show trace tree (latest run if no ID given)
-  interactive             Interactive TUI for exploring trace (alias: tui)
-  compact                 Show compact trace (function names only)
-  roots                   Show root entries only (fast for large DBs)
-  search <pattern>        Search entries by regex pattern
-  export <file>           Export latest run to markdown
+  list                      List all runs in database
+  stats                     Show database statistics
+  show                      Show trace tree (latest run if no ID given)
+  interactive               Interactive TUI for exploring trace (alias: tui)
+  compact                   Show compact trace (function names only)
+  roots                     Show root entries only (fast for large DBs)
+  search <pattern>          Search entries by regex pattern (basic)
+  search-tree <pattern>     Search with full tree context (shows ancestor paths)
+  search-subtree <pattern>  Search showing only matching subtrees (pruned)
+  show-scope <id>           Show specific scope and its descendants
+  show-entry <sid> <seq>    Show detailed entry information
+  get-ancestors <id>        Get ancestor scope IDs from root to target
+  get-parent <id>           Get parent scope ID
+  get-children <id>         Get child scope IDs
+  export <file>             Export latest run to markdown
 
 OPTIONS:
   --run=<id>              Specify run ID (for show, compact, search, roots)
@@ -23,23 +30,33 @@ OPTIONS:
   --max-depth=<n>         Limit tree depth
   --values-first          Show result values as headers (values-first mode)
   --with-values           Include immediate children values (for roots command)
+  --format=<fmt>          Output format: text (default) or json
+  --quiet-path=<pattern>  Stop ancestor propagation at pattern (search-tree only)
+  --ancestors             Show ancestors instead of descendants (show-scope only)
   --help                  Show this help message
 
 EXAMPLES:
   # Show latest trace
   minidebug_view trace.db show
 
-  # Show root entries only (efficient for large DBs)
-  minidebug_view trace.db roots --times
+  # Search with full context trees (for LLM analysis)
+  minidebug_view trace.db search-tree "error" --format=json
 
-  # Show root entries with their immediate children
-  minidebug_view trace.db roots --with-values --times
+  # Search showing only matching subtrees
+  minidebug_view trace.db search-subtree "fib" --times
 
-  # Show specific run with entry IDs and times
-  minidebug_view trace.db show --run=1 --entry-ids --times
+  # Search but stop context at test boundaries
+  minidebug_view trace.db search-tree "error" --quiet-path="test_"
 
-  # Search for function calls matching pattern
-  minidebug_view trace.db search "fib"
+  # Show specific scope with descendants
+  minidebug_view trace.db show-scope 42 --depth=2 --format=json
+
+  # Show ancestor path to a scope
+  minidebug_view trace.db show-scope 42 --ancestors
+
+  # Get navigation info
+  minidebug_view trace.db get-ancestors 100
+  minidebug_view trace.db get-children 42 --format=json
 
   # Export to markdown
   minidebug_view trace.db export output.md
@@ -53,6 +70,13 @@ type command =
   | Compact
   | Roots
   | Search of string
+  | SearchTree of string
+  | SearchSubtree of string
+  | ShowScope of int
+  | ShowEntry of int * int
+  | GetAncestors of int
+  | GetParent of int
+  | GetChildren of int
   | Export of string
   | Help
 
@@ -62,6 +86,9 @@ type options = {
   max_depth : int option;
   values_first_mode : bool;
   with_values : bool;
+  format : [ `Text | `Json ];
+  quiet_path : string option;
+  show_ancestors : bool;
 }
 
 let parse_args () =
@@ -80,6 +107,9 @@ let parse_args () =
             max_depth = None;
             values_first_mode = false;
             with_values = false;
+            format = `Text;
+            quiet_path = None;
+            show_ancestors = false;
           }
       in
 
@@ -106,6 +136,27 @@ let parse_args () =
         | "search" :: pattern :: rest ->
             cmd_ref := Search pattern;
             parse_rest rest
+        | "search-tree" :: pattern :: rest ->
+            cmd_ref := SearchTree pattern;
+            parse_rest rest
+        | "search-subtree" :: pattern :: rest ->
+            cmd_ref := SearchSubtree pattern;
+            parse_rest rest
+        | "show-scope" :: id_str :: rest ->
+            cmd_ref := ShowScope (int_of_string id_str);
+            parse_rest rest
+        | "show-entry" :: sid_str :: seq_str :: rest ->
+            cmd_ref := ShowEntry (int_of_string sid_str, int_of_string seq_str);
+            parse_rest rest
+        | "get-ancestors" :: id_str :: rest ->
+            cmd_ref := GetAncestors (int_of_string id_str);
+            parse_rest rest
+        | "get-parent" :: id_str :: rest ->
+            cmd_ref := GetParent (int_of_string id_str);
+            parse_rest rest
+        | "get-children" :: id_str :: rest ->
+            cmd_ref := GetChildren (int_of_string id_str);
+            parse_rest rest
         | "export" :: file :: rest ->
             cmd_ref := Export file;
             parse_rest rest
@@ -126,6 +177,18 @@ let parse_args () =
                 parse_rest rest
             | [ "--with-values" ] ->
                 opts := { !opts with with_values = true };
+                parse_rest rest
+            | [ "--format"; "json" ] ->
+                opts := { !opts with format = `Json };
+                parse_rest rest
+            | [ "--format"; "text" ] ->
+                opts := { !opts with format = `Text };
+                parse_rest rest
+            | [ "--quiet-path"; pattern ] ->
+                opts := { !opts with quiet_path = Some pattern };
+                parse_rest rest
+            | [ "--ancestors" ] ->
+                opts := { !opts with show_ancestors = true };
                 parse_rest rest
             | _ ->
                 Printf.eprintf "Unknown option: %s\n" opt;
@@ -190,6 +253,31 @@ let () =
         Minidebug_client.Client.show_roots client ~show_times:opts.show_times
           ~with_values:opts.with_values
     | Search pattern -> Minidebug_client.Client.search client ~pattern
+    | SearchTree pattern ->
+        let _ =
+          Minidebug_client.Client.search_tree ~quiet_path:opts.quiet_path
+            ~format:opts.format ~show_times:opts.show_times ~max_depth:opts.max_depth client
+            ~pattern
+        in
+        ()
+    | SearchSubtree pattern ->
+        let _ =
+          Minidebug_client.Client.search_subtree ~quiet_path:opts.quiet_path
+            ~format:opts.format ~show_times:opts.show_times ~max_depth:opts.max_depth client
+            ~pattern
+        in
+        ()
+    | ShowScope scope_id ->
+        Minidebug_client.Client.show_scope ~format:opts.format ~show_times:opts.show_times
+          ~max_depth:opts.max_depth ~show_ancestors:opts.show_ancestors client ~scope_id
+    | ShowEntry (scope_id, seq_id) ->
+        Minidebug_client.Client.show_entry ~format:opts.format client ~scope_id ~seq_id
+    | GetAncestors scope_id ->
+        Minidebug_client.Client.get_ancestors ~format:opts.format client ~scope_id
+    | GetParent scope_id ->
+        Minidebug_client.Client.get_parent ~format:opts.format client ~scope_id
+    | GetChildren scope_id ->
+        Minidebug_client.Client.get_children ~format:opts.format client ~scope_id
     | Export file -> Minidebug_client.Client.export_markdown client ~output_file:file
     | Help ->
         print_endline usage_msg;

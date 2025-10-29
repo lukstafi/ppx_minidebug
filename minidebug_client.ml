@@ -1242,6 +1242,78 @@ module Renderer = struct
       sorted_headers;
 
     Buffer.contents buf
+
+  (** JSON escaping helper *)
+  let json_escape s =
+    let buf = Buffer.create (String.length s) in
+    String.iter
+      (fun c ->
+        match c with
+        | '"' -> Buffer.add_string buf "\\\""
+        | '\\' -> Buffer.add_string buf "\\\\"
+        | '\n' -> Buffer.add_string buf "\\n"
+        | '\r' -> Buffer.add_string buf "\\r"
+        | '\t' -> Buffer.add_string buf "\\t"
+        | c when Char.code c < 32 -> Printf.bprintf buf "\\u%04x" (Char.code c)
+        | c -> Buffer.add_char buf c)
+      s;
+    Buffer.contents buf
+
+  (** Render entry as JSON object *)
+  let entry_to_json entry =
+    let parts = ref [] in
+    parts := Printf.sprintf "\"scope_id\": %d" entry.Query.scope_id :: !parts;
+    parts := Printf.sprintf "\"seq_id\": %d" entry.seq_id :: !parts;
+    (match entry.child_scope_id with
+    | Some id -> parts := Printf.sprintf "\"child_scope_id\": %d" id :: !parts
+    | None -> parts := "\"child_scope_id\": null" :: !parts);
+    parts := Printf.sprintf "\"depth\": %d" entry.depth :: !parts;
+    parts := Printf.sprintf "\"message\": \"%s\"" (json_escape entry.message) :: !parts;
+    (match entry.location with
+    | Some loc -> parts := Printf.sprintf "\"location\": \"%s\"" (json_escape loc) :: !parts
+    | None -> parts := "\"location\": null" :: !parts);
+    (match entry.data with
+    | Some d -> parts := Printf.sprintf "\"data\": \"%s\"" (json_escape d) :: !parts
+    | None -> parts := "\"data\": null" :: !parts);
+    parts := Printf.sprintf "\"elapsed_start_ns\": %d" entry.elapsed_start_ns :: !parts;
+    (match entry.elapsed_end_ns with
+    | Some ns -> parts := Printf.sprintf "\"elapsed_end_ns\": %d" ns :: !parts
+    | None -> parts := "\"elapsed_end_ns\": null" :: !parts);
+    (match elapsed_time entry with
+    | Some elapsed -> parts := Printf.sprintf "\"elapsed_ns\": %d" elapsed :: !parts
+    | None -> parts := "\"elapsed_ns\": null" :: !parts);
+    parts := Printf.sprintf "\"is_result\": %b" entry.is_result :: !parts;
+    parts := Printf.sprintf "\"log_level\": %d" entry.log_level :: !parts;
+    parts := Printf.sprintf "\"entry_type\": \"%s\"" (json_escape entry.entry_type) :: !parts;
+    "{ " ^ String.concat ", " (List.rev !parts) ^ " }"
+
+  (** Render tree node as JSON recursively *)
+  let rec tree_node_to_json ?(max_depth = None) ~depth node =
+    let skip = match max_depth with Some d -> depth > d | None -> false in
+    if skip then "null"
+    else
+      let entry_json = entry_to_json node.entry in
+      let children_json =
+        if node.children = [] then "[]"
+        else
+          let child_jsons =
+            List.map
+              (fun child -> tree_node_to_json ~max_depth ~depth:(depth + 1) child)
+              node.children
+          in
+          "[ " ^ String.concat ", " child_jsons ^ " ]"
+      in
+      Printf.sprintf "{ \"entry\": %s, \"children\": %s }" entry_json children_json
+
+  (** Render trees as JSON array *)
+  let render_tree_json ?(max_depth = None) trees =
+    let tree_jsons = List.map (fun t -> tree_node_to_json ~max_depth ~depth:0 t) trees in
+    "[ " ^ String.concat ", " tree_jsons ^ " ]"
+
+  (** Render entries as JSON array *)
+  let render_entries_json entries =
+    let entry_jsons = List.map entry_to_json entries in
+    "[ " ^ String.concat ", " entry_jsons ^ " ]"
 end
 
 (** Interactive TUI using Notty *)
@@ -2213,4 +2285,221 @@ module Client = struct
     List.iter (render_node ~depth:0) trees;
     close_out oc;
     Printf.printf "Exported to %s\n" output_file
+
+  (** Search with tree context - shows matching entries with their ancestor paths.
+      Uses the populate_search_results approach from TUI for efficient ancestor propagation. *)
+  let search_tree ?(quiet_path = None) ?(format = `Text) ?(show_times = false)
+      ?(max_depth = None) t ~pattern =
+    (* Run search synchronously using the same logic as TUI *)
+    let completed_ref = ref false in
+    let results_table = Hashtbl.create 1024 in
+    Query.populate_search_results t.db_path ~search_term:pattern ~quiet_path
+      ~search_order:Query.AscendingIds ~completed_ref ~results_table;
+
+    (* Extract matching entries from hash table *)
+    let matching_scope_ids =
+      Hashtbl.fold
+        (fun (scope_id, _seq_id) is_match acc ->
+          if is_match then scope_id :: acc else acc)
+        results_table []
+      |> List.sort_uniq compare
+    in
+
+    (* Get all entries from DB and filter to only those in results_table *)
+    let all_entries = Query.get_entries t.db () in
+    let filtered_entries =
+      List.filter
+        (fun e -> Hashtbl.mem results_table (e.Query.scope_id, e.Query.seq_id))
+        all_entries
+    in
+
+    (* Build tree from filtered entries *)
+    let trees = Renderer.build_tree filtered_entries in
+
+    (* Output *)
+    (match format with
+    | `Text ->
+        Printf.printf "Found %d matching scopes for pattern '%s'\n\n"
+          (List.length matching_scope_ids) pattern;
+        let output =
+          Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth
+            ~values_first_mode:true trees
+        in
+        print_string output
+    | `Json ->
+        let json = Renderer.render_tree_json ~max_depth trees in
+        print_endline json);
+
+    List.length matching_scope_ids
+
+  (** Search and show only matching subtrees (prune non-matching branches).
+      This builds a minimal tree containing only paths to matches. *)
+  let search_subtree ?(quiet_path = None) ?(format = `Text) ?(show_times = false)
+      ?(max_depth = None) t ~pattern =
+    (* Run search to get results hash table *)
+    let completed_ref = ref false in
+    let results_table = Hashtbl.create 1024 in
+    Query.populate_search_results t.db_path ~search_term:pattern ~quiet_path
+      ~search_order:Query.AscendingIds ~completed_ref ~results_table;
+
+    (* Get all entries and build full tree *)
+    let all_entries = Query.get_entries t.db () in
+    let full_trees = Renderer.build_tree all_entries in
+
+    (* Prune tree: keep only nodes that have matches in their subtree *)
+    let rec prune_tree node =
+      let entry = node.Renderer.entry in
+      (* Check if this entry is a match *)
+      let is_match = Hashtbl.mem results_table (entry.scope_id, entry.seq_id) in
+      (* Recursively prune children *)
+      let pruned_children =
+        List.filter_map prune_tree node.children in
+      (* Keep this node if it's a match OR if any child survived pruning *)
+      if is_match || pruned_children <> [] then
+        Some { node with Renderer.children = pruned_children }
+      else None
+    in
+
+    let pruned_trees = List.filter_map prune_tree full_trees in
+
+    (* Count actual matches (not propagated ancestors) *)
+    let match_count =
+      Hashtbl.fold
+        (fun _key is_match acc -> if is_match then acc + 1 else acc)
+        results_table 0
+    in
+
+    (* Output *)
+    (match format with
+    | `Text ->
+        Printf.printf "Found %d matches for pattern '%s', showing pruned subtrees:\n\n"
+          match_count pattern;
+        let output =
+          Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth
+            ~values_first_mode:true pruned_trees
+        in
+        print_string output
+    | `Json ->
+        let json = Renderer.render_tree_json ~max_depth pruned_trees in
+        print_endline json);
+
+    match_count
+
+  (** Show a specific scope and its descendants *)
+  let show_scope ?(format = `Text) ?(show_times = false) ?(max_depth = None)
+      ?(show_ancestors = false) t ~scope_id =
+    if show_ancestors then
+      (* Show path from root to this scope *)
+      let ancestors = Query.get_ancestors t.db ~scope_id in
+      let all_entries = Query.get_entries t.db () in
+      (* Filter to only ancestor scopes and the target scope *)
+      let ancestor_set =
+        List.fold_left (fun acc id -> Hashtbl.add acc id (); acc)
+          (Hashtbl.create 16) ancestors
+      in
+      let filtered_entries =
+        List.filter (fun e -> Hashtbl.mem ancestor_set e.Query.scope_id) all_entries
+      in
+      let trees = Renderer.build_tree filtered_entries in
+      (match format with
+      | `Text ->
+          Printf.printf "Ancestor path to scope %d:\n\n" scope_id;
+          let output =
+            Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth
+              ~values_first_mode:true trees
+          in
+          print_string output
+      | `Json ->
+          let json = Renderer.render_tree_json ~max_depth trees in
+          print_endline json)
+    else
+      (* Show just this scope and descendants *)
+      let children = Query.get_scope_children t.db ~parent_scope_id:scope_id in
+      (match format with
+      | `Text ->
+          Printf.printf "Scope %d contents:\n\n" scope_id;
+          let output = Renderer.render_entries_json children in
+          print_string output;
+          print_newline ()
+      | `Json ->
+          let json = Renderer.render_entries_json children in
+          print_endline json)
+
+  (** Show detailed information for a specific entry *)
+  let show_entry ?(format = `Text) t ~scope_id ~seq_id =
+    let all_entries = Query.get_entries t.db () in
+    match
+      List.find_opt
+        (fun e -> e.Query.scope_id = scope_id && e.Query.seq_id = seq_id)
+        all_entries
+    with
+    | None ->
+        Printf.eprintf "Entry (%d, %d) not found\n" scope_id seq_id;
+        exit 1
+    | Some entry -> (
+        match format with
+        | `Text ->
+            Printf.printf "Entry (%d, %d):\n" scope_id seq_id;
+            Printf.printf "  Type: %s\n" entry.entry_type;
+            Printf.printf "  Message: %s\n" entry.message;
+            (match entry.location with
+            | Some loc -> Printf.printf "  Location: %s\n" loc
+            | None -> ());
+            (match entry.data with
+            | Some d -> Printf.printf "  Data: %s\n" d
+            | None -> ());
+            (match entry.child_scope_id with
+            | Some id -> Printf.printf "  Child Scope ID: %d\n" id
+            | None -> ());
+            Printf.printf "  Depth: %d\n" entry.depth;
+            Printf.printf "  Log Level: %d\n" entry.log_level;
+            Printf.printf "  Is Result: %b\n" entry.is_result;
+            (match Renderer.elapsed_time entry with
+            | Some elapsed ->
+                Printf.printf "  Elapsed: %s\n" (Renderer.format_elapsed_ns elapsed)
+            | None -> ())
+        | `Json ->
+            let json = Renderer.entry_to_json entry in
+            print_endline json)
+
+  (** Get ancestors of a scope (returns list of scope IDs from root to target) *)
+  let get_ancestors ?(format = `Text) t ~scope_id =
+    let ancestors = Query.get_ancestors t.db ~scope_id in
+    match format with
+    | `Text ->
+        Printf.printf "Ancestors of scope %d: " scope_id;
+        Printf.printf "[ %s ]\n" (String.concat " -> " (List.map string_of_int ancestors))
+    | `Json ->
+        Printf.printf "[ %s ]\n"
+          (String.concat ", " (List.map string_of_int ancestors))
+
+  (** Get parent of a scope *)
+  let get_parent ?(format = `Text) t ~scope_id =
+    match Query.get_parent_id t.db ~scope_id with
+    | None ->
+        (match format with
+        | `Text -> Printf.printf "Scope %d has no parent (is root)\n" scope_id
+        | `Json -> print_endline "null")
+    | Some parent_id ->
+        (match format with
+        | `Text -> Printf.printf "Parent of scope %d: %d\n" scope_id parent_id
+        | `Json -> Printf.printf "%d\n" parent_id)
+
+  (** Get immediate children of a scope *)
+  let get_children ?(format = `Text) t ~scope_id =
+    let children = Query.get_scope_children t.db ~parent_scope_id:scope_id in
+    let child_scope_ids =
+      List.filter_map
+        (fun e ->
+          match e.Query.child_scope_id with Some id -> Some id | None -> None)
+        children
+      |> List.sort_uniq compare
+    in
+    match format with
+    | `Text ->
+        Printf.printf "Child scopes of %d: [ %s ]\n" scope_id
+          (String.concat ", " (List.map string_of_int child_scope_ids))
+    | `Json ->
+        Printf.printf "[ %s ]\n"
+          (String.concat ", " (List.map string_of_int child_scope_ids))
 end

@@ -1,3 +1,20 @@
+# [3.1.0] -- current
+
+### Added
+
+- **Enhanced CLI for LLM/Agent Access**: Greatly expanded `minidebug_view` CLI to expose TUI functionality programmatically
+  - `search-tree <pattern>`: Search with full ancestor context (shows complete call paths to matches)
+  - `search-subtree <pattern>`: Search with pruned trees (shows only matching branches)
+  - `show-scope <id>`: Display specific scope and descendants, or ancestor path with `--ancestors`
+  - `show-entry <scope_id> <seq_id>`: Show detailed entry information
+  - `get-ancestors <id>`, `get-parent <id>`, `get-children <id>`: Navigate scope hierarchy
+  - `--format=json`: Machine-readable JSON output for all commands (enables LLM analysis)
+  - `--quiet-path=<pattern>`: Control ancestor propagation boundaries in search
+- **JSON Rendering**: Complete JSON output support for trees and entries in `Renderer` module
+- **Documentation**: Added comprehensive `CLI.md` covering both usage and implementation
+
+
+
 # [3.0.0] -- 2025-10-24
 
 ### Added
