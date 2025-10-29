@@ -191,6 +191,56 @@ minidebug_view trace.db search-subtree "fib" --times
 
 **Use Case:** Focus on matching code paths without seeing unrelated parent contexts. Good for analyzing recursive functions or deeply nested calls.
 
+#### `search-at-depth <pattern> <depth>` 🌟
+**Most useful for large traces** - Shows only unique entries at a specific depth on paths to matches.
+
+```bash
+minidebug_view trace.db search-at-depth "error" 4 [options]
+```
+
+**Options:**
+- `--format=json`: Output as JSON
+- `--times`: Include elapsed times
+- `--quiet-path=<pattern>`: Stop propagating context when this pattern matches
+
+**How it works:**
+1. Runs search with ancestor propagation (like `search-tree`)
+2. Filters results to only entries at specified depth
+3. Deduplicates by scope_id to show unique entries only
+
+**Example - Get high-level overview:**
+```bash
+minidebug_view trace.db search-at-depth "(id 79)" 1 --quiet-path="env" --times
+# Result: 3 unique top-level operations
+```
+
+**Example - Mid-level summary:**
+```bash
+minidebug_view trace.db search-at-depth "(id 79)" 4 --quiet-path="env"
+# Result: 3 unique scopes at depth 4
+```
+
+**Performance on large traces (1M+ entries):**
+- `search-tree`: Returns 87 matching scopes (overwhelming output)
+- `search-at-depth ... 4`: Returns 3 unique entries (perfect!)
+- `search-at-depth ... 1`: Returns 3 top-level contexts
+
+**Use Case:** When `search-tree` returns too many results (hundreds of matches), use `search-at-depth` to get a TUI-like hierarchical summary. Start at depth 1 for top-level overview, then drill down with `show-scope`.
+
+**Typical Workflow:**
+```bash
+# 1. Get top-level contexts
+minidebug_view trace.db search-at-depth "error" 1 --times
+
+# 2. Get mid-level summary
+minidebug_view trace.db search-at-depth "error" 4 --times
+
+# 3. Drill into specific scope
+minidebug_view trace.db show-scope 12345 --max-depth=2
+```
+
+**Key Insight:** Provides "progressive disclosure" - see summary first, then explore details. This is how the TUI works, now available in CLI!
+
 ### Navigation Commands
 
 #### `show-scope <id>`
@@ -775,31 +825,128 @@ minidebug_view trace.db show --format=json | ajv validate -s schema.json
 3. Use navigation commands to fetch specific scopes
 4. Implement pagination for large results
 
-### Future Enhancements
+### Future Work
+
+#### Lessons from Production Use (OCANNL 1M+ Entry Trace)
+
+The CLI was tested on a real-world OCANNL trace with 1,051,297 entries and 105 MB size. This revealed both strengths and areas for improvement.
+
+**What Worked Exceptionally Well:**
+
+1. **`search-at-depth`** - The killer feature for large traces
+   - Reduced output from 87 matching scopes → 3 unique entries at depth 4
+   - Provides TUI-like hierarchical understanding without interactive session
+   - Enables "progressive disclosure" workflow: overview → drill down
+
+2. **`--quiet-path` filtering** - Effective noise reduction
+   - Reduced matches from 123 → 87 scopes by stopping at "env" patterns
+   - Works by halting ancestor propagation when pattern matches message field
+
+3. **`--times` flag** - Instant performance insights
+   - Immediately identified 49.93s hotspot in scope {#60452}
+   - Showed id 1802 operations taking 100-270ms vs id 79 at 10-13ms
+
+4. **Navigation commands** - Perfect for drilling down
+   - `get-ancestors`, `show-scope`, `show-entry` work flawlessly
+   - Enable systematic exploration of interesting scopes
+
+**Discovered Limitations:**
+
+1. **Quiet-path only filters message field**
+   - Many interesting patterns appear in `data` field, not `message`
+   - Example: Variable IDs like `(id 79)` often in data, causing filter misses
+   - **Need:** `--quiet-data` or unified filtering across all fields
+
+2. **No multi-pattern intersection**
+   - Can't find "scopes containing BOTH id 79 AND id 1802"
+   - Current workaround: Run two searches, manually find common scope IDs
+   - **Need:** `search-intersection <pattern1> <pattern2>`
+
+3. **Performance on extreme scale**
+   - Some queries hang on 1M+ databases (need SQL optimization)
+   - Loading all entries into memory for filtering is inefficient
+   - **Need:** Query pushdown to SQL layer, streaming results
+
+4. **Missing context for errors**
+   - Actual error messages (thrown exceptions) don't appear in trace
+   - Error occurs after trace ends, so can't see the failure point
+   - **Need:** Better exception capture in tracing runtime
+
+**Recommended Workflow for Large Traces:**
+
+```bash
+# Step 1: Understand scale
+minidebug_view huge.db stats
+# Output: 1,051,297 entries → sets expectations
+
+# Step 2: Top-level overview
+minidebug_view huge.db search-at-depth "(id 79)" 1 --quiet-path="env" --times
+# Output: 3 top-level operations, identifies 49.93s hotspot
+
+# Step 3: Mid-level summary
+minidebug_view huge.db search-at-depth "(id 79)" 4 --quiet-path="env"
+# Output: 3 unique scopes at depth 4
+
+# Step 4: Find intersections manually
+minidebug_view huge.db search-at-depth "(id 1802)" 4 --quiet-path="env"
+# Notice scope {#60460} appears in both → likely where ids interact
+
+# Step 5: Drill down
+minidebug_view huge.db show-scope 60460 --max-depth=2
+```
+
+This workflow reduces a 1M-entry trace to 3-7 key scopes in seconds!
 
 #### Planned Features
 
-1. **Filtering by depth/level:**
+1. **Data-field filtering:** ✅ High Priority
    ```bash
-   minidebug_view trace.db show --min-depth=2 --max-depth=4
+   minidebug_view trace.db search-tree "(id 79)" --quiet-data="env\|Node\|Bounds"
+   # Stop propagation when data field matches pattern
    ```
 
-2. **Time-range queries:**
+2. **Multi-pattern search:** ✅ High Priority
    ```bash
-   minidebug_view trace.db search-tree "compute" --time-after=100ms
+   minidebug_view trace.db search-intersection "(id 79)" "(id 1802)"
+   # Find scopes where both patterns occur in subtree
    ```
 
-3. **Value-based search:**
+3. **Pagination:** ✅ High Priority
+   ```bash
+   minidebug_view trace.db search-tree "error" --limit=10 --offset=0
+   # Show only first 10 results, enable paging through large result sets
+   ```
+
+4. **Time-range queries:**
+   ```bash
+   minidebug_view trace.db search-tree "compute" --min-time=100ms
+   # Only show scopes that took at least 100ms
+   ```
+
+5. **Scope range filtering:**
+   ```bash
+   minidebug_view trace.db search-tree "error" --scope-range=50000-60000
+   # Only search within specific scope ID range
+   ```
+
+6. **Summary mode:**
+   ```bash
+   minidebug_view trace.db search-tree "error" --summary
+   # Output: Found 87 scopes: [2093, 2197, 5796, ...]
+   # Just IDs, no full tree
+   ```
+
+7. **Value-based search:**
    ```bash
    minidebug_view trace.db search-value "42" --type=int
    ```
 
-4. **Comparison mode:**
+8. **Comparison mode:**
    ```bash
    minidebug_view trace1.db trace2.db diff
    ```
 
-5. **SQL-like queries:**
+9. **SQL-like queries:**
    ```bash
    minidebug_view trace.db query "SELECT * FROM entries WHERE elapsed_ns > 1000000"
    ```
