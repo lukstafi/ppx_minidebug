@@ -158,6 +158,8 @@ module Client : sig
     ?format:[ `Text | `Json ] ->
     ?show_times:bool ->
     ?max_depth:int option ->
+    ?limit:int option ->
+    ?offset:int option ->
     t ->
     pattern:string ->
     int
@@ -170,6 +172,8 @@ module Client : sig
       - [format]: Output format (Text or Json)
       - [show_times]: Include elapsed times in output
       - [max_depth]: Limit tree depth
+      - [limit]: Limit number of results
+      - [offset]: Skip first n results
       - [pattern]: Search pattern (substring match) *)
 
   val search_subtree :
@@ -177,6 +181,8 @@ module Client : sig
     ?format:[ `Text | `Json ] ->
     ?show_times:bool ->
     ?max_depth:int option ->
+    ?limit:int option ->
+    ?offset:int option ->
     t ->
     pattern:string ->
     int
@@ -184,7 +190,11 @@ module Client : sig
       Returns number of actual matches (not including propagated ancestors).
 
       This builds a minimal tree containing only paths to matches, unlike
-      [search_tree] which shows full context paths. *)
+      [search_tree] which shows full context paths.
+
+      Arguments:
+      - [limit]: Limit number of results
+      - [offset]: Skip first n results *)
 
   val show_scope :
     ?format:[ `Text | `Json ] ->

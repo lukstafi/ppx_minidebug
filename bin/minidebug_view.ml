@@ -34,6 +34,8 @@ OPTIONS:
   --format=<fmt>          Output format: text (default) or json
   --quiet-path=<pattern>  Stop ancestor propagation at pattern (search-tree only)
   --ancestors             Show ancestors instead of descendants (show-scope only)
+  --limit=<n>             Limit number of results (for search commands)
+  --offset=<n>            Skip first n results (for search commands)
   --help                  Show this help message
 
 EXAMPLES:
@@ -94,6 +96,8 @@ type options = {
   format : [ `Text | `Json ];
   quiet_path : string option;
   show_ancestors : bool;
+  limit : int option;
+  offset : int option;
 }
 
 let parse_args () =
@@ -115,6 +119,8 @@ let parse_args () =
             format = `Text;
             quiet_path = None;
             show_ancestors = false;
+            limit = None;
+            offset = None;
           }
       in
 
@@ -198,6 +204,12 @@ let parse_args () =
             | [ "--ancestors" ] ->
                 opts := { !opts with show_ancestors = true };
                 parse_rest rest
+            | [ "--limit"; n ] ->
+                opts := { !opts with limit = Some (int_of_string n) };
+                parse_rest rest
+            | [ "--offset"; n ] ->
+                opts := { !opts with offset = Some (int_of_string n) };
+                parse_rest rest
             | _ ->
                 Printf.eprintf "Unknown option: %s\n" opt;
                 exit 1)
@@ -264,15 +276,15 @@ let () =
     | SearchTree pattern ->
         let _ =
           Minidebug_client.Client.search_tree ~quiet_path:opts.quiet_path
-            ~format:opts.format ~show_times:opts.show_times ~max_depth:opts.max_depth client
-            ~pattern
+            ~format:opts.format ~show_times:opts.show_times ~max_depth:opts.max_depth
+            ~limit:opts.limit ~offset:opts.offset client ~pattern
         in
         ()
     | SearchSubtree pattern ->
         let _ =
           Minidebug_client.Client.search_subtree ~quiet_path:opts.quiet_path
-            ~format:opts.format ~show_times:opts.show_times ~max_depth:opts.max_depth client
-            ~pattern
+            ~format:opts.format ~show_times:opts.show_times ~max_depth:opts.max_depth
+            ~limit:opts.limit ~offset:opts.offset client ~pattern
         in
         ()
     | SearchAtDepth (pattern, depth) ->

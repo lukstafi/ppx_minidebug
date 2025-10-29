@@ -2289,7 +2289,7 @@ module Client = struct
   (** Search with tree context - shows matching entries with their ancestor paths.
       Uses the populate_search_results approach from TUI for efficient ancestor propagation. *)
   let search_tree ?(quiet_path = None) ?(format = `Text) ?(show_times = false)
-      ?(max_depth = None) t ~pattern =
+      ?(max_depth = None) ?(limit = None) ?(offset = None) t ~pattern =
     (* Run search synchronously using the same logic as TUI *)
     let completed_ref = ref false in
     let results_table = Hashtbl.create 1024 in
@@ -2297,12 +2297,29 @@ module Client = struct
       ~search_order:Query.AscendingIds ~completed_ref ~results_table;
 
     (* Extract matching entries from hash table *)
-    let matching_scope_ids =
+    let all_matching_scope_ids =
       Hashtbl.fold
         (fun (scope_id, _seq_id) is_match acc ->
           if is_match then scope_id :: acc else acc)
         results_table []
       |> List.sort_uniq compare
+    in
+
+    (* Apply pagination to matching scope IDs *)
+    let matching_scope_ids =
+      let ids = all_matching_scope_ids in
+      let ids = match offset with
+        | None -> ids
+        | Some off ->
+            if off < List.length ids then
+              List.filteri (fun i _ -> i >= off) ids
+            else []
+      in
+      match limit with
+      | None -> ids
+      | Some lim ->
+          if lim >= List.length ids then ids
+          else List.filteri (fun i _ -> i < lim) ids
     in
 
     (* Get all entries from DB and filter to only those in results_table *)
@@ -2314,13 +2331,38 @@ module Client = struct
     in
 
     (* Build tree from filtered entries *)
-    let trees = Renderer.build_tree filtered_entries in
+    let all_trees = Renderer.build_tree filtered_entries in
+
+    (* Apply pagination at the tree level (root scopes only) *)
+    let trees =
+      let t = all_trees in
+      let t = match offset with
+        | None -> t
+        | Some off ->
+            if off < List.length t then
+              List.filteri (fun i _ -> i >= off) t
+            else []
+      in
+      match limit with
+      | None -> t
+      | Some lim ->
+          if lim >= List.length t then t
+          else List.filteri (fun i _ -> i < lim) t
+    in
 
     (* Output *)
     (match format with
     | `Text ->
-        Printf.printf "Found %d matching scopes for pattern '%s'\n\n"
-          (List.length matching_scope_ids) pattern;
+        let total_scopes = List.length all_matching_scope_ids in
+        let total_trees = List.length all_trees in
+        let shown_trees = List.length trees in
+        let start_idx = Option.value offset ~default:0 in
+        if limit <> None || offset <> None then
+          Printf.printf "Found %d matching scopes for pattern '%s', %d root trees (showing trees %d-%d)\n\n"
+            total_scopes pattern total_trees start_idx (start_idx + shown_trees)
+        else
+          Printf.printf "Found %d matching scopes for pattern '%s'\n\n"
+            total_scopes pattern;
         let output =
           Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth
             ~values_first_mode:true trees
@@ -2335,7 +2377,7 @@ module Client = struct
   (** Search and show only matching subtrees (prune non-matching branches).
       This builds a minimal tree containing only paths to matches. *)
   let search_subtree ?(quiet_path = None) ?(format = `Text) ?(show_times = false)
-      ?(max_depth = None) t ~pattern =
+      ?(max_depth = None) ?(limit = None) ?(offset = None) t ~pattern =
     (* Run search to get results hash table *)
     let completed_ref = ref false in
     let results_table = Hashtbl.create 1024 in
@@ -2360,7 +2402,24 @@ module Client = struct
       else None
     in
 
-    let pruned_trees = List.filter_map prune_tree full_trees in
+    let all_pruned_trees = List.filter_map prune_tree full_trees in
+
+    (* Apply pagination to pruned trees (at root level) *)
+    let pruned_trees =
+      let trees = all_pruned_trees in
+      let trees = match offset with
+        | None -> trees
+        | Some off ->
+            if off < List.length trees then
+              List.filteri (fun i _ -> i >= off) trees
+            else []
+      in
+      match limit with
+      | None -> trees
+      | Some lim ->
+          if lim >= List.length trees then trees
+          else List.filteri (fun i _ -> i < lim) trees
+    in
 
     (* Count actual matches (not propagated ancestors) *)
     let match_count =
@@ -2372,8 +2431,15 @@ module Client = struct
     (* Output *)
     (match format with
     | `Text ->
-        Printf.printf "Found %d matches for pattern '%s', showing pruned subtrees:\n\n"
-          match_count pattern;
+        let total_trees = List.length all_pruned_trees in
+        let shown_trees = List.length pruned_trees in
+        let start_idx = Option.value offset ~default:0 in
+        if limit <> None || offset <> None then
+          Printf.printf "Found %d matches for pattern '%s', %d root trees (showing trees %d-%d):\n\n"
+            match_count pattern total_trees start_idx (start_idx + shown_trees)
+        else
+          Printf.printf "Found %d matches for pattern '%s', showing %d pruned subtrees:\n\n"
+            match_count pattern total_trees;
         let output =
           Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth
             ~values_first_mode:true pruned_trees
