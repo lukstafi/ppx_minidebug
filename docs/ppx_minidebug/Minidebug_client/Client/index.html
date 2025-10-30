@@ -39,7 +39,14 @@
   <span><span class="optlabel">?show_ancestors</span>:bool <span class="arrow">&#45;&gt;</span></span>
   <span><a href="#type-t">t</a> <span class="arrow">&#45;&gt;</span></span>
   <span><span class="label">scope_id</span>:int <span class="arrow">&#45;&gt;</span></span>
-  unit</span></code></div><div class="spec-doc"><p>Show a specific scope and its descendants.</p><p>Arguments:</p><ul><li><code>show_ancestors</code>: If true, shows path from root to this scope instead of descendants</li></ul></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-show_entry"><a href="#val-show_entry" class="anchor"></a><code><span><span class="keyword">val</span> show_entry : 
+  unit</span></code></div><div class="spec-doc"><p>Show a specific scope and its descendants.</p><p>Arguments:</p><ul><li><code>show_ancestors</code>: If true, shows path from root to this scope instead of descendants</li></ul></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-show_subtree"><a href="#val-show_subtree" class="anchor"></a><code><span><span class="keyword">val</span> show_subtree : 
+  <span><span class="optlabel">?format</span>:<span>[ `Text <span>| `Json</span> ]</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><span class="optlabel">?show_times</span>:bool <span class="arrow">&#45;&gt;</span></span>
+  <span><span class="optlabel">?max_depth</span>:<span>int option</span> <span class="arrow">&#45;&gt;</span></span>
+  <span><span class="optlabel">?show_ancestors</span>:bool <span class="arrow">&#45;&gt;</span></span>
+  <span><a href="#type-t">t</a> <span class="arrow">&#45;&gt;</span></span>
+  <span><span class="label">scope_id</span>:int <span class="arrow">&#45;&gt;</span></span>
+  unit</span></code></div><div class="spec-doc"><p>Show a specific scope subtree with full tree rendering.</p><p>Displays: ancestor path (if <code>show_ancestors</code>=true) → target scope → all descendants.</p><p>Arguments:</p><ul><li><code>max_depth</code>: INCREMENTAL depth from target scope (not absolute depth from root). For example, if target is at depth 5 and max_depth=3, shows up to depth 8.</li><li><code>show_ancestors</code>: If true (default), includes ancestor path from root to scope.</li><li><code>show_times</code>: Include elapsed times in output</li><li><code>format</code>: Output format (Text or JSON)</li></ul><p>This command is useful after <code>search_intersection</code> to explore the full context of an LCA scope.</p></div></div><div class="odoc-spec"><div class="spec value anchored" id="val-show_entry"><a href="#val-show_entry" class="anchor"></a><code><span><span class="keyword">val</span> show_entry : 
   <span><span class="optlabel">?format</span>:<span>[ `Text <span>| `Json</span> ]</span> <span class="arrow">&#45;&gt;</span></span>
   <span><a href="#type-t">t</a> <span class="arrow">&#45;&gt;</span></span>
   <span><span class="label">scope_id</span>:int <span class="arrow">&#45;&gt;</span></span>
