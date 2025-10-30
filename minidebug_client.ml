@@ -1083,7 +1083,7 @@ module Renderer = struct
 
         (* Entry ID (optional) *)
         if show_scope_ids then
-          Buffer.add_string buf (Printf.sprintf "{#%d} " entry.scope_id);
+          Buffer.add_string buf (Printf.sprintf "#%d " entry.scope_id);
 
         (* Split children for values_first_mode *)
         let results, non_results =
@@ -2332,7 +2332,7 @@ module Client = struct
       pattern;
     List.iter
       (fun entry ->
-        Printf.printf "{#%d} [%s] %s" entry.Query.scope_id entry.entry_type entry.message;
+        Printf.printf "#%d [%s] %s" entry.Query.scope_id entry.entry_type entry.message;
         (match entry.location with Some loc -> Printf.printf " @ %s" loc | None -> ());
         Printf.printf "\n";
         match entry.data with Some data -> Printf.printf "  %s\n" data | None -> ())
@@ -2920,7 +2920,7 @@ module Client = struct
                   | Some loc -> Printf.sprintf " @ %s" loc
                   | None -> ""
                 in
-                Printf.printf "  {#%d} [%s] %s%s\n"
+                Printf.printf "  #%d [%s] %s%s\n"
                   id entry.Query.entry_type entry.Query.message loc_str
             | None -> ())
           ancestor_entries
@@ -3028,7 +3028,7 @@ module Client = struct
           match_count pattern (List.length unique_entries) depth;
         List.iter
           (fun entry ->
-            Printf.printf "{#%d} [%s] %s" entry.Query.scope_id entry.entry_type
+            Printf.printf "#%d [%s] %s" entry.Query.scope_id entry.entry_type
               entry.message;
             (match entry.location with
             | Some loc -> Printf.printf " @ %s" loc
