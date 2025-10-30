@@ -53,11 +53,14 @@ module Schema = struct
     Sqlite3.exec db "CREATE INDEX IF NOT EXISTS idx_value_hash ON value_atoms(value_hash)"
     |> ignore;
 
-    (* Entry parents table: tracks scope_id -> parent_id relationships *)
+    (* Entry parents table: tracks scope_id -> parent_id relationships.
+       A scope can have multiple parents due to SexpCache deduplication (DAG structure).
+       Composite PRIMARY KEY allows multiple parent_id values per scope_id. *)
     Sqlite3.exec db
       {|CREATE TABLE IF NOT EXISTS entry_parents (
-          scope_id INTEGER PRIMARY KEY,
-          parent_id INTEGER
+          scope_id INTEGER NOT NULL,
+          parent_id INTEGER,
+          PRIMARY KEY (scope_id, parent_id)
         )|}
     |> ignore;
 
@@ -704,11 +707,24 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
       | Some cached_scope_id when not is_toplevel ->
           (* Cache hit! Reuse the existing scope_id instead of creating new entries. We
              create a reference to the cached scope by inserting a header entry that
-             points to it. The scope already exists in entry_parents, so we skip that
-             insertion. Only cache non-toplevel sexps to preserve descr/is_result. *)
+             points to it. We also insert into entry_parents to record this additional
+             parent relationship (DAG structure). Only cache non-toplevel sexps to
+             preserve descr/is_result. *)
           let seq_id = get_seq () in
           let db = get_db () in
           let intern = get_intern () in
+
+          (* Insert into entry_parents to record the additional parent relationship *)
+          let parent_stmt =
+            Sqlite3.prepare db
+              "INSERT OR IGNORE INTO entry_parents (scope_id, parent_id) VALUES (?, ?)"
+          in
+          Sqlite3.bind_int parent_stmt 1 cached_scope_id |> ignore;
+          Sqlite3.bind_int parent_stmt 2 parent_eid |> ignore;
+          (match Sqlite3.step parent_stmt with
+          | Sqlite3.Rc.DONE -> ()
+          | _ -> failwith "Failed to insert additional parent relationship for cache hit");
+          Sqlite3.finalize parent_stmt |> ignore;
 
           (* Get the first atom from the cached sexp for the data field *)
           let first_atom =
@@ -739,8 +755,7 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
             | Some ns -> ns
           in
 
-          (* Insert header row that references the cached scope (no entry_parents insert
-             needed) *)
+          (* Insert header row that references the cached scope *)
           let stmt =
             Sqlite3.prepare db
               "INSERT INTO entries (scope_id, seq_id, child_scope_id, depth, \

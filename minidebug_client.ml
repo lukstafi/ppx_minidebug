@@ -394,8 +394,10 @@ module Query = struct
     Sqlite3.finalize stmt |> ignore;
     has_child
 
-  (** Get parent scope_id for a given entry *)
-  let get_parent_id db ~scope_id =
+  (** Get all parent scope_ids for a given entry. Returns empty list if no parents
+      (root entry). Due to SexpCache deduplication, an entry can have multiple parents
+      (DAG structure). *)
+  let get_parent_ids db ~scope_id =
     let query =
       {|
       SELECT parent_id
@@ -406,17 +408,28 @@ module Query = struct
     let stmt = Sqlite3.prepare db query in
     Sqlite3.bind_int stmt 1 scope_id |> ignore;
 
-    let parent_id =
+    let parent_ids = ref [] in
+    let rec loop () =
       match Sqlite3.step stmt with
       | Sqlite3.Rc.ROW -> (
           match Sqlite3.column stmt 0 with
-          | Sqlite3.Data.INT id -> Some (Int64.to_int id)
-          | Sqlite3.Data.NULL -> None
-          | _ -> None)
-      | _ -> None
+          | Sqlite3.Data.INT id ->
+              parent_ids := Int64.to_int id :: !parent_ids;
+              loop ()
+          | Sqlite3.Data.NULL -> loop ()  (* Skip NULL parents *)
+          | _ -> loop ())
+      | _ -> ()
     in
+    loop ();
     Sqlite3.finalize stmt |> ignore;
-    parent_id
+    List.rev !parent_ids  (* Preserve insertion order *)
+
+  (** Get first parent scope_id for a given entry (for single-path operations).
+      Returns None if no parent (root entry). *)
+  let get_parent_id db ~scope_id =
+    match get_parent_ids db ~scope_id with
+    | [] -> None
+    | first :: _ -> Some first
 
   let get_scope_children db ~parent_scope_id =
     let query =
@@ -713,53 +726,59 @@ module Query = struct
               insert_entry ~is_match:false parent_scope;
               incr propagation_count;
 
-              (* Now propagate to ancestors *)
+              (* Now propagate to ancestors. In a DAG, we must propagate through ALL
+                 parent paths, not just one. *)
               let rec propagate_to_parent current_scope_id =
-                match get_parent_id db ~scope_id:current_scope_id with
-                | None ->
-                    log_debug
-                      (Printf.sprintf
-                         "  propagate: scope_id=%d has no parent (reached root)"
-                         current_scope_id)
-                | Some parent_id ->
-                    if Hashtbl.mem propagated parent_id then
-                      log_debug
-                        (Printf.sprintf
-                           "  propagate: parent_id=%d already propagated, stopping"
-                           parent_id)
-                    else (
-                      log_debug
-                        (Printf.sprintf "  propagate: checking parent_id=%d" parent_id);
-                      (* Eagerly fetch parent entry if not in cache *)
-                      match get_scope_entry parent_id with
-                      | Some parent_entry when matches_quiet_path parent_entry ->
-                          (* Parent matches quiet_path, stop propagation. IMPORTANT: Mark
-                             in propagated table so other matches also stop here! *)
-                          Hashtbl.add propagated parent_id ();
-                          log_debug
-                            (Printf.sprintf
-                               "  propagate: parent_id=%d matches quiet_path, marking \
-                                and stopping propagation"
-                               parent_id)
-                      | Some parent_entry ->
-                          (* Parent found and doesn't match quiet_path - mark it and
-                             continue *)
-                          Hashtbl.add propagated parent_id ();
-                          log_debug
-                            (Printf.sprintf
-                               "  propagate: parent_id=%d doesn't match quiet_path, \
-                                adding to results"
-                               parent_id);
-                          insert_entry ~is_match:false parent_entry;
-                          incr propagation_count;
-                          propagate_to_parent parent_id
-                      | None ->
-                          (* Parent entry not found in database - shouldn't happen but
-                             handle gracefully *)
-                          log_debug
-                            (Printf.sprintf
-                               "  propagate: parent_id=%d not found in database, stopping"
-                               parent_id))
+                let parent_ids = get_parent_ids db ~scope_id:current_scope_id in
+                if parent_ids = [] then
+                  log_debug
+                    (Printf.sprintf
+                       "  propagate: scope_id=%d has no parents (reached root)"
+                       current_scope_id)
+                else
+                  List.iter
+                    (fun parent_id ->
+                      if Hashtbl.mem propagated parent_id then
+                        log_debug
+                          (Printf.sprintf
+                             "  propagate: parent_id=%d already propagated, skipping"
+                             parent_id)
+                      else (
+                        log_debug
+                          (Printf.sprintf "  propagate: checking parent_id=%d" parent_id);
+                        (* Eagerly fetch parent entry if not in cache *)
+                        match get_scope_entry parent_id with
+                        | Some parent_entry when matches_quiet_path parent_entry ->
+                            (* Parent matches quiet_path, stop propagation on this path.
+                               IMPORTANT: Mark in propagated table so other matches also
+                               stop here! *)
+                            Hashtbl.add propagated parent_id ();
+                            log_debug
+                              (Printf.sprintf
+                                 "  propagate: parent_id=%d matches quiet_path, marking \
+                                  and stopping propagation on this path"
+                                 parent_id)
+                        | Some parent_entry ->
+                            (* Parent found and doesn't match quiet_path - mark it and
+                               continue on this path *)
+                            Hashtbl.add propagated parent_id ();
+                            log_debug
+                              (Printf.sprintf
+                                 "  propagate: parent_id=%d doesn't match quiet_path, \
+                                  adding to results"
+                                 parent_id);
+                            insert_entry ~is_match:false parent_entry;
+                            incr propagation_count;
+                            propagate_to_parent parent_id
+                        | None ->
+                            (* Parent entry not found in database - shouldn't happen but
+                               handle gracefully *)
+                            log_debug
+                              (Printf.sprintf
+                                 "  propagate: parent_id=%d not found in database, \
+                                  stopping on this path"
+                                 parent_id)))
+                    parent_ids
               in
               propagate_to_parent direct_parent_id
           | None ->
@@ -923,8 +942,12 @@ module Query = struct
       (* Still mark as completed even on error *)
       completed_ref := true
 
-  (** Get all ancestor entry IDs from a given entry up to root. Returns list in order
-      [scope_id; parent; grandparent; ...; root]. *)
+  (** Get ancestor entry IDs from a given entry up to root, following the first parent
+      at each level. Returns list in order [scope_id; parent; grandparent; ...; root].
+
+      Note: Due to SexpCache deduplication, entries can have multiple parents (DAG
+      structure). This function returns ONE path through the DAG by always following
+      the first parent. For operations requiring all paths, use get_all_ancestor_paths. *)
   let get_ancestors db ~scope_id =
     let rec collect_ancestors acc current_id =
       match get_parent_id db ~scope_id:current_id with
@@ -932,6 +955,29 @@ module Query = struct
       | Some parent_id -> collect_ancestors (parent_id :: acc) parent_id
     in
     collect_ancestors [ scope_id ] scope_id
+
+  (** Get ALL ancestor paths from a given entry to root(s). Returns list of paths, where
+      each path is in order [scope_id; parent; grandparent; ...; root].
+
+      Due to SexpCache deduplication, entries can have multiple parents (DAG structure).
+      This function explores all paths through the DAG and returns them all. *)
+  let get_all_ancestor_paths db ~scope_id =
+    let rec collect_all_paths current_id =
+      let parent_ids = get_parent_ids db ~scope_id:current_id in
+      if parent_ids = [] then
+        (* Reached root - return singleton path *)
+        [ [ current_id ] ]
+      else
+        (* Recursively collect paths from all parents, prepending current_id to each *)
+        List.concat_map
+          (fun parent_id ->
+            let parent_paths = collect_all_paths parent_id in
+            List.map (fun path -> current_id :: path) parent_paths)
+          parent_ids
+    in
+    let paths = collect_all_paths scope_id in
+    (* Reverse each path to get root -> target order *)
+    List.map List.rev paths
 
   (** Compute the lowest common ancestor (LCA) of a list of scope IDs.
       Returns None if scopes are in separate root-level trees (no common ancestor).
@@ -2889,59 +2935,170 @@ module Client = struct
             let json = Renderer.entry_to_json entry in
             print_endline json)
 
-  (** Get ancestors of a scope (returns list of scope IDs with messages from root to target) *)
+  (** Get ancestors of a scope (returns ALL paths from root to target due to DAG structure) *)
   let get_ancestors ?(format = `Text) t ~scope_id =
-    let ancestors = Query.get_ancestors t.db ~scope_id in
-    (* Reverse to get root -> target order *)
-    let ancestors_root_first = List.rev ancestors in
+    let all_paths = Query.get_all_ancestor_paths t.db ~scope_id in
 
-    (* Fetch header entries for each ancestor to get their messages *)
+    (* Fetch header entries for ancestors *)
     let all_entries = Query.get_entries t.db () in
-    let ancestor_entries =
-      List.filter_map
-        (fun ancestor_id ->
-          (* Find the header entry that creates this scope *)
-          List.find_opt
-            (fun e -> match e.Query.child_scope_id with
-              | Some cid -> cid = ancestor_id
-              | None -> false)
-            all_entries)
-        ancestors_root_first
+    let get_entry_for_scope ancestor_id =
+      (* Find the header entry that creates this scope *)
+      List.find_opt
+        (fun e -> match e.Query.child_scope_id with
+          | Some cid -> cid = ancestor_id
+          | None -> false)
+        all_entries
     in
 
     match format with
     | `Text ->
-        Printf.printf "Ancestor path to scope %d:\n\n" scope_id;
-        List.iter
-          (fun entry ->
-            match entry.Query.child_scope_id with
-            | Some id ->
-                let loc_str = match entry.Query.location with
-                  | Some loc -> Printf.sprintf " @ %s" loc
-                  | None -> ""
-                in
-                Printf.printf "  #%d [%s] %s%s\n"
-                  id entry.Query.entry_type entry.Query.message loc_str
-            | None -> ())
-          ancestor_entries
+        if List.length all_paths = 1 then (
+          Printf.printf "Ancestor path to scope %d:\n\n" scope_id;
+          List.iter
+            (fun ancestor_id ->
+              match get_entry_for_scope ancestor_id with
+              | Some entry ->
+                  let loc_str = match entry.Query.location with
+                    | Some loc -> Printf.sprintf " @ %s" loc
+                    | None -> ""
+                  in
+                  Printf.printf "  #%d [%s] %s%s\n"
+                    ancestor_id entry.Query.entry_type entry.Query.message loc_str
+              | None -> ())
+            (List.hd all_paths)
+        ) else (
+          (* Multiple paths - use Hasse diagram style rendering *)
+          Printf.printf "Found %d ancestor paths to scope %d (Hasse diagram view):\n\n"
+            (List.length all_paths) scope_id;
+
+          (* Collect all unique scopes and their parents from the paths *)
+          let all_scopes = Hashtbl.create 1000 in
+          let scope_parents_in_paths = Hashtbl.create 1000 in
+
+          List.iter (fun path ->
+            List.iter (fun sid -> Hashtbl.replace all_scopes sid ()) path;
+            (* Paths are root -> target, so path[i] is parent of path[i+1] *)
+            for i = 0 to List.length path - 2 do
+              let parent = List.nth path i in
+              let child = List.nth path (i + 1) in
+              let parents_set =
+                match Hashtbl.find_opt scope_parents_in_paths child with
+                | None -> Hashtbl.create 10
+                | Some s -> s
+              in
+              Hashtbl.replace parents_set parent ();
+              Hashtbl.replace scope_parents_in_paths child parents_set
+            done
+          ) all_paths;
+
+          (* Build levels using topological sort (BFS from roots) *)
+          let scope_level = Hashtbl.create 1000 in
+          let roots = Hashtbl.fold (fun sid () acc ->
+            match Hashtbl.find_opt scope_parents_in_paths sid with
+            | None -> sid :: acc  (* No parents in paths = root *)
+            | Some _ -> acc
+          ) all_scopes [] in
+
+          (* BFS to assign levels *)
+          let queue = Queue.create () in
+          List.iter (fun root ->
+            Hashtbl.add scope_level root 0;
+            Queue.add root queue
+          ) roots;
+
+          while not (Queue.is_empty queue) do
+            let current = Queue.take queue in
+            let current_level = Hashtbl.find scope_level current in
+
+            (* Find all children (scopes that have current as parent) *)
+            Hashtbl.iter (fun child parents_set ->
+              if Hashtbl.mem parents_set current then
+                match Hashtbl.find_opt scope_level child with
+                | None ->
+                    (* First time seeing this child - assign level *)
+                    Hashtbl.add scope_level child (current_level + 1);
+                    Queue.add child queue
+                | Some existing_level ->
+                    (* Seen before - use maximum level (furthest from root) *)
+                    let new_level = max existing_level (current_level + 1) in
+                    if new_level > existing_level then (
+                      Hashtbl.replace scope_level child new_level;
+                      Queue.add child queue
+                    )
+            ) scope_parents_in_paths
+          done;
+
+          (* Group by level *)
+          let levels = Hashtbl.create 100 in
+          Hashtbl.iter (fun sid level ->
+            let level_scopes =
+              match Hashtbl.find_opt levels level with
+              | None -> []
+              | Some lst -> lst
+            in
+            Hashtbl.replace levels level (sid :: level_scopes)
+          ) scope_level;
+
+          let max_level = Hashtbl.fold (fun _ level acc -> max level acc) scope_level 0 in
+
+          (* Print each level *)
+          for level = 0 to max_level do
+            match Hashtbl.find_opt levels level with
+            | None -> ()
+            | Some scope_ids ->
+                let sorted_ids = List.sort compare scope_ids in
+                Printf.printf "Level %d (%s, %d scopes):\n"
+                  level
+                  (if level = 0 then "roots"
+                   else if level = max_level then "target"
+                   else "intermediate")
+                  (List.length sorted_ids);
+
+                List.iter (fun ancestor_id ->
+                  match get_entry_for_scope ancestor_id with
+                  | Some entry ->
+                      let loc_str = match entry.Query.location with
+                        | Some loc -> Printf.sprintf " @ %s" loc
+                        | None -> ""
+                      in
+                      Printf.printf "  #%d [%s] %s%s\n"
+                        ancestor_id entry.Query.entry_type entry.Query.message loc_str
+                  | None ->
+                      Printf.printf "  #%d (no entry found)\n" ancestor_id
+                ) sorted_ids;
+
+                Printf.printf "\n"
+          done
+        )
     | `Json ->
-        let json_entries =
-          List.filter_map
-            (fun entry ->
-              match entry.Query.child_scope_id with
-              | Some id ->
-                  Some (Printf.sprintf
-                    {|{"scope_id": %d, "entry_type": "%s", "message": "%s", "location": %s}|}
-                    id
-                    entry.Query.entry_type
-                    (String.escaped entry.Query.message)
-                    (match entry.Query.location with
-                      | Some loc -> Printf.sprintf "\"%s\"" (String.escaped loc)
-                      | None -> "null"))
-              | None -> None)
-            ancestor_entries
+        let json_paths =
+          List.map
+            (fun path ->
+              let json_entries =
+                List.filter_map
+                  (fun ancestor_id ->
+                    match get_entry_for_scope ancestor_id with
+                    | Some entry ->
+                        Some (Printf.sprintf
+                          {|{"scope_id": %d, "entry_type": "%s", "message": "%s", "location": %s}|}
+                          ancestor_id
+                          entry.Query.entry_type
+                          (String.escaped entry.Query.message)
+                          (match entry.Query.location with
+                            | Some loc -> Printf.sprintf "\"%s\"" (String.escaped loc)
+                            | None -> "null"))
+                    | None -> None)
+                  path
+              in
+              Printf.sprintf "[ %s ]" (String.concat ", " json_entries))
+            all_paths
         in
-        Printf.printf "[ %s ]\n" (String.concat ", " json_entries)
+        if List.length all_paths = 1 then
+          (* Single path - return as array *)
+          print_endline (List.hd json_paths)
+        else
+          (* Multiple paths - return as array of arrays *)
+          Printf.printf "[ %s ]\n" (String.concat ", " json_paths)
 
   (** Get parent of a scope *)
   let get_parent ?(format = `Text) t ~scope_id =

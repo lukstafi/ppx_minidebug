@@ -52,6 +52,21 @@ module Query : sig
   val get_root_entries : Sqlite3.db -> with_values:bool -> entry list
   (** Get only root-level entries efficiently. When [with_values] is true, includes
       immediate children values. Fast for large databases. *)
+
+  val get_parent_ids : Sqlite3.db -> scope_id:int -> int list
+  (** Get all parent scope_ids for a given entry. Returns empty list if no parents (root
+      entry). Due to SexpCache deduplication, an entry can have multiple parents (DAG
+      structure). *)
+
+  val get_parent_id : Sqlite3.db -> scope_id:int -> int option
+  (** Get first parent scope_id for a given entry (for single-path operations). Returns
+      None if no parent (root entry). *)
+
+  val get_all_ancestor_paths : Sqlite3.db -> scope_id:int -> int list list
+  (** Get ALL ancestor paths from a given entry to root(s). Returns list of paths, where
+      each path is in order [root; ...; grandparent; parent; scope_id]. Due to SexpCache
+      deduplication, entries can have multiple parents (DAG structure), resulting in
+      multiple paths. *)
 end
 
 (** Tree renderer for terminal output *)
