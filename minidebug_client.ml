@@ -2889,16 +2889,59 @@ module Client = struct
             let json = Renderer.entry_to_json entry in
             print_endline json)
 
-  (** Get ancestors of a scope (returns list of scope IDs from root to target) *)
+  (** Get ancestors of a scope (returns list of scope IDs with messages from root to target) *)
   let get_ancestors ?(format = `Text) t ~scope_id =
     let ancestors = Query.get_ancestors t.db ~scope_id in
+    (* Reverse to get root -> target order *)
+    let ancestors_root_first = List.rev ancestors in
+
+    (* Fetch header entries for each ancestor to get their messages *)
+    let all_entries = Query.get_entries t.db () in
+    let ancestor_entries =
+      List.filter_map
+        (fun ancestor_id ->
+          (* Find the header entry that creates this scope *)
+          List.find_opt
+            (fun e -> match e.Query.child_scope_id with
+              | Some cid -> cid = ancestor_id
+              | None -> false)
+            all_entries)
+        ancestors_root_first
+    in
+
     match format with
     | `Text ->
-        Printf.printf "Ancestors of scope %d: " scope_id;
-        Printf.printf "[ %s ]\n" (String.concat " -> " (List.map string_of_int ancestors))
+        Printf.printf "Ancestor path to scope %d:\n\n" scope_id;
+        List.iter
+          (fun entry ->
+            match entry.Query.child_scope_id with
+            | Some id ->
+                let loc_str = match entry.Query.location with
+                  | Some loc -> Printf.sprintf " @ %s" loc
+                  | None -> ""
+                in
+                Printf.printf "  {#%d} [%s] %s%s\n"
+                  id entry.Query.entry_type entry.Query.message loc_str
+            | None -> ())
+          ancestor_entries
     | `Json ->
-        Printf.printf "[ %s ]\n"
-          (String.concat ", " (List.map string_of_int ancestors))
+        let json_entries =
+          List.filter_map
+            (fun entry ->
+              match entry.Query.child_scope_id with
+              | Some id ->
+                  Some (Printf.sprintf
+                    {|{"scope_id": %d, "entry_type": "%s", "message": "%s", "location": %s}|}
+                    id
+                    entry.Query.entry_type
+                    (String.escaped entry.Query.message)
+                    (match entry.Query.location with
+                      | Some loc -> Printf.sprintf "\"%s\"" (String.escaped loc)
+                      | None -> "null"))
+              | None -> None)
+            ancestor_entries
+        in
+        Printf.printf "[ %s ]\n" (String.concat ", " json_entries)
 
   (** Get parent of a scope *)
   let get_parent ?(format = `Text) t ~scope_id =
