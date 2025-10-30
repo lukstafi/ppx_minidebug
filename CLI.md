@@ -360,6 +360,53 @@ minidebug_view trace.db show-scope 42 --ancestors
 
 **Use Case:** After finding an interesting scope ID (e.g., from search), drill down into its details or understand its context.
 
+#### `show-subtree <id>`
+Shows the full subtree rooted at a specific scope, with ancestor path.
+
+```bash
+minidebug_view trace.db show-subtree 42 [options]
+```
+
+**Options:**
+- `--format=json`: JSON output
+- `--times`: Include elapsed times
+- `--max-depth=<n>`: **INCREMENTAL** depth from target scope (not absolute depth)
+- `--ancestors`: Include ancestor path from root (default: true)
+
+**Important:** The `--max-depth` parameter is interpreted as **incremental depth** relative to the target scope:
+- If target scope is at depth 5 and you specify `--max-depth=3`, shows up to depth 8
+- This allows you to focus on "what happens inside this scope" without worrying about absolute depth
+
+**Example - Show scope with limited subtree:**
+```bash
+minidebug_view trace.db show-subtree 2093 --max-depth=3 --times
+# Shows scope 2093 + its ancestors + descendants up to 3 levels deep
+```
+
+**Example - Show scope without ancestors:**
+```bash
+minidebug_view trace.db show-subtree 42 --ancestors=false --max-depth=2
+# Shows only scope 42 and 2 levels of descendants
+```
+
+**Output:** Full tree rendering with scope IDs, messages, locations, values, and nested structure.
+
+**Use Case:**
+- **After `search-intersection`**: Explore the full context of an LCA scope
+- **Focused investigation**: See what happens inside a specific scope without being overwhelmed by the entire trace
+- **Progressive exploration**: Start with compact LCA list, then drill into interesting scopes
+
+**Workflow Example:**
+```bash
+# Step 1: Find interaction points
+minidebug_view trace.db search-intersection "(id 79)" "(id 1802)"
+# Output: Scope 2093: binop [tensor/tensor.ml:444:22-454:14]
+
+# Step 2: Explore the subtree
+minidebug_view trace.db show-subtree 2093 --max-depth=3 --times
+# Shows full context where both IDs interact
+```
+
 #### `show-entry <scope_id> <seq_id>`
 Shows detailed information for a specific entry.
 

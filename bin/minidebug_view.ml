@@ -19,6 +19,7 @@ COMMANDS:
   search-at-depth <pattern> <depth>  Search summary at specific depth (TUI-like)
   search-intersection <pat1> <pat2> [<pat3> <pat4>]  Find scopes matching all patterns
   show-scope <id>           Show specific scope and its descendants
+  show-subtree <id>         Show subtree rooted at scope with ancestor path
   show-entry <sid> <seq>    Show detailed entry information
   get-ancestors <id>        Get ancestor scope IDs from root to target
   get-parent <id>           Get parent scope ID
@@ -29,15 +30,18 @@ OPTIONS:
   --run=<id>              Specify run ID (for show, compact, search, roots)
   --entry-ids             Show entry IDs in output
   --times                 Show elapsed times
-  --max-depth=<n>         Limit tree depth
+  --max-depth=<n>         Limit tree depth (INCREMENTAL for show-subtree)
   --values-first          Show result values as headers (values-first mode)
   --with-values           Include immediate children values (for roots command)
   --format=<fmt>          Output format: text (default) or json
   --quiet-path=<pattern>  Stop ancestor propagation at pattern (search-tree only)
-  --ancestors             Show ancestors instead of descendants (show-scope only)
+  --ancestors             Show ancestors (show-scope, show-subtree: default true)
   --limit=<n>             Limit number of results (for search commands)
   --offset=<n>            Skip first n results (for search commands)
   --help                  Show this help message
+
+NOTE: For show-subtree, --max-depth is INCREMENTAL (relative to target scope).
+      E.g., if scope is at depth 5 and --max-depth=3, shows up to depth 8.
 
 EXAMPLES:
   # Show latest trace
@@ -60,6 +64,9 @@ EXAMPLES:
 
   # Show specific scope with descendants
   minidebug_view trace.db show-scope 42 --depth=2 --format=json
+
+  # Show subtree rooted at scope with ancestor path
+  minidebug_view trace.db show-subtree 42 --max-depth=3 --times
 
   # Show ancestor path to a scope
   minidebug_view trace.db show-scope 42 --ancestors
@@ -85,6 +92,7 @@ type command =
   | SearchAtDepth of string * int
   | SearchIntersection of string list
   | ShowScope of int
+  | ShowSubtree of int
   | ShowEntry of int * int
   | GetAncestors of int
   | GetParent of int
@@ -186,6 +194,9 @@ let parse_args () =
             parse_rest remaining)
         | "show-scope" :: id_str :: rest ->
             cmd_ref := ShowScope (int_of_string id_str);
+            parse_rest rest
+        | "show-subtree" :: id_str :: rest ->
+            cmd_ref := ShowSubtree (int_of_string id_str);
             parse_rest rest
         | "show-entry" :: sid_str :: seq_str :: rest ->
             cmd_ref := ShowEntry (int_of_string sid_str, int_of_string seq_str);
@@ -327,6 +338,9 @@ let () =
         ()
     | ShowScope scope_id ->
         Minidebug_client.Client.show_scope ~format:opts.format ~show_times:opts.show_times
+          ~max_depth:opts.max_depth ~show_ancestors:opts.show_ancestors client ~scope_id
+    | ShowSubtree scope_id ->
+        Minidebug_client.Client.show_subtree ~format:opts.format ~show_times:opts.show_times
           ~max_depth:opts.max_depth ~show_ancestors:opts.show_ancestors client ~scope_id
     | ShowEntry (scope_id, seq_id) ->
         Minidebug_client.Client.show_entry ~format:opts.format client ~scope_id ~seq_id

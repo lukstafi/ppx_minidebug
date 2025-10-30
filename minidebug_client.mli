@@ -235,6 +235,28 @@ module Client : sig
       Arguments:
       - [show_ancestors]: If true, shows path from root to this scope instead of descendants *)
 
+  val show_subtree :
+    ?format:[ `Text | `Json ] ->
+    ?show_times:bool ->
+    ?max_depth:int option ->
+    ?show_ancestors:bool ->
+    t ->
+    scope_id:int ->
+    unit
+  (** Show a specific scope subtree with full tree rendering.
+
+      Displays: ancestor path (if [show_ancestors]=true) → target scope → all descendants.
+
+      Arguments:
+      - [max_depth]: INCREMENTAL depth from target scope (not absolute depth from root).
+        For example, if target is at depth 5 and max_depth=3, shows up to depth 8.
+      - [show_ancestors]: If true (default), includes ancestor path from root to scope.
+      - [show_times]: Include elapsed times in output
+      - [format]: Output format (Text or JSON)
+
+      This command is useful after [search_intersection] to explore the full context
+      of an LCA scope. *)
+
   val show_entry : ?format:[ `Text | `Json ] -> t -> scope_id:int -> seq_id:int -> unit
   (** Show detailed information for a specific entry *)
 

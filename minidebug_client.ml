@@ -971,6 +971,44 @@ module Query = struct
       | Some parent_id -> find_root parent_id
     in
     find_root scope_id
+
+  (** Get all descendant scope IDs for a given scope (BFS traversal).
+      Returns list of scope IDs including the root scope_id itself. *)
+  let get_descendants db ~scope_id =
+    let descendants = ref [ scope_id ] in
+    let queue = Queue.create () in
+    Queue.add scope_id queue;
+
+    while not (Queue.is_empty queue) do
+      let current_id = Queue.take queue in
+      (* Query for all child scopes of current_id *)
+      let query =
+        {|
+        SELECT DISTINCT child_scope_id
+        FROM entries
+        WHERE scope_id = ? AND child_scope_id IS NOT NULL
+      |}
+      in
+      let stmt = Sqlite3.prepare db query in
+      Sqlite3.bind_int stmt 1 current_id |> ignore;
+
+      let rec collect_children () =
+        match Sqlite3.step stmt with
+        | Sqlite3.Rc.ROW -> (
+            match Sqlite3.column stmt 0 with
+            | Sqlite3.Data.INT child_id ->
+                let child = Int64.to_int child_id in
+                descendants := child :: !descendants;
+                Queue.add child queue;
+                collect_children ()
+            | _ -> collect_children ())
+        | _ -> ()
+      in
+      collect_children ();
+      Sqlite3.finalize stmt |> ignore
+    done;
+
+    !descendants
 end
 
 (** Tree renderer for terminal output *)
@@ -2748,6 +2786,61 @@ module Client = struct
       | `Json ->
           let json = Renderer.render_entries_json children in
           print_endline json)
+
+  (** Show a specific scope subtree with ancestors (full tree rendering).
+      The max_depth parameter is interpreted as INCREMENTAL depth from the target scope.
+      Shows: ancestor path → target scope → descendants (up to max_depth levels below target). *)
+  let show_subtree ?(format = `Text) ?(show_times = false) ?(max_depth = None)
+      ?(show_ancestors = true) t ~scope_id =
+    let db = Sqlite3.db_open ~mode:`READONLY t.db_path in
+
+    (* Get all relevant scope IDs *)
+    let ancestor_ids = if show_ancestors then Query.get_ancestors t.db ~scope_id else [ scope_id ] in
+    let descendant_ids = Query.get_descendants db ~scope_id in
+
+    (* Combine ancestors and descendants into one set *)
+    let relevant_scope_ids =
+      List.sort_uniq compare (ancestor_ids @ descendant_ids)
+    in
+
+    Sqlite3.db_close db |> ignore;
+
+    (* Get all entries and filter to relevant scopes.
+       IMPORTANT: We need entries WHERE scope_id is in our set (entries within those scopes)
+       AND entries WHERE child_scope_id is in our set (headers that create those scopes). *)
+    let all_entries = Query.get_entries t.db () in
+    let scope_set =
+      List.fold_left (fun acc id -> Hashtbl.add acc id (); acc)
+        (Hashtbl.create (List.length relevant_scope_ids)) relevant_scope_ids
+    in
+    let filtered_entries =
+      List.filter
+        (fun e ->
+          Hashtbl.mem scope_set e.Query.scope_id
+          || (match e.Query.child_scope_id with
+             | Some cid -> Hashtbl.mem scope_set cid
+             | None -> false))
+        all_entries
+    in
+
+    (* Build tree from filtered entries *)
+    let trees = Renderer.build_tree filtered_entries in
+
+    (* Output *)
+    (match format with
+    | `Text ->
+        if show_ancestors then
+          Printf.printf "Subtree for scope %d (with ancestor path):\n\n" scope_id
+        else
+          Printf.printf "Subtree for scope %d:\n\n" scope_id;
+        let output =
+          Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth
+            ~values_first_mode:true trees
+        in
+        print_string output
+    | `Json ->
+        let json = Renderer.render_tree_json ~max_depth trees in
+        print_endline json)
 
   (** Show detailed information for a specific entry *)
   let show_entry ?(format = `Text) t ~scope_id ~seq_id =
