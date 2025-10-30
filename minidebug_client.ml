@@ -2781,64 +2781,75 @@ module Client = struct
        - At the target scope_id, use max_depth for its subtree *)
 
     if show_ancestors then (
-      (* Get ancestor chain (root to target) *)
+      (* Get ancestor chain (scope_id -> parent -> ... -> root) *)
       let ancestors = Query.get_ancestors t.db ~scope_id in
 
       (* Build ancestor path tree by filtering to just the ancestor path.
          We build trees from roots, then we'll walk down to find the target scope. *)
       let roots = Query.get_root_entries t.db ~with_values:false in
 
-      (* Find which root is the ancestor *)
-      let root_scope = List.hd ancestors in
-      let root_entry = List.find
+      (* Find which root is the ancestor - it's the LAST element in ancestors list *)
+      let root_scope = List.nth ancestors (List.length ancestors - 1) in
+      let root_entry_opt = List.find_opt
         (fun e -> match e.Query.child_scope_id with
           | Some id -> id = root_scope
           | None -> false)
         roots
       in
 
-      (* Build full tree from root, but with special max_depth handling:
-         - No depth limit until we reach scope_id
-         - At scope_id, apply max_depth *)
-      let tree = Renderer.build_node t.db ?max_depth ~current_depth:0 root_entry in
+      match root_entry_opt with
+      | None ->
+          Printf.eprintf "Error: Could not find root entry for scope %d (root scope is %d)\n"
+            scope_id root_scope;
+          exit 1
+      | Some root_entry ->
+          (* Build full tree from root, but with special max_depth handling:
+             - No depth limit until we reach scope_id
+             - At scope_id, apply max_depth *)
+          let tree = Renderer.build_node t.db ?max_depth ~current_depth:0 root_entry in
 
-      (* Output *)
-      match format with
-      | `Text ->
-          Printf.printf "Subtree for scope %d (with ancestor path):\n\n" scope_id;
-          let output =
-            Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth:None
-              ~values_first_mode:true [ tree ]
-          in
-          print_string output
-      | `Json ->
-          let json = Renderer.render_tree_json ~max_depth:None [ tree ] in
-          print_endline json
+          (* Output *)
+          match format with
+          | `Text ->
+              Printf.printf "Subtree for scope %d (with ancestor path):\n\n" scope_id;
+              let output =
+                Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth:None
+                  ~values_first_mode:true [ tree ]
+              in
+              print_string output
+          | `Json ->
+              let json = Renderer.render_tree_json ~max_depth:None [ tree ] in
+              print_endline json
     ) else (
       (* Just show the subtree starting at scope_id *)
       (* First, find the header entry for this scope *)
       let all_entries = Query.get_entries t.db () in
-      let header_entry =
-        List.find
+      let header_entry_opt =
+        List.find_opt
           (fun e -> match e.Query.child_scope_id with
             | Some id -> id = scope_id
             | None -> false)
           all_entries
       in
 
-      let tree = Renderer.build_node t.db ?max_depth ~current_depth:0 header_entry in
+      match header_entry_opt with
+      | None ->
+          Printf.eprintf "Error: Could not find header entry for scope %d\n" scope_id;
+          exit 1
+      | Some header_entry ->
+          let tree = Renderer.build_node t.db ?max_depth ~current_depth:0 header_entry in
 
-      match format with
-      | `Text ->
-          Printf.printf "Subtree for scope %d:\n\n" scope_id;
-          let output =
-            Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth:None
-              ~values_first_mode:true [ tree ]
-          in
-          print_string output
-      | `Json ->
-          let json = Renderer.render_tree_json ~max_depth:None [ tree ] in
-          print_endline json
+          match format with
+          | `Text ->
+              Printf.printf "Subtree for scope %d:\n\n" scope_id;
+              let output =
+                Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth:None
+                  ~values_first_mode:true [ tree ]
+              in
+              print_string output
+          | `Json ->
+              let json = Renderer.render_tree_json ~max_depth:None [ tree ] in
+              print_endline json
     )
 
   (** Show detailed information for a specific entry *)
