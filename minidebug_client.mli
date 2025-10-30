@@ -196,6 +196,32 @@ module Client : sig
       - [limit]: Limit number of results
       - [offset]: Skip first n results *)
 
+  val search_intersection :
+    ?quiet_path:string option ->
+    ?format:[ `Text | `Json ] ->
+    ?show_times:bool ->
+    ?max_depth:int option ->
+    ?limit:int option ->
+    ?offset:int option ->
+    t ->
+    patterns:string list ->
+    int
+  (** Search for scopes matching ALL patterns (intersection/AND logic).
+      Returns number of scopes in the intersection.
+
+      For each pattern, runs a separate search with ancestor propagation.
+      Then computes the intersection of matching scope IDs across all searches.
+      Shows full tree context (ancestors) for scopes in the intersection.
+
+      Arguments:
+      - [patterns]: List of 2-4 search patterns (all must match)
+      - [quiet_path]: Stop ancestor propagation at pattern (applies to all searches)
+      - [limit]: Limit number of results
+      - [offset]: Skip first n results
+
+      Example: [search_intersection ~patterns:["(id 79)"; "(id 1802)"] client]
+      finds scopes where both patterns appear in their subtree. *)
+
   val show_scope :
     ?format:[ `Text | `Json ] ->
     ?show_times:bool ->

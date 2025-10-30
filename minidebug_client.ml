@@ -1375,6 +1375,18 @@ module Interactive = struct
     in
     check_slot (SlotNumber.prev current_slot)
 
+  (** Get all search slots that match an entry (for checkered pattern highlighting).
+      Returns list of slot numbers in order S1, S2, S3, S4. *)
+  let get_all_search_matches ~search_slots ~scope_id ~seq_id =
+    let matches = ref [] in
+    SlotMap.iter
+      (fun slot_number slot ->
+        if Hashtbl.mem slot.results (scope_id, seq_id) then
+          matches := slot_number :: !matches)
+      search_slots;
+    (* Sort in standard order: S1, S2, S3, S4 *)
+    List.sort compare !matches
+
   (** Find next/previous search result in hash tables (across all entries, not just
       visible). Returns (scope_id, seq_id) of the next match, or None if no more matches.
       Search direction: forward=true searches for matches with (scope_id, seq_id) >
@@ -1521,14 +1533,8 @@ module Interactive = struct
 
   (** Render a single line *)
   let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
-      ~current_slot ~db ~values_first item =
+      ~current_slot:_ ~db ~values_first item =
     let entry = item.entry in
-
-    (* Check if this entry matches any search (prioritizes more recent searches) *)
-    let search_slot_match =
-      get_search_match ~search_slots ~scope_id:entry.scope_id ~seq_id:entry.seq_id
-        ~current_slot
-    in
 
     (* Entry ID margin - use child_scope_id for scopes, scope_id for values *)
     (* Don't display negative IDs (used for boxified/decomposed values) *)
@@ -1637,22 +1643,68 @@ module Interactive = struct
       else full_text
     in
 
-    (* Determine highlighting colors based on search match and selection *)
-    let content_attr, margin_attr =
-      if is_selected then
-        (* Selection takes priority - blue background *)
-        (A.(bg lightblue ++ fg black), A.(bg lightblue ++ fg black))
-      else
-        match search_slot_match with
-        | Some S1 -> (A.(fg green), A.(fg green)) (* Search slot 1: green *)
-        | Some S2 -> (A.(fg cyan), A.(fg cyan)) (* Search slot 2: cyan *)
-        | Some S3 -> (A.(fg magenta), A.(fg magenta)) (* Search slot 3: magenta *)
-        | Some S4 -> (A.(fg yellow), A.(fg yellow)) (* Search slot 4: yellow *)
-        | None -> (A.empty, A.(fg yellow))
-      (* No match: default (margin still yellow) *)
+    (* Get all matching search slots for checkered pattern *)
+    let all_matches =
+      get_all_search_matches ~search_slots ~scope_id:entry.scope_id ~seq_id:entry.seq_id
     in
 
-    I.hcat [ I.string margin_attr scope_id_str; I.string content_attr truncated ]
+    (* Helper: get color attribute for a slot number *)
+    let slot_color = function
+      | SlotNumber.S1 -> A.(fg green) (* Search slot 1: green *)
+      | SlotNumber.S2 -> A.(fg cyan) (* Search slot 2: cyan *)
+      | SlotNumber.S3 -> A.(fg magenta) (* Search slot 3: magenta *)
+      | SlotNumber.S4 -> A.(fg yellow) (* Search slot 4: yellow *)
+    in
+
+    (* Render line with appropriate highlighting *)
+    let content_image, margin_image =
+      if is_selected then
+        (* Selection takes priority - blue background *)
+        let attr = A.(bg lightblue ++ fg black) in
+        (I.string attr truncated, I.string attr scope_id_str)
+      else
+        match all_matches with
+        | [] ->
+            (* No match: default (margin still yellow) *)
+            (I.string A.empty truncated, I.string A.(fg yellow) scope_id_str)
+        | [ single_match ] ->
+            (* Single match: simple uniform coloring *)
+            let attr = slot_color single_match in
+            (I.string attr truncated, I.string attr scope_id_str)
+        | multiple_matches when List.length multiple_matches >= 2 ->
+            (* Multiple matches: checkered pattern - split text into segments *)
+            let num_matches = List.length multiple_matches in
+            let text_len = String.length truncated in
+            (* Create min(num_matches * 2, text_len) segments *)
+            let num_segments = min (num_matches * 2) text_len in
+            let segment_size = max 1 (text_len / num_segments) in
+
+            (* Build checkered content by alternating colors *)
+            let content_segments = ref [] in
+            let pos = ref 0 in
+            let color_idx = ref 0 in
+            while !pos < text_len do
+              let remaining = text_len - !pos in
+              let seg_len = min segment_size remaining in
+              let segment = String.sub truncated !pos seg_len in
+              let color = slot_color (List.nth multiple_matches (!color_idx mod num_matches)) in
+              content_segments := I.string color segment :: !content_segments;
+              pos := !pos + seg_len;
+              color_idx := !color_idx + 1
+            done;
+            let content_img = I.hcat (List.rev !content_segments) in
+
+            (* Margin uses first matching color *)
+            let margin_color = slot_color (List.hd multiple_matches) in
+            let margin_img = I.string margin_color scope_id_str in
+
+            (content_img, margin_img)
+        | _ ->
+            (* Fallback (shouldn't happen) *)
+            (I.string A.empty truncated, I.string A.(fg yellow) scope_id_str)
+    in
+
+    I.hcat [ margin_image; content_image ]
 
   (** Render the full screen *)
   let render_screen state term_height term_width =
@@ -2450,6 +2502,124 @@ module Client = struct
         print_endline json);
 
     match_count
+
+  (** Search intersection - find scopes matching all patterns (AND logic).
+      For each pattern, runs populate_search_results to get matching scopes.
+      Then computes intersection of all result sets. Shows full tree context
+      for scopes in the intersection. *)
+  let search_intersection ?(quiet_path = None) ?(format = `Text) ?(show_times = false)
+      ?(max_depth = None) ?(limit = None) ?(offset = None) t ~patterns =
+    (* Run separate search for each pattern *)
+    let all_results_tables =
+      List.map
+        (fun pattern ->
+          let completed_ref = ref false in
+          let results_table = Hashtbl.create 1024 in
+          Query.populate_search_results t.db_path ~search_term:pattern ~quiet_path
+            ~search_order:Query.AscendingIds ~completed_ref ~results_table;
+          (pattern, results_table))
+        patterns
+    in
+
+    (* Extract scope IDs that actually match (not just propagated ancestors) from each search *)
+    let matching_scope_ids_per_pattern =
+      List.map
+        (fun (pattern, results_table) ->
+          let scope_ids =
+            Hashtbl.fold
+              (fun (scope_id, _seq_id) is_match acc ->
+                if is_match then scope_id :: acc else acc)
+              results_table []
+            |> List.sort_uniq compare
+          in
+          (pattern, scope_ids))
+        all_results_tables
+    in
+
+    (* Compute intersection: scope IDs that appear in ALL result sets *)
+    let intersection_scope_ids =
+      match matching_scope_ids_per_pattern with
+      | [] -> []
+      | (_, first_ids) :: rest ->
+          List.filter
+            (fun scope_id ->
+              List.for_all (fun (_, ids) -> List.mem scope_id ids) rest)
+            first_ids
+    in
+
+    (* Build a combined results table with entries from ALL searches for visualization.
+       This ensures we show ancestor context from any of the searches. *)
+    let combined_results = Hashtbl.create 1024 in
+    List.iter
+      (fun (_, results_table) ->
+        Hashtbl.iter (fun key value -> Hashtbl.replace combined_results key value)
+          results_table)
+      all_results_tables;
+
+    (* Note: pagination is applied at tree level, not at scope_ids level,
+       for consistency with search_tree and search_subtree *)
+
+    (* Get all entries and filter to only those in combined_results *)
+    let all_entries = Query.get_entries t.db () in
+    let filtered_entries =
+      List.filter
+        (fun e -> Hashtbl.mem combined_results (e.Query.scope_id, e.Query.seq_id))
+        all_entries
+    in
+
+    (* Build tree from filtered entries *)
+    let all_trees = Renderer.build_tree filtered_entries in
+
+    (* Apply pagination at tree level (root scopes only) *)
+    let trees =
+      let t = all_trees in
+      let t = match offset with
+        | None -> t
+        | Some off ->
+            if off < List.length t then
+              List.filteri (fun i _ -> i >= off) t
+            else []
+      in
+      match limit with
+      | None -> t
+      | Some lim ->
+          if lim >= List.length t then t
+          else List.filteri (fun i _ -> i < lim) t
+    in
+
+    (* Output *)
+    (match format with
+    | `Text ->
+        let total_scopes = List.length intersection_scope_ids in
+        let total_trees = List.length all_trees in
+        let shown_trees = List.length trees in
+        let start_idx = Option.value offset ~default:0 in
+        let pattern_str = String.concat " AND " (List.map (Printf.sprintf "'%s'") patterns) in
+        if limit <> None || offset <> None then
+          Printf.printf "Found %d scopes matching all patterns (%s), %d root trees (showing trees %d-%d)\n\n"
+            total_scopes pattern_str total_trees start_idx (start_idx + shown_trees)
+        else
+          Printf.printf "Found %d scopes matching all patterns (%s)\n\n"
+            total_scopes pattern_str;
+
+        (* Show per-pattern match counts for debugging *)
+        Printf.printf "Per-pattern match counts:\n";
+        List.iter
+          (fun (pattern, scope_ids) ->
+            Printf.printf "  '%s': %d scopes\n" pattern (List.length scope_ids))
+          matching_scope_ids_per_pattern;
+        Printf.printf "\n";
+
+        let output =
+          Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth
+            ~values_first_mode:true trees
+        in
+        print_string output
+    | `Json ->
+        let json = Renderer.render_tree_json ~max_depth trees in
+        print_endline json);
+
+    List.length intersection_scope_ids
 
   (** Show a specific scope and its descendants *)
   let show_scope ?(format = `Text) ?(show_times = false) ?(max_depth = None)

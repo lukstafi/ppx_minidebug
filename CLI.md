@@ -7,8 +7,11 @@ The `minidebug_view` CLI provides powerful tools for exploring and analyzing ppx
 **Key Features:**
 - **Multiple output formats**: Human-readable text and machine-parseable JSON
 - **Efficient search**: Context-aware search with ancestor propagation (inspired by TUI)
+- **Multi-pattern search** ✅ (v3.1.0+): Find scopes matching ALL patterns with `search-intersection`
+- **Pagination** ✅ (v3.1.0+): `--limit` and `--offset` for managing large result sets
 - **Tree navigation**: Scope-based navigation for targeted exploration
 - **Flexible filtering**: Quiet-path filtering to control context boundaries
+- **Visual TUI enhancements** ✅ (v3.1.0+): Checkered highlighting for overlapping search matches
 - **Export capabilities**: Markdown export for documentation
 
 ## Installation
@@ -35,7 +38,13 @@ minidebug_view trace.db show --times
 # Search with full context (great for LLM analysis)
 minidebug_view trace.db search-tree "error" --format=json
 
-# Interactive TUI mode
+# Multi-pattern search (NEW in v3.1.0+)
+minidebug_view trace.db search-intersection "compute" "error" --format=json
+
+# Pagination for large results (NEW in v3.1.0+)
+minidebug_view trace.db search-tree "process" --limit=20 --offset=0
+
+# Interactive TUI mode with visual search highlighting
 minidebug_view trace.db interactive
 ```
 
@@ -141,6 +150,8 @@ minidebug_view trace.db search-tree "error" [options]
 - `--times`: Include elapsed times
 - `--max-depth=<n>`: Limit tree depth
 - `--quiet-path=<pattern>`: Stop propagating context when this pattern matches
+- `--limit=<n>`: Limit number of results (pagination)
+- `--offset=<n>`: Skip first n results (pagination)
 
 **How it works:**
 1. Searches for all entries matching the pattern
@@ -158,7 +169,16 @@ minidebug_view trace.db search-tree "error" --format=json
 minidebug_view trace.db search-tree "error" --quiet-path="test_"
 ```
 
-**Use Case:** Understanding where errors occur in the call hierarchy. LLMs can analyze the full context tree to understand root causes.
+**Example - Pagination for large result sets:**
+```bash
+# Get first 10 results
+minidebug_view trace.db search-tree "compute" --limit=10 --offset=0
+
+# Get next 10 results
+minidebug_view trace.db search-tree "compute" --limit=10 --offset=10
+```
+
+**Use Case:** Understanding where errors occur in the call hierarchy. LLMs can analyze the full context tree to understand root causes. Pagination helps manage large result sets.
 
 **Output (text mode):**
 ```
@@ -178,7 +198,7 @@ Shows only matching subtrees with non-matching branches pruned.
 minidebug_view trace.db search-subtree "fib" [options]
 ```
 
-**Options:** Same as `search-tree`
+**Options:** Same as `search-tree` (including `--limit` and `--offset` for pagination)
 
 **Difference from `search-tree`:**
 - `search-tree`: Shows **all ancestors** to root (full context paths)
@@ -240,6 +260,68 @@ minidebug_view trace.db show-scope 12345 --max-depth=2
 ```
 
 **Key Insight:** Provides "progressive disclosure" - see summary first, then explore details. This is how the TUI works, now available in CLI!
+
+#### `search-intersection <pat1> <pat2> [<pat3> <pat4>]` ✅
+**Multi-pattern search** - Finds scopes matching ALL patterns (AND logic / intersection).
+
+```bash
+minidebug_view trace.db search-intersection "(id 79)" "(id 1802)" [options]
+```
+
+**Options:**
+- `--format=json`: Output as JSON
+- `--times`: Include elapsed times
+- `--max-depth=<n>`: Limit tree depth
+- `--quiet-path=<pattern>`: Stop ancestor propagation at pattern (applies to all searches)
+- `--limit=<n>`: Limit number of results
+- `--offset=<n>`: Skip first n results
+
+**How it works:**
+1. Runs separate search with ancestor propagation for each pattern
+2. Extracts actual matching scope IDs (not propagated ancestors) from each search
+3. Computes intersection: only scopes that match ALL patterns
+4. Shows full tree context with combined ancestor paths
+
+**Arguments:**
+- Requires 2-4 search patterns
+- All patterns must match for a scope to be included in results
+
+**Example - Find scopes with multiple IDs:**
+```bash
+minidebug_view trace.db search-intersection "(id 79)" "(id 1802)"
+# Finds scopes where both IDs appear in the subtree
+```
+
+**Example - Complex filtering:**
+```bash
+minidebug_view trace.db search-intersection "compute" "error" "validation" --format=json
+# Finds scopes where all three patterns match
+```
+
+**Output (text mode):**
+```
+Found 2 scopes matching all patterns ('compute' AND 'error' AND 'validation')
+
+Per-pattern match counts:
+  'compute': 45 scopes
+  'error': 12 scopes
+  'validation': 8 scopes
+
+{#0} [debug] validate_compute @ src/compute.ml:42:8-50:3
+  {#5} [debug] check_input => Error "Invalid" @ src/validate.ml:15:8-20:5
+```
+
+**Output (JSON mode):** Complete tree with all entry fields.
+
+**Use Case:**
+- Finding specific interactions: "Where do these two functions interact?"
+- Complex debugging: "Show me places where X happens AND Y happens AND Z happens"
+- Targeted analysis: Narrow down search results by requiring multiple conditions
+
+**Comparison with other search commands:**
+- `search-tree "pattern"`: OR logic (any match)
+- `search-intersection "pat1" "pat2"`: AND logic (all must match)
+- Result: Much more targeted results when you know multiple things must co-occur
 
 ### Navigation Commands
 
@@ -355,14 +437,25 @@ minidebug_view trace.db interactive
 **TUI Controls:**
 - `↑/↓` or `k/j`: Navigate
 - `Enter` or `Space`: Expand/collapse
-- `/`: Search
+- `/`: Search (up to 4 concurrent searches in slots)
 - `Q`: Set quiet path filter
 - `n/N`: Next/previous match
 - `t`: Toggle times
 - `v`: Toggle values-first mode
 - `q` or `Esc`: Quit
 
-**Use Case:** Interactive exploration when you don't know exactly what you're looking for.
+**Search Highlighting (v3.1.0+):**
+- **Single match**: Entry highlighted with one color (green/cyan/magenta/yellow for slots 1-4)
+- **Multiple matches**: Checkered pattern with alternating color segments
+  - 2 matches: Text split into 4 segments alternating between the two colors
+  - 3 matches: Text split into 6 segments cycling through all three colors
+  - 4 matches: Text split into 8 segments cycling through all four colors
+- Makes it visually obvious when multiple search patterns match the same scope
+- Useful for finding interactions between multiple concepts in the trace
+
+**Example:** If you search for both "compute" and "validation", entries matching both will display with alternating green-cyan-green-cyan segments, immediately showing where both concepts intersect.
+
+**Use Case:** Interactive exploration when you don't know exactly what you're looking for. The multi-pattern highlighting helps identify complex interactions visually.
 
 ## Global Options
 
@@ -905,17 +998,22 @@ This workflow reduces a 1M-entry trace to 3-7 key scopes in seconds!
    # Stop propagation when data field matches pattern
    ```
 
-2. **Multi-pattern search:** ✅ High Priority
+2. **Multi-pattern search:** ✅ **IMPLEMENTED** (v3.1.0+)
    ```bash
    minidebug_view trace.db search-intersection "(id 79)" "(id 1802)"
    # Find scopes where both patterns occur in subtree
    ```
 
-3. **Pagination:** ✅ High Priority
+   **Status:** Fully implemented with support for 2-4 patterns. See `search-intersection` command above.
+
+3. **Pagination:** ✅ **IMPLEMENTED** (v3.1.0+)
    ```bash
    minidebug_view trace.db search-tree "error" --limit=10 --offset=0
    # Show only first 10 results, enable paging through large result sets
    ```
+
+   **Status:** Fully implemented for `search-tree`, `search-subtree`, and `search-intersection` commands.
+   Output shows: "Found X matching scopes, Y root trees (showing trees M-N)"
 
 4. **Time-range queries:**
    ```bash

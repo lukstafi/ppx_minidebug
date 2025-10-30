@@ -17,6 +17,7 @@ COMMANDS:
   search-tree <pattern>     Search with full tree context (shows ancestor paths)
   search-subtree <pattern>  Search showing only matching subtrees (pruned)
   search-at-depth <pattern> <depth>  Search summary at specific depth (TUI-like)
+  search-intersection <pat1> <pat2> [<pat3> <pat4>]  Find scopes matching all patterns
   show-scope <id>           Show specific scope and its descendants
   show-entry <sid> <seq>    Show detailed entry information
   get-ancestors <id>        Get ancestor scope IDs from root to target
@@ -54,6 +55,9 @@ EXAMPLES:
   # Get TUI-like summary at depth 4 (for huge traces)
   minidebug_view trace.db search-at-depth "(id 79)" 4 --quiet-path="env"
 
+  # Find scopes matching multiple patterns (intersection)
+  minidebug_view trace.db search-intersection "(id 79)" "(id 1802)" --format=json
+
   # Show specific scope with descendants
   minidebug_view trace.db show-scope 42 --depth=2 --format=json
 
@@ -79,6 +83,7 @@ type command =
   | SearchTree of string
   | SearchSubtree of string
   | SearchAtDepth of string * int
+  | SearchIntersection of string list
   | ShowScope of int
   | ShowEntry of int * int
   | GetAncestors of int
@@ -156,6 +161,29 @@ let parse_args () =
         | "search-at-depth" :: pattern :: depth_str :: rest ->
             cmd_ref := SearchAtDepth (pattern, int_of_string depth_str);
             parse_rest rest
+        | "search-intersection" :: rest -> (
+            (* Parse 2-4 patterns *)
+            let rec collect_patterns acc remaining =
+              match (remaining, acc) with
+              | [], _ when List.length acc >= 2 ->
+                  (List.rev acc, []) (* Valid: 2+ patterns collected *)
+              | arg :: _, _ when String.starts_with ~prefix:"--" arg ->
+                  if List.length acc >= 2 then (List.rev acc, remaining)
+                  else (
+                    Printf.eprintf "Error: search-intersection requires at least 2 patterns\n";
+                    exit 1)
+              | arg :: rest, _ when List.length acc < 4 ->
+                  collect_patterns (arg :: acc) rest
+              | _ :: _, _ ->
+                  Printf.eprintf "Error: search-intersection supports at most 4 patterns\n";
+                  exit 1
+              | [], _ ->
+                  Printf.eprintf "Error: search-intersection requires at least 2 patterns\n";
+                  exit 1
+            in
+            let patterns, remaining = collect_patterns [] rest in
+            cmd_ref := SearchIntersection patterns;
+            parse_rest remaining)
         | "show-scope" :: id_str :: rest ->
             cmd_ref := ShowScope (int_of_string id_str);
             parse_rest rest
@@ -290,6 +318,13 @@ let () =
     | SearchAtDepth (pattern, depth) ->
         Minidebug_client.Client.search_at_depth ~quiet_path:opts.quiet_path
           ~format:opts.format ~show_times:opts.show_times ~depth client ~pattern
+    | SearchIntersection patterns ->
+        let _ =
+          Minidebug_client.Client.search_intersection ~quiet_path:opts.quiet_path
+            ~format:opts.format ~show_times:opts.show_times ~max_depth:opts.max_depth
+            ~limit:opts.limit ~offset:opts.offset client ~patterns
+        in
+        ()
     | ShowScope scope_id ->
         Minidebug_client.Client.show_scope ~format:opts.format ~show_times:opts.show_times
           ~max_depth:opts.max_depth ~show_ancestors:opts.show_ancestors client ~scope_id
