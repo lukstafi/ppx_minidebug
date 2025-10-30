@@ -972,40 +972,50 @@ module Query = struct
     in
     find_root scope_id
 
-  (** Get all descendant scope IDs for a given scope (BFS traversal).
-      Returns list of scope IDs including the root scope_id itself. *)
-  let get_descendants db ~scope_id =
+  (** Get descendant scope IDs for a given scope (BFS traversal with optional depth limit).
+      Returns list of scope IDs including the root scope_id itself.
+      If max_depth is Some n, only traverses n levels deep from root. *)
+  let get_descendants ?max_depth db ~scope_id =
     let descendants = ref [ scope_id ] in
     let queue = Queue.create () in
-    Queue.add scope_id queue;
+    Queue.add (scope_id, 0) queue; (* (scope_id, current_depth) *)
 
     while not (Queue.is_empty queue) do
-      let current_id = Queue.take queue in
-      (* Query for all child scopes of current_id *)
-      let query =
-        {|
-        SELECT DISTINCT child_scope_id
-        FROM entries
-        WHERE scope_id = ? AND child_scope_id IS NOT NULL
-      |}
-      in
-      let stmt = Sqlite3.prepare db query in
-      Sqlite3.bind_int stmt 1 current_id |> ignore;
+      let current_id, current_depth = Queue.take queue in
 
-      let rec collect_children () =
-        match Sqlite3.step stmt with
-        | Sqlite3.Rc.ROW -> (
-            match Sqlite3.column stmt 0 with
-            | Sqlite3.Data.INT child_id ->
-                let child = Int64.to_int child_id in
-                descendants := child :: !descendants;
-                Queue.add child queue;
-                collect_children ()
-            | _ -> collect_children ())
-        | _ -> ()
+      (* Check if we should continue descending *)
+      let should_continue = match max_depth with
+        | None -> true
+        | Some max_d -> current_depth < max_d
       in
-      collect_children ();
-      Sqlite3.finalize stmt |> ignore
+
+      if should_continue then (
+        (* Query for all child scopes of current_id *)
+        let query =
+          {|
+          SELECT DISTINCT child_scope_id
+          FROM entries
+          WHERE scope_id = ? AND child_scope_id IS NOT NULL
+        |}
+        in
+        let stmt = Sqlite3.prepare db query in
+        Sqlite3.bind_int stmt 1 current_id |> ignore;
+
+        let rec collect_children () =
+          match Sqlite3.step stmt with
+          | Sqlite3.Rc.ROW -> (
+              match Sqlite3.column stmt 0 with
+              | Sqlite3.Data.INT child_id ->
+                  let child = Int64.to_int child_id in
+                  descendants := child :: !descendants;
+                  Queue.add (child, current_depth + 1) queue;
+                  collect_children ()
+              | _ -> collect_children ())
+          | _ -> ()
+        in
+        collect_children ();
+        Sqlite3.finalize stmt |> ignore
+      )
     done;
 
     !descendants
@@ -1015,15 +1025,13 @@ end
 module Renderer = struct
   type tree_node = { entry : Query.entry; children : tree_node list }
 
-  (** Build tree structure from flat entry list *)
-  let build_tree entries =
-    (* Separate headers from values *)
+  (** Build a tree node for a specific scope from a list of entries *)
+  let build_node entries child_scope_id =
     let headers, _values =
       List.partition (fun e -> e.Query.child_scope_id <> None) entries
     in
 
-    (* Build tree recursively *)
-    let rec build_node child_scope_id =
+    let rec build_node_rec child_scope_id =
       (* Find the header row for this scope *)
       let header =
         List.find
@@ -1050,13 +1058,21 @@ module Renderer = struct
           (fun child ->
             match child.Query.child_scope_id with
             | Some sub_scope_id ->
-                build_node sub_scope_id (* Recursively build subscope *)
+                build_node_rec sub_scope_id (* Recursively build subscope *)
             | None -> { entry = child; children = [] }
             (* Leaf value *))
           sorted_children_entries
       in
 
       { entry = header; children }
+    in
+
+    build_node_rec child_scope_id
+
+  let build_tree entries =
+    (* Separate headers from values *)
+    let headers, _values =
+      List.partition (fun e -> e.Query.child_scope_id <> None) entries
     in
 
     (* Find root entries (scope_id = 0, which means they're children of the virtual
@@ -1072,7 +1088,7 @@ module Renderer = struct
     List.map
       (fun root ->
         match root.Query.child_scope_id with
-        | Some hid -> build_node hid
+        | Some hid -> build_node entries hid
         | None -> { entry = root; children = [] })
       sorted_roots
 
@@ -2796,7 +2812,7 @@ module Client = struct
 
     (* Get all relevant scope IDs *)
     let ancestor_ids = if show_ancestors then Query.get_ancestors t.db ~scope_id else [ scope_id ] in
-    let descendant_ids = Query.get_descendants db ~scope_id in
+    let descendant_ids = Query.get_descendants ?max_depth db ~scope_id in
 
     (* Combine ancestors and descendants into one set *)
     let relevant_scope_ids =
@@ -2823,8 +2839,37 @@ module Client = struct
         all_entries
     in
 
-    (* Build tree from filtered entries *)
-    let trees = Renderer.build_tree filtered_entries in
+    (* Build tree from filtered entries.
+       Note: We need to find the topmost scope in our filtered set to use as root.
+       The topmost scope is one whose parent is NOT in our relevant_scope_ids. *)
+    let scope_ids_set = Hashtbl.create (List.length relevant_scope_ids) in
+    List.iter (fun id -> Hashtbl.add scope_ids_set id ()) relevant_scope_ids;
+
+    (* Find headers whose child_scope_id is in our relevant set but whose scope_id (parent) is NOT *)
+    let root_candidates =
+      List.filter
+        (fun e ->
+          match e.Query.child_scope_id with
+          | Some cid ->
+              Hashtbl.mem scope_ids_set cid
+              && not (Hashtbl.mem scope_ids_set e.Query.scope_id)
+          | None -> false)
+        filtered_entries
+    in
+
+    (* Build subtrees starting from these roots *)
+    let trees =
+      if List.length root_candidates > 0 then
+        List.map
+          (fun root ->
+            match root.Query.child_scope_id with
+            | Some cid -> Renderer.build_node filtered_entries cid
+            | None -> failwith "Impossible: root_candidate without child_scope_id")
+          root_candidates
+      else
+        (* Fallback: use standard build_tree which looks for scope_id=0 *)
+        Renderer.build_tree filtered_entries
+    in
 
     (* Output *)
     (match format with
