@@ -32,7 +32,7 @@ let () =
 
   (* Get entries and show tree *)
   let entries = Minidebug_client.Query.get_entries db () in
-  let trees = Minidebug_client.Renderer.build_tree entries in
+  let trees = Minidebug_client.Renderer.build_tree_from_entries entries in
   let output = Minidebug_client.Renderer.render_tree ~values_first_mode:true trees in
 
   Printf.printf "Trace (values_first_mode):\n%!";

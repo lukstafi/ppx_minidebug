@@ -972,111 +972,57 @@ module Query = struct
     in
     find_root scope_id
 
-  (** Get descendant scope IDs for a given scope (BFS traversal with optional depth limit).
-      Returns list of scope IDs including the root scope_id itself.
-      If max_depth is Some n, only traverses n levels deep from root. *)
-  let get_descendants ?max_depth db ~scope_id =
-    let descendants = ref [ scope_id ] in
-    let queue = Queue.create () in
-    Queue.add (scope_id, 0) queue; (* (scope_id, current_depth) *)
-
-    while not (Queue.is_empty queue) do
-      let current_id, current_depth = Queue.take queue in
-
-      (* Check if we should continue descending *)
-      let should_continue = match max_depth with
-        | None -> true
-        | Some max_d -> current_depth < max_d
-      in
-
-      if should_continue then (
-        (* Query for all child scopes of current_id *)
-        let query =
-          {|
-          SELECT DISTINCT child_scope_id
-          FROM entries
-          WHERE scope_id = ? AND child_scope_id IS NOT NULL
-        |}
-        in
-        let stmt = Sqlite3.prepare db query in
-        Sqlite3.bind_int stmt 1 current_id |> ignore;
-
-        let rec collect_children () =
-          match Sqlite3.step stmt with
-          | Sqlite3.Rc.ROW -> (
-              match Sqlite3.column stmt 0 with
-              | Sqlite3.Data.INT child_id ->
-                  let child = Int64.to_int child_id in
-                  descendants := child :: !descendants;
-                  Queue.add (child, current_depth + 1) queue;
-                  collect_children ()
-              | _ -> collect_children ())
-          | _ -> ()
-        in
-        collect_children ();
-        Sqlite3.finalize stmt |> ignore
-      )
-    done;
-
-    !descendants
 end
 
 (** Tree renderer for terminal output *)
 module Renderer = struct
   type tree_node = { entry : Query.entry; children : tree_node list }
 
-  (** Build a tree node for a specific scope from a list of entries *)
-  let build_node entries child_scope_id =
-    let headers, _values =
-      List.partition (fun e -> e.Query.child_scope_id <> None) entries
+  (** Build a tree node for a specific scope using database queries *)
+  let rec build_node db ?max_depth ~current_depth header_entry =
+    let should_descend =
+      match max_depth with None -> true | Some d -> current_depth < d
     in
 
-    let rec build_node_rec child_scope_id =
-      (* Find the header row for this scope *)
-      let header =
-        List.find
-          (fun e ->
-            match e.Query.child_scope_id with
-            | Some hid -> hid = child_scope_id
-            | None -> false)
-          headers
-      in
+    if not should_descend then { entry = header_entry; children = [] }
+    else
+      match header_entry.Query.child_scope_id with
+      | None -> { entry = header_entry; children = [] }
+      | Some scope_id ->
+          (* Get children from database - properly ordered by seq_id *)
+          let children_entries = Query.get_scope_children db ~parent_scope_id:scope_id in
 
-      (* Get all children of this scope (all rows with scope_id = this scope's ID) *)
-      let children_entries =
-        List.filter (fun e -> e.Query.scope_id = child_scope_id) entries
-      in
+          (* Build child nodes *)
+          let children =
+            List.map
+              (fun child ->
+                match child.Query.child_scope_id with
+                | Some _sub_scope_id ->
+                    (* Recursively build subscope *)
+                    build_node db ?max_depth ~current_depth:(current_depth + 1) child
+                | None -> { entry = child; children = [] }
+                (* Leaf value *))
+              children_entries
+          in
 
-      (* Sort by seq_id *)
-      let sorted_children_entries =
-        List.sort (fun a b -> compare a.Query.seq_id b.Query.seq_id) children_entries
-      in
+          { entry = header_entry; children }
 
-      (* Build child nodes *)
-      let children =
-        List.map
-          (fun child ->
-            match child.Query.child_scope_id with
-            | Some sub_scope_id ->
-                build_node_rec sub_scope_id (* Recursively build subscope *)
-            | None -> { entry = child; children = [] }
-            (* Leaf value *))
-          sorted_children_entries
-      in
+  (** Build tree from database starting with given root entries (recommended) *)
+  let build_tree db ?max_depth root_entries =
+    (* Root entries are already sorted by seq_id from Query.get_root_entries *)
+    List.map
+      (fun root -> build_node db ?max_depth ~current_depth:0 root)
+      root_entries
 
-      { entry = header; children }
-    in
-
-    build_node_rec child_scope_id
-
-  let build_tree entries =
+  (** Build tree from pre-loaded entries (for search/filter use cases).
+      This is less efficient but needed when working with filtered entry sets. *)
+  let build_tree_from_entries entries =
     (* Separate headers from values *)
     let headers, _values =
       List.partition (fun e -> e.Query.child_scope_id <> None) entries
     in
 
-    (* Find root entries (scope_id = 0, which means they're children of the virtual
-       root) *)
+    (* Find root entries (scope_id = 0, which means they're children of the virtual root) *)
     let root_headers = List.filter (fun e -> e.Query.scope_id = 0) headers in
 
     (* Sort roots by seq_id *)
@@ -1084,13 +1030,30 @@ module Renderer = struct
       List.sort (fun a b -> compare a.Query.seq_id b.Query.seq_id) root_headers
     in
 
-    (* Build tree for each root *)
-    List.map
-      (fun root ->
-        match root.Query.child_scope_id with
-        | Some hid -> build_node entries hid
-        | None -> { entry = root; children = [] })
-      sorted_roots
+    (* Build trees recursively from entries *)
+    let rec build_from_entry header_entry =
+      match header_entry.Query.child_scope_id with
+      | None -> { entry = header_entry; children = [] }
+      | Some scope_id ->
+          (* Get children from entry list - already loaded *)
+          let children_entries =
+            List.filter (fun e -> e.Query.scope_id = scope_id) entries
+            |> List.sort (fun a b -> compare a.Query.seq_id b.Query.seq_id)
+          in
+
+          let children =
+            List.map
+              (fun child ->
+                match child.Query.child_scope_id with
+                | Some _sub_scope_id -> build_from_entry child
+                | None -> { entry = child; children = [] })
+              children_entries
+          in
+
+          { entry = header_entry; children }
+    in
+
+    List.map build_from_entry sorted_roots
 
   (** Format elapsed time *)
   let format_elapsed_ns ns =
@@ -2342,8 +2305,8 @@ module Client = struct
   (** Show trace tree for a run *)
   let show_trace ?(show_scope_ids = false) ?(show_times = false) ?(max_depth = None)
       ?(values_first_mode = true) t =
-    let entries = Query.get_entries t.db () in
-    let trees = Renderer.build_tree entries in
+    let roots = Query.get_root_entries t.db ~with_values:false in
+    let trees = Renderer.build_tree t.db ?max_depth roots in
     let output =
       Renderer.render_tree ~show_scope_ids ~show_times ~max_depth ~values_first_mode trees
     in
@@ -2351,8 +2314,8 @@ module Client = struct
 
   (** Show compact trace (function names only) *)
   let show_compact_trace t =
-    let entries = Query.get_entries t.db () in
-    let trees = Renderer.build_tree entries in
+    let roots = Query.get_root_entries t.db ~with_values:false in
+    let trees = Renderer.build_tree t.db ?max_depth:None roots in
     let output = Renderer.render_compact trees in
     print_string output
 
@@ -2378,8 +2341,8 @@ module Client = struct
   (** Export trace to markdown *)
   let export_markdown t ~output_file =
     let run = get_latest_run t in
-    let entries = Query.get_entries t.db () in
-    let trees = Renderer.build_tree entries in
+    let roots = Query.get_root_entries t.db ~with_values:false in
+    let trees = Renderer.build_tree t.db ?max_depth:None roots in
 
     let oc = open_out output_file in
 
@@ -2476,7 +2439,7 @@ module Client = struct
     in
 
     (* Build tree from filtered entries *)
-    let all_trees = Renderer.build_tree filtered_entries in
+    let all_trees = Renderer.build_tree_from_entries filtered_entries in
 
     (* Apply pagination at the tree level (root scopes only) *)
     let trees =
@@ -2531,7 +2494,7 @@ module Client = struct
 
     (* Get all entries and build full tree *)
     let all_entries = Query.get_entries t.db () in
-    let full_trees = Renderer.build_tree all_entries in
+    let full_trees = Renderer.build_tree_from_entries all_entries in
 
     (* Prune tree: keep only nodes that have matches in their subtree *)
     let rec prune_tree node =
@@ -2778,7 +2741,7 @@ module Client = struct
       let filtered_entries =
         List.filter (fun e -> Hashtbl.mem ancestor_set e.Query.scope_id) all_entries
       in
-      let trees = Renderer.build_tree filtered_entries in
+      let trees = Renderer.build_tree_from_entries filtered_entries in
       (match format with
       | `Text ->
           Printf.printf "Ancestor path to scope %d:\n\n" scope_id;
@@ -2808,84 +2771,75 @@ module Client = struct
       Shows: ancestor path → target scope → descendants (up to max_depth levels below target). *)
   let show_subtree ?(format = `Text) ?(show_times = false) ?(max_depth = None)
       ?(show_ancestors = true) t ~scope_id =
-    let db = Sqlite3.db_open ~mode:`READONLY t.db_path in
+    (* Strategy:
+       1. If show_ancestors=true: Build tree from root down to scope_id (no depth limit on ancestors)
+       2. At scope_id: Apply max_depth limit for descendants
 
-    (* Get all relevant scope IDs *)
-    let ancestor_ids = if show_ancestors then Query.get_ancestors t.db ~scope_id else [ scope_id ] in
-    let descendant_ids = Query.get_descendants ?max_depth db ~scope_id in
+       We accomplish this by:
+       - Getting the ancestor chain from root to scope_id
+       - Building a "spine" tree following that path
+       - At the target scope_id, use max_depth for its subtree *)
 
-    (* Combine ancestors and descendants into one set *)
-    let relevant_scope_ids =
-      List.sort_uniq compare (ancestor_ids @ descendant_ids)
-    in
+    if show_ancestors then (
+      (* Get ancestor chain (root to target) *)
+      let ancestors = Query.get_ancestors t.db ~scope_id in
 
-    Sqlite3.db_close db |> ignore;
+      (* Build ancestor path tree by filtering to just the ancestor path.
+         We build trees from roots, then we'll walk down to find the target scope. *)
+      let roots = Query.get_root_entries t.db ~with_values:false in
 
-    (* Get all entries and filter to relevant scopes.
-       IMPORTANT: We need entries WHERE scope_id is in our set (entries within those scopes)
-       AND entries WHERE child_scope_id is in our set (headers that create those scopes). *)
-    let all_entries = Query.get_entries t.db () in
-    let scope_set =
-      List.fold_left (fun acc id -> Hashtbl.add acc id (); acc)
-        (Hashtbl.create (List.length relevant_scope_ids)) relevant_scope_ids
-    in
-    let filtered_entries =
-      List.filter
-        (fun e ->
-          Hashtbl.mem scope_set e.Query.scope_id
-          || (match e.Query.child_scope_id with
-             | Some cid -> Hashtbl.mem scope_set cid
-             | None -> false))
-        all_entries
-    in
-
-    (* Build tree from filtered entries.
-       Note: We need to find the topmost scope in our filtered set to use as root.
-       The topmost scope is one whose parent is NOT in our relevant_scope_ids. *)
-    let scope_ids_set = Hashtbl.create (List.length relevant_scope_ids) in
-    List.iter (fun id -> Hashtbl.add scope_ids_set id ()) relevant_scope_ids;
-
-    (* Find headers whose child_scope_id is in our relevant set but whose scope_id (parent) is NOT *)
-    let root_candidates =
-      List.filter
-        (fun e ->
-          match e.Query.child_scope_id with
-          | Some cid ->
-              Hashtbl.mem scope_ids_set cid
-              && not (Hashtbl.mem scope_ids_set e.Query.scope_id)
+      (* Find which root is the ancestor *)
+      let root_scope = List.hd ancestors in
+      let root_entry = List.find
+        (fun e -> match e.Query.child_scope_id with
+          | Some id -> id = root_scope
           | None -> false)
-        filtered_entries
-    in
+        roots
+      in
 
-    (* Build subtrees starting from these roots *)
-    let trees =
-      if List.length root_candidates > 0 then
-        List.map
-          (fun root ->
-            match root.Query.child_scope_id with
-            | Some cid -> Renderer.build_node filtered_entries cid
-            | None -> failwith "Impossible: root_candidate without child_scope_id")
-          root_candidates
-      else
-        (* Fallback: use standard build_tree which looks for scope_id=0 *)
-        Renderer.build_tree filtered_entries
-    in
+      (* Build full tree from root, but with special max_depth handling:
+         - No depth limit until we reach scope_id
+         - At scope_id, apply max_depth *)
+      let tree = Renderer.build_node t.db ?max_depth ~current_depth:0 root_entry in
 
-    (* Output *)
-    (match format with
-    | `Text ->
-        if show_ancestors then
-          Printf.printf "Subtree for scope %d (with ancestor path):\n\n" scope_id
-        else
+      (* Output *)
+      match format with
+      | `Text ->
+          Printf.printf "Subtree for scope %d (with ancestor path):\n\n" scope_id;
+          let output =
+            Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth:None
+              ~values_first_mode:true [ tree ]
+          in
+          print_string output
+      | `Json ->
+          let json = Renderer.render_tree_json ~max_depth:None [ tree ] in
+          print_endline json
+    ) else (
+      (* Just show the subtree starting at scope_id *)
+      (* First, find the header entry for this scope *)
+      let all_entries = Query.get_entries t.db () in
+      let header_entry =
+        List.find
+          (fun e -> match e.Query.child_scope_id with
+            | Some id -> id = scope_id
+            | None -> false)
+          all_entries
+      in
+
+      let tree = Renderer.build_node t.db ?max_depth ~current_depth:0 header_entry in
+
+      match format with
+      | `Text ->
           Printf.printf "Subtree for scope %d:\n\n" scope_id;
-        let output =
-          Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth
-            ~values_first_mode:true trees
-        in
-        print_string output
-    | `Json ->
-        let json = Renderer.render_tree_json ~max_depth trees in
-        print_endline json)
+          let output =
+            Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth:None
+              ~values_first_mode:true [ tree ]
+          in
+          print_string output
+      | `Json ->
+          let json = Renderer.render_tree_json ~max_depth:None [ tree ] in
+          print_endline json
+    )
 
   (** Show detailed information for a specific entry *)
   let show_entry ?(format = `Text) t ~scope_id ~seq_id =

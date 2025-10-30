@@ -58,8 +58,11 @@ end
 module Renderer : sig
   type tree_node = { entry : Query.entry; children : tree_node list }
 
-  val build_tree : Query.entry list -> tree_node list
-  (** Build tree structure from flat entry list *)
+  val build_tree : Sqlite3.db -> ?max_depth:int -> Query.entry list -> tree_node list
+  (** Build tree structure from database and root entries (recommended for full traces) *)
+
+  val build_tree_from_entries : Query.entry list -> tree_node list
+  (** Build tree structure from pre-loaded flat entry list (for search/filter use cases) *)
 
   val format_elapsed_ns : int -> string
   (** Format elapsed time in human-readable units *)
