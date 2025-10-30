@@ -18,6 +18,7 @@ COMMANDS:
   search-subtree <pattern>  Search showing only matching subtrees (pruned)
   search-at-depth <pattern> <depth>  Search summary at specific depth (TUI-like)
   search-intersection <pat1> <pat2> [<pat3> <pat4>]  Find scopes matching all patterns
+  search-extract <search_path> <extraction_path>  Search DAG path then extract with deduplication
   show-scope <id>           Show specific scope and its descendants
   show-subtree <id>         Show subtree rooted at scope with ancestor path
   show-entry <sid> <seq>    Show detailed entry information
@@ -62,6 +63,9 @@ EXAMPLES:
   # Find scopes matching multiple patterns (intersection)
   minidebug_view trace.db search-intersection "(id 79)" "(id 1802)" --format=json
 
+  # Search and extract with change tracking (comma-separated paths)
+  minidebug_view trace.db search-extract "fn_a,param_x" "fn_a,result" --times
+
   # Show specific scope with descendants
   minidebug_view trace.db show-scope 42 --depth=2 --format=json
 
@@ -91,6 +95,7 @@ type command =
   | SearchSubtree of string
   | SearchAtDepth of string * int
   | SearchIntersection of string list
+  | SearchExtract of string list * string list
   | ShowScope of int
   | ShowSubtree of int
   | ShowEntry of int * int
@@ -192,6 +197,22 @@ let parse_args () =
             let patterns, remaining = collect_patterns [] rest in
             cmd_ref := SearchIntersection patterns;
             parse_rest remaining)
+        | "search-extract" :: search_path_str :: extraction_path_str :: rest ->
+            let search_path = String.split_on_char ',' search_path_str in
+            let extraction_path = String.split_on_char ',' extraction_path_str in
+            (* Validate that paths are non-empty and share first element *)
+            (match (search_path, extraction_path) with
+            | [], _ | _, [] ->
+                Printf.eprintf "Error: search-extract requires non-empty paths\n";
+                exit 1
+            | s_first :: _, e_first :: _ when s_first <> e_first ->
+                Printf.eprintf "Error: search and extraction paths must start with the same pattern\n";
+                Printf.eprintf "  Search path starts with: '%s'\n" s_first;
+                Printf.eprintf "  Extraction path starts with: '%s'\n" e_first;
+                exit 1
+            | _ -> ());
+            cmd_ref := SearchExtract (search_path, extraction_path);
+            parse_rest rest
         | "show-scope" :: id_str :: rest ->
             cmd_ref := ShowScope (int_of_string id_str);
             parse_rest rest
@@ -336,6 +357,10 @@ let () =
             ~limit:opts.limit ~offset:opts.offset client ~patterns
         in
         ()
+    | SearchExtract (search_path, extraction_path) ->
+        Minidebug_client.Client.search_extract ~format:opts.format
+          ~show_times:opts.show_times ~max_depth:opts.max_depth client ~search_path
+          ~extraction_path
     | ShowScope scope_id ->
         Minidebug_client.Client.show_scope ~format:opts.format ~show_times:opts.show_times
           ~max_depth:opts.max_depth ~show_ancestors:opts.show_ancestors client ~scope_id

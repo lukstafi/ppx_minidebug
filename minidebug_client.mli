@@ -67,6 +67,23 @@ module Query : sig
       each path is in order [root; ...; grandparent; parent; scope_id]. Due to SexpCache
       deduplication, entries can have multiple parents (DAG structure), resulting in
       multiple paths. *)
+
+  val find_matching_paths : string -> patterns:string list -> (int * int list) list
+  (** Find all paths in the DAG matching a sequence of patterns (substring match on
+      message or data). Uses reversed search: finds candidates matching the last pattern,
+      then climbs up the DAG verifying ancestors match remaining patterns.
+
+      Returns list of (shared_scope_id, ancestor_path) tuples, where shared_scope_id is
+      the scope_id of the last matching node and ancestor_path is the list of scope_ids
+      from root to shared_scope_id.
+
+      Takes db_path (not db handle) to enable use of populate_search_results. *)
+
+  val extract_along_path :
+    Sqlite3.db -> start_scope_id:int -> extraction_path:string list -> int option
+  (** Extract along a path from a starting scope. Returns Some scope_id if the path is
+      successfully traversed, None otherwise. The extraction_path should have already had
+      its first element removed (since it matches the search path's shared element). *)
 end
 
 (** Tree renderer for terminal output *)
@@ -305,4 +322,32 @@ module Client : sig
 
       Use case: When [search_tree] returns too many results, use this to see
       a summary at a shallower depth, then drill down with [show_scope]. *)
+
+  val search_extract :
+    ?format:[ `Text | `Json ] ->
+    ?show_times:bool ->
+    ?max_depth:int option ->
+    t ->
+    search_path:string list ->
+    extraction_path:string list ->
+    unit
+  (** Search DAG with a path pattern, then extract along a different path with
+      deduplication.
+
+      For each match of search_path, extracts along extraction_path (which must share
+      the first element with search_path). Prints each extracted subtree, skipping
+      consecutive duplicates (same scope_id).
+
+      Arguments:
+      - [search_path]: Sequence of patterns to match in the DAG
+      - [extraction_path]: Path to extract from each match (first element must match
+        search_path's first element)
+      - [show_times]: Include elapsed times in output
+      - [max_depth]: Limit tree depth in extracted subtrees
+      - [format]: Output format (Text or JSON)
+
+      Example: [search_extract ~search_path:["fn_a"; "param_x"]
+      ~extraction_path:["fn_a"; "result"] client] finds all paths matching "fn_a" →
+      "param_x", then from each match extracts "fn_a" → "result" and prints unique
+      results. *)
 end

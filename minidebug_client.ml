@@ -1018,6 +1018,206 @@ module Query = struct
     in
     find_root scope_id
 
+  (** Check if an entry matches a pattern (substring match on message or data) *)
+  let entry_matches_pattern entry pattern =
+    let contains s =
+      String.length s > 0
+      && (Re.Str.string_match (Re.Str.regexp_string pattern) s 0
+         ||
+         try
+           let _ = Re.Str.search_forward (Re.Str.regexp_string pattern) s 0 in
+           true
+         with Not_found -> false)
+    in
+    contains entry.message || (match entry.data with Some d -> contains d | None -> false)
+
+  (** Check if a scope entry (header) matches a pattern by looking at its message field *)
+  let scope_entry_matches_pattern db ~scope_id ~pattern =
+    (* Get the header entry that creates this scope *)
+    let query =
+      {|
+      SELECT e.scope_id, e.seq_id, e.child_scope_id, e.depth,
+             m.value_content as message, l.value_content as location, d.value_content as data,
+             e.elapsed_start_ns, e.elapsed_end_ns, e.is_result, e.log_level, e.entry_type
+      FROM entries e
+      LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
+      LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
+      LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
+      WHERE e.child_scope_id = ?
+      LIMIT 1
+    |}
+    in
+    let stmt = Sqlite3.prepare db query in
+    Sqlite3.bind_int stmt 1 scope_id |> ignore;
+    let result =
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW ->
+          let message =
+            match Sqlite3.column stmt 4 with Sqlite3.Data.TEXT s -> s | _ -> ""
+          in
+          let data =
+            match Sqlite3.column stmt 6 with Sqlite3.Data.TEXT s -> Some s | _ -> None
+          in
+          let entry =
+            {
+              scope_id;
+              seq_id = 0;
+              child_scope_id = None;
+              depth = 0;
+              message;
+              location = None;
+              data;
+              elapsed_start_ns = 0;
+              elapsed_end_ns = None;
+              is_result = false;
+              log_level = 0;
+              entry_type = "";
+            }
+          in
+          entry_matches_pattern entry pattern
+      | _ -> false
+    in
+    Sqlite3.finalize stmt |> ignore;
+    result
+
+  (** Find all paths in the DAG matching a sequence of patterns.
+      Returns list of (shared_scope_id, ancestor_path) tuples, where:
+      - shared_scope_id is the scope_id of the last matching node (the "shared node")
+      - ancestor_path is the list of scope_ids from root to shared_scope_id
+
+      Algorithm:
+      1. Reverse the search path for convenience
+      2. Use the last pattern (first of reversed) to find initial candidates via populate_search_results
+      3. For each candidate, climb up the DAG verifying parent patterns match
+      4. Return those that successfully match the full path *)
+  let find_matching_paths db_path ~patterns =
+    if patterns = [] then failwith "find_matching_paths: patterns list cannot be empty";
+
+    (* Open database connection *)
+    let db = Sqlite3.db_open ~mode:`READONLY db_path in
+
+    (* Reverse the search path - we'll match from leaf to root *)
+    let reversed_patterns = List.rev patterns in
+    let last_pattern = List.hd reversed_patterns in
+    let ancestor_patterns = List.tl reversed_patterns in
+
+    (* Use populate_search_results to find initial candidates matching the last pattern *)
+    let completed_ref = ref false in
+    let results_table = Hashtbl.create 1024 in
+    populate_search_results db_path ~search_term:last_pattern ~quiet_path:None
+      ~search_order:AscendingIds ~completed_ref ~results_table;
+
+    (* Extract scope_ids that actually match (not just propagated ancestors) *)
+    let candidate_scope_ids =
+      Hashtbl.fold
+        (fun (scope_id, _seq_id) is_match acc ->
+          if is_match then scope_id :: acc else acc)
+        results_table []
+      |> List.sort_uniq compare
+    in
+
+    (* For each candidate, try to climb up the DAG matching the ancestor patterns.
+
+       The candidate_id is the scope_id where the match was found. This could be:
+       1. A scope created by an entry matching the last pattern (if it's a scope header)
+       2. A scope containing a value entry matching the last pattern (if it's a value)
+
+       In case (1), we check if this scope's parent matches the next pattern.
+       In case (2), we check if this scope itself matches the next pattern (since the scope
+                   contains the matching value). *)
+    let rec climb_up_dag current_scope_id remaining_patterns ~first_is_value =
+      match remaining_patterns with
+      | [] ->
+          (* Successfully matched all patterns - get full ancestor path *)
+          let full_path = get_ancestors db ~scope_id:current_scope_id in
+          [ (current_scope_id, full_path) ]
+      | pattern :: rest_patterns ->
+          if first_is_value then
+            (* The last match was a value inside current_scope_id, so check if
+               current_scope_id itself was created by an entry matching the pattern *)
+            if scope_entry_matches_pattern db ~scope_id:current_scope_id ~pattern then
+              (* This scope matches the pattern *)
+              if rest_patterns = [] then
+                (* No more patterns - we've matched everything! *)
+                let full_path = get_ancestors db ~scope_id:current_scope_id in
+                [ (current_scope_id, full_path) ]
+              else
+                (* More patterns remain - climb to parents *)
+                let parent_ids = get_parent_ids db ~scope_id:current_scope_id in
+                List.concat_map
+                  (fun parent_id -> climb_up_dag parent_id rest_patterns ~first_is_value:false)
+                  parent_ids
+            else []
+          else
+            (* The last match was a scope, so check if current scope matches the pattern *)
+            if scope_entry_matches_pattern db ~scope_id:current_scope_id ~pattern then
+              (* This scope matches the pattern *)
+              if rest_patterns = [] then
+                (* No more patterns - we've matched everything! *)
+                let full_path = get_ancestors db ~scope_id:current_scope_id in
+                [ (current_scope_id, full_path) ]
+              else
+                (* More patterns remain - climb to parents *)
+                let parent_ids = get_parent_ids db ~scope_id:current_scope_id in
+                List.concat_map
+                  (fun parent_id -> climb_up_dag parent_id rest_patterns ~first_is_value:false)
+                  parent_ids
+            else []
+    in
+
+    (* Try climbing from each candidate. We need to determine if each candidate
+       represents a scope created by the match, or a scope containing a value match. *)
+    let results =
+      List.concat_map
+        (fun candidate_id ->
+          (* Check if this candidate scope was created by an entry matching the last pattern,
+             or if it just contains a value matching the last pattern *)
+          let is_value_match =
+            not (scope_entry_matches_pattern db ~scope_id:candidate_id ~pattern:last_pattern)
+          in
+          climb_up_dag candidate_id ancestor_patterns ~first_is_value:is_value_match)
+        candidate_scope_ids
+    in
+
+    Sqlite3.db_close db |> ignore;
+    results
+
+  (** Extract along a path starting from a given scope.
+      The extraction_path should have already had its first element removed
+      (since it matches the search path's shared element).
+      Returns Some scope_id if the path is successfully traversed, None otherwise.
+
+      Special case: If the path ends at a value entry (child_scope_id = None),
+      returns the current scope_id (parent of the value). *)
+  let extract_along_path db ~start_scope_id ~extraction_path =
+    let rec traverse current_scope_id = function
+      | [] -> Some current_scope_id (* Reached the end of extraction path *)
+      | [ last_pattern ] ->
+          (* Last element in path - can be a value or a scope *)
+          let children = get_scope_children db ~parent_scope_id:current_scope_id in
+          let matching_child =
+            List.find_opt (fun entry -> entry_matches_pattern entry last_pattern) children
+          in
+          (match matching_child with
+          | Some child -> (
+              match child.child_scope_id with
+              | Some child_scope -> Some child_scope (* Descend into child scope *)
+              | None -> Some current_scope_id (* Value entry - return current scope *))
+          | None -> None)
+      | pattern :: rest ->
+          (* Not the last element - must be a scope to continue *)
+          let children = get_scope_children db ~parent_scope_id:current_scope_id in
+          let matching_child =
+            List.find_opt (fun entry -> entry_matches_pattern entry pattern) children
+          in
+          (match matching_child with
+          | Some child when Option.is_some child.child_scope_id ->
+              (* Found a matching header - continue traversal *)
+              traverse (Option.get child.child_scope_id) rest
+          | _ -> None (* No matching child found, or child is a value *))
+    in
+    traverse start_scope_id extraction_path
+
 end
 
 (** Tree renderer for terminal output *)
@@ -3200,4 +3400,98 @@ module Client = struct
     | `Json ->
         let json = Renderer.render_entries_json unique_entries in
         print_endline json
+
+  (** Search DAG with a path pattern, then extract along a different path with deduplication.
+      For each match of search_path, extracts along extraction_path (which shares the first
+      element with search_path). Prints each extracted subtree, skipping consecutive
+      duplicates (same scope_id). *)
+  let search_extract ?(format = `Text) ?(show_times = false) ?(max_depth = None) t
+      ~search_path ~extraction_path =
+    (* Validate inputs *)
+    (match (search_path, extraction_path) with
+    | [], _ | _, [] -> failwith "search_extract: paths cannot be empty"
+    | s :: _, e :: _ when s <> e ->
+        failwith "search_extract: paths must start with same pattern"
+    | _ -> ());
+
+    (* Find all paths matching the search pattern *)
+    let matching_paths = Query.find_matching_paths t.db_path ~patterns:search_path in
+
+    (* Extract the tail of extraction_path (removing shared first element) *)
+    let extraction_tail =
+      match extraction_path with _ :: tail -> tail | [] -> []
+    in
+
+    (* Track previous scope_id for deduplication *)
+    let prev_scope_id = ref None in
+    let total_matches = ref 0 in
+    let unique_extractions = ref 0 in
+
+    (* Process each match *)
+    List.iter
+      (fun (shared_scope_id, _ancestor_path) ->
+        incr total_matches;
+        (* Extract along the extraction path from the shared scope *)
+        let extracted_scope_id_opt =
+          Query.extract_along_path t.db ~start_scope_id:shared_scope_id
+            ~extraction_path:extraction_tail
+        in
+        match extracted_scope_id_opt with
+        | None ->
+            (* Extraction path not found - skip this match *)
+            ()
+        | Some extracted_scope_id ->
+            (* Check if this is a duplicate of the previous extraction *)
+            let is_duplicate =
+              match !prev_scope_id with
+              | Some prev when prev = extracted_scope_id -> true
+              | _ -> false
+            in
+            if not is_duplicate then (
+              incr unique_extractions;
+              prev_scope_id := Some extracted_scope_id;
+
+              (* Print the extracted subtree *)
+              (match format with
+              | `Text ->
+                  Printf.printf "=== Match #%d at shared scope #%d ==>\n" !unique_extractions
+                    shared_scope_id;
+
+                  (* Get the scope entry for the extracted scope *)
+                  let scope_children =
+                    Query.get_scope_children t.db ~parent_scope_id:extracted_scope_id
+                  in
+                  (* Find the header entry (if any) and build tree *)
+                  (match scope_children with
+                  | [] -> Printf.printf "(empty scope)\n\n"
+                  | _ ->
+                      let trees = Renderer.build_tree t.db ?max_depth scope_children in
+                      let output =
+                        Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth
+                          ~values_first_mode:true trees
+                      in
+                      print_string output;
+                      Printf.printf "\n")
+              | `Json ->
+                  (* For JSON, output a structured object *)
+                  let scope_children =
+                    Query.get_scope_children t.db ~parent_scope_id:extracted_scope_id
+                  in
+                  let trees = Renderer.build_tree t.db ?max_depth scope_children in
+                  let tree_json = Renderer.render_tree_json ~max_depth trees in
+                  Printf.printf
+                    "{\"match_number\": %d, \"shared_scope_id\": %d, \
+                     \"extracted_scope_id\": %d, \"tree\": %s}\n"
+                    !unique_extractions shared_scope_id extracted_scope_id tree_json)))
+      matching_paths;
+
+    (* Print summary *)
+    (match format with
+    | `Text ->
+        Printf.printf
+          "\nSearch-extract complete: %d total matches, %d unique extractions (skipped %d \
+           consecutive duplicates)\n"
+          !total_matches !unique_extractions (!total_matches - !unique_extractions)
+    | `Json -> ())
+
 end
