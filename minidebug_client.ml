@@ -932,6 +932,45 @@ module Query = struct
       | Some parent_id -> collect_ancestors (parent_id :: acc) parent_id
     in
     collect_ancestors [ scope_id ] scope_id
+
+  (** Compute the lowest common ancestor (LCA) of a list of scope IDs.
+      Returns None if scopes are in separate root-level trees (no common ancestor).
+      For scopes in the same tree, returns their deepest common ancestor. *)
+  let lowest_common_ancestor db scope_ids =
+    match scope_ids with
+    | [] -> None
+    | [ single ] -> Some single
+    | _ :: _ ->
+        (* Get ancestor chains for all scopes (from root to scope) *)
+        let ancestor_chains = List.map (fun id -> get_ancestors db ~scope_id:id) scope_ids in
+
+        (* Find the deepest common ancestor by checking from deepest to shallowest *)
+        let find_lca_in_chains chains =
+          match chains with
+          | [] -> None
+          | first_chain :: _ ->
+              (* Try each ancestor from deepest (last) to shallowest (first) *)
+              let rec try_ancestors = function
+                | [] -> None
+                | candidate :: remaining ->
+                    (* Check if this candidate is an ancestor of all scopes *)
+                    if List.for_all (fun chain -> List.mem candidate chain) chains then
+                      Some candidate
+                    else
+                      try_ancestors remaining
+              in
+              try_ancestors (List.rev first_chain)
+        in
+        find_lca_in_chains ancestor_chains
+
+  (** Find root scope for a given scope (topmost ancestor, or self if at root) *)
+  let get_root_scope db scope_id =
+    let rec find_root current_id =
+      match get_parent_id db ~scope_id:current_id with
+      | None -> current_id (* No parent means this is the root *)
+      | Some parent_id -> find_root parent_id
+    in
+    find_root scope_id
 end
 
 (** Tree renderer for terminal output *)
@@ -2503,12 +2542,12 @@ module Client = struct
 
     match_count
 
-  (** Search intersection - find scopes matching all patterns (AND logic).
+  (** Search intersection - find smallest subtrees containing all patterns (LCA-based).
       For each pattern, runs populate_search_results to get matching scopes.
-      Then computes intersection of all result sets. Shows full tree context
-      for scopes in the intersection. *)
+      Then computes all LCAs (Lowest Common Ancestors) for combinations of matches
+      (one match per pattern). Returns unique LCA scopes as the smallest subtrees. *)
   let search_intersection ?(quiet_path = None) ?(format = `Text) ?(show_times = false)
-      ?(max_depth = None) ?(limit = None) ?(offset = None) t ~patterns =
+      ?max_depth:_ ?(limit = None) ?(offset = None) t ~patterns =
     (* Run separate search for each pattern *)
     let all_results_tables =
       List.map
@@ -2536,71 +2575,90 @@ module Client = struct
         all_results_tables
     in
 
-    (* Compute intersection: scope IDs that appear in ALL result sets *)
-    let intersection_scope_ids =
-      match matching_scope_ids_per_pattern with
-      | [] -> []
-      | (_, first_ids) :: rest ->
-          List.filter
-            (fun scope_id ->
-              List.for_all (fun (_, ids) -> List.mem scope_id ids) rest)
-            first_ids
+    (* Open database connection for LCA computation *)
+    let db = Sqlite3.db_open ~mode:`READONLY t.db_path in
+
+    (* Compute LCAs for all combinations of matches (one per pattern).
+       This generates the Cartesian product of all match sets and computes LCA for each tuple. *)
+    let lca_scope_ids =
+      (* Generate Cartesian product of match sets *)
+      let rec cartesian_product = function
+        | [] -> [ [] ]
+        | (pattern, ids) :: rest ->
+            let rest_product = cartesian_product rest in
+            List.concat_map
+              (fun id -> List.map (fun combo -> (pattern, id) :: combo) rest_product)
+              ids
+      in
+
+      let all_combinations = cartesian_product matching_scope_ids_per_pattern in
+
+      (* Compute LCA for each combination. If no LCA exists (scopes in separate trees),
+         fall back to returning the root scopes themselves. *)
+      let lcas =
+        List.concat_map
+          (fun combo ->
+            let scope_ids = List.map snd combo in
+            match Query.lowest_common_ancestor db scope_ids with
+            | Some lca -> [ lca ]
+            | None ->
+                (* No common ancestor - scopes are in separate root trees.
+                   Return all root scopes as separate minimal subtrees. *)
+                List.map (fun id -> Query.get_root_scope db id) scope_ids)
+          all_combinations
+        |> List.sort_uniq compare
+      in
+
+      Sqlite3.db_close db |> ignore;
+      lcas
     in
 
-    (* Build a combined results table with entries from ALL searches for visualization.
-       This ensures we show ancestor context from any of the searches. *)
-    let combined_results = Hashtbl.create 1024 in
-    List.iter
-      (fun (_, results_table) ->
-        Hashtbl.iter (fun key value -> Hashtbl.replace combined_results key value)
-          results_table)
-      all_results_tables;
-
-    (* Note: pagination is applied at tree level, not at scope_ids level,
-       for consistency with search_tree and search_subtree *)
-
-    (* Get all entries and filter to only those in combined_results *)
+    (* Get entries for LCA scopes (just the header entries for compact display) *)
     let all_entries = Query.get_entries t.db () in
-    let filtered_entries =
-      List.filter
-        (fun e -> Hashtbl.mem combined_results (e.Query.scope_id, e.Query.seq_id))
-        all_entries
+    let lca_entries =
+      List.filter_map
+        (fun lca_scope_id ->
+          (* Find the header entry that creates this scope *)
+          List.find_opt
+            (fun e ->
+              match e.Query.child_scope_id with
+              | Some child_id when child_id = lca_scope_id -> true
+              | _ -> false)
+            all_entries)
+        lca_scope_ids
     in
 
-    (* Build tree from filtered entries *)
-    let all_trees = Renderer.build_tree filtered_entries in
-
-    (* Apply pagination at tree level (root scopes only) *)
-    let trees =
-      let t = all_trees in
-      let t = match offset with
-        | None -> t
+    (* Apply pagination to LCA list *)
+    let paginated_lca_entries =
+      let entries = lca_entries in
+      let entries = match offset with
+        | None -> entries
         | Some off ->
-            if off < List.length t then
-              List.filteri (fun i _ -> i >= off) t
+            if off < List.length entries then
+              List.filteri (fun i _ -> i >= off) entries
             else []
       in
       match limit with
-      | None -> t
+      | None -> entries
       | Some lim ->
-          if lim >= List.length t then t
-          else List.filteri (fun i _ -> i < lim) t
+          if lim >= List.length entries then entries
+          else List.filteri (fun i _ -> i < lim) entries
     in
 
     (* Output *)
     (match format with
     | `Text ->
-        let total_scopes = List.length intersection_scope_ids in
-        let total_trees = List.length all_trees in
-        let shown_trees = List.length trees in
+        let total_lcas = List.length lca_scope_ids in
+        let shown_lcas = List.length paginated_lca_entries in
         let start_idx = Option.value offset ~default:0 in
         let pattern_str = String.concat " AND " (List.map (Printf.sprintf "'%s'") patterns) in
+
         if limit <> None || offset <> None then
-          Printf.printf "Found %d scopes matching all patterns (%s), %d root trees (showing trees %d-%d)\n\n"
-            total_scopes pattern_str total_trees start_idx (start_idx + shown_trees)
+          Printf.printf "Found %d smallest subtrees containing all patterns (%s) (showing %d-%d):\n\n"
+            total_lcas pattern_str start_idx (start_idx + shown_lcas)
         else
-          Printf.printf "Found %d scopes matching all patterns (%s)\n\n"
-            total_scopes pattern_str;
+          Printf.printf "Found %d smallest subtrees containing all patterns (%s):\n\n"
+            total_lcas pattern_str;
 
         (* Show per-pattern match counts for debugging *)
         Printf.printf "Per-pattern match counts:\n";
@@ -2610,16 +2668,46 @@ module Client = struct
           matching_scope_ids_per_pattern;
         Printf.printf "\n";
 
-        let output =
-          Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth
-            ~values_first_mode:true trees
-        in
-        print_string output
+        (* Display LCA scopes compactly: scope_id and header line only *)
+        Printf.printf "Lowest Common Ancestor scopes (smallest subtrees):\n\n";
+        List.iter
+          (fun entry ->
+            match entry.Query.child_scope_id with
+            | Some lca_scope_id ->
+                let loc_str = match entry.Query.location with
+                  | Some loc -> Printf.sprintf " [%s]" loc
+                  | None -> ""
+                in
+                let elapsed_str = match Renderer.elapsed_time entry with
+                  | Some ns when show_times ->
+                      Printf.sprintf " (%s)" (Renderer.format_elapsed_ns ns)
+                  | _ -> ""
+                in
+                Printf.printf "  Scope %d: %s%s%s\n"
+                  lca_scope_id entry.Query.message loc_str elapsed_str
+            | None -> ())
+          paginated_lca_entries;
+        Printf.printf "\n"
     | `Json ->
-        let json = Renderer.render_tree_json ~max_depth trees in
-        print_endline json);
+        let json_entries =
+          List.map
+            (fun entry ->
+              match entry.Query.child_scope_id with
+              | Some lca_scope_id ->
+                  Printf.sprintf
+                    {|{"scope_id": %d, "message": "%s", "location": %s}|}
+                    lca_scope_id
+                    (String.escaped entry.Query.message)
+                    (match entry.Query.location with
+                    | Some loc -> Printf.sprintf "\"%s\"" (String.escaped loc)
+                    | None -> "null")
+              | None -> "")
+            paginated_lca_entries
+          |> List.filter (fun s -> s <> "")
+        in
+        Printf.printf "[%s]\n" (String.concat ", " json_entries));
 
-    List.length intersection_scope_ids
+    List.length lca_scope_ids
 
   (** Show a specific scope and its descendants *)
   let show_scope ?(format = `Text) ?(show_times = false) ?(max_depth = None)

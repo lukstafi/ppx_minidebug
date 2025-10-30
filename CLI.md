@@ -261,17 +261,16 @@ minidebug_view trace.db show-scope 12345 --max-depth=2
 
 **Key Insight:** Provides "progressive disclosure" - see summary first, then explore details. This is how the TUI works, now available in CLI!
 
-#### `search-intersection <pat1> <pat2> [<pat3> <pat4>]` ✅
-**Multi-pattern search** - Finds scopes matching ALL patterns (AND logic / intersection).
+#### `search-intersection <pat1> <pat2> [<pat3> ...]` ✅
+**Multi-pattern search** - Finds the smallest subtrees containing ALL patterns (LCA-based AND logic).
 
 ```bash
 minidebug_view trace.db search-intersection "(id 79)" "(id 1802)" [options]
 ```
 
 **Options:**
-- `--format=json`: Output as JSON
+- `--format=json`: Output as JSON (list of LCA scope entries)
 - `--times`: Include elapsed times
-- `--max-depth=<n>`: Limit tree depth
 - `--quiet-path=<pattern>`: Stop ancestor propagation at pattern (applies to all searches)
 - `--limit=<n>`: Limit number of results
 - `--offset=<n>`: Skip first n results
@@ -279,48 +278,59 @@ minidebug_view trace.db search-intersection "(id 79)" "(id 1802)" [options]
 **How it works:**
 1. Runs separate search with ancestor propagation for each pattern
 2. Extracts actual matching scope IDs (not propagated ancestors) from each search
-3. Computes intersection: only scopes that match ALL patterns
-4. Shows full tree context with combined ancestor paths
+3. Computes **Lowest Common Ancestors (LCA)** for all combinations of matches (one match per pattern)
+4. Returns unique LCAs as the **smallest subtrees** containing all patterns
+5. For scopes in separate root-level trees, returns each root scope as a minimal subtree
+
+**Algorithm:** Uses Cartesian product of match sets to find all combinations, then computes LCA for each. This identifies the minimal context where all patterns co-occur.
 
 **Arguments:**
-- Requires 2-4 search patterns
-- All patterns must match for a scope to be included in results
+- Requires 2+ search patterns (no upper limit)
+- All patterns must appear somewhere in the resulting subtrees
 
-**Example - Find scopes with multiple IDs:**
+**Example - Find smallest contexts with multiple IDs:**
 ```bash
 minidebug_view trace.db search-intersection "(id 79)" "(id 1802)"
-# Finds scopes where both IDs appear in the subtree
+# Finds minimal subtrees where both IDs interact
 ```
 
 **Example - Complex filtering:**
 ```bash
 minidebug_view trace.db search-intersection "compute" "error" "validation" --format=json
-# Finds scopes where all three patterns match
+# Finds minimal contexts where all three patterns co-occur
 ```
 
-**Output (text mode):**
+**Output (text mode) - Compact display:**
 ```
-Found 2 scopes matching all patterns ('compute' AND 'error' AND 'validation')
+Found 7 smallest subtrees containing all patterns ('(id 79)' AND '(id 1802)'):
 
 Per-pattern match counts:
-  'compute': 45 scopes
-  'error': 12 scopes
-  'validation': 8 scopes
+  '(id 79)': 87 scopes
+  '(id 1802)': 129 scopes
 
-{#0} [debug] validate_compute @ src/compute.ml:42:8-50:3
-  {#5} [debug] check_input => Error "Invalid" @ src/validate.ml:15:8-20:5
+Lowest Common Ancestor scopes (smallest subtrees):
+
+  Scope 2093: binop [tensor/tensor.ml:444:22-454:14]
+  Scope 2197: param [tensor/tensor.ml:587:22-605:48]
+  Scope 56661: unop [tensor/tensor.ml:468:21-478:10]
+  Scope 57280: binop [tensor/tensor.ml:444:22-454:14]
+  Scope 57820: unop [tensor/tensor.ml:468:21-478:10]
+  Scope 59564: binop [tensor/tensor.ml:444:22-454:14]
+  Scope 60452: run_once [lib/train.ml:236:25-258:25]
 ```
 
-**Output (JSON mode):** Complete tree with all entry fields.
+**Output (JSON mode):** List of LCA scope entries with scope_id, message, and location.
 
 **Use Case:**
-- Finding specific interactions: "Where do these two functions interact?"
-- Complex debugging: "Show me places where X happens AND Y happens AND Z happens"
-- Targeted analysis: Narrow down search results by requiring multiple conditions
+- **Finding interactions**: "Where do these two IDs/functions/values interact?"
+- **Root cause analysis**: "What's the minimal context that involves all these symptoms?"
+- **Targeted debugging**: Identify precise scopes to investigate instead of searching through full trees
+- **Relationship discovery**: Find common ancestors of multiple points of interest
 
 **Comparison with other search commands:**
-- `search-tree "pattern"`: OR logic (any match)
-- `search-intersection "pat1" "pat2"`: AND logic (all must match)
+- `search-tree "pattern"`: Shows full trees with any match (OR logic)
+- `search-intersection "pat1" "pat2"`: Shows minimal subtrees containing all patterns (LCA-based AND)
+- `show-scope <id>`: Investigates a specific LCA result in detail
 - Result: Much more targeted results when you know multiple things must co-occur
 
 ### Navigation Commands
@@ -950,17 +960,12 @@ The CLI was tested on a real-world OCANNL trace with 1,051,297 entries and 105 M
    - Example: Variable IDs like `(id 79)` often in data, causing filter misses
    - **Need:** `--quiet-data` or unified filtering across all fields
 
-2. **No multi-pattern intersection**
-   - Can't find "scopes containing BOTH id 79 AND id 1802"
-   - Current workaround: Run two searches, manually find common scope IDs
-   - **Need:** `search-intersection <pattern1> <pattern2>`
-
-3. **Performance on extreme scale**
+2. **Performance on extreme scale**
    - Some queries hang on 1M+ databases (need SQL optimization)
    - Loading all entries into memory for filtering is inefficient
    - **Need:** Query pushdown to SQL layer, streaming results
 
-4. **Missing context for errors**
+3. **Missing context for errors**
    - Actual error messages (thrown exceptions) don't appear in trace
    - Error occurs after trace ends, so can't see the failure point
    - **Need:** Better exception capture in tracing runtime
@@ -1001,10 +1006,11 @@ This workflow reduces a 1M-entry trace to 3-7 key scopes in seconds!
 2. **Multi-pattern search:** ✅ **IMPLEMENTED** (v3.1.0+)
    ```bash
    minidebug_view trace.db search-intersection "(id 79)" "(id 1802)"
-   # Find scopes where both patterns occur in subtree
+   # Find smallest subtrees (LCAs) where both patterns co-occur
    ```
 
-   **Status:** Fully implemented with support for 2-4 patterns. See `search-intersection` command above.
+   **Status:** Fully implemented with LCA-based algorithm supporting 2+ patterns (no upper limit).
+   Returns the minimal contexts containing all patterns. See `search-intersection` command above.
 
 3. **Pagination:** ✅ **IMPLEMENTED** (v3.1.0+)
    ```bash
