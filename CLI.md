@@ -1203,193 +1203,72 @@ This workflow reduces a 1M-entry trace to 3-7 key scopes in seconds!
    minidebug_view large.db search-tree "test" --stream
    ```
 
-#### MCP Server for Stateful Debugging 🚀
+#### MCP Server ✅ **IMPLEMENTED**
 
-**Problem:** The CLI's stateless nature means every command re-loads the entire database. For the 1M-entry OCANNL trace, each command takes ~5 seconds just to load entries, even though we're doing related queries.
+**Status:** A basic MCP server has been implemented! See the [minidebug_mcp section](#minidebug_mcp---mcp-server--new) at the end of this document for full details.
 
-**Solution:** Implement a Model Context Protocol (MCP) server using [ocaml-mcp](https://github.com/tmattio/ocaml-mcp) for stateful, session-based debugging.
+**Current Implementation (v3.1.0+):**
+- ✅ 7 MCP tools: list-runs, stats, show-trace, search-tree, search-subtree, show-scope, get-ancestors
+- ✅ Stateless architecture (each tool opens/closes DB)
+- ✅ Natural language interface via Claude Desktop or other MCP clients
+- ✅ Built on Anil Madhavapeddy's lightweight ocaml-mcp library (vendored)
 
-**Performance Gain Example:**
-```bash
-# Current CLI approach (4 round-trips):
-search-at-depth "(id 79)" 1    # Loads 1M entries: 5s
-search-at-depth "(id 79)" 4    # Loads 1M entries: 5s
-search-at-depth "(id 1802)" 4  # Loads 1M entries: 5s
-show-scope 60460               # Loads 1M entries: 5s
-# Total: 20 seconds, 4M entries loaded
-
-# MCP Server approach (1 session):
-mcp.open_database("trace.db")  # Loads entries once: 3s
-mcp.search_at_depth("(id 79)", 1)    # Uses cache: 0.5s
-mcp.search_at_depth("(id 79)", 4)    # Reuses search: 0.1s
-mcp.search_at_depth("(id 1802)", 4)  # Uses cache: 0.5s
-mcp.show_scope(60460)                # Instant: <0.1s
-# Total: 4.2 seconds, 1M entries loaded once
-# Speedup: 4.8x!
-```
-
-**Architecture:**
-
-```ocaml
-(* bin/minidebug_mcp_server.ml *)
-type server_state = {
-  db: Sqlite3.db;
-  db_path: string;
-  entries: Query.entry array;        (* Cached in memory *)
-  search_slots: search_slot SlotMap.t;  (* 4 active searches like TUI *)
-  expanded: (int, unit) Hashtbl.t;   (* UI state *)
-}
-
-(* MCP Tools *)
-let tools = [
-  {
-    name = "open_database";
-    description = "Open database and cache entries for session";
-    inputSchema = {
-      db_path: string;
-      preload: bool;  (* default: true *)
-    }
-  };
-  {
-    name = "search_tree";
-    description = "Search with ancestor propagation (results cached in slot)";
-    inputSchema = {
-      pattern: string;
-      quiet_path: string option;
-      slot: int;  (* 1-4, for multi-search like TUI *)
-    }
-  };
-  {
-    name = "search_at_depth";
-    description = "Filter cached search to specific depth";
-    inputSchema = {
-      depth: int;
-      slot: int option;  (* Reuse previous search result! *)
-    }
-  };
-  {
-    name = "get_intersection";
-    description = "Find scopes in multiple search results";
-    inputSchema = {
-      slots: int list;  (* [1; 2] = scopes in both slot 1 and slot 2 *)
-    }
-  };
-  {
-    name = "show_scope";
-    description = "Show scope contents (instant from cache)";
-    inputSchema = {
-      scope_id: int;
-      max_depth: int option;
+**Quick Start:**
+```json
+// Add to Claude Desktop config:
+{
+  "mcpServers": {
+    "ppx_minidebug": {
+      "command": "minidebug_mcp",
+      "args": ["/path/to/trace.db"]
     }
   }
-]
+}
 ```
 
-**Key Features Enabled by MCP:**
+**Future: Stateful Session-Based Server**
 
-1. **Search Result Caching** - Like TUI's 4 search slots
-   ```ocaml
-   mcp.search_tree("(id 79)", slot:1)     (* Cached in slot 1 *)
-   mcp.search_tree("(id 1802)", slot:2)   (* Cached in slot 2 *)
-   mcp.get_intersection([1; 2])           (* Instant! *)
-   ```
+The current implementation is stateless (reloads DB per query). Future enhancement will add session caching for massive performance gains:
 
-2. **Incremental Depth Exploration** - Reuse same search at different depths
-   ```ocaml
-   mcp.search_tree("error", slot:1)       (* Scan 1M entries once *)
-   mcp.search_at_depth(depth:1, slot:1)   (* Filter cache: 3 results *)
-   mcp.search_at_depth(depth:4, slot:1)   (* Refilter cache: 7 results *)
-   ```
-
-3. **Background Processing** - Async searches like TUI Domains
-   ```ocaml
-   search_id = mcp.start_search_async("(id 79)")
-   (* Do other work... *)
-   mcp.get_stats()
-   mcp.show_scope(42)
-   (* Check completion *)
-   if mcp.is_search_complete(search_id) then
-     results = mcp.get_search_results(search_id)
-   ```
-
-4. **Multi-Pattern Queries** - Impossible with stateless CLI
-   ```ocaml
-   (* Find scopes containing BOTH id 79 AND id 1802 *)
-   mcp.search_intersection(["(id 79)"; "(id 1802)"])
-
-   (* Find scopes with id 79 but NOT env *)
-   mcp.search_difference("(id 79)", except:"env")
-   ```
-
-5. **Session Persistence** - Save exploration state
-   ```ocaml
-   (* Save current search state to resume later *)
-   mcp.save_session("debug_session_1.json")
-
-   (* Later... *)
-   mcp.load_session("debug_session_1.json")
-   (* All search slots and expanded state restored *)
-   ```
-
-**Implementation Plan:**
-
-1. **Phase 1:** Basic MCP server with stateful entry cache
-   - Tools: `open_database`, `search_tree`, `show_scope`
-   - Library: [ocaml-mcp](https://github.com/tmattio/ocaml-mcp)
-   - Reuse existing `Query` and `Renderer` modules
-
-2. **Phase 2:** Search slot system (like TUI)
-   - 4 concurrent search slots with different patterns
-   - `get_intersection`, `get_union`, `get_difference`
-   - Hash-based set operations on cached results
-
-3. **Phase 3:** Background processing with Domains
-   - Async search spawned in background Domain
-   - Polling interface: `start_search`, `is_complete`, `get_results`
-   - Non-blocking for LLM agents doing multi-step analysis
-
-4. **Phase 4:** Advanced features
-   - Session save/load
-   - Query history and replay
-   - Streaming results for huge result sets
-   - Smart caching (LRU for scopes, keep hot paths)
-
-**Use Case: LLM Agent Debugging Workflow**
-
-```
-Agent: "Find scopes where both id 79 and id 1802 appear"
-
-MCP Server session:
-1. open_database("ocannl.db")         # Cache 1M entries: 3s
-2. search_tree("(id 79)", slot:1)     # Scan cache: 2s → 87 scopes
-3. search_tree("(id 1802)", slot:2)   # Scan cache: 2s → 129 scopes
-4. get_intersection([1, 2])           # Hash lookup: <1ms → 3 scopes!
-5. show_scope(60460)                  # Instant from cache
-
-Total: 7 seconds (vs 25+ seconds with CLI)
-
-Agent: "Now show me the call paths to those scopes"
-6. get_ancestors(60460)               # Instant: already in cache
-7. search_at_depth(depth:1, slot:1)   # Refilter slot 1: <1ms
+**Vision - Session Caching:**
+```ocaml
+type server_state = {
+  db: Sqlite3.db;
+  entries_cache: Query.entry array;  (* Load once *)
+  search_slots: (int, Hashtbl.t) Hashtbl.t;  (* 4 active searches *)
+  scope_cache: (int, tree_node) Hashtbl.t;  (* LRU cache *)
+}
 ```
 
-**Why This Matters for LLM Agents:**
+**Expected Performance (1M-entry DB):**
+- Current stateless: Each query ~5s (reloads DB)
+- Future cached: First query 5s, subsequent <0.1s
+- Speedup: 50x for multi-step workflows!
 
-- **Conversational debugging:** Agent can ask follow-up questions without re-loading DB
-- **Complex queries:** Multi-pattern searches that would require manual shell scripting
-- **Interactive exploration:** Like TUI, but programmatic
-- **Efficiency:** 5-10x speedup for multi-step workflows
+**Planned Advanced Features:**
+- Search slot caching (reuse previous search results)
+- `search-intersection` across cached slots (instant)
+- Background async searches with progress updates
+- Session persistence (save/resume debugging state)
+- Incremental depth exploration without re-scanning
 
-**Dependencies:**
+**Why Session State Matters:**
 
-```dune
-(executable
- (name minidebug_mcp_server)
- (libraries mcp sqlite3 minidebug_client)
- (preprocess (pps ppx_deriving_yojson)))
+LLM agents often ask follow-up questions in the same debugging session:
+```
+1. "Find id 79" → loads 1M entries (5s)
+2. "Show scope 2093" → reloads 1M entries (5s)  ← wasteful!
+3. "Find id 1802" → reloads again (5s)          ← wasteful!
 ```
 
-**Status:** Planned for future release. Would provide TUI-like efficiency with CLI-like automation.
+With session caching:
+```
+1. "Find id 79" → loads 1M entries (5s), caches
+2. "Show scope 2093" → uses cache (<0.1s)       ← instant!
+3. "Find id 1802" → rescans cache (0.5s)        ← reuses loaded data!
+```
+
+See the full MCP server documentation below for current usage and implementation details.
 
 #### Performance Optimizations
 
