@@ -261,6 +261,89 @@ minidebug_view trace.db show-scope 12345 --max-depth=2
 
 **Key Insight:** Provides "progressive disclosure" - see summary first, then explore details. This is how the TUI works, now available in CLI!
 
+#### `search-extract <search_path> <extraction_path>` ✅
+**DAG path search with extraction** - Searches for patterns along a path in the trace DAG, then extracts related data with change tracking.
+
+```bash
+minidebug_view trace.db search-extract "Node,key,(id 79)" "Node,value" [options]
+```
+
+**Options:**
+- `--format=json`: Output as JSON
+- `--times`: Include elapsed times
+- `--max-depth=<n>`: Limit extracted tree depth
+
+**How it works:**
+1. **Search path**: Finds all paths matching a sequence of patterns (comma-separated)
+   - Example: `"Node,key,(id 79)"` finds `Node` → `key` → `(id 79)`
+   - Uses reversed search: finds leaf pattern first, climbs up verifying ancestors
+   - Works anywhere in trace (not limited to root entries)
+   - **Supports value entries** at end of path (e.g., `(id 79)` can be a value, not just a scope)
+2. **Extraction path**: From each matching "shared node", extracts along a different path
+   - Example: `"Node,value"` extracts the `value` child of the matched `Node`
+   - Must share first element with search path (the "shared node")
+3. **Change tracking**: Skips consecutive duplicate extractions (same scope_id)
+   - Leverages content-addressed caching - same scope_id = identical subtree
+   - Shows only when extracted data actually changes
+
+**Arguments:**
+- `<search_path>`: Comma-separated patterns (e.g., `"fn,param,value"`)
+- `<extraction_path>`: Comma-separated patterns starting with same element as search path
+- Both paths use substring matching on entry `message` or `data` fields
+
+**Example - Track parameter evolution:**
+```bash
+# Find all Node entries whose key child contains "(id 79)",
+# and show their value child (skipping duplicates)
+minidebug_view trace.db search-extract "Node,key,(id 79)" "Node,value"
+```
+
+**Output (text mode):**
+```
+=== Match #1 at shared scope #-98529 ==>
+#-98530 [value] Bounds_dim
+  #-98531 [value] is_in_param
+    #-408 false
+  ...
+
+=== Match #2 at shared scope #-3513 ==>
+#-3427 [value] Bounds_dim
+  #-3428 [value] is_in_param
+    #-408 false
+  ...
+
+Search-extract complete: 3 total matches, 2 unique extractions (skipped 1 consecutive duplicates)
+```
+
+**Output (JSON mode):** Each match as object with `match_number`, `shared_scope_id`, `extracted_scope_id`, and `tree`.
+
+**Use Cases:**
+- **Parameter tracking**: "Show me how parameter X evolves through function F"
+  - Search: `"F,param,X"`, Extract: `"F,result"`
+- **State changes**: "Where does variable V change in context C?"
+  - Search: `"C,update,V"`, Extract: `"C,V"`
+- **Error analysis**: "What values led to errors in module M?"
+  - Search: `"M,compute,Error"`, Extract: `"M,input"`
+- **DAG traversal**: Works with complex parent-child relationships from content-addressed caching
+
+**Key Features:**
+- **Efficient DAG search**: Uses `populate_search_results` + ancestor climbing (handles multiple parents)
+- **Value entry support**: Last search pattern can match values (not just scopes)
+- **Smart deduplication**: Skips showing same subtree multiple times (based on scope_id)
+- **Disambiguation**: Shows shared scope ID to clarify which match point was used
+
+**Algorithm Details:**
+1. Reverse search path: `["Node", "key", "(id 79)"]` → `["(id 79)", "key", "Node"]`
+2. Find all candidates matching `"(id 79)"` (last/leaf pattern)
+3. For each candidate, climb up DAG checking ancestors match `"key"`, then `"Node"`
+4. From successful matches (shared nodes), extract along `"Node" → "value"`
+5. Skip consecutive extractions with same scope_id
+
+**Comparison with other commands:**
+- `search-tree`: Shows all occurrences with context (no extraction or dedup)
+- `search-intersection`: Finds co-occurrence of patterns (no path structure)
+- `search-extract`: Follows specific paths, extracts related data, tracks changes
+
 #### `search-intersection <pat1> <pat2> [<pat3> ...]` ✅
 **Multi-pattern search** - Finds the smallest subtrees containing ALL patterns (LCA-based AND logic).
 
