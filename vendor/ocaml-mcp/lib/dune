@@ -1,0 +1,27 @@
+(library
+ (name mcp)
+ (public_name mcp)
+ (libraries jsonrpc unix yojson)
+ (modules mcp))
+
+(library
+ (name mcp_rpc)
+ (public_name mcp.rpc)
+ (libraries mcp jsonrpc unix yojson)
+ (modules mcp_rpc)
+ (flags
+  (:standard -w -67 -w -27 -w -32 -w -33 -w -34)))
+
+(library
+ (name mcp_sdk)
+ (public_name mcp.sdk)
+ (libraries mcp mcp_rpc jsonrpc unix yojson logs logs.fmt)
+ (modules mcp_sdk)
+ (flags
+  (:standard -w -67 -w -27 -w -32)))
+
+(library
+ (name mcp_server)
+ (public_name mcp.server)
+ (libraries mcp_sdk jsonrpc eio_main eio http cohttp-eio)
+ (modules mcp_server))
