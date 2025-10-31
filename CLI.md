@@ -1501,6 +1501,286 @@ minidebug_view trace.db show --format=json | grep -n '[^[:print:]]'
 
 Same as ppx_minidebug project.
 
+---
+
+# minidebug_mcp - MCP Server ✨ NEW
+
+**Model Context Protocol server for AI-powered debugging.**
+
+## Overview
+
+The `minidebug_mcp` server exposes ppx_minidebug database query capabilities via the Model Context Protocol (MCP), enabling AI assistants like Claude Desktop to directly query and analyze debug traces.
+
+**Key Benefits:**
+- **AI-native interface**: Natural language queries instead of command-line syntax
+- **Contextual understanding**: AI can follow multi-step debugging workflows
+- **Session-based**: Faster than CLI for iterative exploration (future: caching)
+- **Integration-ready**: Works with any MCP-compatible AI assistant
+
+## Installation
+
+Built alongside minidebug_view:
+
+```bash
+dune build bin/minidebug_mcp.exe
+# Or after opam install:
+which minidebug_mcp
+```
+
+## Quick Start
+
+### Configuration for Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "ppx_minidebug": {
+      "command": "/path/to/minidebug_mcp",
+      "args": ["/absolute/path/to/your/trace.db"]
+    }
+  }
+}
+```
+
+Then restart Claude Desktop.
+
+### Usage
+
+Once configured, Claude can directly query your traces:
+
+```
+You: "Show me all the runs in my debug trace"
+Claude: [calls minidebug/list-runs tool]
+        "There are 3 runs in the database..."
+
+You: "Find where id 79 appears"
+Claude: [calls minidebug/search-tree tool with pattern "(id 79)"]
+        "I found 87 scopes containing id 79..."
+
+You: "Show me scope 2093 in detail"
+Claude: [calls minidebug/show-scope tool]
+        "This scope is a binop function at tensor.ml:444..."
+```
+
+## MCP Tools Provided
+
+### Database Information
+- **minidebug/list-runs** - List all trace runs with timestamps and metadata
+- **minidebug/stats** - Database statistics (size, deduplication metrics)
+
+### Trace Viewing
+- **minidebug/show-trace** - Full trace tree (with depth/time options)
+
+### Search & Analysis
+- **minidebug/search-tree** 🌟 - Search with full ancestor context (best for AI)
+  - Returns all matches with their complete call paths
+  - Supports quiet-path filtering and pagination
+- **minidebug/search-subtree** - Pruned subtree search (minimal context)
+- **minidebug/search-at-depth** - Summary at specific depth (TUI-like overview)
+
+### Navigation
+- **minidebug/show-scope** - Show specific scope and descendants
+- **minidebug/get-ancestors** - Get ancestor chain for navigation
+
+## Implementation Status
+
+### ✅ Implemented
+- All 7 core MCP tools
+- Database path management
+- Error handling and logging
+- JSON parameter validation
+- Type-safe argument extraction
+
+### ⚠️ Known Limitations
+- **Output capture incomplete**: Some tools currently print to server stdout instead of returning results in JSON-RPC response
+- Workaround: Use `minidebug_view` CLI for full functionality until output capture is implemented
+
+### 🚧 Planned Features
+1. **Proper stdout capture**: Capture Format/Printf output from Client functions
+2. **Resource endpoints**: Expose runs as MCP resources
+3. **Prompt templates**: Pre-defined prompts for common analysis patterns
+4. **Streaming results**: Handle large result sets efficiently
+5. **Session caching**: Cache entries in memory for faster multi-query workflows
+
+## Architecture
+
+```
+AI Assistant (Claude)
+         |
+         | JSON-RPC over stdio
+         ↓
+   minidebug_mcp server
+         |
+         | Opens database connection
+         ↓
+   minidebug_client library
+         |
+         | SQL queries
+         ↓
+   trace.db (SQLite)
+```
+
+**Design:**
+- Uses Anil Madhavapeddy's lightweight MCP implementation (vendored)
+- Built on existing `minidebug_client` library (same code as CLI)
+- Stdio-based transport (standard for MCP servers)
+- Each tool call opens/closes database connection (stateless for now)
+
+## Comparison: MCP Server vs CLI
+
+| Feature | minidebug_view (CLI) | minidebug_mcp (MCP) |
+|---------|---------------------|---------------------|
+| **Interface** | Command-line args | Natural language → AI → tools |
+| **Learning curve** | Must learn syntax | Conversational |
+| **Multi-step** | Manual scripting | AI handles workflow |
+| **Output** | Text/JSON to stdout | JSON-RPC responses |
+| **Session state** | Stateless (reloads DB) | Stateless (future: caching) |
+| **Speed** | ~5s per query (1M DB) | Same (future: 5-10x faster) |
+| **Best for** | Scripting, automation | Interactive debugging, exploration |
+
+## Example Workflows
+
+### Error Root Cause Analysis
+
+```
+You: "Find all errors in the trace and explain what caused them"
+
+Claude:
+1. Calls minidebug/search-tree with pattern "Error\|Exception"
+2. Analyzes the returned tree structure
+3. Identifies common ancestors and parameter values
+4. Calls minidebug/get-ancestors for key scopes
+5. Explains: "The errors occur in validation.ml:42 when the input
+   parameter is None. This happens in 3 different code paths..."
+```
+
+### Performance Investigation
+
+```
+You: "Where is my code spending the most time?"
+
+Claude:
+1. Calls minidebug/stats to understand database scale
+2. Calls minidebug/show-trace with --times flag
+3. Analyzes elapsed times to find hotspots
+4. Calls minidebug/show-scope on slow operations
+5. Reports: "The bottleneck is in scope 60452 (run_once function)
+   which took 49.93s. It's called 3 times, each taking 15-20s..."
+```
+
+### Multi-Pattern Intersection
+
+```
+You: "Show me where both id 79 and id 1802 interact"
+
+Claude:
+1. Calls minidebug/search-tree for "(id 79)"
+2. Calls minidebug/search-tree for "(id 1802)"
+3. Analyzes overlap in returned scope IDs
+4. Calls minidebug/show-scope on intersection points
+5. Explains the interaction context
+```
+
+## Development
+
+### Adding New Tools
+
+Create new tools in `minidebug_mcp_server/minidebug_mcp_server.ml`:
+
+```ocaml
+let _ =
+  add_tool server ~name:"minidebug/my-tool"
+    ~description:"What this tool does"
+    ~schema_properties:[
+      ("param_name", "string", "Parameter description")
+    ]
+    ~schema_required:["param_name"]
+    (fun args ->
+       try
+         let param = get_string_param args "param_name" in
+         let client = Minidebug_client.Client.open_db (get_db_path ()) in
+         (* ... perform query ... *)
+         Tool.create_tool_result [Mcp.make_text_content result] ~is_error:false
+       with e -> Tool.create_error_result (Printexc.to_string e))
+in
+```
+
+### Testing
+
+```bash
+# Start server manually (for testing)
+minidebug_mcp trace.db
+
+# Server listens on stdin, outputs to stdout
+# Send JSON-RPC request (see MCP spec)
+
+# Or test with Claude Desktop configuration
+```
+
+### Debugging
+
+```bash
+# Enable logging
+MINIDEBUG_MCP_LOG=info minidebug_mcp trace.db
+
+# Server logs go to stderr (so stdout stays clean for JSON-RPC)
+```
+
+## Future: Session-Based Server
+
+**Vision:** Transform into a stateful server for massive performance gains on large traces.
+
+**Planned Architecture:**
+```ocaml
+type server_state = {
+  db: Sqlite3.db;
+  entries_cache: Query.entry array;  (* Load once *)
+  search_slots: (int, Hashtbl.t) Hashtbl.t;  (* 4 active searches *)
+  scope_cache: (int, tree_node) Hashtbl.t;  (* LRU cache *)
+}
+```
+
+**Expected Performance (1M-entry DB):**
+- Current: Each query reloads 1M entries (~5s per query)
+- Future: Load once, cache searches (queries become <0.1s after first)
+- Speedup: 50x for multi-step workflows!
+
+**New Capabilities:**
+- `search-intersection` across cached slots (instant)
+- `search_at_depth` reusing previous search (no re-scan)
+- Background search with progress updates
+- Session persistence (save/resume debugging state)
+
+See "MCP Server for Stateful Debugging" section above for detailed plan.
+
+## Protocol Details
+
+- **MCP Version**: 2025-03-26 (Anil's implementation)
+- **Transport**: stdio (JSON-RPC over stdin/stdout)
+- **Message Format**: JSON-RPC 2.0
+- **Tool Schema**: JSON Schema for parameter validation
+
+## Dependencies
+
+### Vendored
+- `vendor/ocaml-mcp` - Anil Madhavapeddy's MCP implementation
+  - Lightweight, stdio-focused
+  - Libraries: mcp, mcp.sdk, mcp.rpc, mcp.server
+
+### Project
+- `minidebug_client` - Query and rendering library (shared with CLI)
+- `eio_main` - Effect-based I/O
+- `cohttp-eio` - HTTP support for MCP
+- `jsonrpc` - JSON-RPC protocol
+
+## References
+
+- [MCP Specification](https://modelcontextprotocol.io)
+- [Anil's ocaml-mcp](https://github.com/avsm/ocaml-mcp)
+- [minidebug_mcp_server/README.md](minidebug_mcp_server/README.md) - Implementation details
+
 ## Contact
 
 For issues or feature requests, see project repository.

@@ -1,0 +1,13 @@
+(library
+ (name minidebug_mcp_server)
+ (libraries
+  minidebug_client
+  unix
+  logs
+  eio_main
+  mcp
+  mcp.sdk
+  mcp.rpc
+  mcp.server)
+ (flags
+  (:standard -w -27)))
