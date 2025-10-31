@@ -11,7 +11,7 @@ This MCP server exposes ppx_minidebug's debug trace database capabilities to AI 
 - **Library**: `minidebug_mcp_server` - Core MCP server implementation
 - **Executable**: `minidebug_mcp` - CLI tool that starts the MCP server
 - **Protocol**: Uses Anil Madhavapeddy's lightweight MCP implementation (vendored)
-- **Transport**: stdio-based JSON-RPC communication
+- **Transport**: stdio-based JSON-RPC communication (newline-delimited JSON over stdin/stdout)
 
 ## Tools Provided
 
@@ -63,13 +63,10 @@ Then restart Claude Desktop. The tools will appear in Claude's tool list.
 - Database path management
 - Error handling and logging
 - Type-safe JSON parameter extraction
-
-### ⚠️ Known Limitations
-- **Output capture**: Currently, some tools print results to server stdout instead of returning them in the JSON-RPC response. This is a temporary limitation.
-- Workaround: Use `minidebug_view` CLI for full functionality until stdout capture is implemented.
+- **Output capture refactoring**: All tools use buffer-backed formatters (clean, no Unix pipe hacks)
+- **stdio transport**: Uses `run_sdtio_server` for proper stdin/stdout JSON-RPC communication
 
 ### 🚧 TODO
-- Implement proper stdout/Format output capture for search tools
 - Add resource endpoints (expose runs as MCP resources)
 - Add prompt templates for common analysis patterns
 - Support for streaming large results

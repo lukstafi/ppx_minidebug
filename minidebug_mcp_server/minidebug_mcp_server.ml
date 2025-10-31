@@ -109,31 +109,13 @@ let create_server ~db_path =
            let db_path = get_db_path () in
            let client = Minidebug_client.Client.open_db db_path in
 
-           (* Capture stats output *)
+           (* Capture stats output using buffer-backed formatter *)
            let buffer = Buffer.create 1024 in
-           let old_stdout = Unix.dup Unix.stdout in
-           let pipe_out, pipe_in = Unix.pipe () in
-           Unix.dup2 pipe_in Unix.stdout;
-           Unix.close pipe_in;
+           let fmt = Format.formatter_of_buffer buffer in
 
-           (* Run stats *)
-           Minidebug_client.Client.show_stats client;
-           Unix.close Unix.stdout;
-           Unix.dup2 old_stdout Unix.stdout;
-           Unix.close old_stdout;
-
-           (* Read captured output *)
-           let rec read_all () =
-             try
-               let bytes = Bytes.create 1024 in
-               let n = Unix.read pipe_out bytes 0 1024 in
-               if n > 0 then (
-                 Buffer.add_subbytes buffer bytes 0 n;
-                 read_all ())
-             with Unix.Unix_error (Unix.EAGAIN, _, _) | End_of_file -> ()
-           in
-           read_all ();
-           Unix.close pipe_out;
+           (* Run stats with custom output channel *)
+           Minidebug_client.Client.show_stats ~output:fmt client;
+           Format.pp_print_flush fmt ();
 
            let stats_text = Buffer.contents buffer in
            Minidebug_client.Client.close client;
@@ -185,35 +167,15 @@ let create_server ~db_path =
              |> Option.get (* Safe: would have errored in open_db if no runs *)
            in
 
-           (* Capture trace output to string *)
+           (* Capture trace output using buffer-backed formatter *)
            let buffer = Buffer.create 4096 in
-           let old_stdout = Unix.dup Unix.stdout in
-           let pipe_out, pipe_in = Unix.pipe () in
-           Unix.dup2 pipe_in Unix.stdout;
-           Unix.close pipe_in;
+           let fmt = Format.formatter_of_buffer buffer in
 
            (* Generate trace *)
-           Minidebug_client.Client.show_run_summary client latest_run.run_id;
-           Minidebug_client.Client.show_trace client ~show_scope_ids ~show_times
-             ~max_depth ~values_first_mode;
-
-           (* Restore stdout *)
-           Unix.close Unix.stdout;
-           Unix.dup2 old_stdout Unix.stdout;
-           Unix.close old_stdout;
-
-           (* Read output *)
-           let rec read_all () =
-             try
-               let bytes = Bytes.create 4096 in
-               let n = Unix.read pipe_out bytes 0 4096 in
-               if n > 0 then (
-                 Buffer.add_subbytes buffer bytes 0 n;
-                 read_all ())
-             with Unix.Unix_error (Unix.EAGAIN, _, _) | End_of_file -> ()
-           in
-           read_all ();
-           Unix.close pipe_out;
+           Minidebug_client.Client.show_run_summary ~output:fmt client latest_run.run_id;
+           Minidebug_client.Client.show_trace ~output:fmt client ~show_scope_ids
+             ~show_times ~max_depth ~values_first_mode;
+           Format.pp_print_flush fmt ();
 
            let trace_text = Buffer.contents buffer in
            Minidebug_client.Client.close client;
@@ -257,19 +219,17 @@ let create_server ~db_path =
            let limit = get_optional_int_param args "limit" in
            let offset = get_optional_int_param args "offset" in
 
-           (* For now, return a message that results are being computed *)
-           (* TODO: Properly capture stdout from Client functions *)
-           let _ =
-             Minidebug_client.Client.search_tree ~quiet_path ~format:`Text ~show_times
-               ~max_depth ~limit ~offset client ~pattern
-           in
+           (* Capture search output using buffer-backed formatter *)
+           let buffer = Buffer.create 4096 in
+           let fmt = Format.formatter_of_buffer buffer in
 
-           let output =
-             Printf.sprintf
-               "Search completed for pattern '%s'. Results printed to server stdout.\n\
-                Note: Output capture not yet implemented. Use minidebug_view CLI for now."
-               pattern
+           let _num_matches =
+             Minidebug_client.Client.search_tree ~output:fmt ~quiet_path ~format:`Text
+               ~show_times ~max_depth ~limit ~offset client ~pattern
            in
+           Format.pp_print_flush fmt ();
+
+           let output = Buffer.contents buffer in
            Minidebug_client.Client.close client;
 
            Tool.create_tool_result [ Mcp.make_text_content output ] ~is_error:false
@@ -304,17 +264,17 @@ let create_server ~db_path =
            let max_depth = get_optional_int_param args "max_depth" in
            let limit = get_optional_int_param args "limit" in
 
-           (* TODO: Properly capture stdout *)
-           let _ =
-             Minidebug_client.Client.search_subtree ~quiet_path:None ~format:`Text
-               ~show_times ~max_depth ~limit ~offset:None client ~pattern
-           in
+           (* Capture search output using buffer-backed formatter *)
+           let buffer = Buffer.create 4096 in
+           let fmt = Format.formatter_of_buffer buffer in
 
-           let output =
-             Printf.sprintf
-               "Search-subtree completed for pattern '%s'. Results printed to server stdout."
-               pattern
+           let _num_matches =
+             Minidebug_client.Client.search_subtree ~output:fmt ~quiet_path:None
+               ~format:`Text ~show_times ~max_depth ~limit ~offset:None client ~pattern
            in
+           Format.pp_print_flush fmt ();
+
+           let output = Buffer.contents buffer in
            Minidebug_client.Client.close client;
 
            Tool.create_tool_result [ Mcp.make_text_content output ] ~is_error:false
@@ -353,13 +313,15 @@ let create_server ~db_path =
              Option.value (get_optional_bool_param args "show_ancestors") ~default:true
            in
 
-           (* TODO: Properly capture stdout *)
-           Minidebug_client.Client.show_scope ~format:`Text ~show_times ~max_depth
-             ~show_ancestors client ~scope_id;
+           (* Capture scope output using buffer-backed formatter *)
+           let buffer = Buffer.create 4096 in
+           let fmt = Format.formatter_of_buffer buffer in
 
-           let output =
-             Printf.sprintf "Scope %d shown. Results printed to server stdout." scope_id
-           in
+           Minidebug_client.Client.show_scope ~output:fmt ~format:`Text ~show_times
+             ~max_depth ~show_ancestors client ~scope_id;
+           Format.pp_print_flush fmt ();
+
+           let output = Buffer.contents buffer in
            Minidebug_client.Client.close client;
 
            Tool.create_tool_result [ Mcp.make_text_content output ] ~is_error:false
@@ -385,13 +347,14 @@ let create_server ~db_path =
              | None -> failwith "scope_id is required"
            in
 
-           (* TODO: Properly capture stdout *)
-           Minidebug_client.Client.get_ancestors ~format:`Text client ~scope_id;
+           (* Capture ancestors output using buffer-backed formatter *)
+           let buffer = Buffer.create 4096 in
+           let fmt = Format.formatter_of_buffer buffer in
 
-           let output =
-             Printf.sprintf "Ancestors for scope %d. Results printed to server stdout."
-               scope_id
-           in
+           Minidebug_client.Client.get_ancestors ~output:fmt ~format:`Text client ~scope_id;
+           Format.pp_print_flush fmt ();
+
+           let output = Buffer.contents buffer in
            Minidebug_client.Client.close client;
 
            Tool.create_tool_result [ Mcp.make_text_content output ] ~is_error:false

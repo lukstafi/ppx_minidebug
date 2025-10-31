@@ -100,4 +100,4 @@ let () =
   Eio_main.run @@ fun env ->
   let server = Minidebug_mcp_server.create_server ~db_path in
   Logs.info (fun m -> m "MCP server initialized, waiting for requests...");
-  Mcp_server.run_server env server
+  Mcp_server.run_sdtio_server env server

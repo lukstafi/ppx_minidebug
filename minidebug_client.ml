@@ -2527,61 +2527,67 @@ module Client = struct
     | None -> None
 
   (** Show run summary *)
-  let show_run_summary t run_id =
+  let show_run_summary ?(output = Format.std_formatter) t run_id =
     let runs = Query.get_runs t.db_path in
     match List.find_opt (fun r -> r.Query.run_id = run_id) runs with
     | Some run ->
-        Printf.printf "Run #%d\n" run.run_id;
-        Printf.printf "Timestamp: %s\n" run.timestamp;
-        Printf.printf "Command: %s\n" run.command_line;
-        Printf.printf "Elapsed: %s\n\n" (Renderer.format_elapsed_ns run.elapsed_ns)
-    | None -> Printf.printf "Run #%d not found\n" run_id
+        Format.fprintf output "Run #%d\n" run.run_id;
+        Format.fprintf output "Timestamp: %s\n" run.timestamp;
+        Format.fprintf output "Command: %s\n" run.command_line;
+        Format.fprintf output "Elapsed: %s\n\n" (Renderer.format_elapsed_ns run.elapsed_ns)
+    | None -> Format.fprintf output "Run #%d not found\n" run_id
 
   (** Show database statistics *)
-  let show_stats t =
+  let show_stats ?(output = Format.std_formatter) t =
     let stats = Query.get_stats t.db t.db_path in
-    Printf.printf "Database Statistics\n";
-    Printf.printf "===================\n";
-    Printf.printf "Total entries: %d\n" stats.total_entries;
-    Printf.printf "Total value references: %d\n" stats.total_values;
-    Printf.printf "Unique values: %d\n" stats.unique_values;
-    Printf.printf "Deduplication: %.1f%%\n" stats.dedup_percentage;
-    Printf.printf "Database size: %d KB\n" stats.database_size_kb
+    Format.fprintf output "Database Statistics\n";
+    Format.fprintf output "===================\n";
+    Format.fprintf output "Total entries: %d\n" stats.total_entries;
+    Format.fprintf output "Total value references: %d\n" stats.total_values;
+    Format.fprintf output "Unique values: %d\n" stats.unique_values;
+    Format.fprintf output "Deduplication: %.1f%%\n" stats.dedup_percentage;
+    Format.fprintf output "Database size: %d KB\n" stats.database_size_kb
 
   (** Show trace tree for a run *)
-  let show_trace ?(show_scope_ids = false) ?(show_times = false) ?(max_depth = None)
-      ?(values_first_mode = true) t =
+  let show_trace ?(output = Format.std_formatter) ?(show_scope_ids = false)
+      ?(show_times = false) ?(max_depth = None) ?(values_first_mode = true) t =
     let roots = Query.get_root_entries t.db ~with_values:false in
     let trees = Renderer.build_tree t.db ?max_depth roots in
-    let output =
+    let rendered =
       Renderer.render_tree ~show_scope_ids ~show_times ~max_depth ~values_first_mode trees
     in
-    print_string output
+    Format.fprintf output "%s" rendered
 
   (** Show compact trace (function names only) *)
-  let show_compact_trace t =
+  let show_compact_trace ?(output = Format.std_formatter) t =
     let roots = Query.get_root_entries t.db ~with_values:false in
     let trees = Renderer.build_tree t.db ?max_depth:None roots in
-    let output = Renderer.render_compact trees in
-    print_string output
+    let rendered = Renderer.render_compact trees in
+    Format.fprintf output "%s" rendered
 
   (** Show root entries efficiently *)
-  let show_roots ?(show_times = false) ?(with_values = false) t =
+  let show_roots ?(output = Format.std_formatter) ?(show_times = false)
+      ?(with_values = false) t =
     let entries = Query.get_root_entries t.db ~with_values in
-    let output = Renderer.render_roots ~show_times ~with_values entries in
-    print_string output
+    let rendered = Renderer.render_roots ~show_times ~with_values entries in
+    Format.fprintf output "%s" rendered
 
   (** Search entries *)
-  let search t ~pattern =
+  let search ?(output = Format.std_formatter) t ~pattern =
     let entries = Query.search_entries t.db ~pattern in
-    Printf.printf "Found %d matching entries for pattern '%s':\n\n" (List.length entries)
-      pattern;
+    Format.fprintf output "Found %d matching entries for pattern '%s':\n\n"
+      (List.length entries) pattern;
     List.iter
       (fun entry ->
-        Printf.printf "#%d [%s] %s" entry.Query.scope_id entry.entry_type entry.message;
-        (match entry.location with Some loc -> Printf.printf " @ %s" loc | None -> ());
-        Printf.printf "\n";
-        match entry.data with Some data -> Printf.printf "  %s\n" data | None -> ())
+        Format.fprintf output "#%d [%s] %s" entry.Query.scope_id entry.entry_type
+          entry.message;
+        (match entry.location with
+        | Some loc -> Format.fprintf output " @ %s" loc
+        | None -> ());
+        Format.fprintf output "\n";
+        match entry.data with
+        | Some data -> Format.fprintf output "  %s\n" data
+        | None -> ())
       entries
 
   (** Export trace to markdown *)
@@ -2642,8 +2648,9 @@ module Client = struct
 
   (** Search with tree context - shows matching entries with their ancestor paths.
       Uses the populate_search_results approach from TUI for efficient ancestor propagation. *)
-  let search_tree ?(quiet_path = None) ?(format = `Text) ?(show_times = false)
-      ?(max_depth = None) ?(limit = None) ?(offset = None) t ~pattern =
+  let search_tree ?(output = Format.std_formatter) ?(quiet_path = None) ?(format = `Text)
+      ?(show_times = false) ?(max_depth = None) ?(limit = None) ?(offset = None) t ~pattern
+      =
     (* Run search synchronously using the same logic as TUI *)
     let completed_ref = ref false in
     let results_table = Hashtbl.create 1024 in
@@ -2712,26 +2719,30 @@ module Client = struct
         let shown_trees = List.length trees in
         let start_idx = Option.value offset ~default:0 in
         if limit <> None || offset <> None then
-          Printf.printf "Found %d matching scopes for pattern '%s', %d root trees (showing trees %d-%d)\n\n"
+          Format.fprintf output
+            "Found %d matching scopes for pattern '%s', %d root trees (showing trees \
+             %d-%d)\n\
+             \n"
             total_scopes pattern total_trees start_idx (start_idx + shown_trees)
         else
-          Printf.printf "Found %d matching scopes for pattern '%s'\n\n"
-            total_scopes pattern;
-        let output =
+          Format.fprintf output "Found %d matching scopes for pattern '%s'\n\n" total_scopes
+            pattern;
+        let rendered =
           Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth
             ~values_first_mode:true trees
         in
-        print_string output
+        Format.fprintf output "%s" rendered
     | `Json ->
         let json = Renderer.render_tree_json ~max_depth trees in
-        print_endline json);
+        Format.fprintf output "%s\n" json);
 
     List.length matching_scope_ids
 
   (** Search and show only matching subtrees (prune non-matching branches).
       This builds a minimal tree containing only paths to matches. *)
-  let search_subtree ?(quiet_path = None) ?(format = `Text) ?(show_times = false)
-      ?(max_depth = None) ?(limit = None) ?(offset = None) t ~pattern =
+  let search_subtree ?(output = Format.std_formatter) ?(quiet_path = None)
+      ?(format = `Text) ?(show_times = false) ?(max_depth = None) ?(limit = None)
+      ?(offset = None) t ~pattern =
     (* Run search to get results hash table *)
     let completed_ref = ref false in
     let results_table = Hashtbl.create 1024 in
@@ -2789,19 +2800,21 @@ module Client = struct
         let shown_trees = List.length pruned_trees in
         let start_idx = Option.value offset ~default:0 in
         if limit <> None || offset <> None then
-          Printf.printf "Found %d matches for pattern '%s', %d root trees (showing trees %d-%d):\n\n"
+          Format.fprintf output
+            "Found %d matches for pattern '%s', %d root trees (showing trees %d-%d):\n\n"
             match_count pattern total_trees start_idx (start_idx + shown_trees)
         else
-          Printf.printf "Found %d matches for pattern '%s', showing %d pruned subtrees:\n\n"
-            match_count pattern total_trees;
-        let output =
+          Format.fprintf output
+            "Found %d matches for pattern '%s', showing %d pruned subtrees:\n\n" match_count
+            pattern total_trees;
+        let rendered =
           Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth
             ~values_first_mode:true pruned_trees
         in
-        print_string output
+        Format.fprintf output "%s" rendered
     | `Json ->
         let json = Renderer.render_tree_json ~max_depth pruned_trees in
-        print_endline json);
+        Format.fprintf output "%s\n" json);
 
     match_count
 
@@ -2809,8 +2822,9 @@ module Client = struct
       For each pattern, runs populate_search_results to get matching scopes.
       Then computes all LCAs (Lowest Common Ancestors) for combinations of matches
       (one match per pattern). Returns unique LCA scopes as the smallest subtrees. *)
-  let search_intersection ?(quiet_path = None) ?(format = `Text) ?(show_times = false)
-      ?max_depth:_ ?(limit = None) ?(offset = None) t ~patterns =
+  let search_intersection ?(output = Format.std_formatter) ?(quiet_path = None)
+      ?(format = `Text) ?(show_times = false) ?max_depth:_ ?(limit = None) ?(offset = None)
+      t ~patterns =
     (* Run separate search for each pattern *)
     let all_results_tables =
       List.map
@@ -2917,48 +2931,51 @@ module Client = struct
         let pattern_str = String.concat " AND " (List.map (Printf.sprintf "'%s'") patterns) in
 
         if limit <> None || offset <> None then
-          Printf.printf "Found %d smallest subtrees containing all patterns (%s) (showing %d-%d):\n\n"
+          Format.fprintf output
+            "Found %d smallest subtrees containing all patterns (%s) (showing %d-%d):\n\n"
             total_lcas pattern_str start_idx (start_idx + shown_lcas)
         else
-          Printf.printf "Found %d smallest subtrees containing all patterns (%s):\n\n"
-            total_lcas pattern_str;
+          Format.fprintf output
+            "Found %d smallest subtrees containing all patterns (%s):\n\n" total_lcas
+            pattern_str;
 
         (* Show per-pattern match counts for debugging *)
-        Printf.printf "Per-pattern match counts:\n";
+        Format.fprintf output "Per-pattern match counts:\n";
         List.iter
           (fun (pattern, scope_ids) ->
-            Printf.printf "  '%s': %d scopes\n" pattern (List.length scope_ids))
+            Format.fprintf output "  '%s': %d scopes\n" pattern (List.length scope_ids))
           matching_scope_ids_per_pattern;
-        Printf.printf "\n";
+        Format.fprintf output "\n";
 
         (* Display LCA scopes compactly: scope_id and header line only *)
-        Printf.printf "Lowest Common Ancestor scopes (smallest subtrees):\n\n";
+        Format.fprintf output "Lowest Common Ancestor scopes (smallest subtrees):\n\n";
         List.iter
           (fun entry ->
             match entry.Query.child_scope_id with
             | Some lca_scope_id ->
-                let loc_str = match entry.Query.location with
+                let loc_str =
+                  match entry.Query.location with
                   | Some loc -> Printf.sprintf " [%s]" loc
                   | None -> ""
                 in
-                let elapsed_str = match Renderer.elapsed_time entry with
+                let elapsed_str =
+                  match Renderer.elapsed_time entry with
                   | Some ns when show_times ->
                       Printf.sprintf " (%s)" (Renderer.format_elapsed_ns ns)
                   | _ -> ""
                 in
-                Printf.printf "  Scope %d: %s%s%s\n"
-                  lca_scope_id entry.Query.message loc_str elapsed_str
+                Format.fprintf output "  Scope %d: %s%s%s\n" lca_scope_id entry.Query.message
+                  loc_str elapsed_str
             | None -> ())
           paginated_lca_entries;
-        Printf.printf "\n"
+        Format.fprintf output "\n"
     | `Json ->
         let json_entries =
           List.map
             (fun entry ->
               match entry.Query.child_scope_id with
               | Some lca_scope_id ->
-                  Printf.sprintf
-                    {|{"scope_id": %d, "message": "%s", "location": %s}|}
+                  Printf.sprintf {|{"scope_id": %d, "message": "%s", "location": %s}|}
                     lca_scope_id
                     (String.escaped entry.Query.message)
                     (match entry.Query.location with
@@ -2968,13 +2985,13 @@ module Client = struct
             paginated_lca_entries
           |> List.filter (fun s -> s <> "")
         in
-        Printf.printf "[%s]\n" (String.concat ", " json_entries));
+        Format.fprintf output "[%s]\n" (String.concat ", " json_entries));
 
     List.length lca_scope_ids
 
   (** Show a specific scope and its descendants *)
-  let show_scope ?(format = `Text) ?(show_times = false) ?(max_depth = None)
-      ?(show_ancestors = false) t ~scope_id =
+  let show_scope ?(output = Format.std_formatter) ?(format = `Text) ?(show_times = false)
+      ?(max_depth = None) ?(show_ancestors = false) t ~scope_id =
     if show_ancestors then
       (* Show path from root to this scope *)
       let ancestors = Query.get_ancestors t.db ~scope_id in
@@ -2990,33 +3007,32 @@ module Client = struct
       let trees = Renderer.build_tree_from_entries filtered_entries in
       (match format with
       | `Text ->
-          Printf.printf "Ancestor path to scope %d:\n\n" scope_id;
-          let output =
+          Format.fprintf output "Ancestor path to scope %d:\n\n" scope_id;
+          let rendered =
             Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth
               ~values_first_mode:true trees
           in
-          print_string output
+          Format.fprintf output "%s" rendered
       | `Json ->
           let json = Renderer.render_tree_json ~max_depth trees in
-          print_endline json)
+          Format.fprintf output "%s\n" json)
     else
       (* Show just this scope and descendants *)
       let children = Query.get_scope_children t.db ~parent_scope_id:scope_id in
       (match format with
       | `Text ->
-          Printf.printf "Scope %d contents:\n\n" scope_id;
-          let output = Renderer.render_entries_json children in
-          print_string output;
-          print_newline ()
+          Format.fprintf output "Scope %d contents:\n\n" scope_id;
+          let rendered = Renderer.render_entries_json children in
+          Format.fprintf output "%s\n" rendered
       | `Json ->
           let json = Renderer.render_entries_json children in
-          print_endline json)
+          Format.fprintf output "%s\n" json)
 
   (** Show a specific scope subtree with ancestors (full tree rendering).
       The max_depth parameter is interpreted as INCREMENTAL depth from the target scope.
       Shows: ancestor path → target scope → descendants (up to max_depth levels below target). *)
-  let show_subtree ?(format = `Text) ?(show_times = false) ?(max_depth = None)
-      ?(show_ancestors = true) t ~scope_id =
+  let show_subtree ?(output = Format.std_formatter) ?(format = `Text) ?(show_times = false)
+      ?(max_depth = None) ?(show_ancestors = true) t ~scope_id =
     (* Strategy:
        1. If show_ancestors=true: Build tree from root down to scope_id (no depth limit on ancestors)
        2. At scope_id: Apply max_depth limit for descendants
@@ -3057,22 +3073,23 @@ module Client = struct
           (* Output *)
           match format with
           | `Text ->
-              Printf.printf "Subtree for scope %d (with ancestor path):\n\n" scope_id;
-              let output =
+              Format.fprintf output "Subtree for scope %d (with ancestor path):\n\n" scope_id;
+              let rendered =
                 Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth:None
                   ~values_first_mode:true [ tree ]
               in
-              print_string output
+              Format.fprintf output "%s" rendered
           | `Json ->
               let json = Renderer.render_tree_json ~max_depth:None [ tree ] in
-              print_endline json
-    ) else (
+              Format.fprintf output "%s\n" json)
+    else (
       (* Just show the subtree starting at scope_id *)
       (* First, find the header entry for this scope *)
       let all_entries = Query.get_entries t.db () in
       let header_entry_opt =
         List.find_opt
-          (fun e -> match e.Query.child_scope_id with
+          (fun e ->
+            match e.Query.child_scope_id with
             | Some id -> id = scope_id
             | None -> false)
           all_entries
@@ -3087,19 +3104,18 @@ module Client = struct
 
           match format with
           | `Text ->
-              Printf.printf "Subtree for scope %d:\n\n" scope_id;
-              let output =
+              Format.fprintf output "Subtree for scope %d:\n\n" scope_id;
+              let rendered =
                 Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth:None
                   ~values_first_mode:true [ tree ]
               in
-              print_string output
+              Format.fprintf output "%s" rendered
           | `Json ->
               let json = Renderer.render_tree_json ~max_depth:None [ tree ] in
-              print_endline json
-    )
+              Format.fprintf output "%s\n" json)
 
   (** Show detailed information for a specific entry *)
-  let show_entry ?(format = `Text) t ~scope_id ~seq_id =
+  let show_entry ?(output = Format.std_formatter) ?(format = `Text) t ~scope_id ~seq_id =
     let all_entries = Query.get_entries t.db () in
     match
       List.find_opt
@@ -3112,31 +3128,31 @@ module Client = struct
     | Some entry -> (
         match format with
         | `Text ->
-            Printf.printf "Entry (%d, %d):\n" scope_id seq_id;
-            Printf.printf "  Type: %s\n" entry.entry_type;
-            Printf.printf "  Message: %s\n" entry.message;
+            Format.fprintf output "Entry (%d, %d):\n" scope_id seq_id;
+            Format.fprintf output "  Type: %s\n" entry.entry_type;
+            Format.fprintf output "  Message: %s\n" entry.message;
             (match entry.location with
-            | Some loc -> Printf.printf "  Location: %s\n" loc
+            | Some loc -> Format.fprintf output "  Location: %s\n" loc
             | None -> ());
             (match entry.data with
-            | Some d -> Printf.printf "  Data: %s\n" d
+            | Some d -> Format.fprintf output "  Data: %s\n" d
             | None -> ());
             (match entry.child_scope_id with
-            | Some id -> Printf.printf "  Child Scope ID: %d\n" id
+            | Some id -> Format.fprintf output "  Child Scope ID: %d\n" id
             | None -> ());
-            Printf.printf "  Depth: %d\n" entry.depth;
-            Printf.printf "  Log Level: %d\n" entry.log_level;
-            Printf.printf "  Is Result: %b\n" entry.is_result;
+            Format.fprintf output "  Depth: %d\n" entry.depth;
+            Format.fprintf output "  Log Level: %d\n" entry.log_level;
+            Format.fprintf output "  Is Result: %b\n" entry.is_result;
             (match Renderer.elapsed_time entry with
             | Some elapsed ->
-                Printf.printf "  Elapsed: %s\n" (Renderer.format_elapsed_ns elapsed)
+                Format.fprintf output "  Elapsed: %s\n" (Renderer.format_elapsed_ns elapsed)
             | None -> ())
         | `Json ->
             let json = Renderer.entry_to_json entry in
-            print_endline json)
+            Format.fprintf output "%s\n" json)
 
   (** Get ancestors of a scope (returns ALL paths from root to target due to DAG structure) *)
-  let get_ancestors ?(format = `Text) t ~scope_id =
+  let get_ancestors ?(output = Format.std_formatter) ?(format = `Text) t ~scope_id =
     let all_paths = Query.get_all_ancestor_paths t.db ~scope_id in
 
     (* Fetch header entries for ancestors *)
@@ -3153,7 +3169,7 @@ module Client = struct
     match format with
     | `Text ->
         if List.length all_paths = 1 then (
-          Printf.printf "Ancestor path to scope %d:\n\n" scope_id;
+          Format.fprintf output "Ancestor path to scope %d:\n\n" scope_id;
           List.iter
             (fun ancestor_id ->
               match get_entry_for_scope ancestor_id with
@@ -3162,13 +3178,13 @@ module Client = struct
                     | Some loc -> Printf.sprintf " @ %s" loc
                     | None -> ""
                   in
-                  Printf.printf "  #%d [%s] %s%s\n"
+                  Format.fprintf output "  #%d [%s] %s%s\n"
                     ancestor_id entry.Query.entry_type entry.Query.message loc_str
               | None -> ())
             (List.hd all_paths)
         ) else (
           (* Multiple paths - use Hasse diagram style rendering *)
-          Printf.printf "Found %d ancestor paths to scope %d (Hasse diagram view):\n\n"
+          Format.fprintf output "Found %d ancestor paths to scope %d (Hasse diagram view):\n\n"
             (List.length all_paths) scope_id;
 
           (* Collect all unique scopes and their parents from the paths *)
@@ -3247,7 +3263,7 @@ module Client = struct
             | None -> ()
             | Some scope_ids ->
                 let sorted_ids = List.sort compare scope_ids in
-                Printf.printf "Level %d (%s, %d scopes):\n"
+                Format.fprintf output "Level %d (%s, %d scopes):\n"
                   level
                   (if level = 0 then "roots"
                    else if level = max_level then "target"
@@ -3261,13 +3277,13 @@ module Client = struct
                         | Some loc -> Printf.sprintf " @ %s" loc
                         | None -> ""
                       in
-                      Printf.printf "  #%d [%s] %s%s\n"
+                      Format.fprintf output "  #%d [%s] %s%s\n"
                         ancestor_id entry.Query.entry_type entry.Query.message loc_str
                   | None ->
-                      Printf.printf "  #%d (no entry found)\n" ancestor_id
+                      Format.fprintf output "  #%d (no entry found)\n" ancestor_id
                 ) sorted_ids;
 
-                Printf.printf "\n"
+                Format.fprintf output "\n"
           done
         )
     | `Json ->
@@ -3295,25 +3311,25 @@ module Client = struct
         in
         if List.length all_paths = 1 then
           (* Single path - return as array *)
-          print_endline (List.hd json_paths)
+          Format.fprintf output "%s\n" (List.hd json_paths)
         else
           (* Multiple paths - return as array of arrays *)
-          Printf.printf "[ %s ]\n" (String.concat ", " json_paths)
+          Format.fprintf output "[ %s ]\n" (String.concat ", " json_paths)
 
   (** Get parent of a scope *)
-  let get_parent ?(format = `Text) t ~scope_id =
+  let get_parent ?(output = Format.std_formatter) ?(format = `Text) t ~scope_id =
     match Query.get_parent_id t.db ~scope_id with
     | None ->
         (match format with
-        | `Text -> Printf.printf "Scope %d has no parent (is root)\n" scope_id
-        | `Json -> print_endline "null")
+        | `Text -> Format.fprintf output "Scope %d has no parent (is root)\n" scope_id
+        | `Json -> Format.fprintf output "%s\n" "null")
     | Some parent_id ->
         (match format with
-        | `Text -> Printf.printf "Parent of scope %d: %d\n" scope_id parent_id
-        | `Json -> Printf.printf "%d\n" parent_id)
+        | `Text -> Format.fprintf output "Parent of scope %d: %d\n" scope_id parent_id
+        | `Json -> Format.fprintf output "%d\n" parent_id)
 
   (** Get immediate children of a scope *)
-  let get_children ?(format = `Text) t ~scope_id =
+  let get_children ?(output = Format.std_formatter) ?(format = `Text) t ~scope_id =
     let children = Query.get_scope_children t.db ~parent_scope_id:scope_id in
     let child_scope_ids =
       List.filter_map
@@ -3324,16 +3340,16 @@ module Client = struct
     in
     match format with
     | `Text ->
-        Printf.printf "Child scopes of %d: [ %s ]\n" scope_id
+        Format.fprintf output "Child scopes of %d: [ %s ]\n" scope_id
           (String.concat ", " (List.map string_of_int child_scope_ids))
     | `Json ->
-        Printf.printf "[ %s ]\n"
+        Format.fprintf output "[ %s ]\n"
           (String.concat ", " (List.map string_of_int child_scope_ids))
 
   (** Search and show only entries at a specific depth on paths to matches.
       This gives a TUI-like summary view - shows only the depth-N ancestors
       of matching entries, filtered by quiet_path. *)
-  let search_at_depth ?(quiet_path = None) ?(format = `Text) ?(show_times = false)
+  let search_at_depth ?(output = Format.std_formatter) ?(quiet_path = None) ?(format = `Text) ?(show_times = false)
       ~depth t ~pattern =
     (* Run search to get results hash table *)
     let completed_ref = ref false in
@@ -3380,32 +3396,32 @@ module Client = struct
     (* Output *)
     match format with
     | `Text ->
-        Printf.printf
+        Format.fprintf output
           "Found %d matches for pattern '%s', showing %d unique entries at depth %d:\n\n"
           match_count pattern (List.length unique_entries) depth;
         List.iter
           (fun entry ->
-            Printf.printf "#%d [%s] %s" entry.Query.scope_id entry.entry_type
+            Format.fprintf output "#%d [%s] %s" entry.Query.scope_id entry.entry_type
               entry.message;
             (match entry.location with
-            | Some loc -> Printf.printf " @ %s" loc
+            | Some loc -> Format.fprintf output " @ %s" loc
             | None -> ());
             (if show_times then
                match Renderer.elapsed_time entry with
                | Some elapsed ->
-                   Printf.printf " <%s>" (Renderer.format_elapsed_ns elapsed)
+                   Format.fprintf output " <%s>" (Renderer.format_elapsed_ns elapsed)
                | None -> ());
-            Printf.printf "\n")
+            Format.fprintf output "\n")
           unique_entries
     | `Json ->
         let json = Renderer.render_entries_json unique_entries in
-        print_endline json
+        Format.fprintf output "%s\n" json
 
   (** Search DAG with a path pattern, then extract along a different path with deduplication.
       For each match of search_path, extracts along extraction_path (which shares the first
       element with search_path). Prints each extracted subtree, skipping consecutive
       duplicates (same scope_id). *)
-  let search_extract ?(format = `Text) ?(show_times = false) ?(max_depth = None) t
+  let search_extract ?(output = Format.std_formatter) ?(format = `Text) ?(show_times = false) ?(max_depth = None) t
       ~search_path ~extraction_path =
     (* Validate inputs *)
     (match (search_path, extraction_path) with
@@ -3454,7 +3470,7 @@ module Client = struct
               (* Print the extracted subtree *)
               (match format with
               | `Text ->
-                  Printf.printf "=== Match #%d at shared scope #%d ==>\n" !unique_extractions
+                  Format.fprintf output "=== Match #%d at shared scope #%d ==>\n" !unique_extractions
                     shared_scope_id;
 
                   (* Get the scope entry for the extracted scope *)
@@ -3463,15 +3479,15 @@ module Client = struct
                   in
                   (* Find the header entry (if any) and build tree *)
                   (match scope_children with
-                  | [] -> Printf.printf "(empty scope)\n\n"
+                  | [] -> Format.fprintf output "(empty scope)\n\n"
                   | _ ->
                       let trees = Renderer.build_tree t.db ?max_depth scope_children in
-                      let output =
+                      let rendered_output =
                         Renderer.render_tree ~show_scope_ids:true ~show_times ~max_depth
                           ~values_first_mode:true trees
                       in
-                      print_string output;
-                      Printf.printf "\n")
+                      Format.fprintf output "%s" rendered_output;
+                      Format.fprintf output "\n")
               | `Json ->
                   (* For JSON, output a structured object *)
                   let scope_children =
@@ -3479,7 +3495,7 @@ module Client = struct
                   in
                   let trees = Renderer.build_tree t.db ?max_depth scope_children in
                   let tree_json = Renderer.render_tree_json ~max_depth trees in
-                  Printf.printf
+                  Format.fprintf output
                     "{\"match_number\": %d, \"shared_scope_id\": %d, \
                      \"extracted_scope_id\": %d, \"tree\": %s}\n"
                     !unique_extractions shared_scope_id extracted_scope_id tree_json)))
@@ -3488,7 +3504,7 @@ module Client = struct
     (* Print summary *)
     (match format with
     | `Text ->
-        Printf.printf
+        Format.fprintf output
           "\nSearch-extract complete: %d total matches, %d unique extractions (skipped %d \
            consecutive duplicates)\n"
           !total_matches !unique_extractions (!total_matches - !unique_extractions)

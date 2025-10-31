@@ -159,13 +159,14 @@ module Client : sig
   val get_latest_run : t -> Query.run_info option
   (** Get the run in the database *)
 
-  val show_run_summary : t -> int -> unit
+  val show_run_summary : ?output:Format.formatter -> t -> int -> unit
   (** Print summary of the run with the given ID *)
 
-  val show_stats : t -> unit
+  val show_stats : ?output:Format.formatter -> t -> unit
   (** Print database statistics *)
 
   val show_trace :
+    ?output:Format.formatter ->
     ?show_scope_ids:bool ->
     ?show_times:bool ->
     ?max_depth:int option ->
@@ -175,20 +176,22 @@ module Client : sig
   (** Print full trace tree for a run. When [values_first_mode] is true (default), result
       values become headers with location/message as children. *)
 
-  val show_compact_trace : t -> unit
+  val show_compact_trace : ?output:Format.formatter -> t -> unit
   (** Print compact trace (function names only) *)
 
-  val show_roots : ?show_times:bool -> ?with_values:bool -> t -> unit
+  val show_roots :
+    ?output:Format.formatter -> ?show_times:bool -> ?with_values:bool -> t -> unit
   (** Print root entries efficiently. Fast for large databases. When [with_values] is
       true, includes immediate children values. *)
 
-  val search : t -> pattern:string -> unit
+  val search : ?output:Format.formatter -> t -> pattern:string -> unit
   (** Search and print matching entries *)
 
   val export_markdown : t -> output_file:string -> unit
   (** Export trace to markdown file *)
 
   val search_tree :
+    ?output:Format.formatter ->
     ?quiet_path:string option ->
     ?format:[ `Text | `Json ] ->
     ?show_times:bool ->
@@ -212,6 +215,7 @@ module Client : sig
       - [pattern]: Search pattern (substring match) *)
 
   val search_subtree :
+    ?output:Format.formatter ->
     ?quiet_path:string option ->
     ?format:[ `Text | `Json ] ->
     ?show_times:bool ->
@@ -232,6 +236,7 @@ module Client : sig
       - [offset]: Skip first n results *)
 
   val search_intersection :
+    ?output:Format.formatter ->
     ?quiet_path:string option ->
     ?format:[ `Text | `Json ] ->
     ?show_times:bool ->
@@ -258,6 +263,7 @@ module Client : sig
       finds scopes where both patterns appear in their subtree. *)
 
   val show_scope :
+    ?output:Format.formatter ->
     ?format:[ `Text | `Json ] ->
     ?show_times:bool ->
     ?max_depth:int option ->
@@ -271,6 +277,7 @@ module Client : sig
       - [show_ancestors]: If true, shows path from root to this scope instead of descendants *)
 
   val show_subtree :
+    ?output:Format.formatter ->
     ?format:[ `Text | `Json ] ->
     ?show_times:bool ->
     ?max_depth:int option ->
@@ -292,19 +299,24 @@ module Client : sig
       This command is useful after [search_intersection] to explore the full context
       of an LCA scope. *)
 
-  val show_entry : ?format:[ `Text | `Json ] -> t -> scope_id:int -> seq_id:int -> unit
+  val show_entry :
+    ?output:Format.formatter -> ?format:[ `Text | `Json ] -> t -> scope_id:int -> seq_id:int -> unit
   (** Show detailed information for a specific entry *)
 
-  val get_ancestors : ?format:[ `Text | `Json ] -> t -> scope_id:int -> unit
+  val get_ancestors :
+    ?output:Format.formatter -> ?format:[ `Text | `Json ] -> t -> scope_id:int -> unit
   (** Get and print ancestors of a scope (list of scope IDs from root to target) *)
 
-  val get_parent : ?format:[ `Text | `Json ] -> t -> scope_id:int -> unit
+  val get_parent :
+    ?output:Format.formatter -> ?format:[ `Text | `Json ] -> t -> scope_id:int -> unit
   (** Get and print parent of a scope *)
 
-  val get_children : ?format:[ `Text | `Json ] -> t -> scope_id:int -> unit
+  val get_children :
+    ?output:Format.formatter -> ?format:[ `Text | `Json ] -> t -> scope_id:int -> unit
   (** Get and print immediate children scope IDs of a scope *)
 
   val search_at_depth :
+    ?output:Format.formatter ->
     ?quiet_path:string option ->
     ?format:[ `Text | `Json ] ->
     ?show_times:bool ->
@@ -324,6 +336,7 @@ module Client : sig
       a summary at a shallower depth, then drill down with [show_scope]. *)
 
   val search_extract :
+    ?output:Format.formatter ->
     ?format:[ `Text | `Json ] ->
     ?show_times:bool ->
     ?max_depth:int option ->
