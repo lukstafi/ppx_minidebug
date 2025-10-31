@@ -59,8 +59,7 @@
   (mdx
    (>= 2.5.0))
   sqlite3
-  (notty
-   (>= 0.2))
-  nottui-unix)
+  (notty-community
+   (>= 0.2.4)))
  (tags
   (logger debugger "printf debugging")))
