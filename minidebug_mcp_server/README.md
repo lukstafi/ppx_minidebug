@@ -22,11 +22,18 @@ This MCP server exposes ppx_minidebug's debug trace database capabilities to AI 
 ### Trace Viewing
 - **minidebug/show-trace** - Show full trace tree with optional depth limiting
 
-### Search & Navigation
+### Search & Analysis
 - **minidebug/search-tree** - Search with full ancestor context (best for AI analysis)
 - **minidebug/search-subtree** - Search showing only matching subtrees (pruned view)
+- **minidebug/search-at-depth** - Search summary at specific depth (TUI-like view for large traces)
+- **minidebug/search-intersection** - Find scopes matching ALL provided patterns (2-4 patterns)
+- **minidebug/search-extract** - Search DAG path then extract values with change tracking/deduplication
+
+### Navigation
 - **minidebug/show-scope** - Show specific scope by ID with descendants
+- **minidebug/show-subtree** - Show subtree rooted at scope with ancestor path
 - **minidebug/get-ancestors** - Get ancestor chain for a scope
+- **minidebug/get-children** - Get child scope IDs for a scope
 
 ## Usage
 
@@ -59,7 +66,7 @@ Then restart Claude Desktop. The tools will appear in Claude's tool list.
 ## Implementation Status
 
 ### ✅ Implemented
-- All core MCP tools (list-runs, stats, search-tree, etc.)
+- All 13 MCP tools covering all CLI functionality relevant for AI analysis
 - Database path management
 - Error handling and logging
 - Type-safe JSON parameter extraction

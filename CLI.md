@@ -1458,30 +1458,30 @@ Claude: [calls minidebug/show-scope tool]
   - Supports quiet-path filtering and pagination
 - **minidebug/search-subtree** - Pruned subtree search (minimal context)
 - **minidebug/search-at-depth** - Summary at specific depth (TUI-like overview)
+- **minidebug/search-intersection** - Find scopes matching ALL patterns (2-4 patterns)
+- **minidebug/search-extract** - Search DAG path then extract values with change tracking
 
 ### Navigation
 - **minidebug/show-scope** - Show specific scope and descendants
+- **minidebug/show-subtree** - Show subtree rooted at scope with ancestor path
 - **minidebug/get-ancestors** - Get ancestor chain for navigation
+- **minidebug/get-children** - Get child scope IDs for navigation
 
 ## Implementation Status
 
 ### ✅ Implemented
-- All 7 core MCP tools
+- All 13 MCP tools covering all CLI functionality relevant for AI analysis
 - Database path management
 - Error handling and logging
 - JSON parameter validation
 - Type-safe argument extraction
-
-### ⚠️ Known Limitations
-- **Output capture incomplete**: Some tools currently print to server stdout instead of returning results in JSON-RPC response
-- Workaround: Use `minidebug_view` CLI for full functionality until output capture is implemented
+- **Output capture**: All tools use buffer-backed formatters for clean JSON-RPC responses
 
 ### 🚧 Planned Features
-1. **Proper stdout capture**: Capture Format/Printf output from Client functions
-2. **Resource endpoints**: Expose runs as MCP resources
-3. **Prompt templates**: Pre-defined prompts for common analysis patterns
-4. **Streaming results**: Handle large result sets efficiently
-5. **Session caching**: Cache entries in memory for faster multi-query workflows
+1. **Resource endpoints**: Expose runs as MCP resources
+2. **Prompt templates**: Pre-defined prompts for common analysis patterns
+3. **Streaming results**: Handle large result sets efficiently
+4. **Session caching**: Cache entries in memory for faster multi-query workflows
 
 ## Architecture
 
