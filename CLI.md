@@ -672,6 +672,11 @@ ppx_minidebug/
 
 **Module: `Query`**
 - **Purpose:** Database access layer (optimized for large databases)
+- **Architecture:** Functor-based design for connection management
+  - `Query.Make(db_path)` creates isolated Query module instances
+  - Each instance maintains its own database connections (main DB + metadata DB)
+  - Domain-safe: Background search Domains instantiate separate Query modules
+  - Enables future prepared statement caching within module instances
 - **Key Functions:**
   - `find_entry()`: Find specific entry by (scope_id, seq_id)
   - `find_scope_header()`: Find header entry that creates a scope
@@ -703,7 +708,9 @@ ppx_minidebug/
 
 **Module: `Client`**
 - **Purpose:** High-level API wrapping Query and Renderer
-- **Design Pattern:** Client object holds database connection and path
+- **Design Pattern:** Client holds first-class Query module instance `(module Query.S)`
+  - Each Client instance contains isolated database connections via Query functor
+  - Thread-safe: Each Domain can instantiate its own Query module
 - **Key Functions:**
   - Basic: `show_trace()`, `show_compact_trace()`, `show_roots()`
   - Search: `search()`, `search_tree()`, `search_subtree()`

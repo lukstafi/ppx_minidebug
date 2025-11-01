@@ -1,10 +1,10 @@
 21
 21
 run: warning 
-() = 
 run: TOPLEVEL 
-() = 
 run: warning 
+() = 
+() = 
 [track] warning => 21 @ test/test_comptime_log_level_rt_passing.ml:32:32-45:10
   [track] while:test_comptime_log_level_rt_passing:35 @ test/test_comptime_log_level_rt_passing.ml:35:8-44:12
     [track] <while loop> @ test/test_comptime_log_level_rt_passing.ml:37:10-43:49

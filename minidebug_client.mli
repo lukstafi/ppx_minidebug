@@ -33,79 +33,54 @@ module Query : sig
     database_size_kb : int;
   }
 
-  val get_runs : string -> run_info list
-  (** Get all runs from metadata database (schema v3+), given the versioned DB path.
-      Automatically finds the corresponding <name>_meta.db file. *)
+  type search_order = AscendingIds | DescendingIds
 
-  val get_latest_run_id : string -> int option
-  (** Get the ID of the most recent run from metadata DB, given the versioned DB path *)
+  (** Module signature for Query operations - all functions access module-level DB connections *)
+  module type S = sig
+    val get_runs : unit -> run_info list
+    val get_latest_run_id : unit -> int option
+    val get_stats : unit -> stats
+    val search_entries : pattern:string -> entry list
+    val find_entry : scope_id:int -> seq_id:int -> entry option
+    val find_scope_header : scope_id:int -> entry option
+    val get_entries_for_scopes : scope_ids:int list -> entry list
+    val get_entries_from_results : results_table:(int * int, bool) Hashtbl.t -> entry list
+    val get_root_entries : with_values:bool -> entry list
+    val get_scope_children : parent_scope_id:int -> entry list
+    val has_children : parent_scope_id:int -> bool
+    val get_parent_ids : scope_id:int -> int list
+    val get_parent_id : scope_id:int -> int option
+    val get_all_ancestor_paths : scope_id:int -> int list list
+    val get_ancestors : scope_id:int -> int list
+    val get_max_scope_id : unit -> int
+    val lowest_common_ancestor : int list -> int option
+    val get_root_scope : int -> int
+    val find_matching_paths : patterns:string list -> (int * int list) list
+    val extract_along_path :
+      start_scope_id:int -> extraction_path:string list -> int option
+    val populate_search_results :
+      search_term:string ->
+      quiet_path:string option ->
+      search_order:search_order ->
+      completed_ref:bool ref ->
+      results_table:(int * int, bool) Hashtbl.t ->
+      unit
+  end
 
-  val get_stats : Sqlite3.db -> string -> stats
-  (** Get database statistics including deduplication metrics *)
-
-  val search_entries : Sqlite3.db -> pattern:string -> entry list
-  (** Search entries by GLOB pattern matching message, location, or data.
-      Uses SQLite GLOB operator for efficiency on large databases. *)
-
-  val find_entry : Sqlite3.db -> scope_id:int -> seq_id:int -> entry option
-  (** Find a specific entry by (scope_id, seq_id). Returns None if not found. *)
-
-  val find_scope_header : Sqlite3.db -> scope_id:int -> entry option
-  (** Find the header entry that creates a given scope (child_scope_id = scope_id).
-      Returns None if not found. *)
-
-  val get_entries_for_scopes : Sqlite3.db -> scope_ids:int list -> entry list
-  (** Get all entries for a list of scope_ids. Useful for filtering by ancestor paths.
-      More efficient than loading all entries when working with subsets. *)
-
-  val get_entries_from_results :
-    Sqlite3.db -> results_table:(int * int, bool) Hashtbl.t -> entry list
-  (** Get entries from a results hashtable (as returned by populate_search_results).
-      Much more efficient than loading all entries and filtering for large databases. *)
-
-  val get_root_entries : Sqlite3.db -> with_values:bool -> entry list
-  (** Get only root-level entries efficiently. When [with_values] is true, includes
-      immediate children values. Fast for large databases. *)
-
-  val get_parent_ids : Sqlite3.db -> scope_id:int -> int list
-  (** Get all parent scope_ids for a given entry. Returns empty list if no parents (root
-      entry). Due to SexpCache deduplication, an entry can have multiple parents (DAG
-      structure). *)
-
-  val get_parent_id : Sqlite3.db -> scope_id:int -> int option
-  (** Get first parent scope_id for a given entry (for single-path operations). Returns
-      None if no parent (root entry). *)
-
-  val get_all_ancestor_paths : Sqlite3.db -> scope_id:int -> int list list
-  (** Get ALL ancestor paths from a given entry to root(s). Returns list of paths, where
-      each path is in order [root; ...; grandparent; parent; scope_id]. Due to SexpCache
-      deduplication, entries can have multiple parents (DAG structure), resulting in
-      multiple paths. *)
-
-  val find_matching_paths : string -> patterns:string list -> (int * int list) list
-  (** Find all paths in the DAG matching a sequence of patterns (substring match on
-      message or data). Uses reversed search: finds candidates matching the last pattern,
-      then climbs up the DAG verifying ancestors match remaining patterns.
-
-      Returns list of (shared_scope_id, ancestor_path) tuples, where shared_scope_id is
-      the scope_id of the last matching node and ancestor_path is the list of scope_ids
-      from root to shared_scope_id.
-
-      Takes db_path (not db handle) to enable use of populate_search_results. *)
-
-  val extract_along_path :
-    Sqlite3.db -> start_scope_id:int -> extraction_path:string list -> int option
-  (** Extract along a path from a starting scope. Returns Some scope_id if the path is
-      successfully traversed, None otherwise. The extraction_path should have already had
-      its first element removed (since it matches the search path's shared element). *)
+  (** Functor creating Query module with connections to main DB and metadata DB *)
+  module Make : functor
+    (_ : sig
+       val db_path : string
+     end)
+    -> S
 end
 
 (** Tree renderer for terminal output *)
 module Renderer : sig
   type tree_node = { entry : Query.entry; children : tree_node list }
 
-  val build_tree : Sqlite3.db -> ?max_depth:int -> Query.entry list -> tree_node list
-  (** Build tree structure from database and root entries (recommended for full traces) *)
+  val build_tree : (module Query.S) -> ?max_depth:int -> Query.entry list -> tree_node list
+  (** Build tree structure from Query module and root entries (recommended for full traces) *)
 
   val build_tree_from_entries : Query.entry list -> tree_node list
   (** Build tree structure from pre-loaded flat entry list (for search/filter use cases) *)
@@ -145,8 +120,8 @@ end
 
 (** Interactive TUI using Notty *)
 module Interactive : sig
-  val run : Sqlite3.db -> string -> unit
-  (** Launch interactive terminal UI for exploring a trace run. Arguments: db handle,
+  val run : (module Query.S) -> string -> unit
+  (** Launch interactive terminal UI for exploring a trace run. Arguments: Query module,
       db_path
 
       Controls:

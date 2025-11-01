@@ -1831,10 +1831,10 @@ let%expect_test "%track_rt_show nested procedure runtime passing" =
   [%expect
     {|
     latest_run: foo-1
-    foo =
     latest_run: foo-2
-    foo =
     latest_run: bar-1
+    foo =
+    foo =
     [track] bar @ test/test_expect_test.ml:1815:26-1815:48
       fun:test_expect_test:1815 =
     latest_run: bar-2

@@ -318,11 +318,11 @@ let () =
           ~show_times:opts.show_times ~max_depth:opts.max_depth
           ~values_first_mode:opts.values_first_mode
     | Interactive ->
-        (* Open database connection for interactive mode. Not READONLY so it can see
-           writes from search Domains via WAL. *)
-        let db = Sqlite3.db_open db_path in
-        Minidebug_client.Interactive.run db db_path;
-        Sqlite3.db_close db |> ignore
+        (* Create Query module for interactive mode *)
+        let module Q = Minidebug_client.Query.Make (struct
+          let db_path = db_path
+        end) in
+        Minidebug_client.Interactive.run (module Q) db_path
     | Compact ->
         Minidebug_client.Client.(
           show_run_summary client (Option.get (get_latest_run client)).run_id);

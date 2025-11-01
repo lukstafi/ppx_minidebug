@@ -21,8 +21,10 @@ let () =
   Printf.printf "\nDatabase created: test_highlight_propagation_1.db\n\n%!";
 
   (* Verify we can query the database *)
-  let db = Sqlite3.db_open ~mode:`READONLY "test_highlight_propagation_1.db" in
-  let stats = Minidebug_client.Query.get_stats db "test_highlight_propagation_1.db" in
+  let module Q = Minidebug_client.Query.Make (struct
+    let db_path = "test_highlight_propagation_1.db"
+  end) in
+  let stats = Q.get_stats () in
 
   Printf.printf "Database statistics:\n%!";
   Printf.printf "  Total entries: %d\n%!" stats.total_entries;
@@ -31,13 +33,11 @@ let () =
   Printf.printf "  Deduplication: %.1f%%\n\n%!" stats.dedup_percentage;
 
   (* Get root entries and build tree from database *)
-  let root_entries = Minidebug_client.Query.get_root_entries db ~with_values:false in
-  let trees = Minidebug_client.Renderer.build_tree db root_entries in
+  let root_entries = Q.get_root_entries ~with_values:false in
+  let trees = Minidebug_client.Renderer.build_tree (module Q) root_entries in
   let output = Minidebug_client.Renderer.render_tree ~values_first_mode:true trees in
 
   Printf.printf "Trace (values_first_mode):\n%!";
   print_string output;
-
-  Sqlite3.db_close db |> ignore;
   Printf.printf
     "\nSUCCESS: Database with nested structures created and queried successfully.\n%!"
