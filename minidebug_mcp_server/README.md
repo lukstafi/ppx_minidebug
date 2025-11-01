@@ -21,13 +21,18 @@ This MCP server exposes ppx_minidebug's debug trace database capabilities to AI 
 
 ### Trace Viewing
 - **minidebug/show-trace** - Show full trace tree with optional depth limiting
+  - Supports `max_depth` parameter (recommended: `max_depth=20` for large traces)
 
 ### Search & Analysis
 - **minidebug/search-tree** - Search with full ancestor context (best for AI analysis)
+  - Supports `limit`/`offset` for pagination, `max_depth` for tree depth limiting
 - **minidebug/search-subtree** - Search showing only matching subtrees (pruned view)
+  - Supports `limit` and `max_depth` parameters
 - **minidebug/search-at-depth** - Search summary at specific depth (TUI-like view for large traces)
 - **minidebug/search-intersection** - Find scopes matching ALL provided patterns (2-4 patterns)
+  - Supports `limit`/`offset` for pagination
 - **minidebug/search-extract** - Search DAG path then extract values with change tracking/deduplication
+  - Supports `max_depth` parameter
 
 ### Navigation
 - **minidebug/show-scope** - Show specific scope by ID with descendants
@@ -63,6 +68,29 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 Then restart Claude Desktop. The tools will appear in Claude's tool list.
 
+## Output Budget Limiting
+
+To prevent the MCP server from becoming unresponsive due to excessive output, all tools enforce a **1MB output budget** (configurable via `default_output_budget` constant).
+
+### How It Works
+- All tools use a bounded formatter that tracks cumulative output bytes
+- When the budget is exceeded, output is gracefully truncated
+- A helpful message is appended suggesting pagination parameters
+
+### Example Truncation Message
+```
+[... truncated: output exceeded 1048576 byte limit (wrote 2045231 bytes).
+Use limit/offset/max_depth parameters to reduce output.]
+```
+
+### Recommended Parameters for Large Traces
+- **Pagination**: Use `limit=50` and `offset=0` (increment offset for next page)
+- **Depth limiting**: Use `max_depth=20` to limit tree rendering depth
+- **Focused searches**: Use specific patterns to narrow results
+
+### Adjusting the Budget
+Edit `default_output_budget` in `minidebug_mcp_server.ml` if needed (value in bytes).
+
 ## Implementation Status
 
 ### ✅ Implemented
@@ -72,11 +100,13 @@ Then restart Claude Desktop. The tools will appear in Claude's tool list.
 - Type-safe JSON parameter extraction
 - **Output capture refactoring**: All tools use buffer-backed formatters (clean, no Unix pipe hacks)
 - **stdio transport**: Uses `run_sdtio_server` for proper stdin/stdout JSON-RPC communication
+- **Output budget limiting**: 1MB default limit prevents unresponsive server from excessive output
+  - Graceful truncation with helpful error messages suggesting pagination parameters
+  - Configurable per-tool if needed
 
 ### 🚧 TODO
 - Add resource endpoints (expose runs as MCP resources)
 - Add prompt templates for common analysis patterns
-- Support for streaming large results
 - Better error messages with context
 
 ## Development
