@@ -766,6 +766,62 @@ module Query = struct
       for real-time UI updates.
 
       Writes results to shared hash table (lock-free concurrent writes are safe). *)
+    (* Cached prepared statement for streaming search queries *)
+    let get_search_stream_stmt =
+      let ascending_stmt = ref None in
+      let descending_stmt = ref None in
+      fun ~search_order ->
+        let order_clause =
+          match search_order with
+          | AscendingIds ->
+              "ORDER BY e.scope_id ASC, e.seq_id ASC"
+          | DescendingIds ->
+              "ORDER BY e.scope_id DESC, e.seq_id ASC"
+        in
+        let stmt_ref = match search_order with
+          | AscendingIds -> ascending_stmt
+          | DescendingIds -> descending_stmt
+        in
+        match !stmt_ref with
+        | Some stmt -> stmt
+        | None ->
+            let query =
+              Printf.sprintf
+                {|SELECT e.scope_id, e.seq_id, e.child_scope_id, e.depth,
+                       m.value_content as message, l.value_content as location, d.value_content as data,
+                       e.elapsed_start_ns, e.elapsed_end_ns, e.is_result, e.log_level, e.entry_type
+                FROM entries e
+                LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
+                LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
+                LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
+                %s|}
+                order_clause
+            in
+            let stmt = Sqlite3.prepare db query in
+            stmt_ref := Some stmt;
+            stmt
+
+    (* Cached prepared statement for fetching scope entry by child_scope_id *)
+    let get_scope_entry_stmt =
+      let query =
+        {|
+        SELECT e.scope_id, e.seq_id, e.child_scope_id, e.depth,
+               m.value_content as message, l.value_content as location, d.value_content as data,
+               e.elapsed_start_ns, e.elapsed_end_ns, e.is_result, e.log_level, e.entry_type
+        FROM entries e
+        LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
+        LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
+        LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
+        WHERE e.child_scope_id = ?
+        LIMIT 1
+      |}
+      in
+      let stmt = Sqlite3.prepare db query in
+      fun ~scope_id ->
+        Sqlite3.reset stmt |> ignore;
+        Sqlite3.bind_int stmt 1 scope_id |> ignore;
+        stmt
+
     let populate_search_results ~search_term ~quiet_path ~search_order
         ~completed_ref ~results_table =
       (* Log to file for debugging since TUI occupies terminal *)
@@ -781,45 +837,12 @@ module Query = struct
         (Printf.sprintf "Starting search for '%s', quiet_path=%s" search_term
            (match quiet_path with Some q -> "'" ^ q ^ "'" | None -> "None"));
 
-      (* Open a new database connection for this Domain (read-only for querying) *)
-      log_debug (Printf.sprintf "Opening database: %s" db_path);
-      let local_db = Sqlite3.db_open ~mode:`READONLY db_path in
-      log_debug "Database opened successfully";
-
-      (* Local helper to get parent IDs using local_db connection *)
-      let local_get_parent_ids ~scope_id =
-        let query =
-          {|
-          SELECT parent_id
-          FROM entry_parents
-          WHERE scope_id = ?
-        |}
-        in
-        let stmt = Sqlite3.prepare local_db query in
-        Sqlite3.bind_int stmt 1 scope_id |> ignore;
-
-        let parent_ids = ref [] in
-        let rec loop () =
-          match Sqlite3.step stmt with
-          | Sqlite3.Rc.ROW -> (
-              match Sqlite3.column stmt 0 with
-              | Sqlite3.Data.INT id ->
-                  parent_ids := Int64.to_int id :: !parent_ids;
-                  loop ()
-              | Sqlite3.Data.NULL -> loop ()  (* Skip NULL parents *)
-              | _ -> loop ())
-          | _ -> ()
-        in
-        loop ();
-        Sqlite3.finalize stmt |> ignore;
-        List.rev !parent_ids  (* Preserve insertion order *)
-      in
+      (* Use global database connection (safe when called from Domain.spawn since each
+         Domain instantiates its own Query.Make functor with isolated state) *)
+      log_debug (Printf.sprintf "Using global database connection for: %s" db_path);
 
       try
-        (* Clear the results hash table *)
-        log_debug "Clearing results hash table...";
         Hashtbl.clear results_table;
-        log_debug "Cleared results hash table";
 
         (* Stream entries instead of loading all into memory (DB is huge!) *)
         log_debug "Streaming entries and searching...";
@@ -853,28 +876,9 @@ module Query = struct
           Hashtbl.replace results_table (entry.scope_id, entry.seq_id) is_match
         in
 
-        (* Stream entries, find matches, and build scope index in one pass *)
-        let order_clause =
-          match search_order with
-          | AscendingIds ->
-              "ORDER BY e.scope_id ASC, e.seq_id ASC"
-              (* Negative IDs first, then positive *)
-          | DescendingIds -> "ORDER BY e.scope_id DESC, e.seq_id ASC"
-          (* Positive IDs first, then negative *)
-        in
-        let query =
-          Printf.sprintf
-            {|SELECT e.scope_id, e.seq_id, e.child_scope_id, e.depth,
-                   m.value_content as message, l.value_content as location, d.value_content as data,
-                   e.elapsed_start_ns, e.elapsed_end_ns, e.is_result, e.log_level, e.entry_type
-            FROM entries e
-            LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
-            LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
-            LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
-            %s|}
-            order_clause
-        in
-        let query_stmt = Sqlite3.prepare local_db query in
+        (* Get cached prepared statement for streaming *)
+        let query_stmt = get_search_stream_stmt ~search_order in
+        Sqlite3.reset query_stmt |> ignore;
 
         let scope_by_id = Hashtbl.create 1024 in
         let processed_count = ref 0 in
@@ -896,21 +900,7 @@ module Query = struct
                  incremental updates during streaming, this may return None if the header
                  hasn't been scanned yet. That's OK - we'll highlight it when we reach
                  it. *)
-              let query =
-                {|
-                SELECT e.scope_id, e.seq_id, e.child_scope_id, e.depth,
-                       m.value_content as message, l.value_content as location, d.value_content as data,
-                       e.elapsed_start_ns, e.elapsed_end_ns, e.is_result, e.log_level, e.entry_type
-                FROM entries e
-                LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
-                LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
-                LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
-                WHERE e.child_scope_id = ?
-                LIMIT 1
-              |}
-              in
-              let stmt = Sqlite3.prepare local_db query in
-              Sqlite3.bind_int stmt 1 scope_id |> ignore;
+              let stmt = get_scope_entry_stmt ~scope_id in
               let result =
                 match Sqlite3.step stmt with
                 | Sqlite3.Rc.ROW ->
@@ -964,7 +954,6 @@ module Query = struct
                          scope_id);
                     None
               in
-              Sqlite3.finalize stmt |> ignore;
               result
         in
 
@@ -1003,7 +992,7 @@ module Query = struct
                 (* Now propagate to ancestors. In a DAG, we must propagate through ALL
                    parent paths, not just one. *)
                 let rec propagate_to_parent current_scope_id =
-                  let parent_ids = local_get_parent_ids ~scope_id:current_scope_id in
+                  let parent_ids = get_parent_ids ~scope_id:current_scope_id in
                   if parent_ids = [] then
                     log_debug
                       (Printf.sprintf
@@ -1189,7 +1178,6 @@ module Query = struct
         in
 
         process_rows ();
-        Sqlite3.finalize query_stmt |> ignore;
         log_debug
           (Printf.sprintf
              "Search complete. Processed %d entries, found %d matches, propagated %d \
@@ -1200,9 +1188,6 @@ module Query = struct
              (Hashtbl.length scope_by_id)
              (Hashtbl.length results_table));
 
-          (* Close the database connection *)
-          Sqlite3.db_close local_db |> ignore;
-
         log_debug "Search completed successfully";
 
         (* Signal completion via shared memory *)
@@ -1211,8 +1196,6 @@ module Query = struct
         log_debug
           (Printf.sprintf "ERROR: %s\n%s" (Printexc.to_string exn)
              (Printexc.get_backtrace ()));
-        (* Close database on error *)
-        (try Sqlite3.db_close local_db |> ignore with _ -> ());
         (* Still mark as completed even on error *)
         completed_ref := true
 
