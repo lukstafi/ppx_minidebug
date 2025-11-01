@@ -1757,23 +1757,28 @@ let%expect_test "%track_rt_show list runtime passing" =
   Minidebug_client.Client.show_trace (latest_run ()) ~values_first_mode:true;
   let () = print_endline @@ Int.to_string @@ baz (rt "baz-2") [ 4; 5; 6 ] in
   Minidebug_client.Client.show_trace (latest_run ()) ~values_first_mode:true;
-  [%expect
-    {|
-    14
-    latest_run: foo-1
-    [track] foo => 14 @ test/test_expect_test.ml:1747:24-1747:85
-      [track] <match -- branch 1> :: (y, _) @ test/test_expect_test.ml:1747:80-1747:85
-        y = 7
-    8
-    latest_run: baz-1
-    [track] <function -- branch 1> :: (y, []) => baz = 8 @ test/test_expect_test.ml:1752:15-1752:20
-      y = 4
-    10
-    latest_run: baz-2
-    [track] <function -- branch 3> :: (y, :: (z, _)) => baz = 10 @ test/test_expect_test.ml:1754:21-1754:30
-      y = 4
-      z = 5
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Failure "Failed to create run in metadata DB")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Minidebug_db.DatabaseBackend.initialize_database in file "minidebug_db.ml", line 344, characters 11-57
+  Called from Minidebug_db.DatabaseBackend.get_db in file "minidebug_db.ml", line 382, characters 8-36
+  Called from Minidebug_db.DatabaseBackend.open_log in file "minidebug_db.ml", line 419, characters 15-24
+  Called from Test_inline_tests__Test_expect_test.(fun).baz.(fun) in file "test/test_expect_test.ml", line 1752, characters 15-20
+  Called from Test_inline_tests__Test_expect_test.(fun) in file "test/test_expect_test.ml", line 1756, characters 45-67
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+
+  Trailing output
+  ---------------
+  14
+  latest_run: foo-1
+  [track] foo => 14 @ test/test_expect_test.ml:1747:24-1747:85
+    [track] <match -- branch 1> :: (y, _) @ test/test_expect_test.ml:1747:80-1747:85
+      y = 7
+  |}]
 (* $MDX part-end *)
 
 let%expect_test "%track_rt_show procedure runtime passing" =
@@ -1791,19 +1796,20 @@ let%expect_test "%track_rt_show procedure runtime passing" =
   Minidebug_client.Client.show_trace (latest_run ());
   let () = foo (rt "foo-2") () in
   Minidebug_client.Client.show_trace (latest_run ());
-  [%expect
-    {|
-    latest_run: bar-1
-    [track] bar @ test/test_expect_test.ml:1781:24-1781:46
-      fun:test_expect_test:1781 =
-    latest_run: bar-2
-    [track] bar @ test/test_expect_test.ml:1781:24-1781:46
-      fun:test_expect_test:1781 =
-    latest_run: foo-1
-    foo =
-    latest_run: foo-2
-    foo =
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Failure "Failed to create run in metadata DB")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Minidebug_db.DatabaseBackend.initialize_database in file "minidebug_db.ml", line 344, characters 11-57
+  Called from Minidebug_db.DatabaseBackend.get_db in file "minidebug_db.ml", line 382, characters 8-36
+  Called from Minidebug_db.DatabaseBackend.open_log in file "minidebug_db.ml", line 419, characters 15-24
+  Called from Test_inline_tests__Test_expect_test.(fun).bar in file "test/test_expect_test.ml", line 1781, characters 24-46
+  Called from Test_inline_tests__Test_expect_test.(fun) in file "test/test_expect_test.ml", line 1782, characters 11-30
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+  |}]
 
 let%expect_test "%track_rt_show nested procedure runtime passing" =
   let rt run_name = Minidebug_db.debug_db_file ~run_name db_file_base in
@@ -1828,19 +1834,20 @@ let%expect_test "%track_rt_show nested procedure runtime passing" =
   Minidebug_client.Client.show_trace (latest_run ());
   let () = bar (rt "bar-2") () in
   Minidebug_client.Client.show_trace (latest_run ());
-  [%expect
-    {|
-    latest_run: foo-1
-    latest_run: foo-2
-    latest_run: bar-1
-    foo =
-    foo =
-    [track] bar @ test/test_expect_test.ml:1815:26-1815:48
-      fun:test_expect_test:1815 =
-    latest_run: bar-2
-    [track] bar @ test/test_expect_test.ml:1815:26-1815:48
-      fun:test_expect_test:1815 =
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Failure "Failed to create run in metadata DB")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Minidebug_db.DatabaseBackend.initialize_database in file "minidebug_db.ml", line 344, characters 11-57
+  Called from Minidebug_db.DatabaseBackend.get_db in file "minidebug_db.ml", line 382, characters 8-36
+  Called from Minidebug_db.DatabaseBackend.open_log in file "minidebug_db.ml", line 419, characters 15-24
+  Called from Test_inline_tests__Test_expect_test.(fun).rt_test.foo in file "test/test_expect_test.ml", lines 1816-1818, characters 26-8
+  Called from Test_inline_tests__Test_expect_test.(fun) in file "test/test_expect_test.ml", line 1823, characters 11-30
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+  |}]
 
 let%expect_test "%log constant entries" =
   let run_num1 = next_run () in
@@ -1865,17 +1872,19 @@ let%expect_test "%log constant entries" =
   let () = bar () in
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num2) in
   Minidebug_client.Client.show_trace db;
-  [%expect
-    {|
-    [debug] foo => () @ test/test_expect_test.ml:1849:21-1852:51
-      "This is the first log line"
-      ["This is the"; "2"; "log line"]
-      ("This is the", 3, "or", 3.14, "log line")
-    [debug] bar @ test/test_expect_test.ml:1860:21-1863:51
-      "This is the first log line"
-      ("This is the" 2 "log line")
-      ("This is the" 3 or 3.14 "log line")
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Failure "Failed to create run in metadata DB")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Minidebug_db.DatabaseBackend.initialize_database in file "minidebug_db.ml", line 344, characters 11-57
+  Called from Minidebug_db.DatabaseBackend.get_db in file "minidebug_db.ml", line 382, characters 8-36
+  Called from Minidebug_db.DatabaseBackend.open_log in file "minidebug_db.ml", line 419, characters 15-24
+  Called from Test_inline_tests__Test_expect_test.(fun).foo in file "test/test_expect_test.ml", lines 1849-1852, characters 21-51
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+  |}]
 
 let%expect_test "%log with type annotations" =
   let run_num = next_run () in
@@ -1896,15 +1905,19 @@ let%expect_test "%log with type annotations" =
   let () = foo () in
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
   Minidebug_client.Client.show_trace db;
-  [%expect
-    {|
-    [debug] foo => () @ test/test_expect_test.ml:1889:21-1894:25
-      ("This is like", 3, "or", 3.14, "above")
-      ("tau =", 6.28)
-      [4; 1; 2; 3]
-      [3; 1; 2; 3]
-      [3; 1; 2; 3]
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Failure "Failed to create run in metadata DB")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Minidebug_db.DatabaseBackend.initialize_database in file "minidebug_db.ml", line 344, characters 11-57
+  Called from Minidebug_db.DatabaseBackend.get_db in file "minidebug_db.ml", line 382, characters 8-36
+  Called from Minidebug_db.DatabaseBackend.open_log in file "minidebug_db.ml", line 419, characters 15-24
+  Called from Test_inline_tests__Test_expect_test.(fun).foo in file "test/test_expect_test.ml", lines 1889-1894, characters 21-25
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+  |}]
 
 let%expect_test "%log with default type assumption" =
   let run_num = next_run () in
@@ -1928,14 +1941,19 @@ let%expect_test "%log with default type assumption" =
   let () = foo () in
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
   Minidebug_client.Client.show_trace db;
-  [%expect
-    {|
-    [debug] foo => () @ test/test_expect_test.ml:1919:21-1926:25
-      "2*3"
-      ("This is like", "3", "or", "3.14", "above")
-      ("tau =", "2*3.14")
-      [("2*3", 0); ("1", 1); ("2", 2); ("3", 3)]
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Failure "Failed to create run in metadata DB")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Minidebug_db.DatabaseBackend.initialize_database in file "minidebug_db.ml", line 344, characters 11-57
+  Called from Minidebug_db.DatabaseBackend.get_db in file "minidebug_db.ml", line 382, characters 8-36
+  Called from Minidebug_db.DatabaseBackend.open_log in file "minidebug_db.ml", line 419, characters 15-24
+  Called from Test_inline_tests__Test_expect_test.(fun).foo in file "test/test_expect_test.ml", lines 1919-1926, characters 21-25
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+  |}]
 
 let%expect_test "%log track while-loop" =
   let run_num = next_run () in
@@ -1959,36 +1977,19 @@ let%expect_test "%log track while-loop" =
   let () = print_endline @@ Int.to_string result in
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
   Minidebug_client.Client.show_trace db;
-  [%expect
-    {|
-    21
-    [track] result @ test/test_expect_test.ml:1947:17-1947:23
-      [track] while:test_expect_test:1950 @ test/test_expect_test.ml:1950:4-1956:8
-        [track] <while loop> @ test/test_expect_test.ml:1951:6-1955:32
-          (1 i= 0)
-          (2 i= 1)
-          (3 j= 1)
-        [track] <while loop> @ test/test_expect_test.ml:1951:6-1955:32
-          (1 i= 1)
-          (2 i= 2)
-          (3 j= 3)
-        [track] <while loop> @ test/test_expect_test.ml:1951:6-1955:32
-          (1 i= 2)
-          (2 i= 3)
-          (3 j= 6)
-        [track] <while loop> @ test/test_expect_test.ml:1951:6-1955:32
-          (1 i= 3)
-          (2 i= 4)
-          (3 j= 10)
-        [track] <while loop> @ test/test_expect_test.ml:1951:6-1955:32
-          (1 i= 4)
-          (2 i= 5)
-          (3 j= 15)
-        [track] <while loop> @ test/test_expect_test.ml:1951:6-1955:32
-          (1 i= 5)
-          (2 i= 6)
-          (3 j= 21)
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Failure "Failed to create run in metadata DB")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Minidebug_db.DatabaseBackend.initialize_database in file "minidebug_db.ml", line 344, characters 11-57
+  Called from Minidebug_db.DatabaseBackend.get_db in file "minidebug_db.ml", line 382, characters 8-36
+  Called from Minidebug_db.DatabaseBackend.open_log in file "minidebug_db.ml", line 419, characters 15-24
+  Called from Test_inline_tests__Test_expect_test.(fun) in file "test/test_expect_test.ml", line 1947, characters 17-23
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+  |}]
 (* $MDX part-end *)
 
 let%expect_test "%log runtime log levels while-loop" =
@@ -2018,100 +2019,20 @@ let%expect_test "%log runtime log levels while-loop" =
   Minidebug_client.Client.show_trace (latest_run ());
   print_endline @@ Int.to_string (result (rt 2 "Warning") ());
   Minidebug_client.Client.show_trace (latest_run ());
-  [%expect
-    {|
-    21
-    latest_run: Everything
-    [track] result => 21 @ test/test_expect_test.ml:1999:27-2010:6
-      [track] while:test_expect_test:2002 @ test/test_expect_test.ml:2002:4-2009:8
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          [track] then:test_expect_test:2004 @ test/test_expect_test.ml:2004:21-2004:58
-            (ERROR: 1 i= 0)
-          (WARNING: 2 i= 1)
-          fun:test_expect_test:2007 =
-          (INFO: 3 j= 1)
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          [track] then:test_expect_test:2004 @ test/test_expect_test.ml:2004:21-2004:58
-            (ERROR: 1 i= 1)
-          (WARNING: 2 i= 2)
-          fun:test_expect_test:2007 =
-          (INFO: 3 j= 3)
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          else:test_expect_test:2004 =
-          (WARNING: 2 i= 3)
-          fun:test_expect_test:2007 =
-          (INFO: 3 j= 6)
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          else:test_expect_test:2004 =
-          (WARNING: 2 i= 4)
-          fun:test_expect_test:2007 =
-          (INFO: 3 j= 10)
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          else:test_expect_test:2004 =
-          (WARNING: 2 i= 5)
-          fun:test_expect_test:2007 =
-          (INFO: 3 j= 15)
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          else:test_expect_test:2004 =
-          (WARNING: 2 i= 6)
-          fun:test_expect_test:2007 =
-          (INFO: 3 j= 21)
-    21
-    21
-    latest_run: Error
-    [track] result => 21 @ test/test_expect_test.ml:1999:27-2010:6
-      [track] while:test_expect_test:2002 @ test/test_expect_test.ml:2002:4-2009:8
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          [track] then:test_expect_test:2004 @ test/test_expect_test.ml:2004:21-2004:58
-            (ERROR: 1 i= 0)
-          fun:test_expect_test:2007 =
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          [track] then:test_expect_test:2004 @ test/test_expect_test.ml:2004:21-2004:58
-            (ERROR: 1 i= 1)
-          fun:test_expect_test:2007 =
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          else:test_expect_test:2004 =
-          fun:test_expect_test:2007 =
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          else:test_expect_test:2004 =
-          fun:test_expect_test:2007 =
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          else:test_expect_test:2004 =
-          fun:test_expect_test:2007 =
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          else:test_expect_test:2004 =
-          fun:test_expect_test:2007 =
-    21
-    latest_run: Warning
-    [track] result => 21 @ test/test_expect_test.ml:1999:27-2010:6
-      [track] while:test_expect_test:2002 @ test/test_expect_test.ml:2002:4-2009:8
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          [track] then:test_expect_test:2004 @ test/test_expect_test.ml:2004:21-2004:58
-            (ERROR: 1 i= 0)
-          (WARNING: 2 i= 1)
-          fun:test_expect_test:2007 =
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          [track] then:test_expect_test:2004 @ test/test_expect_test.ml:2004:21-2004:58
-            (ERROR: 1 i= 1)
-          (WARNING: 2 i= 2)
-          fun:test_expect_test:2007 =
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          else:test_expect_test:2004 =
-          (WARNING: 2 i= 3)
-          fun:test_expect_test:2007 =
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          else:test_expect_test:2004 =
-          (WARNING: 2 i= 4)
-          fun:test_expect_test:2007 =
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          else:test_expect_test:2004 =
-          (WARNING: 2 i= 5)
-          fun:test_expect_test:2007 =
-        [track] <while loop> @ test/test_expect_test.ml:2004:6-2008:42
-          else:test_expect_test:2004 =
-          (WARNING: 2 i= 6)
-          fun:test_expect_test:2007 =
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Failure "Failed to create run in metadata DB")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Minidebug_db.DatabaseBackend.initialize_database in file "minidebug_db.ml", line 344, characters 11-57
+  Called from Minidebug_db.DatabaseBackend.get_db in file "minidebug_db.ml", line 382, characters 8-36
+  Called from Minidebug_db.DatabaseBackend.open_log in file "minidebug_db.ml", line 419, characters 15-24
+  Called from Test_inline_tests__Test_expect_test.(fun).result in file "test/test_expect_test.ml", lines 1999-2010, characters 27-6
+  Called from Test_inline_tests__Test_expect_test.(fun) in file "test/test_expect_test.ml", line 2012, characters 33-64
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+  |}]
 
 let%expect_test "%log compile time log levels while-loop" =
   let run_num = next_run () in
@@ -2172,63 +2093,19 @@ let%expect_test "%log compile time log levels while-loop" =
   print_endline @@ Int.to_string @@ warning ();
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
   Minidebug_client.Client.show_trace db;
-  [%expect
-    {|
-    21
-    21
-    21
-    [track] everything => 21 @ test/test_expect_test.ml:2122:28-2135:9
-      [track] while:test_expect_test:2127 @ test/test_expect_test.ml:2127:6-2134:10
-        [track] <while loop> @ test/test_expect_test.ml:2129:8-2133:44
-          [track] then:test_expect_test:2129 @ test/test_expect_test.ml:2129:23-2129:60
-            (ERROR: 1 i= 0)
-          (WARNING: 2 i= 1)
-          fun:test_expect_test:2132 =
-          (INFO: 3 j= 1)
-        [track] <while loop> @ test/test_expect_test.ml:2129:8-2133:44
-          [track] then:test_expect_test:2129 @ test/test_expect_test.ml:2129:23-2129:60
-            (ERROR: 1 i= 1)
-          (WARNING: 2 i= 2)
-          fun:test_expect_test:2132 =
-          (INFO: 3 j= 3)
-        [track] <while loop> @ test/test_expect_test.ml:2129:8-2133:44
-          else:test_expect_test:2129 =
-          (WARNING: 2 i= 3)
-          fun:test_expect_test:2132 =
-          (INFO: 3 j= 6)
-        [track] <while loop> @ test/test_expect_test.ml:2129:8-2133:44
-          else:test_expect_test:2129 =
-          (WARNING: 2 i= 4)
-          fun:test_expect_test:2132 =
-          (INFO: 3 j= 10)
-        [track] <while loop> @ test/test_expect_test.ml:2129:8-2133:44
-          else:test_expect_test:2129 =
-          (WARNING: 2 i= 5)
-          fun:test_expect_test:2132 =
-          (INFO: 3 j= 15)
-        [track] <while loop> @ test/test_expect_test.ml:2129:8-2133:44
-          else:test_expect_test:2129 =
-          (WARNING: 2 i= 6)
-          fun:test_expect_test:2132 =
-          (INFO: 3 j= 21)
-    [track] nothing => 21 @ test/test_expect_test.ml:2137:25-2151:9
-    [track] warning => 21 @ test/test_expect_test.ml:2153:25-2168:9
-      [track] while:test_expect_test:2158 @ test/test_expect_test.ml:2158:6-2167:10
-        [track] <while loop> @ test/test_expect_test.ml:2160:8-2166:47
-          (ERROR: 1 i= 0)
-          (WARNING: 2 i= 1)
-        [track] <while loop> @ test/test_expect_test.ml:2160:8-2166:47
-          (ERROR: 1 i= 1)
-          (WARNING: 2 i= 2)
-        [track] <while loop> @ test/test_expect_test.ml:2160:8-2166:47
-          (WARNING: 2 i= 3)
-        [track] <while loop> @ test/test_expect_test.ml:2160:8-2166:47
-          (WARNING: 2 i= 4)
-        [track] <while loop> @ test/test_expect_test.ml:2160:8-2166:47
-          (WARNING: 2 i= 5)
-        [track] <while loop> @ test/test_expect_test.ml:2160:8-2166:47
-          (WARNING: 2 i= 6)
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Failure "Failed to create run in metadata DB")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Minidebug_db.DatabaseBackend.initialize_database in file "minidebug_db.ml", line 344, characters 11-57
+  Called from Minidebug_db.DatabaseBackend.get_db in file "minidebug_db.ml", line 382, characters 8-36
+  Called from Minidebug_db.DatabaseBackend.open_log in file "minidebug_db.ml", line 419, characters 15-24
+  Called from Test_inline_tests__Test_expect_test.(fun).everything in file "test/test_expect_test.ml", lines 2122-2135, characters 28-9
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+  |}]
 
 let%expect_test "%log track while-loop result" =
   let run_num = next_run () in
@@ -2252,37 +2129,19 @@ let%expect_test "%log track while-loop result" =
   print_endline @@ Int.to_string result;
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
   Minidebug_client.Client.show_trace db ~values_first_mode:false;
-  [%expect
-    {|
-    21
-    [track] result @ test/test_expect_test.ml:2239:17-2239:23
-      [track] while:test_expect_test:2242 @ test/test_expect_test.ml:2242:4-2248:8
-        [track] <while loop> @ test/test_expect_test.ml:2243:6-2247:39
-          (1 i= 0)
-          (2 i= 1)
-          => => (3 j= 1)
-        [track] <while loop> @ test/test_expect_test.ml:2243:6-2247:39
-          (1 i= 1)
-          (2 i= 2)
-          => => (3 j= 3)
-        [track] <while loop> @ test/test_expect_test.ml:2243:6-2247:39
-          (1 i= 2)
-          (2 i= 3)
-          => => (3 j= 6)
-        [track] <while loop> @ test/test_expect_test.ml:2243:6-2247:39
-          (1 i= 3)
-          (2 i= 4)
-          => => (3 j= 10)
-        [track] <while loop> @ test/test_expect_test.ml:2243:6-2247:39
-          (1 i= 4)
-          (2 i= 5)
-          => => (3 j= 15)
-        [track] <while loop> @ test/test_expect_test.ml:2243:6-2247:39
-          (1 i= 5)
-          (2 i= 6)
-          => => (3 j= 21)
-      => => 21
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Failure "Failed to create run in metadata DB")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Minidebug_db.DatabaseBackend.initialize_database in file "minidebug_db.ml", line 344, characters 11-57
+  Called from Minidebug_db.DatabaseBackend.get_db in file "minidebug_db.ml", line 382, characters 8-36
+  Called from Minidebug_db.DatabaseBackend.open_log in file "minidebug_db.ml", line 419, characters 15-24
+  Called from Test_inline_tests__Test_expect_test.(fun) in file "test/test_expect_test.ml", line 2239, characters 17-23
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+  |}]
 
 let%expect_test "%log without scope" =
   let run_num = next_run () in
@@ -2309,16 +2168,19 @@ let%expect_test "%log without scope" =
   let () = !foo () in
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
   Minidebug_client.Client.show_trace db ~values_first_mode:false;
-  [%expect
-    {|
-    [debug] _bar @ test/test_expect_test.ml:2300:17-2300:21
-      _bar => ()
-      ("This is like", 3, "or", 3.14, "above")
-      ("tau =", 6.28)
-      [4; 1; 2; 3]
-      [3; 1; 2; 3]
-      [3; 1; 2; 3]
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Failure "Failed to create run in metadata DB")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Minidebug_db.DatabaseBackend.initialize_database in file "minidebug_db.ml", line 344, characters 11-57
+  Called from Minidebug_db.DatabaseBackend.get_db in file "minidebug_db.ml", line 382, characters 8-36
+  Called from Minidebug_db.DatabaseBackend.open_log in file "minidebug_db.ml", line 419, characters 15-24
+  Called from Test_inline_tests__Test_expect_test.(fun) in file "test/test_expect_test.ml", line 2300, characters 17-21
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+  |}]
 
 let%expect_test "%log without scope values_first_mode" =
   let run_num = next_run () in
@@ -2343,20 +2205,19 @@ let%expect_test "%log without scope values_first_mode" =
   let () = !foo () in
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
   Minidebug_client.Client.show_trace db ~values_first_mode:true;
-  [%expect
-    {|
-    [debug] _bar => () @ test/test_expect_test.ml:2333:17-2333:21
-      ("This is like", 3, "or", 3.14, "above")
-      ("tau =", 6.28)
-      [4; 1; 2; 3]
-      [3; 1; 2; 3]
-      [3; 1; 2; 3]
-      ("This is like", 3, "or", 3.14, "above")
-      ("tau =", 6.28)
-      [4; 1; 2; 3]
-      [3; 1; 2; 3]
-      [3; 1; 2; 3]
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Failure "Failed to create run in metadata DB")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Minidebug_db.DatabaseBackend.initialize_database in file "minidebug_db.ml", line 344, characters 11-57
+  Called from Minidebug_db.DatabaseBackend.get_db in file "minidebug_db.ml", line 382, characters 8-36
+  Called from Minidebug_db.DatabaseBackend.open_log in file "minidebug_db.ml", line 419, characters 15-24
+  Called from Test_inline_tests__Test_expect_test.(fun) in file "test/test_expect_test.ml", line 2333, characters 17-21
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+  |}]
 
 let%expect_test "%log with print_scope_ids, mixed up scopes" =
   (* $MDX part-begin=log_with_print_scope_ids_mixed_up_scopes *)
@@ -2394,23 +2255,20 @@ let%expect_test "%log with print_scope_ids, mixed up scopes" =
   let () = !foo2 () in
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
   Minidebug_client.Client.show_trace db;
-  [%expect
-    {|
-    [debug] bar => () @ test/test_expect_test.ml:2374:21-2379:19
-      ("This is like", 3, "or", 3.14, "above")
-      ("tau =", 6.28)
-      ("This is like", 3, "or", 3.14, "above")
-      ("tau =", 6.28)
-    [debug] baz => () @ test/test_expect_test.ml:2381:21-2386:19
-      [3; 1; 2; 3]
-      [3; 1; 2; 3]
-      [3; 1; 2; 3]
-      [3; 1; 2; 3]
-    [debug] bar => () @ test/test_expect_test.ml:2374:21-2379:19
-      ("This is like", 3, "or", 3.14, "above")
-      ("tau =", 6.28)
-    [debug] _foobar => () @ test/test_expect_test.ml:2393:17-2393:24
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Failure "Failed to create run in metadata DB")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Minidebug_db.DatabaseBackend.initialize_database in file "minidebug_db.ml", line 344, characters 11-57
+  Called from Minidebug_db.DatabaseBackend.get_db in file "minidebug_db.ml", line 382, characters 8-36
+  Called from Minidebug_db.DatabaseBackend.open_log in file "minidebug_db.ml", line 419, characters 15-24
+  Called from Test_inline_tests__Test_expect_test.(fun).bar in file "test/test_expect_test.ml", lines 2374-2379, characters 21-19
+  Called from Test_inline_tests__Test_expect_test.(fun) in file "test/test_expect_test.ml", line 2389, characters 4-13
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+  |}]
 (* $MDX part-end *)
 
 let%expect_test "%diagn_show ignores type annots" =
@@ -2437,14 +2295,19 @@ let%expect_test "%diagn_show ignores type annots" =
   ignore toplevel;
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
   Minidebug_client.Client.show_trace db;
-  [%expect
-    {|
-    336
-    109
-    [diagn] toplevel @ test/test_expect_test.ml:2422:17-2422:25
-      ("for bar, b-3", 42)
-      ("for baz, f squared", 64)
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  (Failure "Failed to create run in metadata DB")
+  Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
+  Called from Minidebug_db.DatabaseBackend.initialize_database in file "minidebug_db.ml", line 344, characters 11-57
+  Called from Minidebug_db.DatabaseBackend.get_db in file "minidebug_db.ml", line 382, characters 8-36
+  Called from Minidebug_db.DatabaseBackend.open_log in file "minidebug_db.ml", line 419, characters 15-24
+  Called from Test_inline_tests__Test_expect_test.(fun) in file "test/test_expect_test.ml", line 2422, characters 17-25
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+  |}]
 
 let%expect_test "%diagn_show ignores non-empty bindings" =
   (* $MDX part-begin=diagn_show_ignores_bindings *)
@@ -2474,10 +2337,6 @@ let%expect_test "%diagn_show ignores non-empty bindings" =
     {|
     336
     91
-    [diagn] bar @ test/test_expect_test.ml:2456:21-2460:15
-      ("for bar, b-3", 42)
-    [diagn] baz @ test/test_expect_test.ml:2463:21-2468:25
-      ("foo baz, f squared", 49)
     |}]
 (* $MDX part-end *)
 
@@ -2503,7 +2362,7 @@ let%expect_test "%diagn_show no logs" =
   [%expect {|
     336
     91
-    run_counter: 65
+    run_counter: 51
     |}]
 
 let%expect_test "%debug_show log level compile time" =
@@ -2543,14 +2402,6 @@ let%expect_test "%debug_show log level compile time" =
     336
     336
     109
-    [debug] () @ test/test_expect_test.ml:2515:18-2515:20
-      [debug] baz => 109 @ test/test_expect_test.ml:2530:26-2533:32
-        first = 7
-        second = 42
-        [debug] {first; second} @ test/test_expect_test.ml:2531:12-2531:41
-          first => 8
-          second => 45
-        ("for baz, f squared", 64)
     |}]
 
 let%expect_test "%debug_show log level runtime" =
@@ -2589,13 +2440,6 @@ let%expect_test "%debug_show log level runtime" =
     336
     336
     109
-    [debug] baz => 109 @ test/test_expect_test.ml:2576:24-2579:30
-      first = 7
-      second = 42
-      [debug] {first; second} @ test/test_expect_test.ml:2577:10-2577:39
-        first => 8
-        second => 45
-      ("for baz, f squared", 64)
     |}]
 (* $MDX part-end *)
 
@@ -2615,7 +2459,7 @@ let%expect_test "%track_show don't show unannotated non-function bindings" =
   (* Nothing to check here, if the run created a DB file it would cascade into the next
      test. *)
   print_endline @@ "run_counter: " ^ Int.to_string !run_counter;
-  [%expect {| run_counter: 67 |}]
+  [%expect {| run_counter: 53 |}]
 
 let%expect_test "%log_printbox" =
   (* $MDX part-begin=log_printbox *)
@@ -2643,45 +2487,7 @@ let%expect_test "%log_printbox" =
   let db = Minidebug_client.Client.open_db (db_file_for_run run_num) in
   Minidebug_client.Client.show_trace db;
   [%expect
-    {|
-    [debug] foo => () @ test/test_expect_test.ml:2627:21-2640:91
-      0/0│0/1│0/2│0/3│0/4
-    ───┼───┼───┼───┼───
-    1/0│1/1│1/2│1/3│1/4
-    ───┼───┼───┼───┼───
-    2/0│2/1│2/2│2/3│2/4
-    ───┼───┼───┼───┼───
-    3/0│3/1│3/2│3/3│3/4
-    ───┼───┼───┼───┼───
-    4/0│4/1│4/2│4/3│4/4
-      "No bars but pad:"
-
-     0/0  0/1  0/2  0/3  0/4
-
-
-     1/0  1/1  1/2  1/3  1/4
-
-
-     2/0  2/1  2/2  2/3  2/4
-
-
-     3/0  3/1  3/2  3/3  3/4
-
-
-     4/0  4/1  4/2  4/3  4/4
-      "Now with a frame:"
-      ┌───┬───┬───┬───┬───┐
-    │0/0│0/1│0/2│0/3│0/4│
-    ├───┼───┼───┼───┼───┤
-    │1/0│1/1│1/2│1/3│1/4│
-    ├───┼───┼───┼───┼───┤
-    │2/0│2/1│2/2│2/3│2/4│
-    ├───┼───┼───┼───┼───┤
-    │3/0│3/1│3/2│3/3│3/4│
-    ├───┼───┼───┼───┼───┤
-    │4/0│4/1│4/2│4/3│4/4│
-    └───┴───┴───┴───┴───┘
-    |}]
+    {| |}]
 (* $MDX part-end *)
 
 let%expect_test "%log_entry" =
@@ -2727,20 +2533,16 @@ let%expect_test "%log_entry" =
          ]
   in
   Minidebug_client.Client.show_trace (latest_run ());
-  [%expect
-    {|
-    latest_run: (no-name)
-    [diagn] _logging_logic @ test/test_expect_test.ml:2693:17-2693:31
-      "preamble"
-      [diagn] header 1 @ :0:0-0:0
-        "log 1"
-        [diagn] nested header @ :0:0-0:0
-          "log 2"
-        "log 3"
-      [diagn] header 2 @ :0:0-0:0
-        "log 4"
-      "postscript"
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  "Assert_failure test/test_expect_test.ml:23:2"
+  Raised at Test_inline_tests__Test_expect_test.latest_run in file "test/test_expect_test.ml", line 23, characters 2-42
+  Called from Test_inline_tests__Test_expect_test.(fun) in file "test/test_expect_test.ml", line 2729, characters 37-52
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+  |}]
 (* $MDX part-end *)
 
 let%expect_test "%debug_show skip module bindings" =
@@ -2763,10 +2565,14 @@ let%expect_test "%debug_show skip module bindings" =
   [%expect
     {|
     15
-    [track] bar => 15 @ test/test_expect_test.ml:2750:23-2758:9
-      x = 7
-      [track] y => 8 @ test/test_expect_test.ml:2752:8-2752:9
-      [track] z => 16 @ test/test_expect_test.ml:2757:8-2757:9
+    [debug] () @ test/test_expect_test.ml:2515:18-2515:20
+      [debug] baz => 109 @ test/test_expect_test.ml:2530:26-2533:32
+        first = 7
+        second = 42
+        [debug] {first; second} @ test/test_expect_test.ml:2531:12-2531:41
+          first => 8
+          second => 45
+        ("for baz, f squared", 64)
     |}]
 
 (* TODO: restore "%track_show procedure runtime prefixes" = *)
@@ -2795,10 +2601,52 @@ let%expect_test "%track_rt_show expression runtime passing" =
   Minidebug_client.Client.show_trace db ~values_first_mode:false;
   [%expect
     {|
-    [track] test A @ :0:0-0:0
-      "line A"
-    [track] test B @ :0:0-0:0
-      "line B"
+    [debug] baz @ test/test_expect_test.ml:2576:24-2579:30
+      first = 7
+      second = 42
+      [debug] {first; second} @ test/test_expect_test.ml:2577:10-2577:39
+        first => 8
+        second => 45
+      ("for baz, f squared", 64)
+      baz => 109
+    [debug] foo @ test/test_expect_test.ml:2627:21-2640:91
+      0/0│0/1│0/2│0/3│0/4
+    ───┼───┼───┼───┼───
+    1/0│1/1│1/2│1/3│1/4
+    ───┼───┼───┼───┼───
+    2/0│2/1│2/2│2/3│2/4
+    ───┼───┼───┼───┼───
+    3/0│3/1│3/2│3/3│3/4
+    ───┼───┼───┼───┼───
+    4/0│4/1│4/2│4/3│4/4
+      "No bars but pad:"
+
+     0/0  0/1  0/2  0/3  0/4
+
+
+     1/0  1/1  1/2  1/3  1/4
+
+
+     2/0  2/1  2/2  2/3  2/4
+
+
+     3/0  3/1  3/2  3/3  3/4
+
+
+     4/0  4/1  4/2  4/3  4/4
+      "Now with a frame:"
+      ┌───┬───┬───┬───┬───┐
+    │0/0│0/1│0/2│0/3│0/4│
+    ├───┼───┼───┼───┼───┤
+    │1/0│1/1│1/2│1/3│1/4│
+    ├───┼───┼───┼───┼───┤
+    │2/0│2/1│2/2│2/3│2/4│
+    ├───┼───┼───┼───┼───┤
+    │3/0│3/1│3/2│3/3│3/4│
+    ├───┼───┼───┼───┼───┤
+    │4/0│4/1│4/2│4/3│4/4│
+    └───┴───┴───┴───┴───┘
+      foo => ()
     |}]
 
 let%expect_test "%logN_block runtime log levels" =
@@ -2857,150 +2705,20 @@ let%expect_test "%logN_block runtime log levels" =
           Minidebug_db.(debug_db_file ~log_level:3 ~run_name:"for=4,with=3" db_file_base)
           ~for_log_level:4);
   Minidebug_client.Client.show_trace (latest_run ());
-  [%expect
-    {|
-    21
-    latest_run: for=2,with=default
-    [track] result => 21 @ test/test_expect_test.ml:2806:27-2818:6
-      [track] while:test_expect_test:2809 @ test/test_expect_test.ml:2809:4-2817:8
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=1 @ :0:0-0:0
-            [track] then:test_expect_test:2813 @ test/test_expect_test.ml:2813:23-2813:59
-              (ERROR: 1 i= 1)
-            (WARNING: 2 i= 1)
-            fun:test_expect_test:2815 =
-            (INFO: 3 j= 1)
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=2 @ :0:0-0:0
-            [track] then:test_expect_test:2813 @ test/test_expect_test.ml:2813:23-2813:59
-              (ERROR: 1 i= 2)
-            (WARNING: 2 i= 2)
-            fun:test_expect_test:2815 =
-            (INFO: 3 j= 3)
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=3 @ :0:0-0:0
-            else:test_expect_test:2813 =
-            (WARNING: 2 i= 3)
-            fun:test_expect_test:2815 =
-            (INFO: 3 j= 6)
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=4 @ :0:0-0:0
-            else:test_expect_test:2813 =
-            (WARNING: 2 i= 4)
-            fun:test_expect_test:2815 =
-            (INFO: 3 j= 10)
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=5 @ :0:0-0:0
-            else:test_expect_test:2813 =
-            (WARNING: 2 i= 5)
-            fun:test_expect_test:2815 =
-            (INFO: 3 j= 15)
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=6 @ :0:0-0:0
-            else:test_expect_test:2813 =
-            (WARNING: 2 i= 6)
-            fun:test_expect_test:2815 =
-            (INFO: 3 j= 21)
-    0
-    0
-    latest_run: for=2,with=1
-    [track] result => 0 @ test/test_expect_test.ml:2806:27-2818:6
-      [track] while:test_expect_test:2809 @ test/test_expect_test.ml:2809:4-2817:8
-        <while loop> =
-        <while loop> =
-        <while loop> =
-        <while loop> =
-        <while loop> =
-        <while loop> =
-    21
-    latest_run: for=1,with=2
-    [track] result => 21 @ test/test_expect_test.ml:2806:27-2818:6
-      [track] while:test_expect_test:2809 @ test/test_expect_test.ml:2809:4-2817:8
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=1 @ :0:0-0:0
-            [track] then:test_expect_test:2813 @ test/test_expect_test.ml:2813:23-2813:59
-              (ERROR: 1 i= 1)
-            (WARNING: 2 i= 1)
-            fun:test_expect_test:2815 =
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=2 @ :0:0-0:0
-            [track] then:test_expect_test:2813 @ test/test_expect_test.ml:2813:23-2813:59
-              (ERROR: 1 i= 2)
-            (WARNING: 2 i= 2)
-            fun:test_expect_test:2815 =
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=3 @ :0:0-0:0
-            else:test_expect_test:2813 =
-            (WARNING: 2 i= 3)
-            fun:test_expect_test:2815 =
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=4 @ :0:0-0:0
-            else:test_expect_test:2813 =
-            (WARNING: 2 i= 4)
-            fun:test_expect_test:2815 =
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=5 @ :0:0-0:0
-            else:test_expect_test:2813 =
-            (WARNING: 2 i= 5)
-            fun:test_expect_test:2815 =
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=6 @ :0:0-0:0
-            else:test_expect_test:2813 =
-            (WARNING: 2 i= 6)
-            fun:test_expect_test:2815 =
-    21
-    latest_run: for=3,with=3
-    [track] result => 21 @ test/test_expect_test.ml:2806:27-2818:6
-      [track] while:test_expect_test:2809 @ test/test_expect_test.ml:2809:4-2817:8
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=1 @ :0:0-0:0
-            [track] then:test_expect_test:2813 @ test/test_expect_test.ml:2813:23-2813:59
-              (ERROR: 1 i= 1)
-            (WARNING: 2 i= 1)
-            fun:test_expect_test:2815 =
-            (INFO: 3 j= 1)
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=2 @ :0:0-0:0
-            [track] then:test_expect_test:2813 @ test/test_expect_test.ml:2813:23-2813:59
-              (ERROR: 1 i= 2)
-            (WARNING: 2 i= 2)
-            fun:test_expect_test:2815 =
-            (INFO: 3 j= 3)
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=3 @ :0:0-0:0
-            else:test_expect_test:2813 =
-            (WARNING: 2 i= 3)
-            fun:test_expect_test:2815 =
-            (INFO: 3 j= 6)
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=4 @ :0:0-0:0
-            else:test_expect_test:2813 =
-            (WARNING: 2 i= 4)
-            fun:test_expect_test:2815 =
-            (INFO: 3 j= 10)
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=5 @ :0:0-0:0
-            else:test_expect_test:2813 =
-            (WARNING: 2 i= 5)
-            fun:test_expect_test:2815 =
-            (INFO: 3 j= 15)
-        [track] <while loop> @ test/test_expect_test.ml:2810:6-2816:45
-          [track] i=6 @ :0:0-0:0
-            else:test_expect_test:2813 =
-            (WARNING: 2 i= 6)
-            fun:test_expect_test:2815 =
-            (INFO: 3 j= 21)
-    0
-    latest_run: for=4,with=3
-    [track] result => 0 @ test/test_expect_test.ml:2806:27-2818:6
-      [track] while:test_expect_test:2809 @ test/test_expect_test.ml:2809:4-2817:8
-        <while loop> =
-        <while loop> =
-        <while loop> =
-        <while loop> =
-        <while loop> =
-        <while loop> =
-    |}]
+  [%expect.unreachable]
+[@@expect.uncaught_exn {|
+  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
+     This is strongly discouraged as backtraces are fragile.
+     Please change this test to not include a backtrace. *)
+  "Assert_failure test/test_expect_test.ml:23:2"
+  Raised at Test_inline_tests__Test_expect_test.latest_run in file "test/test_expect_test.ml", line 23, characters 2-42
+  Called from Test_inline_tests__Test_expect_test.(fun) in file "test/test_expect_test.ml", line 2826, characters 37-52
+  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
+
+  Trailing output
+  ---------------
+  21
+  |}]
 
 let%expect_test "%log_block compile-time nothing" =
   let _get_local_debug_runtime =
@@ -3052,7 +2770,7 @@ let%expect_test "%log_block compile-time nothing" =
   (* Nothing to check here, if the run created a DB file it would cascade into the next
      test. *)
   print_endline @@ "run_counter: " ^ Int.to_string !run_counter;
-  [%expect {| run_counter: 77 |}]
+  [%expect {| run_counter: 59 |}]
 
 let%expect_test "%log_block compile-time nothing dynamic scope" =
   let _get_local_debug_runtime =
@@ -3104,7 +2822,7 @@ let%expect_test "%log_block compile-time nothing dynamic scope" =
   (* Nothing to check here, if the run created a DB file it would cascade into the next
      test. *)
   print_endline @@ "run_counter: " ^ Int.to_string !run_counter;
-  [%expect {| run_counter: 77 |}]
+  [%expect {| run_counter: 59 |}]
 
 let%expect_test "%log compile time log levels while-loop dynamic scope" =
   let run_num = next_run () in
@@ -3151,72 +2869,11 @@ let%expect_test "%log compile time log levels while-loop dynamic scope" =
     21
     21
     21
-    [track] everything @ test/test_expect_test.ml:3128:28-3131:14
-      [track] loop @ test/test_expect_test.ml:3115:22-3126:6
-        [track] while:test_expect_test:3118 @ test/test_expect_test.ml:3118:4-3125:8
-          [track] <while loop> @ test/test_expect_test.ml:3120:6-3124:42
-            [track] then:test_expect_test:3120 @ test/test_expect_test.ml:3120:21-3120:58
-              (ERROR: 1 i= 0)
-            (WARNING: 2 i= 1)
-            fun:test_expect_test:3123 =
-            (INFO: 3 j= 1)
-          [track] <while loop> @ test/test_expect_test.ml:3120:6-3124:42
-            [track] then:test_expect_test:3120 @ test/test_expect_test.ml:3120:21-3120:58
-              (ERROR: 1 i= 1)
-            (WARNING: 2 i= 2)
-            fun:test_expect_test:3123 =
-            (INFO: 3 j= 3)
-          [track] <while loop> @ test/test_expect_test.ml:3120:6-3124:42
-            else:test_expect_test:3120 =
-            (WARNING: 2 i= 3)
-            fun:test_expect_test:3123 =
-            (INFO: 3 j= 6)
-          [track] <while loop> @ test/test_expect_test.ml:3120:6-3124:42
-            else:test_expect_test:3120 =
-            (WARNING: 2 i= 4)
-            fun:test_expect_test:3123 =
-            (INFO: 3 j= 10)
-          [track] <while loop> @ test/test_expect_test.ml:3120:6-3124:42
-            else:test_expect_test:3120 =
-            (WARNING: 2 i= 5)
-            fun:test_expect_test:3123 =
-            (INFO: 3 j= 15)
-          [track] <while loop> @ test/test_expect_test.ml:3120:6-3124:42
-            else:test_expect_test:3120 =
-            (WARNING: 2 i= 6)
-            fun:test_expect_test:3123 =
-            (INFO: 3 j= 21)
-      everything => 21
-    [track] nothing @ test/test_expect_test.ml:3133:25-3137:14
-      nothing => 21
-    [track] warning @ test/test_expect_test.ml:3139:25-3142:14
-      [track] loop @ test/test_expect_test.ml:3115:22-3126:6
-        [track] while:test_expect_test:3118 @ test/test_expect_test.ml:3118:4-3125:8
-          [track] <while loop> @ test/test_expect_test.ml:3120:6-3124:42
-            [track] then:test_expect_test:3120 @ test/test_expect_test.ml:3120:21-3120:58
-              (ERROR: 1 i= 0)
-            (WARNING: 2 i= 1)
-            fun:test_expect_test:3123 =
-          [track] <while loop> @ test/test_expect_test.ml:3120:6-3124:42
-            [track] then:test_expect_test:3120 @ test/test_expect_test.ml:3120:21-3120:58
-              (ERROR: 1 i= 1)
-            (WARNING: 2 i= 2)
-            fun:test_expect_test:3123 =
-          [track] <while loop> @ test/test_expect_test.ml:3120:6-3124:42
-            else:test_expect_test:3120 =
-            (WARNING: 2 i= 3)
-            fun:test_expect_test:3123 =
-          [track] <while loop> @ test/test_expect_test.ml:3120:6-3124:42
-            else:test_expect_test:3120 =
-            (WARNING: 2 i= 4)
-            fun:test_expect_test:3123 =
-          [track] <while loop> @ test/test_expect_test.ml:3120:6-3124:42
-            else:test_expect_test:3120 =
-            (WARNING: 2 i= 5)
-            fun:test_expect_test:3123 =
-          [track] <while loop> @ test/test_expect_test.ml:3120:6-3124:42
-            else:test_expect_test:3120 =
-            (WARNING: 2 i= 6)
-            fun:test_expect_test:3123 =
-      warning => 21
+    [track] bar @ test/test_expect_test.ml:2750:23-2758:9
+      x = 7
+      [track] y @ test/test_expect_test.ml:2752:8-2752:9
+        y => 8
+      [track] z @ test/test_expect_test.ml:2757:8-2757:9
+        z => 16
+      bar => 15
     |}]

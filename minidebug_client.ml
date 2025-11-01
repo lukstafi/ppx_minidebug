@@ -158,24 +158,25 @@ module Query = struct
           get_runs_from_meta_db meta_path
 
     (** Get latest run ID from metadata database *)
-    let get_latest_run_id () =
+    let get_latest_run_id =
       match meta_db with
-      | None -> None
+      | None -> fun () -> None
       | Some mdb ->
           let stmt = Sqlite3.prepare mdb "SELECT MAX(run_id) FROM runs" in
-          let run_id =
-            match Sqlite3.step stmt with
-            | Sqlite3.Rc.ROW -> (
-                match Sqlite3.column stmt 0 with
-                | Sqlite3.Data.INT id -> Some (Int64.to_int id)
-                | _ -> None)
-            | _ -> None
-          in
-          Sqlite3.finalize stmt |> ignore;
-          run_id
+          fun () ->
+            Sqlite3.reset stmt |> ignore;
+            let run_id =
+              match Sqlite3.step stmt with
+              | Sqlite3.Rc.ROW -> (
+                  match Sqlite3.column stmt 0 with
+                  | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+                  | _ -> None)
+              | _ -> None
+            in
+            run_id
 
     (** Get database statistics *)
-    let get_stats () =
+    let get_stats =
       let stmt =
         Sqlite3.prepare db
           {|
@@ -185,117 +186,118 @@ module Query = struct
           (SELECT COUNT(DISTINCT value_hash) FROM value_atoms) as unique_values
       |}
       in
-
-      let stats =
-        match Sqlite3.step stmt with
-        | Sqlite3.Rc.ROW ->
-            let total_entries = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0) in
-            let total_values = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1) in
-            let unique_values = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 2) in
-            let dedup_percentage =
-              if total_values = 0 then 0.0
-              else
-                100.0 *. (1.0 -. (float_of_int unique_values /. float_of_int total_values))
-            in
-            let size_kb =
-              try
-                let stat = Unix.stat db_path in
-                stat.Unix.st_size / 1024
-              with _ -> 0
-            in
-            {
-              total_entries;
-              total_values;
-              unique_values;
-              dedup_percentage;
-              database_size_kb = size_kb;
-            }
-        | _ ->
-            {
-              total_entries = 0;
-              total_values = 0;
-              unique_values = 0;
-              dedup_percentage = 0.0;
-              database_size_kb = 0;
-            }
-      in
-      Sqlite3.finalize stmt |> ignore;
-      stats
+      fun () ->
+        Sqlite3.reset stmt |> ignore;
+        let stats =
+          match Sqlite3.step stmt with
+          | Sqlite3.Rc.ROW ->
+              let total_entries = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0) in
+              let total_values = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1) in
+              let unique_values = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 2) in
+              let dedup_percentage =
+                if total_values = 0 then 0.0
+                else
+                  100.0 *. (1.0 -. (float_of_int unique_values /. float_of_int total_values))
+              in
+              let size_kb =
+                try
+                  let stat = Unix.stat db_path in
+                  stat.Unix.st_size / 1024
+                with _ -> 0
+              in
+              {
+                total_entries;
+                total_values;
+                unique_values;
+                dedup_percentage;
+                database_size_kb = size_kb;
+              }
+          | _ ->
+              {
+                total_entries = 0;
+                total_values = 0;
+                unique_values = 0;
+                dedup_percentage = 0.0;
+                database_size_kb = 0;
+              }
+        in
+        stats
 
     (** Search entries by GLOB pattern (uses SQLite's GLOB operator for efficiency) *)
-    let search_entries ~pattern =
-    (* Convert pattern to GLOB format if needed - for now use simple wildcard wrapping *)
-    let glob_pattern = "*" ^ pattern ^ "*" in
-    let query =
-      {|
-      SELECT
-        e.scope_id,
-        e.seq_id,
-        e.child_scope_id,
-        e.depth,
-        m.value_content as message,
-        l.value_content as location,
-        d.value_content as data,
-        e.elapsed_start_ns,
-        e.elapsed_end_ns,
-        e.is_result,
-        e.log_level,
-        e.entry_type
-      FROM entries e
-      LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
-      LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
-      LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
-      WHERE m.value_content GLOB ? OR l.value_content GLOB ? OR d.value_content GLOB ?
-      ORDER BY e.scope_id, e.seq_id
-    |}
-    in
-    let stmt = Sqlite3.prepare db query in
-    Sqlite3.bind_text stmt 1 glob_pattern |> ignore;
-    Sqlite3.bind_text stmt 2 glob_pattern |> ignore;
-    Sqlite3.bind_text stmt 3 glob_pattern |> ignore;
-    let entries = ref [] in
-    let rec loop () =
-      match Sqlite3.step stmt with
-      | Sqlite3.Rc.ROW ->
-          let entry =
-            {
-              scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
-              seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
-              child_scope_id =
-                (match Sqlite3.column stmt 2 with
-                | Sqlite3.Data.INT id -> Some (Int64.to_int id)
-                | _ -> None);
-              depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
-              message =
-                (match Sqlite3.column stmt 4 with Sqlite3.Data.TEXT s -> s | _ -> "");
-              location =
-                (match Sqlite3.column stmt 5 with
-                | Sqlite3.Data.TEXT s -> Some s
-                | _ -> None);
-              data =
-                (match Sqlite3.column stmt 6 with
-                | Sqlite3.Data.TEXT s -> Some s
-                | _ -> None);
-              elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
-              elapsed_end_ns =
-                (match Sqlite3.column stmt 8 with
-                | Sqlite3.Data.INT ns -> Some (Int64.to_int ns)
-                | _ -> None);
-              is_result = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 9) = 1;
-              log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
-              entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
-            }
-          in
-          entries := entry :: !entries;
-          loop ()
-      | _ -> ()
-    in
-    loop ();
-    Sqlite3.finalize stmt |> ignore;
-    List.rev !entries
+    let search_entries =
+      let query =
+        {|
+        SELECT
+          e.scope_id,
+          e.seq_id,
+          e.child_scope_id,
+          e.depth,
+          m.value_content as message,
+          l.value_content as location,
+          d.value_content as data,
+          e.elapsed_start_ns,
+          e.elapsed_end_ns,
+          e.is_result,
+          e.log_level,
+          e.entry_type
+        FROM entries e
+        LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
+        LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
+        LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
+        WHERE m.value_content GLOB ? OR l.value_content GLOB ? OR d.value_content GLOB ?
+        ORDER BY e.scope_id, e.seq_id
+      |}
+      in
+      let stmt = Sqlite3.prepare db query in
+      fun ~pattern ->
+        (* Convert pattern to GLOB format if needed - for now use simple wildcard wrapping *)
+        let glob_pattern = "*" ^ pattern ^ "*" in
+        Sqlite3.reset stmt |> ignore;
+        Sqlite3.bind_text stmt 1 glob_pattern |> ignore;
+        Sqlite3.bind_text stmt 2 glob_pattern |> ignore;
+        Sqlite3.bind_text stmt 3 glob_pattern |> ignore;
+        let entries = ref [] in
+        let rec loop () =
+          match Sqlite3.step stmt with
+          | Sqlite3.Rc.ROW ->
+              let entry =
+                {
+                  scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+                  seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
+                  child_scope_id =
+                    (match Sqlite3.column stmt 2 with
+                    | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+                    | _ -> None);
+                  depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
+                  message =
+                    (match Sqlite3.column stmt 4 with Sqlite3.Data.TEXT s -> s | _ -> "");
+                  location =
+                    (match Sqlite3.column stmt 5 with
+                    | Sqlite3.Data.TEXT s -> Some s
+                    | _ -> None);
+                  data =
+                    (match Sqlite3.column stmt 6 with
+                    | Sqlite3.Data.TEXT s -> Some s
+                    | _ -> None);
+                  elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
+                  elapsed_end_ns =
+                    (match Sqlite3.column stmt 8 with
+                    | Sqlite3.Data.INT ns -> Some (Int64.to_int ns)
+                    | _ -> None);
+                  is_result = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 9) = 1;
+                  log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
+                  entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
+                }
+              in
+              entries := entry :: !entries;
+              loop ()
+          | _ -> ()
+        in
+        loop ();
+        List.rev !entries
 
     (** Find a specific entry by (scope_id, seq_id) *)
-    let find_entry ~scope_id ~seq_id =
+    let find_entry =
     let query =
       {|
       SELECT
@@ -320,6 +322,8 @@ module Query = struct
     |}
     in
     let stmt = Sqlite3.prepare db query in
+    fun ~scope_id ~seq_id ->
+    Sqlite3.reset stmt |> ignore;
     Sqlite3.bind_int stmt 1 scope_id |> ignore;
     Sqlite3.bind_int stmt 2 seq_id |> ignore;
     let result =
@@ -355,11 +359,10 @@ module Query = struct
             }
       | _ -> None
     in
-    Sqlite3.finalize stmt |> ignore;
     result
 
     (** Find the header entry that creates a given scope (child_scope_id = scope_id) *)
-    let find_scope_header ~scope_id =
+    let find_scope_header =
     let query =
       {|
       SELECT
@@ -384,6 +387,8 @@ module Query = struct
     |}
     in
     let stmt = Sqlite3.prepare db query in
+    fun ~scope_id ->
+    Sqlite3.reset stmt |> ignore;
     Sqlite3.bind_int stmt 1 scope_id |> ignore;
     let result =
       match Sqlite3.step stmt with
@@ -418,7 +423,6 @@ module Query = struct
             }
       | _ -> None
     in
-    Sqlite3.finalize stmt |> ignore;
     result
 
     (** Get entries for a list of scope_ids (useful for filtering by ancestor paths) *)
@@ -510,8 +514,10 @@ module Query = struct
         List.filter (fun e -> Hashtbl.mem results_table (e.scope_id, e.seq_id)) all_entries
 
     (** Get maximum scope_id for a run *)
-    let get_max_scope_id () =
+    let get_max_scope_id =
     let stmt = Sqlite3.prepare db "SELECT MAX(scope_id) FROM entries" in
+    fun () ->
+    Sqlite3.reset stmt |> ignore;
     let max_id =
       match Sqlite3.step stmt with
       | Sqlite3.Rc.ROW -> (
@@ -520,15 +526,14 @@ module Query = struct
           | _ -> None)
       | _ -> None
     in
-    Sqlite3.finalize stmt |> ignore;
     Option.value ~default:0 max_id
 
     (** Get only root entries efficiently - roots are those with scope_id=0 *)
-    let get_root_entries ~with_values =
-    let query =
-      if with_values then
-        (* Get entries at depth 0 and 1 - roots and their immediate children *)
-        {|
+    let get_root_entries =
+    (* Prepare both queries upfront *)
+    let query_with_values =
+      (* Get entries at depth 0 and 1 - roots and their immediate children *)
+      {|
       SELECT
         e.scope_id,
         e.seq_id,
@@ -549,9 +554,10 @@ module Query = struct
       WHERE e.depth <= 1
       ORDER BY e.scope_id, e.seq_id
     |}
-      else
-        (* Get only headers at root level (scope_id=0, child_scope_id NOT NULL) *)
-        {|
+    in
+    let query_without_values =
+      (* Get only headers at root level (scope_id=0, child_scope_id NOT NULL) *)
+      {|
       SELECT
         e.scope_id,
         e.seq_id,
@@ -573,8 +579,11 @@ module Query = struct
       ORDER BY e.seq_id
     |}
     in
-
-    let stmt = Sqlite3.prepare db query in
+    let stmt_with_values = Sqlite3.prepare db query_with_values in
+    let stmt_without_values = Sqlite3.prepare db query_without_values in
+    fun ~with_values ->
+    let stmt = if with_values then stmt_with_values else stmt_without_values in
+    Sqlite3.reset stmt |> ignore;
 
     let entries = ref [] in
     let rec loop () =
@@ -614,11 +623,10 @@ module Query = struct
       | _ -> ()
     in
     loop ();
-    Sqlite3.finalize stmt |> ignore;
     List.rev !entries
 
     (** Check if an entry has any children (efficient query) *)
-    let has_children ~parent_scope_id =
+    let has_children =
     let query =
       {|
       SELECT 1
@@ -628,15 +636,16 @@ module Query = struct
     |}
     in
     let stmt = Sqlite3.prepare db query in
+    fun ~parent_scope_id ->
+    Sqlite3.reset stmt |> ignore;
     Sqlite3.bind_int stmt 1 parent_scope_id |> ignore;
     let has_child = match Sqlite3.step stmt with Sqlite3.Rc.ROW -> true | _ -> false in
-    Sqlite3.finalize stmt |> ignore;
     has_child
 
     (** Get all parent scope_ids for a given entry. Returns empty list if no parents
         (root entry). Due to SexpCache deduplication, an entry can have multiple parents
         (DAG structure). *)
-    let get_parent_ids ~scope_id =
+    let get_parent_ids =
     let query =
       {|
       SELECT parent_id
@@ -645,6 +654,8 @@ module Query = struct
     |}
     in
     let stmt = Sqlite3.prepare db query in
+    fun ~scope_id ->
+    Sqlite3.reset stmt |> ignore;
     Sqlite3.bind_int stmt 1 scope_id |> ignore;
 
     let parent_ids = ref [] in
@@ -660,7 +671,6 @@ module Query = struct
       | _ -> ()
     in
     loop ();
-    Sqlite3.finalize stmt |> ignore;
     List.rev !parent_ids  (* Preserve insertion order *)
 
     (** Get first parent scope_id for a given entry (for single-path operations).
@@ -670,7 +680,7 @@ module Query = struct
       | [] -> None
       | first :: _ -> Some first
 
-    let get_scope_children ~parent_scope_id =
+    let get_scope_children =
     let query =
       {|
       SELECT
@@ -696,6 +706,8 @@ module Query = struct
     in
 
     let stmt = Sqlite3.prepare db query in
+    fun ~parent_scope_id ->
+    Sqlite3.reset stmt |> ignore;
     Sqlite3.bind_int stmt 1 parent_scope_id |> ignore;
 
     let entries = ref [] in
@@ -736,7 +748,6 @@ module Query = struct
       | _ -> ()
     in
     loop ();
-    Sqlite3.finalize stmt |> ignore;
     List.rev !entries
 
   (** Search ordering strategy. Note: scope_id temporal order is split by sign:
@@ -1295,7 +1306,7 @@ module Query = struct
     contains entry.message || (match entry.data with Some d -> contains d | None -> false)
 
     (** Check if a scope entry (header) matches a pattern by looking at its message field *)
-    let _scope_entry_matches_pattern ~scope_id ~pattern =
+    let _scope_entry_matches_pattern =
     (* Get the header entry that creates this scope *)
     let query =
       {|
@@ -1311,6 +1322,8 @@ module Query = struct
     |}
     in
     let stmt = Sqlite3.prepare db query in
+    fun ~scope_id ~pattern ->
+    Sqlite3.reset stmt |> ignore;
     Sqlite3.bind_int stmt 1 scope_id |> ignore;
     let result =
       match Sqlite3.step stmt with
@@ -1340,7 +1353,6 @@ module Query = struct
           entry_matches_pattern entry pattern
       | _ -> false
     in
-    Sqlite3.finalize stmt |> ignore;
     result
 
     (** Find all paths in the DAG matching a sequence of patterns.
