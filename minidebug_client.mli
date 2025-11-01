@@ -40,14 +40,28 @@ module Query : sig
   val get_latest_run_id : string -> int option
   (** Get the ID of the most recent run from metadata DB, given the versioned DB path *)
 
-  val get_entries : Sqlite3.db -> ?parent_id:int -> ?max_depth:int -> unit -> entry list
-  (** Get entries for a specific run, optionally filtered by parent_id and max_depth *)
-
   val get_stats : Sqlite3.db -> string -> stats
   (** Get database statistics including deduplication metrics *)
 
   val search_entries : Sqlite3.db -> pattern:string -> entry list
-  (** Search entries by regex pattern matching message, location, or data *)
+  (** Search entries by GLOB pattern matching message, location, or data.
+      Uses SQLite GLOB operator for efficiency on large databases. *)
+
+  val find_entry : Sqlite3.db -> scope_id:int -> seq_id:int -> entry option
+  (** Find a specific entry by (scope_id, seq_id). Returns None if not found. *)
+
+  val find_scope_header : Sqlite3.db -> scope_id:int -> entry option
+  (** Find the header entry that creates a given scope (child_scope_id = scope_id).
+      Returns None if not found. *)
+
+  val get_entries_for_scopes : Sqlite3.db -> scope_ids:int list -> entry list
+  (** Get all entries for a list of scope_ids. Useful for filtering by ancestor paths.
+      More efficient than loading all entries when working with subsets. *)
+
+  val get_entries_from_results :
+    Sqlite3.db -> results_table:(int * int, bool) Hashtbl.t -> entry list
+  (** Get entries from a results hashtable (as returned by populate_search_results).
+      Much more efficient than loading all entries and filtering for large databases. *)
 
   val get_root_entries : Sqlite3.db -> with_values:bool -> entry list
   (** Get only root-level entries efficiently. When [with_values] is true, includes

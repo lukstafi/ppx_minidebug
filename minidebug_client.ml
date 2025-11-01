@@ -127,90 +127,6 @@ module Query = struct
       Sqlite3.db_close db |> ignore;
       run_id
 
-  (** Get entries for a specific run *)
-  let get_entries db ?parent_id ?max_depth () =
-    let base_query =
-      {|
-      SELECT
-        e.scope_id,
-        e.seq_id,
-        e.child_scope_id,
-        e.depth,
-        m.value_content as message,
-        l.value_content as location,
-        d.value_content as data,
-        e.elapsed_start_ns,
-        e.elapsed_end_ns,
-        e.is_result,
-        e.log_level,
-        e.entry_type
-      FROM entries e
-      LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
-      LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
-      LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
-    |}
-    in
-
-    let query =
-      match (parent_id, max_depth) with
-      | None, None -> base_query ^ " ORDER BY e.scope_id, e.seq_id"
-      | Some _, None -> base_query ^ " WHERE e.scope_id = ? ORDER BY e.scope_id, e.seq_id"
-      | None, Some _ -> base_query ^ " WHERE e.depth <= ? ORDER BY e.scope_id, e.seq_id"
-      | Some _, Some _ ->
-          base_query
-          ^ " WHERE e.scope_id = ? AND e.depth <= ? ORDER BY e.scope_id, e.seq_id"
-    in
-
-    let stmt = Sqlite3.prepare db query in
-    (match (parent_id, max_depth) with
-    | None, None -> ()
-    | Some pid, None -> Sqlite3.bind_int stmt 1 pid |> ignore
-    | None, Some d -> Sqlite3.bind_int stmt 1 d |> ignore
-    | Some pid, Some d ->
-        Sqlite3.bind_int stmt 1 pid |> ignore;
-        Sqlite3.bind_int stmt 2 d |> ignore);
-
-    let entries = ref [] in
-    let rec loop () =
-      match Sqlite3.step stmt with
-      | Sqlite3.Rc.ROW ->
-          let entry =
-            {
-              scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
-              seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
-              child_scope_id =
-                (match Sqlite3.column stmt 2 with
-                | Sqlite3.Data.INT id -> Some (Int64.to_int id)
-                | _ -> None);
-              depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
-              message =
-                (match Sqlite3.column stmt 4 with Sqlite3.Data.TEXT s -> s | _ -> "");
-              location =
-                (match Sqlite3.column stmt 5 with
-                | Sqlite3.Data.TEXT s -> Some s
-                | _ -> None);
-              data =
-                (match Sqlite3.column stmt 6 with
-                | Sqlite3.Data.TEXT s -> Some s
-                | _ -> None);
-              elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
-              elapsed_end_ns =
-                (match Sqlite3.column stmt 8 with
-                | Sqlite3.Data.INT ns -> Some (Int64.to_int ns)
-                | _ -> None);
-              is_result = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 9) = 1;
-              log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
-              entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
-            }
-          in
-          entries := entry :: !entries;
-          loop ()
-      | _ -> ()
-    in
-    loop ();
-    Sqlite3.finalize stmt |> ignore;
-    List.rev !entries
-
   (** Get database statistics *)
   let get_stats db db_path =
     let stmt =
@@ -259,16 +175,292 @@ module Query = struct
     Sqlite3.finalize stmt |> ignore;
     stats
 
-  (** Search entries by regex pattern *)
+  (** Search entries by GLOB pattern (uses SQLite's GLOB operator for efficiency) *)
   let search_entries db ~pattern =
-    let entries = get_entries db () in
-    let re = Re.compile (Re.Pcre.re pattern) in
-    List.filter
-      (fun entry ->
-        Re.execp re entry.message
-        || (match entry.location with Some loc -> Re.execp re loc | None -> false)
-        || match entry.data with Some d -> Re.execp re d | None -> false)
-      entries
+    (* Convert pattern to GLOB format if needed - for now use simple wildcard wrapping *)
+    let glob_pattern = "*" ^ pattern ^ "*" in
+    let query =
+      {|
+      SELECT
+        e.scope_id,
+        e.seq_id,
+        e.child_scope_id,
+        e.depth,
+        m.value_content as message,
+        l.value_content as location,
+        d.value_content as data,
+        e.elapsed_start_ns,
+        e.elapsed_end_ns,
+        e.is_result,
+        e.log_level,
+        e.entry_type
+      FROM entries e
+      LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
+      LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
+      LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
+      WHERE m.value_content GLOB ? OR l.value_content GLOB ? OR d.value_content GLOB ?
+      ORDER BY e.scope_id, e.seq_id
+    |}
+    in
+    let stmt = Sqlite3.prepare db query in
+    Sqlite3.bind_text stmt 1 glob_pattern |> ignore;
+    Sqlite3.bind_text stmt 2 glob_pattern |> ignore;
+    Sqlite3.bind_text stmt 3 glob_pattern |> ignore;
+    let entries = ref [] in
+    let rec loop () =
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW ->
+          let entry =
+            {
+              scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+              seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
+              child_scope_id =
+                (match Sqlite3.column stmt 2 with
+                | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+                | _ -> None);
+              depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
+              message =
+                (match Sqlite3.column stmt 4 with Sqlite3.Data.TEXT s -> s | _ -> "");
+              location =
+                (match Sqlite3.column stmt 5 with
+                | Sqlite3.Data.TEXT s -> Some s
+                | _ -> None);
+              data =
+                (match Sqlite3.column stmt 6 with
+                | Sqlite3.Data.TEXT s -> Some s
+                | _ -> None);
+              elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
+              elapsed_end_ns =
+                (match Sqlite3.column stmt 8 with
+                | Sqlite3.Data.INT ns -> Some (Int64.to_int ns)
+                | _ -> None);
+              is_result = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 9) = 1;
+              log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
+              entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
+            }
+          in
+          entries := entry :: !entries;
+          loop ()
+      | _ -> ()
+    in
+    loop ();
+    Sqlite3.finalize stmt |> ignore;
+    List.rev !entries
+
+  (** Find a specific entry by (scope_id, seq_id) *)
+  let find_entry db ~scope_id ~seq_id =
+    let query =
+      {|
+      SELECT
+        e.scope_id,
+        e.seq_id,
+        e.child_scope_id,
+        e.depth,
+        m.value_content as message,
+        l.value_content as location,
+        d.value_content as data,
+        e.elapsed_start_ns,
+        e.elapsed_end_ns,
+        e.is_result,
+        e.log_level,
+        e.entry_type
+      FROM entries e
+      LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
+      LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
+      LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
+      WHERE e.scope_id = ? AND e.seq_id = ?
+      LIMIT 1
+    |}
+    in
+    let stmt = Sqlite3.prepare db query in
+    Sqlite3.bind_int stmt 1 scope_id |> ignore;
+    Sqlite3.bind_int stmt 2 seq_id |> ignore;
+    let result =
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW ->
+          Some
+            {
+              scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+              seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
+              child_scope_id =
+                (match Sqlite3.column stmt 2 with
+                | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+                | _ -> None);
+              depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
+              message =
+                (match Sqlite3.column stmt 4 with Sqlite3.Data.TEXT s -> s | _ -> "");
+              location =
+                (match Sqlite3.column stmt 5 with
+                | Sqlite3.Data.TEXT s -> Some s
+                | _ -> None);
+              data =
+                (match Sqlite3.column stmt 6 with
+                | Sqlite3.Data.TEXT s -> Some s
+                | _ -> None);
+              elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
+              elapsed_end_ns =
+                (match Sqlite3.column stmt 8 with
+                | Sqlite3.Data.INT ns -> Some (Int64.to_int ns)
+                | _ -> None);
+              is_result = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 9) = 1;
+              log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
+              entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
+            }
+      | _ -> None
+    in
+    Sqlite3.finalize stmt |> ignore;
+    result
+
+  (** Find the header entry that creates a given scope (child_scope_id = scope_id) *)
+  let find_scope_header db ~scope_id =
+    let query =
+      {|
+      SELECT
+        e.scope_id,
+        e.seq_id,
+        e.child_scope_id,
+        e.depth,
+        m.value_content as message,
+        l.value_content as location,
+        d.value_content as data,
+        e.elapsed_start_ns,
+        e.elapsed_end_ns,
+        e.is_result,
+        e.log_level,
+        e.entry_type
+      FROM entries e
+      LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
+      LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
+      LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
+      WHERE e.child_scope_id = ?
+      LIMIT 1
+    |}
+    in
+    let stmt = Sqlite3.prepare db query in
+    Sqlite3.bind_int stmt 1 scope_id |> ignore;
+    let result =
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW ->
+          Some
+            {
+              scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+              seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
+              child_scope_id =
+                (match Sqlite3.column stmt 2 with
+                | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+                | _ -> None);
+              depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
+              message =
+                (match Sqlite3.column stmt 4 with Sqlite3.Data.TEXT s -> s | _ -> "");
+              location =
+                (match Sqlite3.column stmt 5 with
+                | Sqlite3.Data.TEXT s -> Some s
+                | _ -> None);
+              data =
+                (match Sqlite3.column stmt 6 with
+                | Sqlite3.Data.TEXT s -> Some s
+                | _ -> None);
+              elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
+              elapsed_end_ns =
+                (match Sqlite3.column stmt 8 with
+                | Sqlite3.Data.INT ns -> Some (Int64.to_int ns)
+                | _ -> None);
+              is_result = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 9) = 1;
+              log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
+              entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
+            }
+      | _ -> None
+    in
+    Sqlite3.finalize stmt |> ignore;
+    result
+
+  (** Get entries for a list of scope_ids (useful for filtering by ancestor paths) *)
+  let get_entries_for_scopes db ~scope_ids =
+    if scope_ids = [] then []
+    else
+      let placeholders = String.concat "," (List.map (fun _ -> "?") scope_ids) in
+      let query =
+        Printf.sprintf
+          {|
+      SELECT
+        e.scope_id,
+        e.seq_id,
+        e.child_scope_id,
+        e.depth,
+        m.value_content as message,
+        l.value_content as location,
+        d.value_content as data,
+        e.elapsed_start_ns,
+        e.elapsed_end_ns,
+        e.is_result,
+        e.log_level,
+        e.entry_type
+      FROM entries e
+      LEFT JOIN value_atoms m ON e.message_value_id = m.value_id
+      LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
+      LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
+      WHERE e.scope_id IN (%s)
+      ORDER BY e.scope_id, e.seq_id
+    |}
+          placeholders
+      in
+      let stmt = Sqlite3.prepare db query in
+      List.iteri (fun i scope_id -> Sqlite3.bind_int stmt (i + 1) scope_id |> ignore) scope_ids;
+      let entries = ref [] in
+      let rec loop () =
+        match Sqlite3.step stmt with
+        | Sqlite3.Rc.ROW ->
+            let entry =
+              {
+                scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+                seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
+                child_scope_id =
+                  (match Sqlite3.column stmt 2 with
+                  | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+                  | _ -> None);
+                depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
+                message =
+                  (match Sqlite3.column stmt 4 with Sqlite3.Data.TEXT s -> s | _ -> "");
+                location =
+                  (match Sqlite3.column stmt 5 with
+                  | Sqlite3.Data.TEXT s -> Some s
+                  | _ -> None);
+                data =
+                  (match Sqlite3.column stmt 6 with
+                  | Sqlite3.Data.TEXT s -> Some s
+                  | _ -> None);
+                elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
+                elapsed_end_ns =
+                  (match Sqlite3.column stmt 8 with
+                  | Sqlite3.Data.INT ns -> Some (Int64.to_int ns)
+                  | _ -> None);
+                is_result = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 9) = 1;
+                log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
+                entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
+              }
+            in
+            entries := entry :: !entries;
+            loop ()
+        | _ -> ()
+      in
+      loop ();
+      Sqlite3.finalize stmt |> ignore;
+      List.rev !entries
+
+  (** Get entries from a results hashtable (as returned by populate_search_results).
+      This is much more efficient than get_entries() + filter for large databases. *)
+  let get_entries_from_results db ~results_table =
+    (* Extract all (scope_id, seq_id) pairs from hashtable *)
+    let pairs =
+      Hashtbl.fold (fun (scope_id, seq_id) _ acc -> (scope_id, seq_id) :: acc) results_table []
+    in
+    if pairs = [] then []
+    else
+      (* Group by scope_id for efficient batch querying *)
+      let scope_ids = List.map fst pairs |> List.sort_uniq compare in
+      let all_entries = get_entries_for_scopes db ~scope_ids in
+      (* Filter to only those in results_table *)
+      List.filter (fun e -> Hashtbl.mem results_table (e.scope_id, e.seq_id)) all_entries
 
   (** Get maximum scope_id for a run *)
   let get_max_scope_id db =
@@ -2684,12 +2876,7 @@ module Client = struct
     in
 
     (* Get all entries from DB and filter to only those in results_table *)
-    let all_entries = Query.get_entries t.db () in
-    let filtered_entries =
-      List.filter
-        (fun e -> Hashtbl.mem results_table (e.Query.scope_id, e.Query.seq_id))
-        all_entries
-    in
+    let filtered_entries = Query.get_entries_from_results t.db ~results_table in
 
     (* Build tree from filtered entries *)
     let all_trees = Renderer.build_tree_from_entries filtered_entries in
@@ -2749,9 +2936,9 @@ module Client = struct
     Query.populate_search_results t.db_path ~search_term:pattern ~quiet_path
       ~search_order:Query.AscendingIds ~completed_ref ~results_table;
 
-    (* Get all entries and build full tree *)
-    let all_entries = Query.get_entries t.db () in
-    let full_trees = Renderer.build_tree_from_entries all_entries in
+    (* Get entries from results_table (includes matches and propagated ancestors) *)
+    let filtered_entries = Query.get_entries_from_results t.db ~results_table in
+    let full_trees = Renderer.build_tree_from_entries filtered_entries in
 
     (* Prune tree: keep only nodes that have matches in their subtree *)
     let rec prune_tree node =
@@ -2891,17 +3078,8 @@ module Client = struct
     in
 
     (* Get entries for LCA scopes (just the header entries for compact display) *)
-    let all_entries = Query.get_entries t.db () in
     let lca_entries =
-      List.filter_map
-        (fun lca_scope_id ->
-          (* Find the header entry that creates this scope *)
-          List.find_opt
-            (fun e ->
-              match e.Query.child_scope_id with
-              | Some child_id when child_id = lca_scope_id -> true
-              | _ -> false)
-            all_entries)
+      List.filter_map (fun lca_scope_id -> Query.find_scope_header t.db ~scope_id:lca_scope_id)
         lca_scope_ids
     in
 
@@ -2995,15 +3173,7 @@ module Client = struct
     if show_ancestors then
       (* Show path from root to this scope *)
       let ancestors = Query.get_ancestors t.db ~scope_id in
-      let all_entries = Query.get_entries t.db () in
-      (* Filter to only ancestor scopes and the target scope *)
-      let ancestor_set =
-        List.fold_left (fun acc id -> Hashtbl.add acc id (); acc)
-          (Hashtbl.create 16) ancestors
-      in
-      let filtered_entries =
-        List.filter (fun e -> Hashtbl.mem ancestor_set e.Query.scope_id) all_entries
-      in
+      let filtered_entries = Query.get_entries_for_scopes t.db ~scope_ids:ancestors in
       let trees = Renderer.build_tree_from_entries filtered_entries in
       (match format with
       | `Text ->
@@ -3085,15 +3255,7 @@ module Client = struct
     else (
       (* Just show the subtree starting at scope_id *)
       (* First, find the header entry for this scope *)
-      let all_entries = Query.get_entries t.db () in
-      let header_entry_opt =
-        List.find_opt
-          (fun e ->
-            match e.Query.child_scope_id with
-            | Some id -> id = scope_id
-            | None -> false)
-          all_entries
-      in
+      let header_entry_opt = Query.find_scope_header t.db ~scope_id in
 
       match header_entry_opt with
       | None ->
@@ -3116,12 +3278,7 @@ module Client = struct
 
   (** Show detailed information for a specific entry *)
   let show_entry ?(output = Format.std_formatter) ?(format = `Text) t ~scope_id ~seq_id =
-    let all_entries = Query.get_entries t.db () in
-    match
-      List.find_opt
-        (fun e -> e.Query.scope_id = scope_id && e.Query.seq_id = seq_id)
-        all_entries
-    with
+    match Query.find_entry t.db ~scope_id ~seq_id with
     | None ->
         Printf.eprintf "Entry (%d, %d) not found\n" scope_id seq_id;
         exit 1
@@ -3156,15 +3313,7 @@ module Client = struct
     let all_paths = Query.get_all_ancestor_paths t.db ~scope_id in
 
     (* Fetch header entries for ancestors *)
-    let all_entries = Query.get_entries t.db () in
-    let get_entry_for_scope ancestor_id =
-      (* Find the header entry that creates this scope *)
-      List.find_opt
-        (fun e -> match e.Query.child_scope_id with
-          | Some cid -> cid = ancestor_id
-          | None -> false)
-        all_entries
-    in
+    let get_entry_for_scope ancestor_id = Query.find_scope_header t.db ~scope_id:ancestor_id in
 
     match format with
     | `Text ->
@@ -3357,15 +3506,8 @@ module Client = struct
     Query.populate_search_results t.db_path ~search_term:pattern ~quiet_path
       ~search_order:Query.AscendingIds ~completed_ref ~results_table;
 
-    (* Get all entries and filter to those in results *)
-    let all_entries = Query.get_entries t.db () in
-    let filtered_entries =
-      List.filter
-        (fun e -> Hashtbl.mem results_table (e.Query.scope_id, e.Query.seq_id))
-        all_entries
-    in
-
-    (* Filter to only entries at the specified depth *)
+    (* Get entries from results_table and filter to specified depth *)
+    let filtered_entries = Query.get_entries_from_results t.db ~results_table in
     let depth_entries =
       List.filter (fun e -> e.Query.depth = depth) filtered_entries
       |> List.sort_uniq (fun a b -> compare a.Query.scope_id b.Query.scope_id)

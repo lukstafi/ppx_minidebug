@@ -30,9 +30,9 @@ let () =
   Printf.printf "  Unique values: %d\n%!" stats.unique_values;
   Printf.printf "  Deduplication: %.1f%%\n\n%!" stats.dedup_percentage;
 
-  (* Get entries and show tree *)
-  let entries = Minidebug_client.Query.get_entries db () in
-  let trees = Minidebug_client.Renderer.build_tree_from_entries entries in
+  (* Get root entries and build tree from database *)
+  let root_entries = Minidebug_client.Query.get_root_entries db ~with_values:false in
+  let trees = Minidebug_client.Renderer.build_tree db root_entries in
   let output = Minidebug_client.Renderer.render_tree ~values_first_mode:true trees in
 
   Printf.printf "Trace (values_first_mode):\n%!";

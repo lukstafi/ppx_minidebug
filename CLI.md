@@ -671,14 +671,17 @@ ppx_minidebug/
 #### `minidebug_client.ml` - Core Library
 
 **Module: `Query`**
-- **Purpose:** Database access layer
+- **Purpose:** Database access layer (optimized for large databases)
 - **Key Functions:**
-  - `get_entries()`: Fetch all entries from database
+  - `find_entry()`: Find specific entry by (scope_id, seq_id)
+  - `find_scope_header()`: Find header entry that creates a scope
+  - `get_entries_for_scopes()`: Batch query for specific scope_ids
+  - `get_entries_from_results()`: Get entries from search results hashtable
   - `get_root_entries()`: Efficient root-only query
   - `get_scope_children()`: Get immediate children of a scope
   - `get_parent_id()`: Get parent scope
   - `get_ancestors()`: Recursive ancestor collection
-  - `search_entries()`: Regex-based search
+  - `search_entries()`: GLOB pattern search (uses SQLite GLOB operator)
   - `populate_search_results()`: TUI-style search with ancestor propagation
   - `get_runs()`: Metadata about trace runs
   - `get_stats()`: Database statistics
@@ -757,14 +760,11 @@ let search_tree ?(quiet_path = None) ?(format = `Text) t ~pattern =
   Query.populate_search_results t.db_path ~search_term:pattern
     ~quiet_path ~search_order:AscendingIds ~results_table;
 
-  (* 2. Extract entries from hash table *)
-  let all_entries = Query.get_entries t.db () in
-  let filtered_entries =
-    List.filter (fun e -> Hashtbl.mem results_table (e.scope_id, e.seq_id))
-      all_entries in
+  (* 2. Extract entries efficiently from results hashtable *)
+  let filtered_entries = Query.get_entries_from_results t.db ~results_table in
 
   (* 3. Build and render tree *)
-  let trees = Renderer.build_tree filtered_entries in
+  let trees = Renderer.build_tree_from_entries filtered_entries in
   match format with
   | `Text -> Renderer.render_tree trees
   | `Json -> Renderer.render_tree_json trees
@@ -772,11 +772,11 @@ let search_tree ?(quiet_path = None) ?(format = `Text) t ~pattern =
 
 **Key Insight:** Reuses `Query.populate_search_results()` from TUI, which:
 1. Streams through all entries
-2. Finds matches using regex
+2. Finds matches using GLOB pattern
 3. Propagates to ancestors (stops at quiet_path)
 4. Writes results to shared hash table
 
-This avoids duplicating complex TUI search logic in CLI.
+Then `get_entries_from_results()` efficiently queries only the scope_ids in the results table, avoiding loading all entries into memory. This scales to large databases.
 
 #### Search Subtree Algorithm (`Client.search_subtree`)
 
@@ -854,8 +854,10 @@ The CLI relies on the ppx_minidebug database schema v3+:
 3. **Implement in `Client` module:**
    ```ocaml
    let my_command ?(format = `Text) t ~arg =
-     let entries = Query.get_entries t.db () in
-     (* ... process entries ... *)
+     (* Use efficient queries - avoid loading all entries *)
+     let root_entries = Query.get_root_entries t.db ~with_values:false in
+     let trees = Renderer.build_tree t.db root_entries in
+     (* ... process trees ... *)
      match format with
      | `Text -> print_string result
      | `Json -> print_endline (to_json result)
@@ -922,21 +924,25 @@ To implement different search strategies:
 3. **`roots` command:** Efficient query without loading full tree
 4. **Streaming search:** `populate_search_results()` streams entries
 
-**Future Optimization:** Implement lazy tree building in CLI (currently loads all entries).
-
 #### Database Query Efficiency
 
-**Current Approach:**
-- Most commands use `get_entries()` which loads all entries
-- Navigation commands use targeted queries (`get_scope_children`, etc.)
+**Optimized Query Patterns (v3.1+):**
+- Removed `get_entries()` - no longer loads all entries into memory
+- **Targeted queries:** All commands use specific SQL queries:
+  - `find_entry()` - single entry by primary key
+  - `find_scope_header()` - header by child_scope_id
+  - `get_entries_for_scopes()` - batch query for specific scopes
+  - `get_entries_from_results()` - query only scopes in search results
+- **Tree building:** `Renderer.build_tree()` queries DB on-demand (lazy)
+- **Search:** `get_entries_from_results()` filters at SQL level before loading
 
-**Optimization Opportunities:**
-1. **Add WHERE clauses:** Filter at SQL level before loading into memory
-2. **Pagination:** `LIMIT` and `OFFSET` for large result sets
-3. **Prepared statements:** Cache frequently-used queries
-4. **Index usage:** Ensure proper indexes on `(scope_id, seq_id)`, `child_scope_id`
+**Key Optimizations:**
+1. ✅ **WHERE clauses:** All queries filter at SQL level
+2. ✅ **Batch queries:** `get_entries_for_scopes()` uses `IN (?,?,?)` for efficiency
+3. ✅ **Lazy tree building:** `Renderer.build_tree()` queries children on-demand
+4. ✅ **Index usage:** Primary key `(scope_id, seq_id)` and index on `child_scope_id`
 
-**Trade-off:** Current approach is simple and correct. Optimize only if profiling shows bottlenecks.
+**Result:** Commands scale to large databases without loading everything into memory.
 
 #### Search Performance
 
