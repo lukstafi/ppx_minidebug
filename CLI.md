@@ -1239,47 +1239,61 @@ This workflow reduces a 1M-entry trace to 3-7 key scopes in seconds!
 }
 ```
 
-**Future: Stateful Session-Based Server**
+**✅ Stateful Session-Based Server (IMPLEMENTED)**
 
-The current implementation is stateless (reloads DB per query). Future enhancement will add session caching for massive performance gains:
+The MCP server now uses a stateful session architecture with persistent database connections for massive performance gains:
 
-**Vision - Session Caching:**
+**Current Implementation - Session State:**
 ```ocaml
-type server_state = {
-  db: Sqlite3.db;
-  entries_cache: Query.entry array;  (* Load once *)
-  search_slots: (int, Hashtbl.t) Hashtbl.t;  (* 4 active searches *)
-  scope_cache: (int, tree_node) Hashtbl.t;  (* LRU cache *)
+type session_state = {
+  db_path : string;
+  query : (module Minidebug_client.Query.S);  (* First-class module with DB connection *)
+  search_cache : (string, (int * int, bool) Hashtbl.t) Hashtbl.t;
+      (* pattern -> results_table: (scope_id, seq_id) -> is_match *)
 }
 ```
 
-**Expected Performance (1M-entry DB):**
-- Current stateless: Each query ~5s (reloads DB)
-- Future cached: First query 5s, subsequent <0.1s
-- Speedup: 50x for multi-step workflows!
+**Key Features:**
+- **Persistent DB connection**: Single `Query.S` module maintains connection across all queries
+- **Search results caching**: `results_table` from `populate_search_results` can be cached by pattern
+- **Lazy initialization**: Use `minidebug/init-db` tool to initialize or switch databases
+- **Zero reopening overhead**: All tools use the same Query module instance
 
-**Planned Advanced Features:**
-- Search slot caching (reuse previous search results)
-- `search-intersection` across cached slots (instant)
+**Performance Benefits (1M-entry DB):**
+- ✅ **No DB reopening**: Connection stays open for entire session
+- ✅ **Instant metadata queries**: `list-runs`, `stats`, `get-ancestors` use cached DB connection
+- ✅ **Efficient search reuse**: Search results stored in `results_table` can be cached for repeated queries
+- 🚧 **Future**: Automatic search cache population for repeated patterns
+
+**Usage Patterns:**
+
+1. **Classic mode** (auto-initialize with DB path):
+   ```bash
+   minidebug_mcp trace.db
+   ```
+
+2. **Lazy initialization mode** (start without DB, use `init-db` tool):
+   ```bash
+   minidebug_mcp
+   # Then use minidebug/init-db tool with path
+   ```
+
+3. **Switch databases** (re-initialize with different DB):
+   ```bash
+   # Use minidebug/init-db tool with new path
+   ```
+
+**Multi-Query Workflow Example:**
+```
+1. "Find id 79" → populate_search_results creates results_table
+2. "Show scope 2093" → reuses same Query module (instant!)
+3. "Find id 1802" → populate_search_results with same connection
+```
+
+**Future Enhancements:**
+- Automatic search cache: Detect repeated patterns and reuse `results_table`
 - Background async searches with progress updates
 - Session persistence (save/resume debugging state)
-- Incremental depth exploration without re-scanning
-
-**Why Session State Matters:**
-
-LLM agents often ask follow-up questions in the same debugging session:
-```
-1. "Find id 79" → loads 1M entries (5s)
-2. "Show scope 2093" → reloads 1M entries (5s)  ← wasteful!
-3. "Find id 1802" → reloads again (5s)          ← wasteful!
-```
-
-With session caching:
-```
-1. "Find id 79" → loads 1M entries (5s), caches
-2. "Show scope 2093" → uses cache (<0.1s)       ← instant!
-3. "Find id 1802" → rescans cache (0.5s)        ← reuses loaded data!
-```
 
 See the full MCP server documentation below for current usage and implementation details.
 
