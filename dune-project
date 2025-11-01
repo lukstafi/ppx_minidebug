@@ -34,8 +34,8 @@
   (ppx_sexp_conv
    (>= v0.17.1))
   (ppxlib
-    ; NOTE: problem with test instability: 0.36.2 and 0.37 output more type annotations
-    (>= 0.36.2))
+   ; NOTE: problem with test instability: 0.36.2 and 0.37 output more type annotations
+   (>= 0.36.2))
   (printbox
    (>= 0.12))
   (printbox-text
@@ -60,6 +60,7 @@
    (>= 2.5.0))
   sqlite3
   (notty-community
-   (>= 0.2.4)))
+   (>= 0.2.4))
+  mcp)
  (tags
   (logger debugger "printf debugging")))
