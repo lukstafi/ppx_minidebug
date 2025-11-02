@@ -194,10 +194,72 @@ module type Db_config = sig
   include Minidebug_runtime.Shared_config
 end
 
-(** Global counter for versioning database files. Each runtime instance gets a unique run
-    number to prevent conflicts. This is process-global, shared across all DatabaseBackend
-    functor instances. *)
-let global_run_counter = Atomic.make 0
+(** Find the next available run number by checking the metadata DB and filesystem.
+    This is robust against multi-process scenarios. *)
+let find_next_run_number meta_handle base_filename =
+  (* First, check metadata DB for highest run number by parsing db_file names *)
+  let max_from_meta =
+    let stmt = Sqlite3.prepare meta_handle "SELECT db_file FROM runs" in
+    let base_pattern = Filename.basename (Filename.remove_extension base_filename) ^ "_" in
+    let ext = Filename.extension base_filename in
+    let rec collect_max acc =
+      match Sqlite3.step stmt with
+      | Sqlite3.Rc.ROW -> (
+          match Sqlite3.column stmt 0 with
+          | Sqlite3.Data.TEXT db_file -> (
+              (* Parse filename like "test_expect_test_5.db" *)
+              if String.starts_with ~prefix:base_pattern db_file
+                 && String.ends_with ~suffix:ext db_file then
+                try
+                  let start_idx = String.length base_pattern in
+                  let end_idx = String.length db_file - String.length ext in
+                  let num_str = String.sub db_file start_idx (end_idx - start_idx) in
+                  let num = int_of_string num_str in
+                  collect_max (max acc (Some num))
+                with _ -> collect_max acc
+              else collect_max acc)
+          | _ -> collect_max acc)
+      | Sqlite3.Rc.DONE -> acc
+      | _ -> acc
+    in
+    let result = collect_max None in
+    Sqlite3.finalize stmt |> ignore;
+    result
+  in
+
+  (* Also check filesystem for any orphaned files *)
+  let max_from_fs =
+    let base = Filename.remove_extension base_filename in
+    let dir = Filename.dirname base_filename in
+    let base_name = Filename.basename base in
+    let ext = Filename.extension base_filename in
+    try
+      let files = Sys.readdir dir in
+      Array.fold_left
+        (fun acc file ->
+          let prefix = base_name ^ "_" in
+          if String.starts_with ~prefix file && String.ends_with ~suffix:ext file then
+            try
+              let num_str =
+                String.sub file (String.length prefix)
+                  (String.length file - String.length prefix - String.length ext)
+              in
+              let num = int_of_string num_str in
+              max acc (Some num)
+            with _ -> acc
+          else acc)
+        None files
+    with _ -> None
+  in
+
+  (* Take the maximum of both sources and add 1 *)
+  let max_run =
+    match (max_from_meta, max_from_fs) with
+    | Some a, Some b -> max a b
+    | Some a, None | None, Some a -> a
+    | None, None -> 0
+  in
+  max_run + 1
 
 (** Database backend implementing Debug_runtime interface *)
 module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = struct
@@ -266,17 +328,6 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
 
   (** Initialize database connection *)
   let initialize_database base_filename =
-    (* Get unique run number from global counter - ensures no conflicts between multiple
-       runtime instances in the same process or across processes. *)
-    let run_number = Atomic.fetch_and_add global_run_counter 1 + 1 in
-
-    (* Version the filename with run number: debug.db -> debug_1.db, debug_2.db, etc. *)
-    let filename =
-      let base = Filename.remove_extension base_filename in
-      let ext = Filename.extension base_filename in
-      Printf.sprintf "%s_%d%s" base run_number ext
-    in
-
     (* Open/create metadata database: debug.db -> debug_meta.db *)
     let meta_filename =
       let base = Filename.remove_extension base_filename in
@@ -287,9 +338,24 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     Schema.initialize_meta_db meta_handle;
     meta_db := Some meta_handle;
 
-    (* Delete existing versioned file if present (safe because we have a unique
-       run_number) *)
-    if Sys.file_exists filename then Sys.remove filename;
+    (* Find next available run number by checking metadata DB and filesystem.
+       This is robust against multi-process scenarios. *)
+    let run_number = find_next_run_number meta_handle base_filename in
+
+    (* Version the filename with run number: debug.db -> debug_1.db, debug_2.db, etc. *)
+    let filename =
+      let base = Filename.remove_extension base_filename in
+      let ext = Filename.extension base_filename in
+      Printf.sprintf "%s_%d%s" base run_number ext
+    in
+
+    (* Verify the file doesn't exist - if it does, we have a race condition *)
+    if Sys.file_exists filename then
+      failwith
+        (Printf.sprintf
+           "Race condition detected: database file '%s' already exists. This should not \
+            happen with proper run number allocation."
+           filename);
 
     let db_handle = Sqlite3.db_open filename in
     Sqlite3.busy_timeout db_handle 5000;
@@ -323,7 +389,24 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
       | Some ns -> ns
     in
     let cmd = String.concat " " (Array.to_list Sys.argv) in
-    let run_name_str = if global_prefix = "" then None else Some global_prefix in
+    (* Strip trailing space from global_prefix for storage in metadata DB *)
+    let run_name_str =
+      if global_prefix = "" then None else Some (String.trim global_prefix)
+    in
+
+    (* Check if metadata DB is accessible before attempting INSERT *)
+    let check_stmt = Sqlite3.prepare meta_handle "SELECT 1" in
+    (match Sqlite3.step check_stmt with
+    | Sqlite3.Rc.ROW | Sqlite3.Rc.DONE -> ()
+    | rc ->
+        Sqlite3.finalize check_stmt |> ignore;
+        let err_msg =
+          Printf.sprintf
+            "Metadata DB '%s' is not accessible (possibly locked): %s (error: %s)"
+            meta_filename (Sqlite3.Rc.to_string rc) (Sqlite3.errmsg meta_handle)
+        in
+        failwith err_msg);
+    Sqlite3.finalize check_stmt |> ignore;
 
     let stmt =
       Sqlite3.prepare meta_handle
@@ -341,7 +424,16 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     Sqlite3.bind_text stmt 6 "active" |> ignore;
     (match Sqlite3.step stmt with
     | Sqlite3.Rc.DONE -> ()
-    | _ -> failwith "Failed to create run in metadata DB");
+    | rc ->
+        let err_msg =
+          Printf.sprintf
+            "Failed to create run in metadata DB '%s': %s (error: %s)\n\
+             Context: run_name=%s, db_file=%s, cmd=%s"
+            meta_filename (Sqlite3.Rc.to_string rc) (Sqlite3.errmsg meta_handle)
+            (Option.value ~default:"<none>" run_name_str)
+            (Filename.basename filename) cmd
+        in
+        failwith err_msg);
     Sqlite3.finalize stmt |> ignore;
 
     (* Get the run_id that was just inserted *)

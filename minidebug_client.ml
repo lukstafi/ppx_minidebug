@@ -25,6 +25,7 @@ module Query = struct
     elapsed_ns : int;
     command_line : string;
     run_name : string option;
+    db_file : string;
   }
 
   type stats = {
@@ -45,6 +46,7 @@ module Query = struct
   module type S = sig
     val get_runs : unit -> run_info list
     val get_latest_run_id : unit -> int option
+    val get_run_by_name : run_name:string -> run_info option
     val get_stats : unit -> stats
     val search_entries : pattern:string -> entry list
     val find_entry : scope_id:int -> seq_id:int -> entry option
@@ -101,8 +103,8 @@ module Query = struct
       let db = Sqlite3.db_open meta_db_path in
       let stmt =
         Sqlite3.prepare db
-          "SELECT run_id, run_name, timestamp, elapsed_ns, command_line FROM runs ORDER \
-           BY run_id DESC"
+          "SELECT run_id, run_name, timestamp, elapsed_ns, command_line, db_file FROM runs \
+           ORDER BY run_id DESC"
       in
       let runs = ref [] in
       let rec loop () =
@@ -118,6 +120,7 @@ module Query = struct
                   (match Sqlite3.column stmt 1 with
                   | Sqlite3.Data.TEXT s -> Some s
                   | _ -> None);
+                db_file = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 5);
               }
             in
             runs := run :: !runs;
@@ -174,6 +177,38 @@ module Query = struct
               | _ -> None
             in
             run_id
+
+    (** Get run by name from metadata database *)
+    let get_run_by_name =
+      match meta_db with
+      | None -> fun ~run_name:_ -> None
+      | Some mdb ->
+          let stmt =
+            Sqlite3.prepare mdb
+              "SELECT run_id, timestamp, elapsed_ns, command_line, run_name, db_file FROM \
+               runs WHERE run_name = ?"
+          in
+          fun ~run_name ->
+            Sqlite3.reset stmt |> ignore;
+            Sqlite3.bind_text stmt 1 run_name |> ignore;
+            let result =
+              match Sqlite3.step stmt with
+              | Sqlite3.Rc.ROW ->
+                  let run_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0) in
+                  let timestamp = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 1) in
+                  let elapsed_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 2) in
+                  let command_line = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 3) in
+                  let run_name_opt =
+                    match Sqlite3.column stmt 4 with
+                    | Sqlite3.Data.TEXT s -> Some s
+                    | _ -> None
+                  in
+                  let db_file = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 5) in
+                  Some
+                    { run_id; timestamp; elapsed_ns; command_line; run_name = run_name_opt; db_file }
+              | _ -> None
+            in
+            result
 
     (** Get database statistics *)
     let get_stats =
@@ -2887,6 +2922,11 @@ module Client = struct
         let runs = Q.get_runs () in
         List.find_opt (fun r -> r.Query.run_id = run_id) runs
     | None -> None
+
+  (** Get run by name *)
+  let get_run_by_name t ~run_name =
+    let module Q = (val t : Query.S) in
+    Q.get_run_by_name ~run_name
 
   (** Show run summary *)
   let show_run_summary ?(output = Format.std_formatter) t run_id =

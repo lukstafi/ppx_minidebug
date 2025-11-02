@@ -23,6 +23,7 @@ module Query : sig
     elapsed_ns : int;
     command_line : string;
     run_name : string option;
+    db_file : string;
   }
 
   type stats = {
@@ -39,6 +40,7 @@ module Query : sig
   module type S = sig
     val get_runs : unit -> run_info list
     val get_latest_run_id : unit -> int option
+    val get_run_by_name : run_name:string -> run_info option
     val get_stats : unit -> stats
     val search_entries : pattern:string -> entry list
     val find_entry : scope_id:int -> seq_id:int -> entry option
@@ -147,6 +149,9 @@ module Client : sig
 
   val get_latest_run : t -> Query.run_info option
   (** Get the run in the database *)
+
+  val get_run_by_name : t -> run_name:string -> Query.run_info option
+  (** Get a run by its name *)
 
   val show_run_summary : ?output:Format.formatter -> t -> int -> unit
   (** Print summary of the run with the given ID *)
