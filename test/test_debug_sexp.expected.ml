@@ -24,7 +24,9 @@ let foo (x : int) =
                     ~start_lnum:8 ~scope_id:__scope_id;
                   __res)
              | exception e ->
-                 (Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
+                 (Debug_runtime.log_exception ~scope_id:__scope_id
+                    ~log_level:1 e;
+                  Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
                     ~start_lnum:8 ~scope_id:__scope_id;
                   raise e)) in
           [x; y; 2 * y]
@@ -37,7 +39,8 @@ let foo (x : int) =
            ~scope_id:__scope_id;
          __res)
     | exception e ->
-        (Debug_runtime.close_log ~fname:"test_debug_sexp.ml" ~start_lnum:7
+        (Debug_runtime.log_exception ~scope_id:__scope_id ~log_level:1 e;
+         Debug_runtime.close_log ~fname:"test_debug_sexp.ml" ~start_lnum:7
            ~scope_id:__scope_id;
          raise e)) : int list)
 let () = ignore @@ (List.hd @@ (foo 7))
@@ -68,7 +71,9 @@ let bar (x : t) =
                     ~start_lnum:16 ~scope_id:__scope_id;
                   __res)
              | exception e ->
-                 (Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
+                 (Debug_runtime.log_exception ~scope_id:__scope_id
+                    ~log_level:1 e;
+                  Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
                     ~start_lnum:16 ~scope_id:__scope_id;
                   raise e)) in
           x.second * y
@@ -81,7 +86,8 @@ let bar (x : t) =
            ~scope_id:__scope_id;
          __res)
     | exception e ->
-        (Debug_runtime.close_log ~fname:"test_debug_sexp.ml" ~start_lnum:15
+        (Debug_runtime.log_exception ~scope_id:__scope_id ~log_level:1 e;
+         Debug_runtime.close_log ~fname:"test_debug_sexp.ml" ~start_lnum:15
            ~scope_id:__scope_id;
          raise e)) : int)
 let () = ignore @@ (bar { first = 7; second = 42 })
@@ -109,7 +115,9 @@ let baz (x : t) =
                     ~start_lnum:22 ~scope_id:__scope_id;
                   __res)
              | exception e ->
-                 (Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
+                 (Debug_runtime.log_exception ~scope_id:__scope_id
+                    ~log_level:1 e;
+                  Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
                     ~start_lnum:22 ~scope_id:__scope_id;
                   raise e)) in
           let ((u, w) as _uw) : (int * int) =
@@ -128,7 +136,9 @@ let baz (x : t) =
                     ~start_lnum:23 ~scope_id:__scope_id;
                   __res)
              | exception e ->
-                 (Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
+                 (Debug_runtime.log_exception ~scope_id:__scope_id
+                    ~log_level:1 e;
+                  Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
                     ~start_lnum:23 ~scope_id:__scope_id;
                   raise e)) in
           (((x.second * y) + z) + u) + w
@@ -141,7 +151,8 @@ let baz (x : t) =
            ~scope_id:__scope_id;
          __res)
     | exception e ->
-        (Debug_runtime.close_log ~fname:"test_debug_sexp.ml" ~start_lnum:21
+        (Debug_runtime.log_exception ~scope_id:__scope_id ~log_level:1 e;
+         Debug_runtime.close_log ~fname:"test_debug_sexp.ml" ~start_lnum:21
            ~scope_id:__scope_id;
          raise e)) : int)
 let () = ignore @@ (baz { first = 7; second = 42 })
@@ -169,7 +180,9 @@ let lab ~x:(x : int) =
                     ~start_lnum:29 ~scope_id:__scope_id;
                   __res)
              | exception e ->
-                 (Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
+                 (Debug_runtime.log_exception ~scope_id:__scope_id
+                    ~log_level:1 e;
+                  Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
                     ~start_lnum:29 ~scope_id:__scope_id;
                   raise e)) in
           [x; y; 2 * y]
@@ -182,7 +195,8 @@ let lab ~x:(x : int) =
            ~scope_id:__scope_id;
          __res)
     | exception e ->
-        (Debug_runtime.close_log ~fname:"test_debug_sexp.ml" ~start_lnum:28
+        (Debug_runtime.log_exception ~scope_id:__scope_id ~log_level:1 e;
+         Debug_runtime.close_log ~fname:"test_debug_sexp.ml" ~start_lnum:28
            ~scope_id:__scope_id;
          raise e)) : int list)
 let () = ignore @@ (List.hd @@ (lab ~x:7))
@@ -222,7 +236,9 @@ let rec loop (depth : int) (x : t) =
                          ~start_lnum:38 ~scope_id:__scope_id;
                        __res)
                   | exception e ->
-                      (Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
+                      (Debug_runtime.log_exception ~scope_id:__scope_id
+                         ~log_level:1 e;
+                       Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
                          ~start_lnum:38 ~scope_id:__scope_id;
                        raise e)) in
                let z : int =
@@ -243,7 +259,9 @@ let rec loop (depth : int) (x : t) =
                          ~start_lnum:39 ~scope_id:__scope_id;
                        __res)
                   | exception e ->
-                      (Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
+                      (Debug_runtime.log_exception ~scope_id:__scope_id
+                         ~log_level:1 e;
+                       Debug_runtime.close_log ~fname:"test_debug_sexp.ml"
                          ~start_lnum:39 ~scope_id:__scope_id;
                        raise e)) in
                z + 7)
@@ -256,7 +274,8 @@ let rec loop (depth : int) (x : t) =
            ~scope_id:__scope_id;
          __res)
     | exception e ->
-        (Debug_runtime.close_log ~fname:"test_debug_sexp.ml" ~start_lnum:34
+        (Debug_runtime.log_exception ~scope_id:__scope_id ~log_level:1 e;
+         Debug_runtime.close_log ~fname:"test_debug_sexp.ml" ~start_lnum:34
            ~scope_id:__scope_id;
          raise e)) : int)
 let () = ignore @@ (loop 0 { first = 7; second = 42 })

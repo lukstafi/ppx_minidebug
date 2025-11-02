@@ -600,6 +600,9 @@ let entry_with_interrupts context ~loc ?descr_loc ?message ~log_count_before ?he
                 [%e log_close];
                 [%e pat2expr result]
             | exception e ->
+                Debug_runtime.log_exception ~scope_id:__scope_id
+                  ~log_level:[%e ll_to_expr ~digit_loc:loc context.entry_log_level]
+                  e;
                 [%e log_close];
                 raise e)]
       else
@@ -612,6 +615,9 @@ let entry_with_interrupts context ~loc ?descr_loc ?message ~log_count_before ?he
               [%e log_close];
               [%e pat2expr result]
           | exception e ->
+              Debug_runtime.log_exception ~scope_id:__scope_id
+                ~log_level:[%e ll_to_expr ~digit_loc:loc context.entry_log_level]
+                e;
               [%e log_close];
               raise e]
     in
@@ -1502,6 +1508,9 @@ let traverse_expression =
                         [%e log_close];
                         if_then__result
                     | exception e ->
+                        Debug_runtime.log_exception ~scope_id:__scope_id
+                          ~log_level:[%e ll_to_expr ~digit_loc:loc context.entry_log_level]
+                          e;
                         [%e log_close];
                         raise e]
                 in
@@ -1544,6 +1553,9 @@ let traverse_expression =
                             [%e log_close];
                             if_else__result
                         | exception e ->
+                            Debug_runtime.log_exception ~scope_id:__scope_id
+                              ~log_level:[%e ll_to_expr ~digit_loc:loc context.entry_log_level]
+                              e;
                             [%e log_close];
                             raise e]
                     in
@@ -1609,6 +1621,9 @@ let traverse_expression =
                   match [%e { exp with pexp_desc }] with
                   | () -> [%e log_close]
                   | exception e ->
+                      Debug_runtime.log_exception ~scope_id:__scope_id
+                        ~log_level:[%e ll_to_expr ~digit_loc:loc context.entry_log_level]
+                        e;
                       [%e log_close];
                       raise e]
               in
@@ -1659,6 +1674,9 @@ let traverse_expression =
                   match [%e { exp with pexp_desc }] with
                   | () -> [%e log_close]
                   | exception e ->
+                      Debug_runtime.log_exception ~scope_id:__scope_id
+                        ~log_level:[%e ll_to_expr ~digit_loc:loc context.entry_log_level]
+                        e;
                       [%e log_close];
                       raise e]
               in

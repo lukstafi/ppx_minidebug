@@ -155,6 +155,12 @@ module type Debug_runtime = sig
     string Lazy.t ->
     unit
 
+  val log_exception : scope_id:int -> log_level:int -> exn -> unit
+  (** Log an exception within a scope. The exception is logged only once (at the point
+      closest to where it was raised) using physical equality to track already-logged
+      exceptions. The exception message is obtained via [Printexc.to_string] without
+      including the backtrace. *)
+
   val log_value_printbox : scope_id:int -> log_level:int -> PrintBox.t -> unit
   val exceeds_max_nesting : unit -> bool
   val exceeds_max_children : unit -> bool

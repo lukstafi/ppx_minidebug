@@ -44,7 +44,9 @@ let foo (x : int) =
                       ~start_lnum:8 ~scope_id:__scope_id;
                     __res)
                | exception e ->
-                   (Debug_runtime.close_log
+                   (Debug_runtime.log_exception ~scope_id:__scope_id
+                      ~log_level:1 e;
+                    Debug_runtime.close_log
                       ~fname:"test_debug_log_level_consistency.ml"
                       ~start_lnum:8 ~scope_id:__scope_id;
                     raise e)) in
@@ -59,7 +61,8 @@ let foo (x : int) =
              ~scope_id:__scope_id;
            __res)
       | exception e ->
-          (Debug_runtime.close_log
+          (Debug_runtime.log_exception ~scope_id:__scope_id ~log_level:1 e;
+           Debug_runtime.close_log
              ~fname:"test_debug_log_level_consistency.ml" ~start_lnum:7
              ~scope_id:__scope_id;
            raise e)) : int list)

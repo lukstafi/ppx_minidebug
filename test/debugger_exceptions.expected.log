@@ -1,0 +1,24 @@
+Run #1
+Command: ./test_debug_exceptions.exe
+
+[debug] failing_function @ test/test_debug_exceptions.ml:7:32-10:14
+  x = 0
+  <exception> = Division_by_zero
+[debug] nested_exception @ test/test_debug_exceptions.ml:12:32-14:7
+  y = -1
+  [debug] z @ test/test_debug_exceptions.ml:13:6-13:7
+    [debug] failing_function @ test/test_debug_exceptions.ml:7:32-10:14
+      x = -1
+      <exception> = Dune__exe__Test_debug_exceptions.Custom_error("negative input")
+[debug] reraise_test @ test/test_debug_exceptions.ml:16:28-19:16
+  n = 0
+  [debug] failing_function @ test/test_debug_exceptions.ml:7:32-10:14
+    x = 0
+    <exception> = Division_by_zero
+  <exception> = Dune__exe__Test_debug_exceptions.Custom_error("caught division by zero")
+[debug] failing_function @ test/test_debug_exceptions.ml:7:32-10:14
+  x = 0
+  <exception> = Division_by_zero
+[debug] failing_function @ test/test_debug_exceptions.ml:7:32-10:14
+  x = -1
+  <exception> = Dune__exe__Test_debug_exceptions.Custom_error("negative input")

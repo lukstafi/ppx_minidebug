@@ -31,7 +31,9 @@ let bar (x : t) =
                       ~start_lnum:9 ~scope_id:__scope_id;
                     __res)
                | exception e ->
-                   (Debug_runtime.close_log ~fname:"test_debug_pp.ml"
+                   (Debug_runtime.log_exception ~scope_id:__scope_id
+                      ~log_level:1 e;
+                    Debug_runtime.close_log ~fname:"test_debug_pp.ml"
                       ~start_lnum:9 ~scope_id:__scope_id;
                     raise e)) in
             x.second * y
@@ -44,7 +46,8 @@ let bar (x : t) =
              ~scope_id:__scope_id;
            __res)
       | exception e ->
-          (Debug_runtime.close_log ~fname:"test_debug_pp.ml" ~start_lnum:8
+          (Debug_runtime.log_exception ~scope_id:__scope_id ~log_level:1 e;
+           Debug_runtime.close_log ~fname:"test_debug_pp.ml" ~start_lnum:8
              ~scope_id:__scope_id;
            raise e)) : num)
 let () = ignore @@ (bar { first = 7; second = 42 })
@@ -75,7 +78,9 @@ let baz (x : t) =
                       ~start_lnum:15 ~scope_id:__scope_id;
                     __res)
                | exception e ->
-                   (Debug_runtime.close_log ~fname:"test_debug_pp.ml"
+                   (Debug_runtime.log_exception ~scope_id:__scope_id
+                      ~log_level:1 e;
+                    Debug_runtime.close_log ~fname:"test_debug_pp.ml"
                       ~start_lnum:15 ~scope_id:__scope_id;
                     raise e)) in
             (x.second * y) + z
@@ -88,7 +93,8 @@ let baz (x : t) =
              ~scope_id:__scope_id;
            __res)
       | exception e ->
-          (Debug_runtime.close_log ~fname:"test_debug_pp.ml" ~start_lnum:14
+          (Debug_runtime.log_exception ~scope_id:__scope_id ~log_level:1 e;
+           Debug_runtime.close_log ~fname:"test_debug_pp.ml" ~start_lnum:14
              ~scope_id:__scope_id;
            raise e)) : num)
 let () = ignore @@ (baz { first = 7; second = 42 })
@@ -133,7 +139,9 @@ let rec loop (depth : num) (x : t) =
                            ~start_lnum:24 ~scope_id:__scope_id;
                          __res)
                     | exception e ->
-                        (Debug_runtime.close_log ~fname:"test_debug_pp.ml"
+                        (Debug_runtime.log_exception ~scope_id:__scope_id
+                           ~log_level:1 e;
+                         Debug_runtime.close_log ~fname:"test_debug_pp.ml"
                            ~start_lnum:24 ~scope_id:__scope_id;
                          raise e)) in
                  let z : num =
@@ -155,7 +163,9 @@ let rec loop (depth : num) (x : t) =
                            ~start_lnum:25 ~scope_id:__scope_id;
                          __res)
                     | exception e ->
-                        (Debug_runtime.close_log ~fname:"test_debug_pp.ml"
+                        (Debug_runtime.log_exception ~scope_id:__scope_id
+                           ~log_level:1 e;
+                         Debug_runtime.close_log ~fname:"test_debug_pp.ml"
                            ~start_lnum:25 ~scope_id:__scope_id;
                          raise e)) in
                  z + 7)
@@ -168,7 +178,8 @@ let rec loop (depth : num) (x : t) =
              ~scope_id:__scope_id;
            __res)
       | exception e ->
-          (Debug_runtime.close_log ~fname:"test_debug_pp.ml" ~start_lnum:20
+          (Debug_runtime.log_exception ~scope_id:__scope_id ~log_level:1 e;
+           Debug_runtime.close_log ~fname:"test_debug_pp.ml" ~start_lnum:20
              ~scope_id:__scope_id;
            raise e)) : num)
 let () = ignore @@ (loop 0 { first = 7; second = 42 })

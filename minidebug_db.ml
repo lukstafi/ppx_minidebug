@@ -306,6 +306,9 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
   let orphaned_seq_counters =
     ref [] (* Per-scope_id counters for orphaned logs: (scope_id * seq_counter) list *)
 
+  let logged_exceptions = ref []
+  (* Track exceptions that have already been logged using physical equality *)
+
   (** Cache for boxified sexp structures - maps sexp content hash to scope_id. Enables
       deduplication of repeated substructures. Uses MD5 hash of sexp string for proper
       content-based deduplication. *)
@@ -1116,6 +1119,13 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
       let content = Lazy.force v in
       log_value_common ~descr ~scope_id ~log_level ~is_result content
 
+  let log_exception ~scope_id ~log_level exn =
+    if not (check_log_level log_level) then ()
+    else if not (List.exists (fun e -> e == exn) !logged_exceptions) then (
+      logged_exceptions := exn :: !logged_exceptions;
+      log_value_show ~descr:"<exception>" ~scope_id ~log_level ~is_result:false
+        (lazy (Printexc.to_string exn)))
+
   let log_value_printbox ~scope_id ~log_level v =
     if not (check_log_level log_level) then ()
     else
@@ -1185,8 +1195,11 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
         stack := rest;
         hidden_entries := List.filter (( <> ) scope_id) !hidden_entries;
 
-        (* If stack is now empty, we're leaving a top-level scope - commit transaction *)
-        if rest = [] then commit_toplevel_transaction ()
+        (* If stack is now empty, we're leaving a top-level scope - commit transaction and
+           clear exception tracking *)
+        if rest = [] then (
+          commit_toplevel_transaction ();
+          logged_exceptions := [])
     | _ -> ()
 
   let exceeds_max_nesting () =

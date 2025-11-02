@@ -25,7 +25,8 @@ let rec loop_exceeded (x : int) =
              ~start_lnum:8 ~scope_id:__scope_id;
            __res)
       | exception e ->
-          (Debug_runtime.close_log ~fname:"test_debug_log_prefixed.ml"
+          (Debug_runtime.log_exception ~scope_id:__scope_id ~log_level:1 e;
+           Debug_runtime.close_log ~fname:"test_debug_log_prefixed.ml"
              ~start_lnum:8 ~scope_id:__scope_id;
            raise e)) : int)
 let () =
@@ -76,7 +77,9 @@ let bar () =
                                       ~start_lnum:23 ~scope_id:__scope_id;
                                     __res)
                                | exception e ->
-                                   (Debug_runtime.close_log
+                                   (Debug_runtime.log_exception
+                                      ~scope_id:__scope_id ~log_level:1 e;
+                                    Debug_runtime.close_log
                                       ~fname:"test_debug_log_prefixed.ml"
                                       ~start_lnum:23 ~scope_id:__scope_id;
                                     raise e)) in
@@ -96,7 +99,9 @@ let bar () =
                              ~start_lnum:23 ~scope_id:__scope_id;
                            ())
                       | exception e ->
-                          (Debug_runtime.close_log
+                          (Debug_runtime.log_exception ~scope_id:__scope_id
+                             ~log_level:1 e;
+                           Debug_runtime.close_log
                              ~fname:"test_debug_log_prefixed.ml"
                              ~start_lnum:23 ~scope_id:__scope_id;
                            raise e))
@@ -106,7 +111,9 @@ let bar () =
                  Debug_runtime.close_log ~fname:"test_debug_log_prefixed.ml"
                    ~start_lnum:22 ~scope_id:__scope_id
              | exception e ->
-                 (Debug_runtime.close_log ~fname:"test_debug_log_prefixed.ml"
+                 (Debug_runtime.log_exception ~scope_id:__scope_id
+                    ~log_level:1 e;
+                  Debug_runtime.close_log ~fname:"test_debug_log_prefixed.ml"
                     ~start_lnum:22 ~scope_id:__scope_id;
                   raise e))
       with
@@ -118,7 +125,8 @@ let bar () =
              ~start_lnum:21 ~scope_id:__scope_id;
            __res)
       | exception e ->
-          (Debug_runtime.close_log ~fname:"test_debug_log_prefixed.ml"
+          (Debug_runtime.log_exception ~scope_id:__scope_id ~log_level:1 e;
+           Debug_runtime.close_log ~fname:"test_debug_log_prefixed.ml"
              ~start_lnum:21 ~scope_id:__scope_id;
            raise e)) : unit)
 let () = try bar () with | _ -> print_endline "Raised exception."

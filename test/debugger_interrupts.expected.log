@@ -25,6 +25,7 @@ Command: ./test_debug_interrupts.exe
             x : int = 12
             [debug] z @ test/test_debug_interrupts.ml:10:6-10:7
               z = <max_nesting_depth exceeded>
+            <exception> = Failure("ppx_minidebug: max_nesting_depth exceeded")
 [track] bar : unit @ test/test_debug_interrupts.ml:18:19-22:6
   [track] for:test_debug_interrupts:19 @ test/test_debug_interrupts.ml:19:2-22:6
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
@@ -74,3 +75,4 @@ Command: ./test_debug_interrupts.exe
     [track] <for i> @ test/test_debug_interrupts.ml:19:6-19:7
       i : int = 11
       i = <max_num_children exceeded>
+    <exception> = Failure("ppx_minidebug: max_num_children exceeded")

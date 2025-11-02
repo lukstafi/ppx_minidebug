@@ -223,6 +223,8 @@ module type Debug_runtime = sig
     string Lazy.t ->
     unit
 
+  val log_exception : scope_id:int -> log_level:int -> exn -> unit
+
   val log_value_printbox : scope_id:int -> log_level:int -> PrintBox.t -> unit
   val exceeds_max_nesting : unit -> bool
   val exceeds_max_children : unit -> bool
@@ -293,6 +295,7 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
   let hidden_entries = ref []
   let filtered_entries_tbl = Hashtbl.create 10
   let depth_stack = ref []
+  let logged_exceptions = ref []
   let indent () = String.make (List.length !stack) ' '
 
   let () =
@@ -355,7 +358,9 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         | [] -> ()
         | [ _ ] -> depth_stack := []
         | (cur_depth, cur_size) :: (depth, size) :: tl ->
-            depth_stack := (max depth (cur_depth + 1), cur_size + size) :: tl)
+            depth_stack := (max depth (cur_depth + 1), cur_size + size) :: tl;
+        (* Clear exception tracking when exiting root scope *)
+        if tl = [] then logged_exceptions := [])
 
   let open_log ~fname ~start_lnum ~start_colnum ~end_lnum ~end_colnum ~message ~scope_id
       ~log_level _track_or_explicit =
@@ -445,6 +450,14 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
       let v = Lazy.force lazy_v in
       Printf.fprintf (debug_ch ()) "%s%s%s%s%s\n%!" (indent ()) opt_global_prefix orphaned
         descr v
+
+  let log_exception ~scope_id ~log_level exn =
+    if check_log_level log_level
+       && not (List.exists (fun e -> e == exn) !logged_exceptions)
+    then (
+      logged_exceptions := exn :: !logged_exceptions;
+      log_value_show ~descr:"<exception>" ~scope_id ~log_level ~is_result:false
+        (lazy (Printexc.to_string exn)))
 
   let log_value_printbox ~scope_id ~log_level:_ v =
     if not (Hashtbl.mem filtered_entries_tbl scope_id) then
@@ -1215,6 +1228,7 @@ module PrintBox (Log_to : Shared_config) = struct
 
   let stack : entry list ref = ref []
   let hidden_entries = ref []
+  let logged_exceptions = ref []
 
   let hyperlink_path ~uri ~inner =
     match config.hyperlink with
@@ -1725,6 +1739,8 @@ module PrintBox (Log_to : Shared_config) = struct
           :: bs3
       | [ ({ toc_depth; _ } as entry) ] ->
           close_tree ~entry ~toc_depth;
+          (* Clear exception tracking when exiting root scope *)
+          logged_exceptions := [];
           []
       | [] -> assert false
 
@@ -2053,6 +2069,14 @@ module PrintBox (Log_to : Shared_config) = struct
       | None -> B.sprintf_with_style B.Style.preformatted "%s" v
       | Some d -> B.sprintf_with_style B.Style.preformatted "%s = %s" d v);
       opt_auto_snapshot ())
+
+  let log_exception ~scope_id ~log_level exn =
+    if check_log_level log_level
+       && not (List.exists (fun e -> e == exn) !logged_exceptions)
+    then (
+      logged_exceptions := exn :: !logged_exceptions;
+      log_value_show ~descr:"<exception>" ~scope_id ~log_level ~is_result:false
+        (lazy (Printexc.to_string exn)))
 
   let log_value_printbox ~scope_id ~log_level:_ v =
     if not (Hashtbl.mem filtered_entries_tbl scope_id) then (

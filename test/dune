@@ -233,6 +233,31 @@
   (diff debugger_interrupts.expected.log debugger_interrupts.log)))
 
 (executable
+ (name test_debug_exceptions)
+ (modules test_debug_exceptions)
+ (libraries minidebug_db)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_deriving.show)))
+
+(rule
+ (targets debugger_exceptions.db debugger_exceptions.log)
+ (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
+ (action
+  (progn
+   (run %{dep:test_debug_exceptions.exe})
+   (with-stdout-to
+    debugger_exceptions.log
+    (pipe-stdout
+     (run %{dep:../bin/minidebug_view.exe} debugger_exceptions.db show)
+     (run %{dep:../bin/filter_test_output.exe}))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_exceptions.expected.log debugger_exceptions.log)))
+
+(executable
  (name test_debug_log_nothing)
  (modules test_debug_log_nothing)
  (libraries minidebug_runtime)

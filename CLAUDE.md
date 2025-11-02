@@ -6,7 +6,7 @@ ppx_minidebug is an OCaml PPX extension for debug logging. It has two main compo
 - **minidebug_runtime.ml**: The runtime library providing the types and the legacy Flushing and PrintBox backends (deprecated in 3.0.0)
 - **minidebug_db.ml**: The database backend (3.0+ default) using SQLite with content-addressed value storage
 
-The preprocessor generates calls to `Debug_runtime.log_value_{sexp,pp,show}` which are provided by functors in the runtime.
+The preprocessor generates calls to `Debug_runtime.log_value_{sexp,pp,show}` and `Debug_runtime.log_exception` which are provided by functors in the runtime.
 
 ### 3.0.0 Architecture Shift
 Version 3.0.0 transitions from static file generation (PrintBox/Flushing) to database-backed tracing:
@@ -43,8 +43,10 @@ The preprocessor transforms annotated bindings into instrumented code with loggi
   - `let module Debug_runtime = (val _get_local_debug_runtime ()) in` - fetches runtime instance
   - `Debug_runtime.open_log` - creates scope entry
   - `Debug_runtime.log_value_{sexp,pp,show}` - logs parameters/results
+  - `Debug_runtime.log_exception` - logs exceptions (in exception handlers: `| exception e -> log_exception e; close_log; raise e`)
   - `Debug_runtime.close_log` - finalizes scope
 - **Lazy evaluation**: All logged values wrapped in `lazy` to defer serialization until log level check passes
+- **Exception logging**: Exceptions are logged once at the point closest to where they're raised, using physical equality to prevent duplicate logging as they unwind the stack
 
 ### Database Backend Design (3.0+)
 - **Lazy initialization**: Database only created when first log occurs - crucial for production code
@@ -70,6 +72,12 @@ The preprocessor transforms annotated bindings into instrumented code with loggi
 3. **User provides `_get_local_debug_runtime` ONLY** in typical use cases
 4. **`_o_` extensions are different**: `debug_o_`, `track_o_`, `diagn_o_` use pre-existing module, e.g. a manual `module Debug_runtime =` binding
 5. **Runtime instance reuse**: Pattern `let rt = ... in fun () -> rt` ensures single instance shared across all calls
+6. **Adding new runtime functions**: When adding functions to `Debug_runtime` signature:
+   - Add to `minidebug_runtime.mli` (interface)
+   - Add to `module type Debug_runtime` in `minidebug_runtime.ml` (implementation constraint)
+   - Implement in all three backends: `DatabaseBackend` (minidebug_db.ml), `Flushing`, and `PrintBox` (both in minidebug_runtime.ml)
+   - Update PPX code generation if the function is meant to be called by generated code
+   - Run `dune test --auto-promote` to update all test expectations when PPX output changes
 
 ### Legacy Runtime Structure (minidebug_runtime.ml - deprecated)
 - **Two backends share code**: Flushing and PrintBox both use `Shared_config` module type
@@ -80,6 +88,7 @@ The preprocessor transforms annotated bindings into instrumented code with loggi
 - **Database backend tests**: Use dune rules to generate `.db` files, then pipe through `minidebug_view` to `.log` for comparison
 - **PPX-only tests**: only verify code generation, not the backend behavior
 - **Promote workflow**: Run test, generate output via `minidebug_view`, `dune promote` to capture expected output
+- **Exception tracking state**: `logged_exceptions` ref is cleared when exiting root scope (stack empty), ensuring proper cleanup between top-level calls
 
 ## Common Patterns
 
@@ -106,18 +115,37 @@ let _get_local_debug_runtime =
 (* In test/dune *)
 (executable
  (name test_my_feature)
+ (modules test_my_feature)
  (libraries minidebug_db)
+ (modes exe)
  (preprocess (pps ppx_minidebug ppx_deriving.show)))
 
 (rule
  (targets debugger_my_feature.db debugger_my_feature.log)
- (deps ../bin/minidebug_view.exe)
+ (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
  (action
   (progn
    (run %{dep:test_my_feature.exe})
-   (with-stdout-to debugger_my_feature.log
-    (run %{dep:../bin/minidebug_view.exe} debugger_my_feature.db show)))))
+   (with-stdout-to
+    debugger_my_feature.log
+    (pipe-stdout
+     (run %{dep:../bin/minidebug_view.exe} debugger_my_feature.db show)
+     (run %{dep:../bin/filter_test_output.exe}))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_my_feature.expected.log debugger_my_feature.log)))
 ```
+
+**Testing workflow**:
+1. Create test file `test/test_my_feature.ml` with runtime setup and test code
+2. Add executable and rule stanzas to `test/dune` (as above)
+3. Run `dune exec test/test_my_feature.exe` to generate initial `.db` file
+4. View output: `dune exec bin/minidebug_view.exe debugger_my_feature.db show`
+5. Create expected output: `dune exec bin/minidebug_view.exe debugger_my_feature.db show | _build/default/bin/filter_test_output.exe > test/debugger_my_feature.expected.log`
+6. Run tests: `dune test --auto-promote` to generate and promote all test outputs
+7. Verify: `dune runtest` should pass with no diffs
 
 ## Coding Conventions
 - **Formatting**: Use OCamlformat with profile=default, margin=90
