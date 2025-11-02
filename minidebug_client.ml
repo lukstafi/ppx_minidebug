@@ -2010,6 +2010,11 @@ module Interactive = struct
   open Notty
   open Notty_unix
 
+  (** Sanitize text for Notty: replace control chars (newlines, tabs, etc.) with spaces.
+      Notty's I.string doesn't accept control characters (codes < 32 or = 127). *)
+  let sanitize_for_notty s =
+    String.map (fun c -> if Char.code c < 32 || Char.code c = 127 then ' ' else c) s
+
   (** Poll for terminal event with timeout. Returns None on timeout. *)
   let event_with_timeout term timeout_sec =
     (* Get the input file descriptor from stdin *)
@@ -2327,9 +2332,12 @@ module Interactive = struct
 
     let full_text = content ^ time_str in
     let truncated =
-      if String.length full_text > content_width then
-        String.sub full_text 0 (content_width - 3) ^ "..."
-      else full_text
+      let t =
+        if String.length full_text > content_width then
+          String.sub full_text 0 (content_width - 3) ^ "..."
+        else full_text
+      in
+      sanitize_for_notty t
     in
 
     (* Get all matching search slots for checkered pattern *)
@@ -2429,12 +2437,14 @@ module Interactive = struct
         match state.quiet_path_input with
         | Some input ->
             (* Show quiet_path input prompt *)
-            I.string A.(fg lightred) (Printf.sprintf "Quiet Path: %s_" input)
+            I.string A.(fg lightred)
+              (sanitize_for_notty (Printf.sprintf "Quiet Path: %s_" input))
         | None -> (
             match state.search_input with
             | Some input ->
                 (* Show search input prompt *)
-                I.string A.(fg lightyellow) (Printf.sprintf "Search: %s_" input)
+                I.string A.(fg lightyellow)
+                  (sanitize_for_notty (Printf.sprintf "Search: %s_" input))
             | None ->
                 (* Show run info and search status *)
                 let search_order_str =
@@ -2466,7 +2476,9 @@ module Interactive = struct
                         else Printf.sprintf "[%d...]" count
                       in
                       active_searches :=
-                        Printf.sprintf "%s:%s%s" color_name slot.search_term count_str
+                        Printf.sprintf "%s:%s%s" color_name
+                          (sanitize_for_notty slot.search_term)
+                          count_str
                         :: !active_searches)
                     state.search_slots;
                   if !active_searches = [] then ""
@@ -2475,10 +2487,11 @@ module Interactive = struct
                 (* Add quiet_path indicator if set *)
                 let quiet_info =
                   match state.quiet_path with
-                  | Some qp -> Printf.sprintf " | Q:%s" qp
+                  | Some qp -> Printf.sprintf " | Q:%s" (sanitize_for_notty qp)
                   | None -> ""
                 in
-                I.string A.(fg lightcyan) (base_info ^ search_status ^ quiet_info))
+                I.string A.(fg lightcyan)
+                  (sanitize_for_notty (base_info ^ search_status ^ quiet_info)))
       in
       I.vcat [ line1; I.string A.(fg white) (String.make term_width '-') ]
     in
