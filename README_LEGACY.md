@@ -272,29 +272,29 @@ The setting `max_nesting_depth` terminates a computation when the given log nest
   [%expect
     {|
     Raised exception.
-    [debug] loop_exceeded @ test/test_expect_test.ml:277:35-281:60
+    [debug] loop_exceeded @ test/test_expect_test.ml:248:35-252:60
       x = 7
-      [debug] z @ test/test_expect_test.ml:280:10-280:11
+      [debug] z @ test/test_expect_test.ml:251:10-251:11
         z => 3
-      [debug] loop_exceeded @ test/test_expect_test.ml:277:35-281:60
+      [debug] loop_exceeded @ test/test_expect_test.ml:248:35-252:60
         x = 6
-        [debug] z @ test/test_expect_test.ml:280:10-280:11
+        [debug] z @ test/test_expect_test.ml:251:10-251:11
           z => 2
-        [debug] loop_exceeded @ test/test_expect_test.ml:277:35-281:60
+        [debug] loop_exceeded @ test/test_expect_test.ml:248:35-252:60
           x = 5
-          [debug] z @ test/test_expect_test.ml:280:10-280:11
+          [debug] z @ test/test_expect_test.ml:251:10-251:11
             z => 2
-          [debug] loop_exceeded @ test/test_expect_test.ml:277:35-281:60
+          [debug] loop_exceeded @ test/test_expect_test.ml:248:35-252:60
             x = 4
-            [debug] z @ test/test_expect_test.ml:280:10-280:11
+            [debug] z @ test/test_expect_test.ml:251:10-251:11
               z => 1
-            [debug] loop_exceeded @ test/test_expect_test.ml:277:35-281:60
+            [debug] loop_exceeded @ test/test_expect_test.ml:248:35-252:60
               x = 3
-              [debug] z @ test/test_expect_test.ml:280:10-280:11
+              [debug] z @ test/test_expect_test.ml:251:10-251:11
                 z => 1
-              [debug] loop_exceeded @ test/test_expect_test.ml:277:35-281:60
+              [debug] loop_exceeded @ test/test_expect_test.ml:248:35-252:60
                 x = 2
-                [debug] z @ test/test_expect_test.ml:280:10-280:11
+                [debug] z @ test/test_expect_test.ml:251:10-251:11
                   z = <max_nesting_depth exceeded>
     |}]
 ```
@@ -321,30 +321,30 @@ Similarly, `max_num_children` raises a failure when the given number of logs wit
   [%expect
     {|
     Raised exception: ppx_minidebug: max_num_children exceeded
-    [debug] _bar @ test/test_expect_test.ml:328:21-328:25
-      [debug] _baz @ test/test_expect_test.ml:332:16-332:20
+    [debug] _bar @ test/test_expect_test.ml:299:21-299:25
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
         _baz => 0
-      [debug] _baz @ test/test_expect_test.ml:332:16-332:20
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
         _baz => 2
-      [debug] _baz @ test/test_expect_test.ml:332:16-332:20
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
         _baz => 4
-      [debug] _baz @ test/test_expect_test.ml:332:16-332:20
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
         _baz => 6
-      [debug] _baz @ test/test_expect_test.ml:332:16-332:20
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
         _baz => 8
-      [debug] _baz @ test/test_expect_test.ml:332:16-332:20
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
         _baz => 10
-      [debug] _baz @ test/test_expect_test.ml:332:16-332:20
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
         _baz => 12
-      [debug] _baz @ test/test_expect_test.ml:332:16-332:20
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
         _baz => 14
-      [debug] _baz @ test/test_expect_test.ml:332:16-332:20
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
         _baz => 16
-      [debug] _baz @ test/test_expect_test.ml:332:16-332:20
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
         _baz => 18
-      [debug] _baz @ test/test_expect_test.ml:332:16-332:20
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
         _baz => 20
-      [debug] _baz @ test/test_expect_test.ml:332:16-332:20
+      [debug] _baz @ test/test_expect_test.ml:303:16-303:20
         _baz = <max_num_children exceeded>
     |}]
 ```
@@ -406,18 +406,18 @@ Example that also illustrates disabling tracing:
     {|
     8
     3
-    [track] track_branches @ test/test_expect_test.ml:722:32-736:16
+    [track] track_branches @ test/test_expect_test.ml:715:32-729:16
       x = 8
-      [track] else:test_expect_test:731 @ test/test_expect_test.ml:731:6-736:16
-        [track] <match -- branch 2> @ test/test_expect_test.ml:735:10-736:16
-          [track] result @ test/test_expect_test.ml:735:14-735:20
-            then:test_expect_test:735 =
+      [track] else:test_expect_test:724 @ test/test_expect_test.ml:724:6-729:16
+        [track] <match -- branch 2> @ test/test_expect_test.ml:728:10-729:16
+          [track] result @ test/test_expect_test.ml:728:14-728:20
+            then:test_expect_test:728 =
             result => 8
       track_branches => 8
-    [track] track_branches @ test/test_expect_test.ml:722:32-736:16
+    [track] track_branches @ test/test_expect_test.ml:715:32-729:16
       x = 3
-      [track] then:test_expect_test:724 @ test/test_expect_test.ml:724:6-729:16
-        [debug] result @ test/test_expect_test.ml:728:14-728:20
+      [track] then:test_expect_test:717 @ test/test_expect_test.ml:717:6-722:16
+        [debug] result @ test/test_expect_test.ml:721:14-721:20
           result => 3
       track_branches => 3
     |}]
@@ -439,15 +439,15 @@ Another example:
   [%expect
     {|
     6
-    [track] anonymous @ test/test_expect_test.ml:938:27-939:70
+    [track] anonymous @ test/test_expect_test.ml:931:27-932:70
       x = 3
-      [track] fun:test_expect_test:939 @ test/test_expect_test.ml:939:50-939:70
+      [track] fun:test_expect_test:932 @ test/test_expect_test.ml:932:50-932:70
         i = 0
-      [track] fun:test_expect_test:939 @ test/test_expect_test.ml:939:50-939:70
+      [track] fun:test_expect_test:932 @ test/test_expect_test.ml:932:50-932:70
         i = 1
-      [track] fun:test_expect_test:939 @ test/test_expect_test.ml:939:50-939:70
+      [track] fun:test_expect_test:932 @ test/test_expect_test.ml:932:50-932:70
         i = 2
-      [track] fun:test_expect_test:939 @ test/test_expect_test.ml:939:50-939:70
+      [track] fun:test_expect_test:932 @ test/test_expect_test.ml:932:50-932:70
         i = 3
     |}]
 ```
@@ -479,29 +479,29 @@ Explicit logging statements also help with tracking the execution, since they ca
   Minidebug_client.Client.show_trace db;
   [%expect {|
     21
-    [track] result @ test/test_expect_test.ml:1922:17-1922:23
-      [track] while:test_expect_test:1925 @ test/test_expect_test.ml:1925:4-1931:8
-        [track] <while loop> @ test/test_expect_test.ml:1926:6-1930:32
+    [track] result @ test/test_expect_test.ml:1915:17-1915:23
+      [track] while:test_expect_test:1918 @ test/test_expect_test.ml:1918:4-1924:8
+        [track] <while loop> @ test/test_expect_test.ml:1919:6-1923:32
           (1 i= 0)
           (2 i= 1)
           (3 j= 1)
-        [track] <while loop> @ test/test_expect_test.ml:1926:6-1930:32
+        [track] <while loop> @ test/test_expect_test.ml:1919:6-1923:32
           (1 i= 1)
           (2 i= 2)
           (3 j= 3)
-        [track] <while loop> @ test/test_expect_test.ml:1926:6-1930:32
+        [track] <while loop> @ test/test_expect_test.ml:1919:6-1923:32
           (1 i= 2)
           (2 i= 3)
           (3 j= 6)
-        [track] <while loop> @ test/test_expect_test.ml:1926:6-1930:32
+        [track] <while loop> @ test/test_expect_test.ml:1919:6-1923:32
           (1 i= 3)
           (2 i= 4)
           (3 j= 10)
-        [track] <while loop> @ test/test_expect_test.ml:1926:6-1930:32
+        [track] <while loop> @ test/test_expect_test.ml:1919:6-1923:32
           (1 i= 4)
           (2 i= 5)
           (3 j= 15)
-        [track] <while loop> @ test/test_expect_test.ml:1926:6-1930:32
+        [track] <while loop> @ test/test_expect_test.ml:1919:6-1923:32
           (1 i= 5)
           (2 i= 6)
           (3 j= 21)
@@ -548,9 +548,9 @@ The `%diagn_` extension points further restrict logging to explicit logs only. E
     {|
     336
     91
-    [diagn] bar @ test/test_expect_test.ml:2415:21-2419:15
+    [diagn] bar @ test/test_expect_test.ml:2413:21-2417:15
       ("for bar, b-3", 42)
-    [diagn] baz @ test/test_expect_test.ml:2422:21-2427:25
+    [diagn] baz @ test/test_expect_test.ml:2420:21-2425:25
       ("foo baz, f squared", 49)
     |}]
 ```
@@ -619,7 +619,7 @@ Another example from the test suite, notice how the log level of `%log1` overrid
 ```ocaml
   let run_name = "line_" ^ Int.to_string __LINE__ in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~log_level:2 db_file_base in
+    let rt = Minidebug_db.debug_db_file ~log_level:2 ~run_name db_file_base in
     fun () -> rt
   in
   let%debug3_show () =
@@ -646,23 +646,18 @@ Another example from the test suite, notice how the log level of `%log1` overrid
   in
   let db = Option.get (open_db_by_run_name run_name) in
   Minidebug_client.Client.show_trace db;
-  [%expect.unreachable]
-[@@expect.uncaught_exn {|
-  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
-     This is strongly discouraged as backtraces are fragile.
-     Please change this test to not include a backtrace. *)
-  (Invalid_argument "option is None")
-  Raised at Stdlib.invalid_arg in file "stdlib.ml", line 30, characters 20-45
-  Called from Stdlib__Option.get in file "option.ml" (inlined), line 21, characters 41-69
-  Called from Test_inline_tests__Test_expect_test.(fun) in file "test/test_expect_test.ml", line 2543, characters 11-52
-  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
-
-  Trailing output
-  ---------------
-  336
-  336
-  109
-  |}]
+  [%expect {|
+    336
+    336
+    109
+    [debug] baz => 109 @ test/test_expect_test.ml:2532:24-2535:30
+      first = 7
+      second = 42
+      [debug] {first; second} @ test/test_expect_test.ml:2533:10-2533:39
+        first => 8
+        second => 45
+      ("for baz, f squared", 64)
+    |}]
 ```
 
 The extension point `%log_result` lets you benefit from the `values_first_mode` setting even when using only explicit logs. Conveying more information in headers lets you explore logs more quickly.
@@ -696,7 +691,7 @@ The extension point `%log_printbox` lets you embed a `PrintBox.t` in the logs di
   Minidebug_client.Client.show_trace db;
   [%expect
     {|
-    [debug] foo => () @ test/test_expect_test.ml:2588:21-2601:91
+    [debug] foo => () @ test/test_expect_test.ml:2581:21-2594:91
       0/0│0/1│0/2│0/3│0/4
     ───┼───┼───┼───┼───
     1/0│1/1│1/2│1/3│1/4
@@ -783,7 +778,7 @@ The extension point `%log_entry` lets you shape arbitrary log tree structures. T
   in
   Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name run_name));
   [%expect {|
-    [diagn] _logging_logic @ test/test_expect_test.ml:2655:17-2655:31
+    [diagn] _logging_logic @ test/test_expect_test.ml:2648:17-2648:31
       "preamble"
       [diagn] header 1 @ :0:0-0:0
         "log 1"
@@ -854,7 +849,7 @@ expose the (lexical) entry id except when passing `~verbose_scope_ids:true` to t
 ```ocaml
   let run_name = "line_" ^ Int.to_string __LINE__ in
   let _get_local_debug_runtime =
-    let rt = Minidebug_db.debug_db_file ~print_scope_ids:true db_file_base in
+    let rt = Minidebug_db.debug_db_file ~print_scope_ids:true ~run_name db_file_base in
     fun () -> rt
   in
   let i = 3 in
@@ -886,17 +881,22 @@ expose the (lexical) entry id except when passing `~verbose_scope_ids:true` to t
   let () = !foo2 () in
   let db = Option.get (open_db_by_run_name run_name) in
   Minidebug_client.Client.show_trace db;
-  [%expect.unreachable]
-[@@expect.uncaught_exn {|
-  (* CR expect_test_collector: This test expectation appears to contain a backtrace.
-     This is strongly discouraged as backtraces are fragile.
-     Please change this test to not include a backtrace. *)
-  (Invalid_argument "option is None")
-  Raised at Stdlib.invalid_arg in file "stdlib.ml", line 30, characters 20-45
-  Called from Stdlib__Option.get in file "option.ml" (inlined), line 21, characters 41-69
-  Called from Test_inline_tests__Test_expect_test.(fun) in file "test/test_expect_test.ml", line 2361, characters 11-52
-  Called from Ppx_expect_runtime__Test_block.Configured.dump_backtrace in file "runtime/test_block.ml", line 142, characters 10-28
-  |}]
+  [%expect {|
+    [debug] bar => () @ test/test_expect_test.ml:2333:21-2338:19
+      ("This is like", 3, "or", 3.14, "above")
+      ("tau =", 6.28)
+      ("This is like", 3, "or", 3.14, "above")
+      ("tau =", 6.28)
+    [debug] baz => () @ test/test_expect_test.ml:2340:21-2345:19
+      [3; 1; 2; 3]
+      [3; 1; 2; 3]
+      [3; 1; 2; 3]
+      [3; 1; 2; 3]
+    [debug] bar => () @ test/test_expect_test.ml:2333:21-2338:19
+      ("This is like", 3, "or", 3.14, "above")
+      ("tau =", 6.28)
+    [debug] _foobar => () @ test/test_expect_test.ml:2352:17-2352:24
+    |}]
 ```
 
 `~verbose_scope_ids:true` tags all logs with entry ids, it shouldn't be needed in regular use.
@@ -1015,17 +1015,17 @@ The test suite example:
   [%expect
     {|
     9
-    [debug] loop_changes @ test/test_expect_test.ml:179:34-185:7
+    [debug] loop_changes @ test/test_expect_test.ml:150:34-156:7
       x = 7
-      [debug] z @ test/test_expect_test.ml:180:8-180:9
+      [debug] z @ test/test_expect_test.ml:151:8-151:9
         z => 3
-      [debug] loop_changes @ test/test_expect_test.ml:179:34-185:7
+      [debug] loop_changes @ test/test_expect_test.ml:150:34-156:7
         x = 6
-        [debug] z @ test/test_expect_test.ml:180:8-180:9
+        [debug] z @ test/test_expect_test.ml:151:8-151:9
           z => 2
-        [debug] loop_changes @ test/test_expect_test.ml:179:34-185:7
+        [debug] loop_changes @ test/test_expect_test.ml:150:34-156:7
           x = 5
-          [debug] z @ test/test_expect_test.ml:180:8-180:9
+          [debug] z @ test/test_expect_test.ml:151:8-151:9
             z => 2
           loop_changes => 4
         loop_changes => 6
@@ -1434,9 +1434,9 @@ As a help in debugging whether the right type information got propagated, we off
     {|
     7
     12
-    [debug] f : int => 7 @ test/test_expect_test.ml:1628:37-1628:54
+    [debug] f : int => 7 @ test/test_expect_test.ml:1621:37-1621:54
       b : int = 6
-    [debug] g : int => 12 @ test/test_expect_test.ml:1629:49-1629:72
+    [debug] g : int => 12 @ test/test_expect_test.ml:1622:49-1622:72
       b : int = 6
     |}]
 ```
@@ -1477,14 +1477,14 @@ Example from the test suite:
   Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "baz-2")) ~values_first_mode:true;
   [%expect {|
     14
-    [track] foo => 14 @ test/test_expect_test.ml:1734:24-1734:85
-      [track] <match -- branch 1> :: (y, _) @ test/test_expect_test.ml:1734:80-1734:85
+    [track] foo => 14 @ test/test_expect_test.ml:1727:24-1727:85
+      [track] <match -- branch 1> :: (y, _) @ test/test_expect_test.ml:1727:80-1727:85
         y = 7
     8
-    [track] <function -- branch 1> :: (y, []) => baz = 8 @ test/test_expect_test.ml:1739:15-1739:20
+    [track] <function -- branch 1> :: (y, []) => baz = 8 @ test/test_expect_test.ml:1732:15-1732:20
       y = 4
     10
-    [track] <function -- branch 3> :: (y, :: (z, _)) => baz = 10 @ test/test_expect_test.ml:1741:21-1741:30
+    [track] <function -- branch 3> :: (y, :: (z, _)) => baz = 10 @ test/test_expect_test.ml:1734:21-1734:30
       y = 4
       z = 5
     |}]
