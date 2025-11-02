@@ -153,6 +153,14 @@ module Client : sig
   val get_run_by_name : t -> run_name:string -> Query.run_info option
   (** Get a run by its name *)
 
+  val open_by_run_name : meta_file_base:string -> run_name:string -> t option
+  (** Open database by run name - looks up the run in the metadata DB and opens the
+      corresponding versioned database file. Returns None if the run doesn't exist
+      (e.g., when log_level prevents DB creation).
+
+      @param meta_file_base The base filename (without "_meta.db" suffix) for the metadata database
+      @param run_name The name of the run to look up *)
+
   val show_run_summary : ?output:Format.formatter -> t -> int -> unit
   (** Print summary of the run with the given ID *)
 

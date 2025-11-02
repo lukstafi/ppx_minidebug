@@ -2928,6 +2928,38 @@ module Client = struct
     let module Q = (val t : Query.S) in
     Q.get_run_by_name ~run_name
 
+  (** Open database by run name - looks up the run in the metadata DB and opens the
+      corresponding versioned database file. Returns None if the run doesn't exist
+      (e.g., when log_level prevents DB creation). *)
+  let open_by_run_name ~meta_file_base ~run_name =
+    let meta_file = meta_file_base ^ "_meta.db" in
+    if not (Sys.file_exists meta_file) then None
+    else
+      (* Open metadata DB directly with SQLite, not through Client API *)
+      let meta_db = Sqlite3.db_open ~mode:`READONLY meta_file in
+      let stmt =
+        Sqlite3.prepare meta_db "SELECT db_file FROM runs WHERE run_name = ?"
+      in
+      Sqlite3.bind_text stmt 1 run_name |> ignore;
+      let result =
+        match Sqlite3.step stmt with
+        | Sqlite3.Rc.ROW ->
+            let db_file = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 0) in
+            Sqlite3.finalize stmt |> ignore;
+            Sqlite3.db_close meta_db |> ignore;
+            (* Construct full path if needed *)
+            let full_path =
+              let dir = Filename.dirname meta_file_base in
+              if dir = "." then db_file else Filename.concat dir db_file
+            in
+            Some (open_db full_path)
+        | _ ->
+            Sqlite3.finalize stmt |> ignore;
+            Sqlite3.db_close meta_db |> ignore;
+            None
+      in
+      result
+
   (** Show run summary *)
   let show_run_summary ?(output = Format.std_formatter) t run_id =
     let module Q = (val t : Query.S) in
