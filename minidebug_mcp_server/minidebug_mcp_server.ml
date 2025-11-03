@@ -43,8 +43,8 @@ let get_optional_bool_param json name =
 
 (** Output budget machinery *)
 
-(** Default output budget: 1MB to prevent unresponsive MCP server *)
-let default_output_budget = 1_048_576
+(** Default output budget: 4KB to prevent unresponsive MCP server *)
+let default_output_budget = 4_096
 
 (** Exception raised when output budget exceeded *)
 exception Output_budget_exceeded of { written : int; limit : int }

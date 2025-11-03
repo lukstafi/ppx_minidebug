@@ -70,7 +70,7 @@ Then restart Claude Desktop. The tools will appear in Claude's tool list.
 
 ## Output Budget Limiting
 
-To prevent the MCP server from becoming unresponsive due to excessive output, all tools enforce a **1MB output budget** (configurable via `default_output_budget` constant).
+To prevent the MCP server from becoming unresponsive due to excessive output, all tools enforce a **4KB output budget** (configurable via `default_output_budget` constant).
 
 ### How It Works
 - All tools use a bounded formatter that tracks cumulative output bytes
@@ -100,7 +100,7 @@ Edit `default_output_budget` in `minidebug_mcp_server.ml` if needed (value in by
 - Type-safe JSON parameter extraction
 - **Output capture refactoring**: All tools use buffer-backed formatters (clean, no Unix pipe hacks)
 - **stdio transport**: Uses `run_sdtio_server` for proper stdin/stdout JSON-RPC communication
-- **Output budget limiting**: 1MB default limit prevents unresponsive server from excessive output
+- **Output budget limiting**: 4KB default limit prevents unresponsive server from excessive output
   - Graceful truncation with helpful error messages suggesting pagination parameters
   - Configurable per-tool if needed
 
