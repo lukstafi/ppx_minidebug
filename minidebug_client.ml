@@ -2320,7 +2320,8 @@ module Interactive = struct
       }
 
   type search_slot = {
-    search_type : search_type;
+    search_type : search_type; [@warning "-69"]
+        (* Used in status_history rendering, not just for building *)
     domain_handle : unit Domain.t option; [@warning "-69"]
     completed_ref : bool ref; (* Shared memory flag set by Domain when finished *)
     results : search_results; (* Shared hash table written by Domain *)
@@ -2337,6 +2338,14 @@ module Interactive = struct
   module SlotMap = Map.Make (SlotNumber)
 
   type slot_map = search_slot SlotMap.t
+
+  (** Chronological event tracking for status line display.
+      Captures the order in which searches and quiet path changes occur. *)
+  type status_event =
+    | SearchEvent of SlotNumber.t * search_type
+    | QuietPathEvent of string option  (* None = cleared, Some = set/updated *)
+
+  type status_history = status_event list  (* Most recent first *)
 
   (** Check if an entry matches any active search (returns slot number 1-4, or None).
       Checks slots in reverse chronological order to prioritize more recent searches. Slot
@@ -2426,6 +2435,8 @@ module Interactive = struct
     quiet_path : string option;
         (* Shared quiet path filter - stops highlight propagation *)
     search_order : Query.search_order; (* Ordering for search results *)
+    status_history : status_history;
+        (* Chronological event history for status line display *)
   }
 
   and visible_item = {
@@ -2744,41 +2755,53 @@ module Interactive = struct
                     (if state.values_first then "ON" else "OFF")
                     search_order_str current_scope_id state.max_scope_id progress_pct
                 in
-                (* Build search status string *)
-                let search_status =
-                  let active_searches = ref [] in
-                  SlotMap.iter
-                    (fun idx slot ->
-                      let count = Hashtbl.length slot.results in
-                      let color_name =
-                        match idx with S1 -> "G" | S2 -> "C" | S3 -> "M" | S4 -> "Y"
-                      in
-                      (* Show [...] while running, just [...] when complete *)
-                      let count_str =
-                        if !(slot.completed_ref) then Printf.sprintf "[%d]" count
-                        else Printf.sprintf "[%d...]" count
-                      in
-                      (* Format based on search type *)
-                      let search_desc =
-                        match slot.search_type with
-                        | RegularSearch term -> sanitize_for_notty term
-                        | ExtractSearch { display_text; _ } -> sanitize_for_notty display_text
-                      in
-                      active_searches :=
-                        Printf.sprintf "%s:%s%s" color_name search_desc count_str
-                        :: !active_searches)
-                    state.search_slots;
-                  if !active_searches = [] then ""
-                  else " | " ^ String.concat " " (List.rev !active_searches)
-                in
-                (* Add quiet_path indicator if set *)
-                let quiet_info =
-                  match state.quiet_path with
-                  | Some qp -> Printf.sprintf " | Q:%s" (sanitize_for_notty qp)
-                  | None -> ""
+                (* Build chronological status string from event history.
+                   Shows searches and quiet path changes in the order they occurred. *)
+                let chronological_status =
+                  if state.status_history = [] then ""
+                  else
+                    let event_strings =
+                      List.rev_map
+                        (fun event ->
+                          match event with
+                          | SearchEvent (slot_num, search_type) -> (
+                              (* Look up current search status *)
+                              match SlotMap.find_opt slot_num state.search_slots with
+                              | Some slot ->
+                                  let count = Hashtbl.length slot.results in
+                                  let color_name =
+                                    match slot_num with
+                                    | S1 -> "G"
+                                    | S2 -> "C"
+                                    | S3 -> "M"
+                                    | S4 -> "Y"
+                                  in
+                                  let count_str =
+                                    if !(slot.completed_ref) then Printf.sprintf "[%d]" count
+                                    else Printf.sprintf "[%d...]" count
+                                  in
+                                  let search_desc =
+                                    match search_type with
+                                    | RegularSearch term -> sanitize_for_notty term
+                                    | ExtractSearch { display_text; _ } ->
+                                        sanitize_for_notty display_text
+                                  in
+                                  Printf.sprintf "%s:%s%s" color_name search_desc count_str
+                              | None ->
+                                  (* Slot was cleared/overwritten - shouldn't happen in normal flow *)
+                                  "")
+                          | QuietPathEvent qp_opt -> (
+                              match qp_opt with
+                              | Some qp ->
+                                  Printf.sprintf "Q:%s" (sanitize_for_notty qp)
+                              | None -> "Q:cleared"))
+                        state.status_history
+                    in
+                    let filtered = List.filter (fun s -> s <> "") event_strings in
+                    if filtered = [] then "" else " | " ^ String.concat " " filtered
                 in
                 I.string A.(fg lightcyan)
-                  (sanitize_for_notty (base_info ^ search_status ^ quiet_info)))
+                  (sanitize_for_notty (base_info ^ chronological_status)))
       in
       I.vcat [ line1; I.string A.(fg white) (String.make term_width '-') ]
     in
@@ -2937,7 +2960,24 @@ module Interactive = struct
         | `Enter, _ ->
             (* Confirm quiet_path *)
             let new_quiet_path = if String.length input > 0 then Some input else None in
-            Some { state with quiet_path_input = None; quiet_path = new_quiet_path }
+            (* Add quiet path event to chronological history.
+               Only remove if the most recent event is also a QuietPathEvent (consecutive
+               duplicates). This preserves the chronological record showing which searches
+               were influenced by which quiet path filters. *)
+            let filtered_history =
+              match state.status_history with
+              | QuietPathEvent _ :: rest ->
+                  rest (* Remove previous quiet path to avoid consecutive duplicates *)
+              | _ -> state.status_history (* Keep history if last event was a search *)
+            in
+            let new_history = QuietPathEvent new_quiet_path :: filtered_history in
+            Some
+              {
+                state with
+                quiet_path_input = None;
+                quiet_path = new_quiet_path;
+                status_history = new_history;
+              }
         | `Backspace, _ ->
             (* Remove last character *)
             let new_input =
@@ -3046,12 +3086,36 @@ module Interactive = struct
                         state.search_slots
                     in
 
+                    (* Add search event to chronological history.
+                       Remove any old search event for this slot (LRU behavior when slots wrap).
+                       After filtering, deduplicate consecutive quiet path events. *)
+                    let filtered_history =
+                      List.filter
+                        (fun event ->
+                          match event with
+                          | SearchEvent (old_slot, _) -> old_slot <> slot
+                          | QuietPathEvent _ -> true)
+                        state.status_history
+                    in
+                    (* Deduplicate consecutive quiet path events that may have been exposed
+                       by removing the search event. Keep the more recent (first) one. *)
+                    let rec deduplicate_consecutive acc = function
+                      | [] -> List.rev acc
+                      | (QuietPathEvent _ as qp) :: QuietPathEvent _ :: rest ->
+                          (* Keep first (more recent) quiet path, skip second (older), continue *)
+                          deduplicate_consecutive (qp :: acc) rest
+                      | event :: rest -> deduplicate_consecutive (event :: acc) rest
+                    in
+                    let deduped_history = deduplicate_consecutive [] filtered_history in
+                    let new_history = SearchEvent (slot, search_type) :: deduped_history in
+
                     Some
                       {
                         state with
                         search_input = None;
                         search_slots = new_slots;
                         current_slot = SlotNumber.next slot;
+                        status_history = new_history;
                       })
                   else
                     (* Invalid extract search format - just cancel *)
@@ -3225,6 +3289,7 @@ module Interactive = struct
         quiet_path = None;
         search_order = Query.AscendingIds;
         (* Default: uses index efficiently *)
+        status_history = [];
       }
     in
 
