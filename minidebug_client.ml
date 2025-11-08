@@ -3117,8 +3117,8 @@ module Interactive = struct
             | Some _ -> "[Enter] Confirm search | [Esc] Cancel | [Backspace] Delete"
             | None ->
                 "[↑/↓] Navigate | [Home/End] First/Last | [PgUp/PgDn] Page | [u/d] \
-                 Quarter | [n/N] Next/Prev Match | [Enter/Space] Expand | [/] Search | \
-                 [Q] Quiet | [t] Times | [v] Values | [o] Order | [q] Quit")
+                 Quarter | [n/N] Next/Prev Match | [Enter/Space] Expand | [f] Fold | [/] \
+                 Search | [Q] Quiet | [t] Times | [v] Values | [o] Order | [q] Quit")
       in
       I.vcat
         [
@@ -3161,6 +3161,142 @@ module Interactive = struct
                 { state with visible_items = new_visible }
             | None -> state)
       else state
+    else state
+
+  (** Fold current selection: re-fold an unfolded ellipsis if possible, otherwise fold parent scope.
+      After folding, position cursor on the ellipsis or scope header entry. *)
+  let fold_selection state =
+    if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
+      let item = state.visible_items.(state.cursor) in
+      match item.content with
+      | Ellipsis _ ->
+          (* Already folded - no-op *)
+          state
+      | RealEntry entry ->
+          let module Q = (val state.query) in
+          (* Try to find if this entry was part of an ellipsis segment.
+             This entry belongs to scope_id, so we check siblings within that scope. *)
+          let containing_scope_id = entry.Query.scope_id in
+
+          (* Check if this entry is within an unfolded ellipsis segment *)
+          let maybe_ellipsis_key =
+            (* Get all siblings (children of the same scope) *)
+            let siblings = Q.get_scope_children ~parent_scope_id:containing_scope_id in
+                (* Find highlighted positions (first, last, search matches) *)
+                let num_children = List.length siblings in
+                if num_children <= 4 then None
+                else
+                  let highlighted_indices =
+                    let search_matches =
+                      List.mapi
+                        (fun i child ->
+                          if
+                            is_entry_highlighted ~search_slots:state.search_slots
+                              ~scope_id:child.Query.scope_id ~seq_id:child.Query.seq_id
+                          then Some i
+                          else None)
+                        siblings
+                      |> List.filter_map (fun x -> x)
+                    in
+                    let with_boundaries = 0 :: (num_children - 1) :: search_matches in
+                    List.sort_uniq compare with_boundaries
+                  in
+
+                  (* Find which ellipsis segment this entry belongs to *)
+                  let rec find_ellipsis_segment current_entry_idx remaining_highlights =
+                    match remaining_highlights with
+                    | [] -> None
+                    | [ _ ] -> None (* Last highlight, no more segments *)
+                    | prev_idx :: next_idx :: rest ->
+                        (* Section between prev_idx and next_idx *)
+                        let section_start = prev_idx + 1 in
+                        let section_end = next_idx in
+                        let count = section_end - section_start in
+                        if count > 3 && current_entry_idx >= section_start
+                           && current_entry_idx < section_end
+                        then
+                          (* This entry is in an ellipsis segment *)
+                          let start_entry = List.nth siblings section_start in
+                          let end_entry = List.nth siblings (section_end - 1) in
+                          Some
+                            ( containing_scope_id,
+                              start_entry.Query.seq_id,
+                              end_entry.Query.seq_id )
+                        else find_ellipsis_segment current_entry_idx (next_idx :: rest)
+                  in
+                  (* Find current entry's index in siblings list.
+                     All siblings have the same scope_id (the parent), so we match on seq_id. *)
+                  let current_idx =
+                    List.mapi (fun i e -> (i, e)) siblings
+                    |> List.find_opt (fun (_, e) -> e.Query.seq_id = entry.Query.seq_id)
+                    |> Option.map fst
+                  in
+                  match current_idx with
+                  | None -> None
+                  | Some idx -> find_ellipsis_segment idx highlighted_indices
+          in
+
+          match maybe_ellipsis_key with
+          | Some (scope_id, start_seq, end_seq) ->
+              (* Re-fold this ellipsis by removing it from unfolded set *)
+              let key = (scope_id, start_seq, end_seq) in
+              if EllipsisSet.mem key state.unfolded_ellipsis then
+                let new_unfolded = EllipsisSet.remove key state.unfolded_ellipsis in
+                let new_visible =
+                  build_visible_items state.query state.expanded state.values_first
+                    ~search_slots:state.search_slots ~current_slot:state.current_slot
+                    ~unfolded_ellipsis:new_unfolded
+                in
+                (* Find the ellipsis entry in new visible items *)
+                let new_cursor =
+                  let rec find_ellipsis idx =
+                    if idx >= Array.length new_visible then state.cursor
+                    else
+                      match new_visible.(idx).content with
+                      | Ellipsis { parent_scope_id = p; start_seq_id = s; end_seq_id = e; _ }
+                        when p = scope_id && s = start_seq && e = end_seq ->
+                          idx
+                      | _ -> find_ellipsis (idx + 1)
+                  in
+                  find_ellipsis 0
+                in
+                (* Adjust scroll to ensure cursor is visible *)
+                let new_scroll =
+                  if new_cursor < state.scroll_offset then new_cursor
+                  else state.scroll_offset
+                in
+                { state with visible_items = new_visible; unfolded_ellipsis = new_unfolded; cursor = new_cursor; scroll_offset = new_scroll }
+              else state (* Ellipsis not unfolded, no-op *)
+          | None ->
+              (* Not in an ellipsis - fold the scope containing this entry.
+                 The expanded hashtable uses child_scope_id as keys.
+                 To fold the scope containing this entry, we remove this entry's scope_id from expanded. *)
+              if Hashtbl.mem state.expanded containing_scope_id then (
+                Hashtbl.remove state.expanded containing_scope_id;
+                let new_visible =
+                  build_visible_items state.query state.expanded state.values_first
+                    ~search_slots:state.search_slots ~current_slot:state.current_slot
+                    ~unfolded_ellipsis:state.unfolded_ellipsis
+                in
+                (* Find the header entry of the folded scope in new visible items *)
+                let new_cursor =
+                  let rec find_header idx =
+                    if idx >= Array.length new_visible then state.cursor
+                    else
+                      match new_visible.(idx).content with
+                      | RealEntry e when e.Query.child_scope_id = Some containing_scope_id ->
+                          idx
+                      | _ -> find_header (idx + 1)
+                  in
+                  find_header 0
+                in
+                (* Adjust scroll to ensure cursor is visible *)
+                let new_scroll =
+                  if new_cursor < state.scroll_offset then new_cursor
+                  else state.scroll_offset
+                in
+                { state with visible_items = new_visible; cursor = new_cursor; scroll_offset = new_scroll })
+              else state
     else state
 
   (** Find next/previous search result (searches hash tables, not just visible items).
@@ -3497,6 +3633,7 @@ module Interactive = struct
                 let new_scroll = max 0 (max_cursor - content_height + 1) in
                 Some { state with cursor = max_cursor; scroll_offset = new_scroll }
             | `Enter, _ | `ASCII ' ', _ -> Some (toggle_expansion state)
+            | `ASCII 'f', _ -> Some (fold_selection state)
             | `ASCII 't', _ -> Some { state with show_times = not state.show_times }
             | `ASCII 'v', _ ->
                 let new_values_first = not state.values_first in
