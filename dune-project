@@ -61,6 +61,7 @@
   sqlite3
   (notty-community
    (>= 0.2.4))
+  uutf
   mcp)
  (tags
   (logger debugger "printf debugging")))

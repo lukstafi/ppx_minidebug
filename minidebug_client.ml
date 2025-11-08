@@ -2290,6 +2290,84 @@ module Interactive = struct
   let sanitize_for_notty s =
     String.map (fun c -> if Char.code c < 32 || Char.code c = 127 then ' ' else c) s
 
+  (** UTF-8 aware string operations to avoid cutting multi-byte characters *)
+  module Utf8 = struct
+    (** Count UTF-8 characters (not bytes) in a string *)
+    let char_count s =
+      let count = ref 0 in
+      let decoder = Uutf.decoder (`String s) in
+      let rec loop () =
+        match Uutf.decode decoder with
+        | `Uchar _ ->
+            incr count;
+            loop ()
+        | `End -> !count
+        | `Malformed _ ->
+            (* Skip malformed sequences and continue *)
+            loop ()
+        | `Await -> assert false
+        (* Can't happen with `String input *)
+      in
+      loop ()
+
+    (** Truncate string to at most n UTF-8 characters, returning valid UTF-8 *)
+    let truncate s n =
+      if n <= 0 then ""
+      else
+        let buf = Buffer.create (String.length s) in
+        let count = ref 0 in
+        let decoder = Uutf.decoder (`String s) in
+        let rec loop () =
+          if !count >= n then ()
+          else
+            match Uutf.decode decoder with
+            | `Uchar u ->
+                let encoder = Uutf.encoder `UTF_8 (`Buffer buf) in
+                ignore (Uutf.encode encoder (`Uchar u));
+                ignore (Uutf.encode encoder `End);
+                incr count;
+                loop ()
+            | `End -> ()
+            | `Malformed _ ->
+                (* Skip malformed sequences *)
+                loop ()
+            | `Await -> assert false
+            (* Can't happen with `String input *)
+        in
+        loop ();
+        Buffer.contents buf
+
+    (** Substring from character offset start with length characters (UTF-8 aware) *)
+    let sub s start len =
+      if start < 0 || len < 0 then invalid_arg "Utf8.sub: negative offset or length"
+      else if len = 0 then ""
+      else
+        let buf = Buffer.create len in
+        let count = ref 0 in
+        let pos = ref 0 in
+        let decoder = Uutf.decoder (`String s) in
+        let rec loop () =
+          match Uutf.decode decoder with
+          | `Uchar u ->
+              if !pos >= start && !count < len then (
+                let encoder = Uutf.encoder `UTF_8 (`Buffer buf) in
+                ignore (Uutf.encode encoder (`Uchar u));
+                ignore (Uutf.encode encoder `End);
+                incr count);
+              incr pos;
+              if !count < len then loop ()
+          | `End -> ()
+          | `Malformed _ ->
+              (* Skip malformed sequences *)
+              incr pos;
+              loop ()
+          | `Await -> assert false
+          (* Can't happen with `String input *)
+        in
+        loop ();
+        Buffer.contents buf
+  end
+
   (** Poll for terminal event with timeout. Returns None on timeout. *)
   let event_with_timeout term timeout_sec =
     (* Get the input file descriptor from stdin *)
@@ -2627,8 +2705,8 @@ module Interactive = struct
     let full_text = content ^ time_str in
     let truncated =
       let t =
-        if String.length full_text > content_width then
-          String.sub full_text 0 (content_width - 3) ^ "..."
+        if Utf8.char_count full_text > content_width then
+          Utf8.truncate full_text (content_width - 3) ^ "..."
         else full_text
       in
       sanitize_for_notty t
@@ -2665,7 +2743,7 @@ module Interactive = struct
         | multiple_matches when List.length multiple_matches >= 2 ->
             (* Multiple matches: checkered pattern - split text into segments *)
             let num_matches = List.length multiple_matches in
-            let text_len = String.length truncated in
+            let text_len = Utf8.char_count truncated in
             (* Create min(num_matches * 2, text_len) segments *)
             let num_segments = min (num_matches * 2) text_len in
             let segment_size = max 1 (text_len / num_segments) in
@@ -2677,7 +2755,7 @@ module Interactive = struct
             while !pos < text_len do
               let remaining = text_len - !pos in
               let seg_len = min segment_size remaining in
-              let segment = String.sub truncated !pos seg_len in
+              let segment = Utf8.sub truncated !pos seg_len in
               let color = slot_color (List.nth multiple_matches (!color_idx mod num_matches)) in
               content_segments := I.string color segment :: !content_segments;
               pos := !pos + seg_len;
