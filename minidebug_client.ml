@@ -2496,6 +2496,25 @@ module Interactive = struct
       | [] -> None
       | x :: _ -> Some x
 
+  (** Ellipsis key: (parent_scope_id, start_seq_id, end_seq_id) *)
+  module EllipsisKey = struct
+    type t = int * int * int
+
+    let compare = compare
+  end
+
+  module EllipsisSet = Set.Make (EllipsisKey)
+
+  (** Content of a visible item - either a real entry or an ellipsis placeholder *)
+  type visible_item_content =
+    | RealEntry of Query.entry
+    | Ellipsis of {
+        parent_scope_id : int;
+        start_seq_id : int;
+        end_seq_id : int;
+        hidden_count : int;
+      }
+
   type view_state = {
     query : (module Query.S);
     db_path : string; (* Path to database file for spawning Domains *)
@@ -2515,10 +2534,14 @@ module Interactive = struct
     search_order : Query.search_order; (* Ordering for search results *)
     status_history : status_history;
         (* Chronological event history for status line display *)
+    unfolded_ellipsis : EllipsisSet.t;
+        (* Set of manually unfolded ellipsis segments *)
+    search_result_counts : (SlotNumber.t, int) Hashtbl.t;
+        (* Track result counts per slot to detect search updates *)
   }
 
   and visible_item = {
-    entry : Query.entry;
+    content : visible_item_content;
     indent_level : int;
     is_expandable : bool;
     is_expanded : bool;
@@ -2534,8 +2557,100 @@ module Interactive = struct
       | Some parent_id -> find_positive_ancestor_id (module Q) parent_id
       | None -> None (* No parent found *)
 
+  (** Check if an entry is highlighted in any search slot *)
+  let is_entry_highlighted ~search_slots ~scope_id ~seq_id =
+    SlotMap.exists
+      (fun _ slot -> Hashtbl.mem slot.results (scope_id, seq_id))
+      search_slots
+
+  (** Compute ellipsis segments for a list of child entries.
+      Returns a list mixing real entries and ellipsis placeholders.
+
+      Algorithm:
+      1. Treat first and last child as "always highlighted" for context
+      2. Identify which entries are highlighted (from search matches)
+      3. Find contiguous non-highlighted sections between highlighted siblings
+      4. If section has >3 entries AND not manually unfolded → create ellipsis
+      5. Otherwise include all entries in that section
+  *)
+  let compute_ellipsis_segments ~parent_scope_id ~children ~search_slots ~unfolded_ellipsis =
+    let num_children = List.length children in
+
+    (* Handle trivial cases *)
+    if num_children <= 4 then
+      (* 4 or fewer children: always show all *)
+      List.map (fun e -> `Entry e) children
+    else
+      (* Helper: check if an entry is highlighted by search *)
+      let is_search_highlighted entry =
+        is_entry_highlighted ~search_slots ~scope_id:entry.Query.scope_id
+          ~seq_id:entry.seq_id
+      in
+
+      (* Build list of (entry, is_highlighted) pairs with indices *)
+      let indexed_children =
+        List.mapi (fun idx entry -> (idx, entry, is_search_highlighted entry)) children
+      in
+
+      (* Identify highlighted positions: first, last, and any search matches *)
+      let highlighted_indices =
+        let search_matches =
+          List.filter_map
+            (fun (idx, _entry, is_hl) -> if is_hl then Some idx else None)
+            indexed_children
+        in
+        (* Always include first (0) and last (n-1) indices *)
+        let with_boundaries = 0 :: (num_children - 1) :: search_matches in
+        (* Remove duplicates and sort *)
+        List.sort_uniq compare with_boundaries
+      in
+
+      (* Build segments between highlighted entries *)
+      let rec build_segments acc prev_highlight_idx remaining_highlights =
+        match remaining_highlights with
+        | [] -> acc
+        | next_highlight :: rest ->
+            (* First, handle section between prev and next highlight (if any) *)
+            let section_entries =
+              List.filter
+                (fun (idx, _, _) -> idx > prev_highlight_idx && idx < next_highlight)
+                indexed_children
+              |> List.map (fun (_, entry, _) -> entry)
+            in
+            let count = List.length section_entries in
+            let acc_with_section =
+              if count > 3 then
+                (* Create ellipsis for middle section *)
+                let start_seq = (List.hd section_entries).Query.seq_id in
+                let end_seq = (List.nth section_entries (count - 1)).Query.seq_id in
+                let key = (parent_scope_id, start_seq, end_seq) in
+                if EllipsisSet.mem key unfolded_ellipsis then
+                  (* Unfolded: show all entries *)
+                  acc @ List.map (fun e -> `Entry e) section_entries
+                else
+                  (* Folded: create ellipsis *)
+                  acc @ [ `Ellipsis (parent_scope_id, start_seq, end_seq, count) ]
+              else if count > 0 then
+                (* <= 3 entries: show all *)
+                acc @ List.map (fun e -> `Entry e) section_entries
+              else acc
+            in
+
+            (* Then, add the highlighted entry *)
+            let highlighted_entry =
+              List.find (fun (idx, _, _) -> idx = next_highlight) indexed_children
+              |> fun (_, entry, _) -> entry
+            in
+            let new_acc = acc_with_section @ [ `Entry highlighted_entry ] in
+
+            build_segments new_acc next_highlight rest
+      in
+
+      build_segments [] (-1) highlighted_indices
+
   (** Build visible items list from database using lazy loading *)
-  let build_visible_items (module Q : Query.S) expanded values_first ~search_slots ~current_slot =
+  let build_visible_items (module Q : Query.S) expanded values_first ~search_slots ~current_slot
+      ~unfolded_ellipsis =
     let rec flatten_entry ~depth entry =
       (* Check if this entry actually has children *)
       let is_expandable =
@@ -2550,7 +2665,14 @@ module Interactive = struct
         | None -> false
       in
 
-      let visible = { entry; indent_level = depth; is_expandable; is_expanded } in
+      let visible =
+        {
+          content = RealEntry entry;
+          indent_level = depth;
+          is_expandable;
+          is_expanded;
+        }
+      in
 
       (* Add children if this is expanded *)
       if is_expanded then
@@ -2587,50 +2709,123 @@ module Interactive = struct
                 | _ -> children (* Multiple results or no results: show all *)
               else children
             in
-            visible :: List.concat_map (flatten_entry ~depth:(depth + 1)) children_to_show
+            (* Apply ellipsis logic to children *)
+            let segments =
+              compute_ellipsis_segments ~parent_scope_id:hid ~children:children_to_show
+                ~search_slots ~unfolded_ellipsis
+            in
+            (* Flatten segments - either real entries or ellipsis placeholders *)
+            let flattened_children =
+              List.concat_map
+                (function
+                  | `Entry child_entry -> flatten_entry ~depth:(depth + 1) child_entry
+                  | `Ellipsis (parent_id, start_seq, end_seq, hidden_count) ->
+                      [
+                        {
+                          content =
+                            Ellipsis
+                              {
+                                parent_scope_id = parent_id;
+                                start_seq_id = start_seq;
+                                end_seq_id = end_seq;
+                                hidden_count;
+                              };
+                          indent_level = depth + 1;
+                          is_expandable = true;
+                          (* Ellipsis can be "expanded" to unfold *)
+                          is_expanded = false;
+                        };
+                      ])
+                segments
+            in
+            visible :: flattened_children
         | None -> [ visible ]
       else [ visible ]
     in
 
-    (* Start with root entries *)
+    (* Start with root entries - apply ellipsis logic at root level too *)
     let roots = Q.get_root_entries ~with_values:false in
-    let items = List.concat_map (flatten_entry ~depth:0) roots in
+    let root_segments =
+      compute_ellipsis_segments ~parent_scope_id:0 ~children:roots ~search_slots
+        ~unfolded_ellipsis
+    in
+    let items =
+      List.concat_map
+        (function
+          | `Entry root_entry -> flatten_entry ~depth:0 root_entry
+          | `Ellipsis (parent_id, start_seq, end_seq, hidden_count) ->
+              [
+                {
+                  content =
+                    Ellipsis
+                      {
+                        parent_scope_id = parent_id;
+                        start_seq_id = start_seq;
+                        end_seq_id = end_seq;
+                        hidden_count;
+                      };
+                  indent_level = 0;
+                  is_expandable = true;
+                  is_expanded = false;
+                };
+              ])
+        root_segments
+    in
     Array.of_list items
 
   (** Render a single line *)
   let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
       ~current_slot:_ ~query:(module Q : Query.S) ~values_first item =
-    let entry = item.entry in
+    match item.content with
+    | Ellipsis { parent_scope_id; start_seq_id; end_seq_id; hidden_count } ->
+        (* Render ellipsis placeholder *)
+        let scope_id_str =
+          Printf.sprintf "%*d │ " margin_width parent_scope_id
+        in
+        let indent = String.make (item.indent_level * 2) ' ' in
+        let expansion_mark = "⋯ " in
+        let text =
+          Printf.sprintf "%s%s(%d hidden entries: seq %d-%d)%s" indent expansion_mark
+            hidden_count start_seq_id end_seq_id (String.make (item.indent_level * 2) ' ')
+        in
+        let attr =
+          if is_selected then A.(bg lightblue ++ fg black) else A.(fg (gray 12))
+        in
+        I.hcat
+          [
+            I.string (if is_selected then attr else A.(fg yellow)) scope_id_str;
+            I.string attr text;
+          ]
+    | RealEntry entry ->
+        (* Entry ID margin - use child_scope_id for scopes, scope_id for values *)
+        (* Don't display negative IDs (used for boxified/decomposed values) *)
+        let display_id =
+          match entry.child_scope_id with
+          | Some hid when hid >= 0 ->
+              Some hid (* This is a scope/header - show its actual scope ID *)
+          | Some _ -> None (* Negative child_scope_id - hide it *)
+          | None when entry.scope_id >= 0 ->
+              Some entry.scope_id (* This is a value - show its parent scope ID *)
+          | None -> None (* Negative scope_id - hide it *)
+        in
+        let scope_id_str =
+          match display_id with
+          | Some id -> Printf.sprintf "%*d │ " margin_width id
+          | None -> String.make (margin_width + 3) ' ' (* Blank margin: spaces + " │ " *)
+        in
+        let content_width = width - String.length scope_id_str in
 
-    (* Entry ID margin - use child_scope_id for scopes, scope_id for values *)
-    (* Don't display negative IDs (used for boxified/decomposed values) *)
-    let display_id =
-      match entry.child_scope_id with
-      | Some hid when hid >= 0 ->
-          Some hid (* This is a scope/header - show its actual scope ID *)
-      | Some _ -> None (* Negative child_scope_id - hide it *)
-      | None when entry.scope_id >= 0 ->
-          Some entry.scope_id (* This is a value - show its parent scope ID *)
-      | None -> None (* Negative scope_id - hide it *)
-    in
-    let scope_id_str =
-      match display_id with
-      | Some id -> Printf.sprintf "%*d │ " margin_width id
-      | None -> String.make (margin_width + 3) ' ' (* Blank margin: spaces + " │ " *)
-    in
-    let content_width = width - String.length scope_id_str in
+        let indent = String.make (item.indent_level * 2) ' ' in
 
-    let indent = String.make (item.indent_level * 2) ' ' in
+        (* Expansion indicator *)
+        let expansion_mark =
+          if item.is_expandable then if item.is_expanded then "▼ " else "▶ " else "  "
+        in
 
-    (* Expansion indicator *)
-    let expansion_mark =
-      if item.is_expandable then if item.is_expanded then "▼ " else "▶ " else "  "
-    in
-
-    (* Entry content *)
-    let content =
-      match item.entry.child_scope_id with
-      | Some hid when values_first && item.is_expanded -> (
+        (* Entry content *)
+        let content =
+          match entry.child_scope_id with
+          | Some hid when values_first && item.is_expanded -> (
           (* Header/scope in values_first mode: check for single result child to
              combine *)
           let children = Q.get_scope_children ~parent_scope_id:hid in
@@ -2768,12 +2963,12 @@ module Interactive = struct
             let margin_img = I.string margin_color scope_id_str in
 
             (content_img, margin_img)
-        | _ ->
-            (* Fallback (shouldn't happen) *)
-            (I.string A.empty truncated, I.string A.(fg yellow) scope_id_str)
-    in
+          | _ ->
+              (* Fallback (shouldn't happen) *)
+              (I.string A.empty truncated, I.string A.(fg yellow) scope_id_str)
+        in
 
-    I.hcat [ margin_image; content_image ]
+        I.hcat [ margin_image; content_image ]
 
   (** Render the full screen *)
   let render_screen state term_height term_width =
@@ -2787,14 +2982,16 @@ module Interactive = struct
     (* Calculate progress indicator - find closest ancestor with positive ID *)
     let current_scope_id =
       if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
-        let entry = state.visible_items.(state.cursor).entry in
-        (* For scopes, use child_scope_id; for values, use scope_id *)
-        let id_to_check =
-          match entry.child_scope_id with Some hid -> hid | None -> entry.scope_id
-        in
-        match find_positive_ancestor_id state.query id_to_check with
-        | Some id -> id
-        | None -> 0
+        match state.visible_items.(state.cursor).content with
+        | Ellipsis { parent_scope_id; _ } -> parent_scope_id
+        | RealEntry entry ->
+            (* For scopes, use child_scope_id; for values, use scope_id *)
+            let id_to_check =
+              match entry.child_scope_id with Some hid -> hid | None -> entry.scope_id
+            in
+            (match find_positive_ancestor_id state.query id_to_check with
+            | Some id -> id
+            | None -> 0)
       else 0
     in
     let progress_pct =
@@ -2932,24 +3129,37 @@ module Interactive = struct
 
     I.vcat [ header; content; footer ]
 
-  (** Toggle expansion of current item *)
+  (** Toggle expansion of current item (or unfold ellipsis) *)
   let toggle_expansion state =
     if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
       let item = state.visible_items.(state.cursor) in
       if item.is_expandable then
-        match item.entry.child_scope_id with
-        | Some hid ->
-            (* Use child_scope_id as the unique key for this scope *)
-            if Hashtbl.mem state.expanded hid then Hashtbl.remove state.expanded hid
-            else Hashtbl.add state.expanded hid ();
-
-            (* Rebuild visible items *)
+        match item.content with
+        | Ellipsis { parent_scope_id; start_seq_id; end_seq_id; _ } ->
+            (* Unfold ellipsis: add to unfolded set and rebuild *)
+            let key = (parent_scope_id, start_seq_id, end_seq_id) in
+            let new_unfolded = EllipsisSet.add key state.unfolded_ellipsis in
             let new_visible =
               build_visible_items state.query state.expanded state.values_first
                 ~search_slots:state.search_slots ~current_slot:state.current_slot
+                ~unfolded_ellipsis:new_unfolded
             in
-            { state with visible_items = new_visible }
-        | None -> state
+            { state with visible_items = new_visible; unfolded_ellipsis = new_unfolded }
+        | RealEntry entry -> (
+            match entry.child_scope_id with
+            | Some hid ->
+                (* Use child_scope_id as the unique key for this scope *)
+                if Hashtbl.mem state.expanded hid then Hashtbl.remove state.expanded hid
+                else Hashtbl.add state.expanded hid ();
+
+                (* Rebuild visible items *)
+                let new_visible =
+                  build_visible_items state.query state.expanded state.values_first
+                    ~search_slots:state.search_slots ~current_slot:state.current_slot
+                    ~unfolded_ellipsis:state.unfolded_ellipsis
+                in
+                { state with visible_items = new_visible }
+            | None -> state)
       else state
     else state
 
@@ -2960,8 +3170,9 @@ module Interactive = struct
     (* Get current entry's (scope_id, seq_id) *)
     let current_scope_id, current_seq_id =
       if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
-        let entry = state.visible_items.(state.cursor).entry in
-        (entry.scope_id, entry.seq_id)
+        match state.visible_items.(state.cursor).content with
+        | Ellipsis { parent_scope_id; start_seq_id; _ } -> (parent_scope_id, start_seq_id)
+        | RealEntry entry -> (entry.scope_id, entry.seq_id)
       else (0, 0)
       (* Start from beginning if cursor invalid *)
     in
@@ -2987,6 +3198,7 @@ module Interactive = struct
         let new_visible =
           build_visible_items state.query state.expanded state.values_first
             ~search_slots:state.search_slots ~current_slot:state.current_slot
+            ~unfolded_ellipsis:state.unfolded_ellipsis
         in
 
         (* Find the target entry in the new visible items *)
@@ -2995,9 +3207,12 @@ module Interactive = struct
             (* Entry not found after expansion - may be filtered or invalid *)
           else
             let item = new_visible.(idx) in
-            if item.entry.scope_id = target_scope_id && item.entry.seq_id = target_seq_id
-            then Some idx
-            else find_in_visible (idx + 1)
+            match item.content with
+            | Ellipsis _ -> find_in_visible (idx + 1)
+            | RealEntry entry ->
+                if entry.scope_id = target_scope_id && entry.seq_id = target_seq_id then
+                  Some idx
+                else find_in_visible (idx + 1)
         in
 
         match find_in_visible 0 with
@@ -3187,6 +3402,33 @@ module Interactive = struct
                     let deduped_history = deduplicate_consecutive [] filtered_history in
                     let new_history = SearchEvent (slot, search_type) :: deduped_history in
 
+                    (* Check if search results changed - invalidate ellipsis if so *)
+                    let new_count = Hashtbl.length results_table in
+                    let old_count =
+                      match Hashtbl.find_opt state.search_result_counts slot with
+                      | Some c -> c
+                      | None -> -1
+                    in
+                    let search_changed = new_count <> old_count in
+
+                    (* Update result counts *)
+                    let new_result_counts = Hashtbl.copy state.search_result_counts in
+                    Hashtbl.replace new_result_counts slot new_count;
+
+                    (* If search changed, invalidate all ellipsis (clear unfolded set) *)
+                    let new_unfolded =
+                      if search_changed then EllipsisSet.empty else state.unfolded_ellipsis
+                    in
+
+                    (* Rebuild visible items if ellipsis was invalidated *)
+                    let new_visible =
+                      if search_changed then
+                        build_visible_items state.query state.expanded state.values_first
+                          ~search_slots:new_slots ~current_slot:state.current_slot
+                          ~unfolded_ellipsis:new_unfolded
+                      else state.visible_items
+                    in
+
                     Some
                       {
                         state with
@@ -3194,6 +3436,9 @@ module Interactive = struct
                         search_slots = new_slots;
                         current_slot = SlotNumber.next slot;
                         status_history = new_history;
+                        search_result_counts = new_result_counts;
+                        unfolded_ellipsis = new_unfolded;
+                        visible_items = new_visible;
                       })
                   else
                     (* Invalid extract search format - just cancel *)
@@ -3258,6 +3503,7 @@ module Interactive = struct
                 let new_visible =
                   build_visible_items state.query state.expanded new_values_first
                     ~search_slots:state.search_slots ~current_slot:state.current_slot
+                    ~unfolded_ellipsis:state.unfolded_ellipsis
                 in
                 Some
                   {
@@ -3342,9 +3588,10 @@ module Interactive = struct
     let values_first = true in
     (* Initialize with empty search slots for initial build *)
     let empty_search_slots = SlotMap.empty in
+    let unfolded_ellipsis = EllipsisSet.empty in
     let visible_items =
       build_visible_items (module Q) expanded values_first ~search_slots:empty_search_slots
-        ~current_slot:S1
+        ~current_slot:S1 ~unfolded_ellipsis
     in
     let max_scope_id = Q.get_max_scope_id () in
 
@@ -3367,6 +3614,8 @@ module Interactive = struct
         quiet_path = None;
         search_order = Query.AscendingIds;
         (* Default: uses index efficiently *)
+        unfolded_ellipsis;
+        search_result_counts = Hashtbl.create 4;
         status_history = [];
       }
     in
@@ -3374,8 +3623,42 @@ module Interactive = struct
     let term = Term.create () in
 
     let rec loop state =
+      (* Check if any search results have changed *)
+      let state_with_updated_searches =
+        let search_changed = ref false in
+        let new_result_counts = Hashtbl.copy state.search_result_counts in
+        SlotMap.iter
+          (fun slot search_slot ->
+            let new_count = Hashtbl.length search_slot.results in
+            let old_count =
+              match Hashtbl.find_opt state.search_result_counts slot with
+              | Some c -> c
+              | None -> -1
+            in
+            if new_count <> old_count then (
+              search_changed := true;
+              Hashtbl.replace new_result_counts slot new_count))
+          state.search_slots;
+
+        if !search_changed then
+          (* Search results changed - invalidate ellipsis and rebuild *)
+          let new_unfolded = EllipsisSet.empty in
+          let new_visible =
+            build_visible_items state.query state.expanded state.values_first
+              ~search_slots:state.search_slots ~current_slot:state.current_slot
+              ~unfolded_ellipsis:new_unfolded
+          in
+          {
+            state with
+            search_result_counts = new_result_counts;
+            unfolded_ellipsis = new_unfolded;
+            visible_items = new_visible;
+          }
+        else state
+      in
+
       let term_width, term_height = Term.size term in
-      let image = render_screen state term_height term_width in
+      let image = render_screen state_with_updated_searches term_height term_width in
       Term.image term image;
 
       (* Poll every 1/5th of a second to check for search updates *)
@@ -3383,14 +3666,14 @@ module Interactive = struct
       | Some event -> (
           match event with
           | `Key key -> (
-              match handle_key state key term_height with
+              match handle_key state_with_updated_searches key term_height with
               | Some new_state -> loop new_state
               | None -> ())
-          | `Resize _ -> loop state
-          | #Notty.Unescape.event | `End -> loop state)
+          | `Resize _ -> loop state_with_updated_searches
+          | #Notty.Unescape.event | `End -> loop state_with_updated_searches)
       | None ->
           (* Timeout - just redraw to update search status *)
-          loop state
+          loop state_with_updated_searches
     in
 
     loop initial_state;

@@ -507,3 +507,27 @@
  (libraries sexplib0 minidebug_db)
  (preprocess
   (pps ppx_minidebug ppx_sexp_conv)))
+(executable
+ (name test_ellipsis)
+ (modules test_ellipsis)
+ (libraries sexplib0 minidebug_db)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_sexp_conv)))
+
+(rule
+ (targets debugger_ellipsis.db debugger_ellipsis.log)
+ (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
+ (action
+  (progn
+   (run %{dep:test_ellipsis.exe})
+   (with-stdout-to
+    debugger_ellipsis.log
+    (pipe-stdout
+     (run %{dep:../bin/minidebug_view.exe} debugger_ellipsis.db show)
+     (run %{dep:../bin/filter_test_output.exe}))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_ellipsis.expected.log debugger_ellipsis.log)))
