@@ -73,6 +73,13 @@ module Query = struct
       completed_ref:bool ref ->
       results_table:(int * int, bool) Hashtbl.t ->
       unit
+    val populate_extract_search_results :
+      search_path:string list ->
+      extraction_path:string list ->
+      quiet_path:string option ->
+      completed_ref:bool ref ->
+      results_table:(int * int, bool) Hashtbl.t ->
+      unit
   end
 
   (** Helper: normalize db_path by removing versioned suffix (_N.db -> .db). Examples:
@@ -1604,6 +1611,274 @@ module Query = struct
       in
       traverse start_scope_id extraction_path
 
+    (** Populate search results for extract-search operation: find matching search paths,
+        extract along extraction paths, and highlight with deduplication based on
+        extracted scope_id. Only the first occurrence (smallest shared_scope_id) for each
+        unique extracted_scope_id is highlighted.
+
+        Algorithm:
+        1. Find all paths matching search_path using find_matching_paths
+        2. For each match, extract along extraction_path from the shared node
+        3. Track extracted_scope_id -> smallest_shared_scope_id for deduplication
+        4. Highlight shared node and ancestors (starting from shared node's scope_id)
+        5. Apply quiet_path filtering during ancestor propagation *)
+    let populate_extract_search_results ~search_path ~extraction_path ~quiet_path
+        ~completed_ref ~results_table =
+      let log_debug msg =
+        ignore msg
+        (* Uncomment to enable debug logging: *)
+        (* try let oc = open_out_gen [Open_append;
+           Open_creat] 0o644 "/tmp/minidebug_extract_search.log" in Printf.fprintf oc
+           "[%s] %s\n" (Unix.gettimeofday () |> string_of_float) msg; close_out oc with _ -> () *)
+      in
+
+      Printexc.record_backtrace true;
+      log_debug
+        (Printf.sprintf "Starting extract search: search_path=%s, extraction_path=%s"
+           (String.concat "," search_path) (String.concat "," extraction_path));
+
+      try
+        Hashtbl.clear results_table;
+
+        (* Validate inputs *)
+        (match (search_path, extraction_path) with
+        | [], _ | _, [] ->
+            log_debug "ERROR: Empty paths provided";
+            completed_ref := true;
+            ()
+        | s :: _, e :: _ when s <> e ->
+            log_debug
+              (Printf.sprintf
+                 "ERROR: Paths must start with same pattern (got '%s' vs '%s')" s e);
+            completed_ref := true;
+            ()
+        | _ ->
+            (* Find all matching paths *)
+            let matching_paths = find_matching_paths ~patterns:search_path in
+            log_debug (Printf.sprintf "Found %d matching paths" (List.length matching_paths));
+
+            (* Extract tail of extraction path (removing shared first element) *)
+            let extraction_tail =
+              match extraction_path with _ :: tail -> tail | [] -> []
+            in
+
+            (* Track: extracted_scope_id -> smallest_shared_scope_id *)
+            let extracted_to_first_shared = Hashtbl.create 64 in
+
+            (* Track: shared_scope_id -> list of highlighted (scope_id, seq_id) pairs *)
+            let shared_to_highlighted = Hashtbl.create 64 in
+
+            (* Compile quiet_path regex once *)
+            let quiet_path_regex = Option.map Re.Str.regexp_string quiet_path in
+
+            (* Track propagated ancestors to avoid duplicates *)
+            let propagated = Hashtbl.create 64 in
+
+            (* Helper to check if entry matches quiet_path *)
+            let matches_quiet_path entry =
+              match quiet_path_regex with
+              | None -> false
+              | Some qp_regex ->
+                  let contains_match haystack regex =
+                    try
+                      let _ = Re.Str.search_forward regex haystack 0 in
+                      true
+                    with Not_found -> false
+                  in
+                  contains_match entry.message qp_regex
+                  || (match entry.location with
+                     | Some loc -> contains_match loc qp_regex
+                     | None -> false)
+                  || (match entry.data with
+                     | Some d -> contains_match d qp_regex
+                     | None -> false)
+            in
+
+            (* Helper to insert an entry into results table *)
+            let insert_entry ?(is_match = false) entry =
+              Hashtbl.replace results_table (entry.scope_id, entry.seq_id) is_match
+            in
+
+            (* Helper to get scope entry by scope_id (header that creates this scope) *)
+            let get_scope_entry scope_id =
+              let stmt = get_scope_entry_stmt ~scope_id in
+              match Sqlite3.step stmt with
+              | Sqlite3.Rc.ROW ->
+                  Some
+                    {
+                      scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+                      seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
+                      child_scope_id =
+                        (match Sqlite3.column stmt 2 with
+                        | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+                        | _ -> None);
+                      depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
+                      message =
+                        (match Sqlite3.column stmt 4 with
+                        | Sqlite3.Data.TEXT s -> s
+                        | _ -> "");
+                      location =
+                        (match Sqlite3.column stmt 5 with
+                        | Sqlite3.Data.TEXT s -> Some s
+                        | _ -> None);
+                      data =
+                        (match Sqlite3.column stmt 6 with
+                        | Sqlite3.Data.TEXT s -> Some s
+                        | _ -> None);
+                      elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
+                      elapsed_end_ns =
+                        (match Sqlite3.column stmt 8 with
+                        | Sqlite3.Data.INT i -> Some (Int64.to_int i)
+                        | _ -> None);
+                      is_result =
+                        (match Sqlite3.Data.to_bool (Sqlite3.column stmt 9) with
+                        | Some b -> b
+                        | None -> false);
+                      log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
+                      entry_type =
+                        (match Sqlite3.column stmt 11 with
+                        | Sqlite3.Data.TEXT s -> s
+                        | _ -> "");
+                    }
+              | _ -> None
+            in
+
+            (* Helper to propagate highlights from shared node and its ancestors *)
+            let highlight_shared_and_ancestors shared_scope_id =
+              let highlighted_entries = ref [] in
+
+              (* Get the shared node entry *)
+              match get_scope_entry shared_scope_id with
+              | None ->
+                  log_debug
+                    (Printf.sprintf "WARNING: Could not find entry for shared_scope_id=%d"
+                       shared_scope_id)
+              | Some shared_entry ->
+                  (* Highlight the shared node itself *)
+                  insert_entry ~is_match:true shared_entry;
+                  highlighted_entries :=
+                    (shared_entry.scope_id, shared_entry.seq_id) :: !highlighted_entries;
+                  log_debug
+                    (Printf.sprintf "Highlighted shared node: scope_id=%d, seq_id=%d"
+                       shared_entry.scope_id shared_entry.seq_id);
+
+                  (* Propagate to ancestors starting from shared node's parent (scope_id) *)
+                  let rec propagate_to_parent current_scope_id =
+                    let parent_ids = get_parent_ids ~scope_id:current_scope_id in
+                    if parent_ids = [] then
+                      log_debug
+                        (Printf.sprintf "  propagate: scope_id=%d has no parents (reached root)"
+                           current_scope_id)
+                    else
+                      List.iter
+                        (fun parent_id ->
+                          if Hashtbl.mem propagated parent_id then
+                            log_debug
+                              (Printf.sprintf
+                                 "  propagate: parent_id=%d already propagated, skipping"
+                                 parent_id)
+                          else (
+                            log_debug
+                              (Printf.sprintf "  propagate: checking parent_id=%d" parent_id);
+                            match get_scope_entry parent_id with
+                            | Some parent_entry when matches_quiet_path parent_entry ->
+                                (* Parent matches quiet_path, stop propagation *)
+                                Hashtbl.add propagated parent_id ();
+                                log_debug
+                                  (Printf.sprintf
+                                     "  propagate: parent_id=%d matches quiet_path, stopping"
+                                     parent_id)
+                            | Some parent_entry ->
+                                (* Parent doesn't match quiet_path - highlight and continue *)
+                                Hashtbl.add propagated parent_id ();
+                                insert_entry ~is_match:false parent_entry;
+                                highlighted_entries :=
+                                  (parent_entry.scope_id, parent_entry.seq_id)
+                                  :: !highlighted_entries;
+                                log_debug
+                                  (Printf.sprintf
+                                     "  propagate: highlighted parent_id=%d" parent_id);
+                                propagate_to_parent parent_id
+                            | None ->
+                                log_debug
+                                  (Printf.sprintf
+                                     "  propagate: parent_id=%d not found in database" parent_id)))
+                        parent_ids
+                  in
+                  propagate_to_parent shared_entry.scope_id;
+
+                  (* Store highlighted entries for potential cleanup *)
+                  Hashtbl.add shared_to_highlighted shared_scope_id !highlighted_entries
+            in
+
+            (* Process each matching path *)
+            List.iter
+              (fun (shared_scope_id, _ancestor_path) ->
+                log_debug (Printf.sprintf "Processing shared_scope_id=%d" shared_scope_id);
+
+                (* Extract along extraction path *)
+                match
+                  extract_along_path ~start_scope_id:shared_scope_id
+                    ~extraction_path:extraction_tail
+                with
+                | None ->
+                    log_debug
+                      (Printf.sprintf
+                         "  Extraction failed for shared_scope_id=%d (path not found)"
+                         shared_scope_id)
+                | Some extracted_scope_id ->
+                    log_debug
+                      (Printf.sprintf "  Extracted to scope_id=%d" extracted_scope_id);
+
+                    (* Check deduplication *)
+                    (match Hashtbl.find_opt extracted_to_first_shared extracted_scope_id with
+                    | Some prev_shared when prev_shared <= shared_scope_id ->
+                        (* Already seen with smaller or equal shared_scope_id, skip *)
+                        log_debug
+                          (Printf.sprintf
+                             "  Skipping: already have smaller shared_scope_id=%d for \
+                              extracted=%d"
+                             prev_shared extracted_scope_id)
+                    | Some prev_shared ->
+                        (* Found smaller shared_scope_id, remove old highlights *)
+                        log_debug
+                          (Printf.sprintf
+                             "  Replacing: found smaller shared_scope_id=%d (prev=%d) for \
+                              extracted=%d"
+                             shared_scope_id prev_shared extracted_scope_id);
+                        (match Hashtbl.find_opt shared_to_highlighted prev_shared with
+                        | Some old_entries ->
+                            List.iter (Hashtbl.remove results_table) old_entries;
+                            Hashtbl.remove shared_to_highlighted prev_shared;
+                            log_debug
+                              (Printf.sprintf "  Removed %d old highlights"
+                                 (List.length old_entries))
+                        | None -> ());
+                        Hashtbl.replace extracted_to_first_shared extracted_scope_id
+                          shared_scope_id;
+                        (* Clear propagated for this path since we're re-highlighting *)
+                        Hashtbl.clear propagated;
+                        highlight_shared_and_ancestors shared_scope_id
+                    | None ->
+                        (* First occurrence *)
+                        log_debug
+                          (Printf.sprintf "  First occurrence for extracted=%d"
+                             extracted_scope_id);
+                        Hashtbl.add extracted_to_first_shared extracted_scope_id shared_scope_id;
+                        highlight_shared_and_ancestors shared_scope_id))
+              matching_paths;
+
+            log_debug
+              (Printf.sprintf "Extract search complete: %d unique extractions, %d total highlights"
+                 (Hashtbl.length extracted_to_first_shared)
+                 (Hashtbl.length results_table));
+            completed_ref := true)
+      with exn ->
+        log_debug
+          (Printf.sprintf "ERROR: %s\n%s" (Printexc.to_string exn)
+             (Printexc.get_backtrace ()));
+        completed_ref := true
+
   end
 end
 
@@ -2036,8 +2311,16 @@ module Interactive = struct
       search match, false = propagated ancestor highlight. This is shared memory written
       by background Domain, read by main TUI loop. *)
 
+  type search_type =
+    | RegularSearch of string  (* Just the search term *)
+    | ExtractSearch of {
+        search_path : string list;
+        extraction_path : string list;
+        display_text : string;  (* For footer display *)
+      }
+
   type search_slot = {
-    search_term : string;
+    search_type : search_type;
     domain_handle : unit Domain.t option; [@warning "-69"]
     completed_ref : bool ref; (* Shared memory flag set by Domain when finished *)
     results : search_results; (* Shared hash table written by Domain *)
@@ -2475,10 +2758,14 @@ module Interactive = struct
                         if !(slot.completed_ref) then Printf.sprintf "[%d]" count
                         else Printf.sprintf "[%d...]" count
                       in
+                      (* Format based on search type *)
+                      let search_desc =
+                        match slot.search_type with
+                        | RegularSearch term -> sanitize_for_notty term
+                        | ExtractSearch { display_text; _ } -> sanitize_for_notty display_text
+                      in
                       active_searches :=
-                        Printf.sprintf "%s:%s%s" color_name
-                          (sanitize_for_notty slot.search_term)
-                          count_str
+                        Printf.sprintf "%s:%s%s" color_name search_desc count_str
                         :: !active_searches)
                     state.search_slots;
                   if !active_searches = [] then ""
@@ -2675,42 +2962,100 @@ module Interactive = struct
                 if String.length input > 0 then
                   let slot = state.current_slot in
 
-                  (* Create shared completion flag and results hash table *)
-                  let completed_ref = ref false in
-                  let results_table = Hashtbl.create 1024 in
+                  (* Check if this is an extract search (contains '>') *)
+                  let search_type, is_valid =
+                    match String.index_opt input '>' with
+                    | None ->
+                        (* Regular search *)
+                        (RegularSearch input, true)
+                    | Some sep_idx ->
+                        (* Extract search - parse paths *)
+                        let search_part = String.sub input 0 sep_idx in
+                        let extract_part =
+                          String.sub input (sep_idx + 1) (String.length input - sep_idx - 1)
+                        in
+                        let search_path = String.split_on_char ',' search_part in
+                        let extraction_path = String.split_on_char ',' extract_part in
 
-                  (* Spawn background search Domain - create new Query module for domain *)
-                  let domain_handle =
-                    Domain.spawn (fun () ->
-                        let module DomainQ = Query.Make (struct
-                          let db_path = state.db_path
-                        end) in
-                        DomainQ.populate_search_results ~search_term:input
-                          ~quiet_path:state.quiet_path ~search_order:state.search_order
-                          ~completed_ref ~results_table)
+                        (* Validate paths *)
+                        let validate_path path =
+                          List.for_all (fun s -> String.trim s <> "") path && path <> []
+                        in
+                        let valid_paths =
+                          validate_path search_path && validate_path extraction_path
+                        in
+                        let same_first =
+                          match (search_path, extraction_path) with
+                          | s :: _, e :: _ -> String.trim s = String.trim e
+                          | _ -> false
+                        in
+
+                        if valid_paths && same_first then
+                          (* Trim whitespace from all path elements *)
+                          let search_path = List.map String.trim search_path in
+                          let extraction_path = List.map String.trim extraction_path in
+
+                          (* Create display text with shared prefix removed from extraction *)
+                          let display_text =
+                            match extraction_path with
+                            | _ :: tail when tail <> [] ->
+                                Printf.sprintf "%s>%s" (String.concat "," search_path)
+                                  (String.concat "," tail)
+                            | _ ->
+                                Printf.sprintf "%s>%s" (String.concat "," search_path)
+                                  (String.concat "," extraction_path)
+                          in
+                          ( ExtractSearch { search_path; extraction_path; display_text },
+                            true )
+                        else (RegularSearch input, false)
                   in
 
-                  (* Update search slots *)
-                  let new_slots =
-                    SlotMap.update slot
-                      (fun _ ->
-                        Some
-                          {
-                            search_term = input;
-                            domain_handle = Some domain_handle;
-                            completed_ref;
-                            results = results_table;
-                          })
-                      state.search_slots
-                  in
+                  if is_valid then (
+                    (* Create shared completion flag and results hash table *)
+                    let completed_ref = ref false in
+                    let results_table = Hashtbl.create 1024 in
 
-                  Some
-                    {
-                      state with
-                      search_input = None;
-                      search_slots = new_slots;
-                      current_slot = SlotNumber.next slot;
-                    }
+                    (* Spawn background search Domain based on search type *)
+                    let domain_handle =
+                      Domain.spawn (fun () ->
+                          let module DomainQ = Query.Make (struct
+                            let db_path = state.db_path
+                          end) in
+                          match search_type with
+                          | RegularSearch search_term ->
+                              DomainQ.populate_search_results ~search_term
+                                ~quiet_path:state.quiet_path ~search_order:state.search_order
+                                ~completed_ref ~results_table
+                          | ExtractSearch { search_path; extraction_path; _ } ->
+                              DomainQ.populate_extract_search_results ~search_path
+                                ~extraction_path ~quiet_path:state.quiet_path ~completed_ref
+                                ~results_table)
+                    in
+
+                    (* Update search slots *)
+                    let new_slots =
+                      SlotMap.update slot
+                        (fun _ ->
+                          Some
+                            {
+                              search_type;
+                              domain_handle = Some domain_handle;
+                              completed_ref;
+                              results = results_table;
+                            })
+                        state.search_slots
+                    in
+
+                    Some
+                      {
+                        state with
+                        search_input = None;
+                        search_slots = new_slots;
+                        current_slot = SlotNumber.next slot;
+                      })
+                  else
+                    (* Invalid extract search format - just cancel *)
+                    Some { state with search_input = None }
                 else
                   (* Empty input - just cancel *)
                   Some { state with search_input = None }

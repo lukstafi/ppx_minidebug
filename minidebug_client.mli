@@ -67,6 +67,13 @@ module Query : sig
       completed_ref:bool ref ->
       results_table:(int * int, bool) Hashtbl.t ->
       unit
+    val populate_extract_search_results :
+      search_path:string list ->
+      extraction_path:string list ->
+      quiet_path:string option ->
+      completed_ref:bool ref ->
+      results_table:(int * int, bool) Hashtbl.t ->
+      unit
   end
 
   (** Functor creating Query module with connections to main DB and metadata DB *)
