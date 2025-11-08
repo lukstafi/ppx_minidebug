@@ -75,6 +75,7 @@ minidebug_view trace.db tui
 - `PgUp`/`PgDown` (or `Fn+↑`/`Fn+↓`): Page navigation
 - `u`/`d`: Quarter-page navigation (1/4 screen)
 - `Enter` or `Space`: Expand/collapse entry
+- `f`: Fold — re-fold unfolded ellipsis or collapse containing scope
 
 **Search:**
 - `/`: Open search prompt (supports 4 concurrent searches: S1-S4)

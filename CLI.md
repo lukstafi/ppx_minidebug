@@ -577,6 +577,7 @@ minidebug_view trace.db interactive
 **TUI Controls:**
 - `↑/↓` or `k/j`: Navigate
 - `Enter` or `Space`: Expand/collapse
+- `f`: Fold — re-fold unfolded ellipsis or collapse containing scope
 - `/`: Search (up to 4 concurrent searches in slots)
 - `Q`: Set quiet path filter
 - `n/N`: Next/previous match
