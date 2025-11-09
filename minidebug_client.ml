@@ -2282,12 +2282,10 @@ end
 
 (** Interactive TUI using Notty *)
 module Interactive = struct
-  open Notty
-  open Notty_unix
+  (** Shared types and utilities for both TUI and MCP frontends *)
 
-  (** Sanitize text for Notty: replace control chars (newlines, tabs, etc.) with spaces.
-      Notty's I.string doesn't accept control characters (codes < 32 or = 127). *)
-  let sanitize_for_notty s =
+  (** Sanitize text: replace control chars (newlines, tabs, etc.) with spaces. *)
+  let sanitize_text s =
     String.map (fun c -> if Char.code c < 32 || Char.code c = 127 then ' ' else c) s
 
   (** UTF-8 aware string operations to avoid cutting multi-byte characters *)
@@ -2367,22 +2365,6 @@ module Interactive = struct
         loop ();
         Buffer.contents buf
   end
-
-  (** Poll for terminal event with timeout. Returns None on timeout. *)
-  let event_with_timeout term timeout_sec =
-    (* Get the input file descriptor from stdin *)
-    let stdin_fd = Unix.stdin in
-    (* Retry select on EINTR (interrupted system call) *)
-    let rec select_with_retry () =
-      try
-        let ready, _, _ = Unix.select [ stdin_fd ] [] [] timeout_sec in
-        if ready = [] then None (* Timeout *) else Some (Term.event term)
-        (* Event available *)
-      with Unix.Unix_error (Unix.EINTR, _, _) ->
-        (* Interrupted by signal (e.g., SIGWINCH on terminal resize) - retry *)
-        select_with_retry ()
-    in
-    select_with_retry ()
 
   type search_results = (int * int, bool) Hashtbl.t
   (** Hash table of (scope_id, seq_id) pairs matching a search term. Value: true = actual
@@ -2547,6 +2529,46 @@ module Interactive = struct
     is_expandable : bool;
     is_expanded : bool;
   }
+
+  (** Command type - abstracts keyboard events for both TUI and MCP *)
+  type command =
+    | Navigate of [ `Up | `Down | `PageUp | `PageDown | `QuarterUp | `QuarterDown | `Home | `End ]
+    | ToggleExpansion
+    | Fold
+    | SearchNext
+    | SearchPrev
+    | BeginSearch of string option  (* None = enter input mode, Some = execute search *)
+    | BeginQuietPath of string option
+    | BeginGoto of int option
+    | ToggleTimes
+    | ToggleValues
+    | ToggleSearchOrder
+    | Quit
+    | InputChar of char
+    | InputBackspace
+    | InputEscape
+    | InputEnter
+  [@@warning "-37"]  (* Suppress unused constructor warnings - used by MCP server *)
+
+  (** Module type for rendering TUI state to different outputs *)
+  module type RENDERER = sig
+    type output
+
+    type render_context = {
+      width : int;
+      is_selected : bool;
+      show_times : bool;
+      margin_width : int;
+      search_slots : slot_map;
+      current_slot : SlotNumber.t;
+      query : (module Query.S);
+      values_first : bool;
+    }
+
+    val render_line : render_context -> visible_item -> output
+    val render_screen : view_state -> term_width:int -> term_height:int -> output
+  end
+  [@@warning "-32"]  (* Suppress unused value warnings - used by MCP server *)
 
   (** Find closest ancestor with positive ID by walking up the tree *)
   let rec find_positive_ancestor_id (module Q : Query.S) scope_id =
@@ -2773,6 +2795,333 @@ module Interactive = struct
         root_segments
     in
     Array.of_list items
+
+  (** Text-based renderer for MCP - outputs plain text with inline markers *)
+  module TextRenderer : RENDERER with type output = string = struct
+    type output = string
+
+    type render_context = {
+      width : int;
+      is_selected : bool;
+      show_times : bool;
+      margin_width : int;
+      search_slots : slot_map;
+      current_slot : SlotNumber.t;
+      query : (module Query.S);
+      values_first : bool;
+    }
+
+    (** Get color tag for a slot *)
+    let slot_tag = function
+      | SlotNumber.S1 -> "G"
+      | SlotNumber.S2 -> "C"
+      | SlotNumber.S3 -> "M"
+      | SlotNumber.S4 -> "Y"
+
+    (** Render a single line as text with markers *)
+    let render_line ctx item =
+      match item.content with
+      | Ellipsis { parent_scope_id; start_seq_id; end_seq_id; hidden_count } ->
+          let scope_id_str = Printf.sprintf "%*d │ " ctx.margin_width parent_scope_id in
+          let indent = String.make (item.indent_level * 2) ' ' in
+          let text =
+            Printf.sprintf "%s%s⋯ (%d hidden entries: seq %d-%d)" indent
+              (if ctx.is_selected then ">>> " else "")
+              hidden_count start_seq_id end_seq_id
+          in
+          let suffix = if ctx.is_selected then " <<<" else "" in
+          scope_id_str ^ text ^ suffix
+      | RealEntry entry ->
+          let module Q = (val ctx.query) in
+          (* Compute display ID *)
+          let display_id =
+            match entry.child_scope_id with
+            | Some hid when hid >= 0 -> Some hid
+            | Some _ -> None
+            | None when entry.scope_id >= 0 -> Some entry.scope_id
+            | None -> None
+          in
+          let scope_id_str =
+            match display_id with
+            | Some id -> Printf.sprintf "%*d │ " ctx.margin_width id
+            | None -> String.make (ctx.margin_width + 3) ' '
+          in
+
+          (* Build content *)
+          let indent = String.make (item.indent_level * 2) ' ' in
+          let expansion_mark =
+            if item.is_expandable then if item.is_expanded then "▼ " else "▶ " else "  "
+          in
+
+          (* Entry content - same logic as Notty version *)
+          let content =
+            match entry.child_scope_id with
+            | Some hid when ctx.values_first && item.is_expanded -> (
+                let children = Q.get_scope_children ~parent_scope_id:hid in
+                let results, _non_results =
+                  List.partition (fun e -> e.Query.is_result) children
+                in
+                match results with
+                | [ single_result ] when single_result.child_scope_id = None ->
+                    let result_data = Option.value ~default:"" single_result.data in
+                    let result_msg = single_result.message in
+                    let combined_result =
+                      if result_msg <> "" && result_msg <> entry.message then
+                        Printf.sprintf " => %s = %s" result_msg result_data
+                      else Printf.sprintf " => %s" result_data
+                    in
+                    Printf.sprintf "%s%s[%s] %s%s" indent expansion_mark entry.entry_type
+                      entry.message combined_result
+                | _ ->
+                    let is_synthetic = entry.location = None in
+                    let display_text =
+                      match (entry.message, entry.data, is_synthetic) with
+                      | msg, Some data, true when msg <> "" -> Printf.sprintf "%s: %s" msg data
+                      | "", Some data, true -> data
+                      | msg, _, _ when msg <> "" -> msg
+                      | _ -> ""
+                    in
+                    Printf.sprintf "%s%s[%s] %s" indent expansion_mark entry.entry_type
+                      display_text)
+            | Some _ ->
+                let display_text =
+                  let message = entry.message in
+                  let data = Option.value ~default:"" entry.data in
+                  if message <> "" then message else data
+                in
+                Printf.sprintf "%s%s[%s] %s" indent expansion_mark entry.entry_type
+                  display_text
+            | None ->
+                let display_text =
+                  let message = entry.message in
+                  let data = Option.value ~default:"" entry.data in
+                  let is_result = entry.is_result in
+                  (if message <> "" then message ^ " " else "")
+                  ^ (if is_result then "=> "
+                     else if message <> "" && data <> "" then "= "
+                     else "")
+                  ^ data
+                in
+                Printf.sprintf "%s  %s" indent display_text
+          in
+
+          (* Time *)
+          let time_str =
+            if ctx.show_times then
+              match Renderer.elapsed_time entry with
+              | Some elapsed -> Printf.sprintf " <%s>" (Renderer.format_elapsed_ns elapsed)
+              | None -> ""
+            else ""
+          in
+
+          let full_text = content ^ time_str in
+          let content_width = ctx.width - String.length scope_id_str in
+          let truncated =
+            if Utf8.char_count full_text > content_width then
+              Utf8.truncate full_text (content_width - 3) ^ "..."
+            else full_text
+          in
+          let sanitized = sanitize_text truncated in
+
+          (* Get search matches for highlighting *)
+          let all_matches =
+            get_all_search_matches ~search_slots:ctx.search_slots
+              ~scope_id:entry.scope_id ~seq_id:entry.seq_id
+          in
+
+          (* Build prefix based on selection and highlighting *)
+          let prefix, suffix =
+            if ctx.is_selected then (">>> ", " <<<")
+            else
+              match all_matches with
+              | [] -> ("    ", "")
+              | matches ->
+                  let tags = List.map slot_tag matches |> String.concat "/" in
+                  (Printf.sprintf "[%s] " tags, "")
+          in
+
+          prefix ^ scope_id_str ^ sanitized ^ suffix
+
+    (** Render full screen as text *)
+    let render_screen state ~term_width ~term_height =
+      let header_height = 2 in
+      let footer_height = 2 in
+      let content_height = term_height - header_height - footer_height in
+
+      (* Calculate margin width *)
+      let margin_width = String.length (string_of_int state.max_scope_id) in
+
+      (* Calculate current scope progress *)
+      let current_scope_id =
+        if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
+          match state.visible_items.(state.cursor).content with
+          | Ellipsis { parent_scope_id; _ } -> parent_scope_id
+          | RealEntry entry ->
+              let id_to_check =
+                match entry.child_scope_id with Some hid -> hid | None -> entry.scope_id
+              in
+              (match find_positive_ancestor_id state.query id_to_check with
+              | Some id -> id
+              | None -> 0)
+        else 0
+      in
+      let progress_pct =
+        if state.max_scope_id > 0 then
+          float_of_int current_scope_id /. float_of_int state.max_scope_id *. 100.0
+        else 0.0
+      in
+
+      (* Build header *)
+      let header_line =
+        match state.goto_input with
+        | Some input -> Printf.sprintf "Goto Scope ID: %s_" input
+        | None -> (
+            match state.quiet_path_input with
+            | Some input -> Printf.sprintf "Quiet Path: %s_" input
+            | None -> (
+                match state.search_input with
+                | Some input -> Printf.sprintf "Search: %s_" input
+                | None ->
+                    let search_order_str =
+                      match state.search_order with
+                      | Query.AscendingIds -> "Asc"
+                      | Query.DescendingIds -> "Desc"
+                    in
+                    let base_info =
+                      Printf.sprintf
+                        "Items: %d | Times: %s | Values First: %s | Search: %s | Entry: \
+                         %d/%d (%.1f%%)"
+                        (Array.length state.visible_items)
+                        (if state.show_times then "ON" else "OFF")
+                        (if state.values_first then "ON" else "OFF")
+                        search_order_str current_scope_id state.max_scope_id progress_pct
+                    in
+                    (* Build chronological status *)
+                    let chronological_status =
+                      if state.status_history = [] then ""
+                      else
+                        let event_strings =
+                          List.rev_map
+                            (fun event ->
+                              match event with
+                              | SearchEvent (slot_num, search_type) -> (
+                                  match SlotMap.find_opt slot_num state.search_slots with
+                                  | Some slot ->
+                                      let count = Hashtbl.length slot.results in
+                                      let color_name = slot_tag slot_num in
+                                      let count_str =
+                                        if !(slot.completed_ref) then
+                                          Printf.sprintf "[%d]" count
+                                        else Printf.sprintf "[%d...]" count
+                                      in
+                                      let search_desc =
+                                        match search_type with
+                                        | RegularSearch term -> sanitize_text term
+                                        | ExtractSearch { display_text; _ } ->
+                                            sanitize_text display_text
+                                      in
+                                      Printf.sprintf "%s:%s%s" color_name search_desc count_str
+                                  | None -> "")
+                              | QuietPathEvent qp_opt -> (
+                                  match qp_opt with
+                                  | Some qp -> Printf.sprintf "Q:%s" (sanitize_text qp)
+                                  | None -> "Q:cleared"))
+                            state.status_history
+                        in
+                        let filtered = List.filter (fun s -> s <> "") event_strings in
+                        if filtered = [] then "" else " | " ^ String.concat " " filtered
+                    in
+                    base_info ^ chronological_status))
+      in
+
+      (* Build content lines *)
+      let visible_start = state.scroll_offset in
+      let visible_end =
+        min (visible_start + content_height) (Array.length state.visible_items)
+      in
+
+      let content_lines = ref [] in
+      for i = visible_start to visible_end - 1 do
+        let is_selected = i = state.cursor in
+        let item = state.visible_items.(i) in
+        let ctx =
+          {
+            width = term_width;
+            is_selected;
+            show_times = state.show_times;
+            margin_width;
+            search_slots = state.search_slots;
+            current_slot = state.current_slot;
+            query = state.query;
+            values_first = state.values_first;
+          }
+        in
+        let line = render_line ctx item in
+        content_lines := line :: !content_lines
+      done;
+
+      (* Pad if needed *)
+      for _ = 1 to content_height - (visible_end - visible_start) do
+        content_lines := "" :: !content_lines
+      done;
+
+      (* Build footer *)
+      let footer_line =
+        match state.goto_input with
+        | Some _ ->
+            "[Enter] Goto scope ID | [Esc] Cancel | [Backspace] Delete | [0-9] Type ID"
+        | None -> (
+            match state.quiet_path_input with
+            | Some _ -> "[Enter] Confirm quiet path | [Esc] Cancel | [Backspace] Delete"
+            | None -> (
+                match state.search_input with
+                | Some _ -> "[Enter] Confirm search | [Esc] Cancel | [Backspace] Delete"
+                | None ->
+                    "[↑/↓] Navigate | [Home/End] First/Last | [PgUp/PgDn] Page | [u/d] \
+                     Quarter | [n/N] Next/Prev Match | [Enter/Space] Expand | [f] Fold | \
+                     [/] Search | [g] Goto | [Q] Quiet | [t] Times | [v] Values | [o] \
+                     Order | [q] Quit"))
+      in
+
+      (* Combine all parts *)
+      let separator = String.make term_width '-' in
+      String.concat "\n"
+        ([ header_line; separator ]
+        @ List.rev !content_lines
+        @ [ separator; footer_line ])
+  end
+
+  (** MCP-compatible TUI core - uses TextRenderer *)
+  module type TUI_CORE = sig
+    type state = view_state
+
+    val init_state : (module Query.S) -> db_path:string -> state
+    val execute_command : state -> command -> state option
+    val wait_for_searches : state -> timeout_sec:float -> state
+  end
+  [@@warning "-32"]  (* Suppress unused value warnings - will be implemented for MCP *)
+
+  (** Original Notty render functions - for terminal TUI *)
+  open Notty
+  open Notty_unix
+
+  let sanitize_for_notty = sanitize_text  (* Alias for compatibility *)
+
+  (** Poll for terminal event with timeout. Returns None on timeout. *)
+  let event_with_timeout term timeout_sec =
+    (* Get the input file descriptor from stdin *)
+    let stdin_fd = Unix.stdin in
+    (* Retry select on EINTR (interrupted system call) *)
+    let rec select_with_retry () =
+      try
+        let ready, _, _ = Unix.select [ stdin_fd ] [] [] timeout_sec in
+        if ready = [] then None (* Timeout *) else Some (Term.event term)
+        (* Event available *)
+      with Unix.Unix_error (Unix.EINTR, _, _) ->
+        (* Interrupted by signal (e.g., SIGWINCH on terminal resize) - retry *)
+        select_with_retry ()
+    in
+    select_with_retry ()
 
   (** Render a single line *)
   let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
