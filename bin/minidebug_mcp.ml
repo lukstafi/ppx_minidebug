@@ -107,8 +107,8 @@ let () =
   (match db_path_opt with
   | Some db_path ->
       (try
-         let client = Minidebug_client.Client.open_db db_path in
-         Minidebug_client.Client.close client
+         let client = Minidebug_cli.Cli.open_db db_path in
+         Minidebug_cli.Cli.close client
        with e ->
          Printf.eprintf "Error: Cannot open database '%s': %s\n" db_path
            (Printexc.to_string e);
@@ -130,6 +130,6 @@ let () =
 
   (* Create and run server *)
   Eio_main.run @@ fun env ->
-  let server = Minidebug_mcp_server.create_server ?db_path:db_path_opt () in
+  let server = Minidebug_mcp.create_server ?db_path:db_path_opt () in
   Logs.info (fun m -> m "MCP server initialized, waiting for requests...");
   Mcp_server.run_sdtio_server env server

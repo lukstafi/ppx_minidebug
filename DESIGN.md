@@ -211,8 +211,8 @@ minidebug_view trace.db tui
 
 ### Programmatic Queries
 ```ocaml
-let client = Minidebug_client.Client.open_db "trace_1.db" in
-let run = Minidebug_client.Client.get_latest_run client in
+let client = Minidebug_cli.Cli.open_db "trace_1.db" in
+let run = Minidebug_cli.Cli.get_latest_run client in
 match run with
 | Some r ->
     Printf.printf "Run 1 had %d entries\n"

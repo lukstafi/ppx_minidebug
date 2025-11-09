@@ -41,5 +41,5 @@ let () =
            "postscript";
          ]
   in
-  let db = Minidebug_client.Client.open_db db_file in
-  Minidebug_client.Client.show_trace db
+  let db = Minidebug_cli.Cli.open_db db_file in
+  Minidebug_cli.Cli.show_trace db

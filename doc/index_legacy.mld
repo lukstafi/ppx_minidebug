@@ -291,7 +291,7 @@ The setting [max_nesting_depth] terminates a computation when the given log nest
     with _ -> print_endline "Raised exception."
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     Raised exception.
@@ -340,7 +340,7 @@ Similarly, [max_num_children] raises a failure when the given number of logs wit
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     Raised exception: ppx_minidebug: max_num_children exceeded
@@ -423,7 +423,7 @@ Example that also illustrates disabling tracing:
     with _ -> print_endline "Raised exception."
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     8
@@ -456,7 +456,7 @@ Another example:
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     6
@@ -496,7 +496,7 @@ Explicit logging statements also help with tracking the execution, since they ca
   in
   let () = print_endline @@ Int.to_string result in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect {|
     21
     [track] result @ test/test_expect_test.ml:1924:17-1924:23
@@ -562,7 +562,7 @@ The [%diagn_] extension points further restrict logging to explicit logs only. E
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect
     {|
     336
@@ -594,7 +594,7 @@ At runtime creation, the level can be set via the [~log_level] parameter, or via
     !j
   in
   print_endline @@ Int.to_string (result (rt 9 "Everything") ());
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "Everything"));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "Everything"));
   print_endline @@ Int.to_string (result (rt 0 "Nothing") ());
   (* There is no new run after Nothing, so we just skip invoking the client. *)
   print_endline @@ Int.to_string (result (rt 1 "Error") ());
@@ -661,7 +661,7 @@ Another example from the test suite, notice how the log level of [%log1] overrid
     print_endline @@ Int.to_string @@ baz { first = 7; second = 42 }
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect {|
     336
     336
@@ -703,7 +703,7 @@ The extension point [%log_printbox] lets you embed a [PrintBox.t] in the logs di
   in
   let () = foo () in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect
     {|
     [debug] foo => () @ test/test_expect_test.ml:2590:21-2603:91
@@ -790,7 +790,7 @@ The extension point [%log_entry] lets you shape arbitrary log tree structures. T
            "postscript";
          ]
   in
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name run_name));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name run_name));
   [%expect {|
     [diagn] _logging_logic @ test/test_expect_test.ml:2657:17-2657:31
       "preamble"
@@ -891,7 +891,7 @@ expose the (lexical) entry id except when passing [~verbose_scope_ids:true] to t
   let%debug_show _foobar : unit = !foo1 () in
   let () = !foo2 () in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect {|
     [debug] bar => () @ test/test_expect_test.ml:2342:21-2347:19
       ("This is like", 3, "or", 3.14, "above")
@@ -1015,7 +1015,7 @@ The test suite example:
   in
   let () = print_endline @@ Int.to_string @@ loop_changes 7 in
   let db = Option.get (open_db_by_run_name run_name2) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     9
@@ -1119,7 +1119,7 @@ As a help in debugging whether the right type information got propagated, we off
       let () = print_endline @@ Int.to_string @@ f 'a' 6 in
       print_endline @@ Int.to_string @@ g 'a' 6 'b' 'c']];
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect
     {|
     7
@@ -1153,7 +1153,7 @@ Example from the test suite:
   let rt run_name = Minidebug_db.debug_db_file ~run_name db_file_base in
   let%track_rt_show foo l : int = match (l : int list) with [] -> 7 | y :: _ -> y * 2 in
   let () = print_endline @@ Int.to_string @@ foo (rt "foo-1") [ 7 ] in
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "foo-1")) ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "foo-1")) ~values_first_mode:true;
   let%track_rt_show baz : int list -> int = function
     | [] -> 7
     | [ y ] -> y * 2
@@ -1161,9 +1161,9 @@ Example from the test suite:
     | y :: z :: _ -> y + z + 1
   in
   let () = print_endline @@ Int.to_string @@ baz (rt "baz-1") [ 4 ] in
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "baz-1")) ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "baz-1")) ~values_first_mode:true;
   let () = print_endline @@ Int.to_string @@ baz (rt "baz-2") [ 4; 5; 6 ] in
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "baz-2")) ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "baz-2")) ~values_first_mode:true;
   [%expect {|
     14
     [track] foo => 14 @ test/test_expect_test.ml:1736:24-1736:85

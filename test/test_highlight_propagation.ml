@@ -34,8 +34,8 @@ let () =
 
   (* Get root entries and build tree from database *)
   let root_entries = Q.get_root_entries ~with_values:false in
-  let trees = Minidebug_client.Renderer.build_tree (module Q) root_entries in
-  let output = Minidebug_client.Renderer.render_tree ~values_first_mode:true trees in
+  let trees = Minidebug_cli.Renderer.build_tree (module Q) root_entries in
+  let output = Minidebug_cli.Renderer.render_tree ~values_first_mode:true trees in
 
   Printf.printf "Trace (values_first_mode):\n%!";
   print_string output;

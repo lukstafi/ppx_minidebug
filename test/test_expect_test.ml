@@ -6,7 +6,7 @@ type t = { first : int; second : int } [@@deriving show]
 let db_file_base = "test_expect_test"
 
 let open_db_by_run_name run_name =
-  Minidebug_client.Client.open_by_run_name ~meta_file_base:db_file_base ~run_name
+  Minidebug_cli.Cli.open_by_run_name ~meta_file_base:db_file_base ~run_name
 
 let%expect_test "%debug_show, `as` alias and show_times" =
   let run_name = "line_" ^ Int.to_string __LINE__ in
@@ -25,7 +25,7 @@ let%expect_test "%debug_show, `as` alias and show_times" =
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~show_times:true ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~show_times:true ~values_first_mode:false;
   let output = [%expect.output] in
   let output =
     Str.global_replace (Str.regexp {|<[0-9.]+\(μs\|ms\|s\)>|}) "<TIME>" output
@@ -64,8 +64,8 @@ let%expect_test "%debug_show with run name" =
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
-  let runs = Minidebug_client.Client.list_runs db in
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
+  let runs = Minidebug_cli.Cli.list_runs db in
   let run = List.find (fun r -> r.Minidebug_client.Query.run_name = Some run_name) runs in
   Printf.printf "\nRun #%d has name: %s\n" run.run_id
     (match run.run_name with Some n -> n | None -> "(none)");
@@ -97,7 +97,7 @@ let%expect_test "%debug_show disabled subtree" =
   in
   let () = print_endline @@ Int.to_string @@ loop_complete 7 in
   let db = Option.get (open_db_by_run_name run_name1) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     9
@@ -157,7 +157,7 @@ let%expect_test "%debug_show disabled subtree" =
   in
   let () = print_endline @@ Int.to_string @@ loop_changes 7 in
   let db = Option.get (open_db_by_run_name run_name2) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     9
@@ -195,7 +195,7 @@ let%expect_test "%debug_show with exception" =
     with _ -> print_endline "Raised exception."
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false ~show_times:true;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false ~show_times:true;
   let output = [%expect.output] in
   let output =
     Str.global_replace (Str.regexp {|<[0-9.]+\(μs\|ms\|s\)>|}) "<TIME>" output
@@ -257,7 +257,7 @@ let%expect_test "%debug_show depth exceeded" =
     with _ -> print_endline "Raised exception."
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     Raised exception.
@@ -310,7 +310,7 @@ let%expect_test "%debug_show num children exceeded linear" =
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     Raised exception: ppx_minidebug: max_num_children exceeded
@@ -363,7 +363,7 @@ let%expect_test "%track_show track for-loop num children exceeded" =
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     Raised exception: ppx_minidebug: max_num_children exceeded
@@ -439,7 +439,7 @@ let%expect_test "%track_show track for-loop" =
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     [track] _bar @ test/test_expect_test.ml:430:21-430:25
@@ -495,7 +495,7 @@ let%expect_test "%track_show track for-loop, time spans" =
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false ~show_times:true;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false ~show_times:true;
   let output = [%expect.output] in
   let output =
     Str.global_replace
@@ -556,7 +556,7 @@ let%expect_test "%track_show track while-loop" =
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     [track] _bar @ test/test_expect_test.ml:548:21-548:25
@@ -603,7 +603,7 @@ let%expect_test "%debug_show num children exceeded nested" =
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     Raised exception: ppx_minidebug: max_num_children exceeded
@@ -663,7 +663,7 @@ let%expect_test "%track_show PrintBox tracking" =
     with _ -> print_endline "Raised exception."
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     4
@@ -701,7 +701,7 @@ let%expect_test "%track_show PrintBox tracking <function>" =
     with _ -> print_endline "Raised exception."
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     4
@@ -740,7 +740,7 @@ let%expect_test "%track_show PrintBox tracking with debug_notrace" =
     with _ -> print_endline "Raised exception."
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     8
@@ -780,7 +780,7 @@ let%expect_test "%track_show PrintBox not tracking anonymous functions with debu
     with _ -> print_endline "Raised exception."
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     8
@@ -820,7 +820,7 @@ let%expect_test "respect scope of nested extension points" =
     with _ -> print_endline "Raised exception."
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     8
@@ -861,7 +861,7 @@ let%expect_test "%debug_show un-annotated toplevel fun" =
     print_endline @@ Int.to_string @@ followup 3
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     6
@@ -894,7 +894,7 @@ let%expect_test "%debug_show nested un-annotated toplevel fun" =
     print_endline @@ Int.to_string @@ followup 3
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     6
@@ -918,7 +918,7 @@ let%expect_test "%track_show no return type anonymous fun 1" =
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     6
@@ -941,7 +941,7 @@ let%expect_test "%track_show no return type anonymous fun 2" =
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     6
@@ -979,7 +979,7 @@ let%expect_test "%track_show anonymous fun, num children exceeded" =
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     Raised exception: ppx_minidebug: max_num_children exceeded
@@ -1090,7 +1090,7 @@ let%expect_test "%debug_show function with abstract type" =
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     2
@@ -1115,7 +1115,7 @@ let%expect_test "%debug_show PrintBox values_first_mode to stdout with exception
     with _ -> print_endline "Raised exception."
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:true;
   [%expect
     {|
     Raised exception.
@@ -1166,7 +1166,7 @@ let%expect_test "%debug_show values_first_mode to stdout num children exceeded l
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:true;
   [%expect
     {|
     Raised exception: ppx_minidebug: max_num_children exceeded
@@ -1207,7 +1207,7 @@ let%expect_test "%track_show values_first_mode to stdout track for-loop" =
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:true;
   [%expect
     {|
     [track] _bar => () @ test/test_expect_test.ml:1198:21-1198:25
@@ -1256,7 +1256,7 @@ let%expect_test "%debug_show values_first_mode to stdout num children exceeded n
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:true;
   [%expect
     {|
     Raised exception: ppx_minidebug: max_num_children exceeded
@@ -1303,7 +1303,7 @@ let%expect_test "%track_show values_first_mode tracking" =
     with _ -> print_endline "Raised exception."
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:true;
   [%expect
     {|
     4
@@ -1332,7 +1332,7 @@ let%expect_test "%track_show values_first_mode to stdout no return type anonymou
     with Failure s -> print_endline @@ "Raised exception: " ^ s
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:true;
   [%expect
     {|
     6
@@ -1366,7 +1366,7 @@ let%expect_test "%debug_show records" =
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     336
@@ -1409,7 +1409,7 @@ let%expect_test "%debug_show tuples" =
   let () = print_endline @@ Int.to_string r1 in
   let () = print_endline @@ Int.to_string r2 in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     336
@@ -1454,7 +1454,7 @@ let%expect_test "%debug_show records values_first_mode" =
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:true;
   [%expect
     {|
     336
@@ -1494,7 +1494,7 @@ let%expect_test "%debug_show tuples values_first_mode" =
   let () = print_endline @@ Int.to_string r1 in
   let () = print_endline @@ Int.to_string r2 in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:true;
   [%expect
     {|
     336
@@ -1545,7 +1545,7 @@ let%expect_test "%track_show variants values_first_mode" =
   let () = print_endline @@ Int.to_string @@ baz (Right (Two 3)) in
   let () = print_endline @@ Int.to_string @@ foo (Right (Three 0)) in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:true;
   [%expect
     {|
     16
@@ -1578,7 +1578,7 @@ let%expect_test "%debug_show tuples merge type info" =
   let () = print_endline @@ Int.to_string r1 in
   let () = print_endline @@ Int.to_string r2 in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   (* Note the missing value of [b]: the nested-in-expression type is not propagated. *)
   [%expect
     {|
@@ -1607,7 +1607,7 @@ let%expect_test "%debug_show decompose multi-argument function type" =
   let () = print_endline @@ Int.to_string @@ f 'a' 6 in
   let () = print_endline @@ Int.to_string @@ g 'a' 6 'b' 'c' in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect
     {|
     7
@@ -1632,7 +1632,7 @@ let%expect_test "%debug_show debug type info" =
       let () = print_endline @@ Int.to_string @@ f 'a' 6 in
       print_endline @@ Int.to_string @@ g 'a' 6 'b' 'c']];
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect
     {|
     7
@@ -1666,7 +1666,7 @@ let%expect_test "%track_show options values_first_mode" =
   in
   let () = print_endline @@ Int.to_string @@ zoo (Some (4, 5)) in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:true;
   [%expect
     {|
     14
@@ -1706,7 +1706,7 @@ let%expect_test "%track_show list values_first_mode" =
   let () = print_endline @@ Int.to_string @@ baz [ 4; 5 ] in
   let () = print_endline @@ Int.to_string @@ baz [ 4; 5; 6 ] in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:true;
   [%expect
     {|
     14
@@ -1735,7 +1735,7 @@ let%expect_test "%track_rt_show list runtime passing" =
   let rt run_name = Minidebug_db.debug_db_file ~run_name db_file_base in
   let%track_rt_show foo l : int = match (l : int list) with [] -> 7 | y :: _ -> y * 2 in
   let () = print_endline @@ Int.to_string @@ foo (rt "foo-1") [ 7 ] in
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "foo-1")) ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "foo-1")) ~values_first_mode:true;
   let%track_rt_show baz : int list -> int = function
     | [] -> 7
     | [ y ] -> y * 2
@@ -1743,9 +1743,9 @@ let%expect_test "%track_rt_show list runtime passing" =
     | y :: z :: _ -> y + z + 1
   in
   let () = print_endline @@ Int.to_string @@ baz (rt "baz-1") [ 4 ] in
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "baz-1")) ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "baz-1")) ~values_first_mode:true;
   let () = print_endline @@ Int.to_string @@ baz (rt "baz-2") [ 4; 5; 6 ] in
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "baz-2")) ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "baz-2")) ~values_first_mode:true;
   [%expect {|
     14
     [track] foo => 14 @ test/test_expect_test.ml:1736:24-1736:85
@@ -1765,17 +1765,17 @@ let%expect_test "%track_rt_show procedure runtime passing" =
   let rt run_name = Minidebug_db.debug_db_file ~run_name db_file_base in
   let%track_rt_show bar () = (fun () -> ()) () in
   let () = bar (rt "bar-1") () in
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "bar-1"));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "bar-1"));
   let () = bar (rt "bar-2") () in
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "bar-2"));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "bar-2"));
   let%track_rt_show foo () =
     let () = () in
     ()
   in
   let () = foo (rt "foo-1") () in
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "foo-1"));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "foo-1"));
   let () = foo (rt "foo-2") () in
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "foo-2"));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "foo-2"));
   [%expect {|
     [track] bar @ test/test_expect_test.ml:1766:24-1766:46
       fun:test_expect_test:1766 =
@@ -1804,13 +1804,13 @@ let%expect_test "%track_rt_show nested procedure runtime passing" =
   in
   let foo, bar = rt_test () in
   let () = foo (rt "foo-1") () in
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "foo-1"));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "foo-1"));
   let () = foo (rt "foo-2") () in
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "foo-2"));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "foo-2"));
   let () = bar (rt "bar-1") () in
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "bar-1"));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "bar-1"));
   let () = bar (rt "bar-2") () in
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "bar-2"));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "bar-2"));
   [%expect {|
     [track] foo => 14 @ test/test_expect_test.ml:1736:24-1736:85
       [track] <match -- branch 1> :: (y, _) @ test/test_expect_test.ml:1736:80-1736:85
@@ -1833,7 +1833,7 @@ let%expect_test "%log constant entries" =
   in
   let () = foo () in
   let db = Option.get (open_db_by_run_name run_name1) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   let run_name2 = "line_1850_part2" in
   let rt2 = Minidebug_db.debug_db_file ~run_name:run_name2 db_file_base in
   let _get_local_debug_runtime = fun () -> rt2 in
@@ -1844,7 +1844,7 @@ let%expect_test "%log constant entries" =
   in
   let () = bar () in
   let db = Option.get (open_db_by_run_name run_name2) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect {|
     [debug] foo => () @ test/test_expect_test.ml:1829:21-1832:51
       "This is the first log line"
@@ -1874,7 +1874,7 @@ let%expect_test "%log with type annotations" =
   in
   let () = foo () in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect {|
     [debug] foo => () @ test/test_expect_test.ml:1868:21-1873:25
       ("This is like", 3, "or", 3.14, "above")
@@ -1905,7 +1905,7 @@ let%expect_test "%log with default type assumption" =
   in
   let () = foo () in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect {|
     [debug] foo => () @ test/test_expect_test.ml:1897:21-1904:25
       "2*3"
@@ -1935,7 +1935,7 @@ let%expect_test "%log track while-loop" =
   in
   let () = print_endline @@ Int.to_string result in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect {|
     21
     [track] result @ test/test_expect_test.ml:1924:17-1924:23
@@ -1986,14 +1986,14 @@ let%expect_test "%log runtime log levels while-loop" =
     !j
   in
   print_endline @@ Int.to_string (result (rt 9 "Everything") ());
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "Everything"));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "Everything"));
   print_endline @@ Int.to_string (result (rt 0 "Nothing") ());
   (* There is no new run after Nothing, so we just skip invoking the client. *)
   print_endline @@ Int.to_string (result (rt 1 "Error") ());
   (* $MDX part-end *)
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "Error"));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "Error"));
   print_endline @@ Int.to_string (result (rt 2 "Warning") ());
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "Warning"));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "Warning"));
   [%expect {|
     21
     [track] result => 21 @ test/test_expect_test.ml:1975:27-1986:6
@@ -2143,7 +2143,7 @@ let%expect_test "%log compile time log levels while-loop" =
   print_endline @@ Int.to_string @@ nothing ();
   print_endline @@ Int.to_string @@ warning ();
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect {|
     21
     21
@@ -2222,7 +2222,7 @@ let%expect_test "%log track while-loop result" =
   in
   print_endline @@ Int.to_string result;
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect {|
     21
     [track] result @ test/test_expect_test.ml:2210:17-2210:23
@@ -2278,7 +2278,7 @@ let%expect_test "%log without scope" =
   in
   let () = !foo () in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect {|
     [debug] _bar @ test/test_expect_test.ml:2270:17-2270:21
       _bar => ()
@@ -2311,7 +2311,7 @@ let%expect_test "%log without scope values_first_mode" =
   let () = !foo () in
   let () = !foo () in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:true;
   [%expect {|
     [debug] _bar => () @ test/test_expect_test.ml:2302:17-2302:21
       ("This is like", 3, "or", 3.14, "above")
@@ -2361,7 +2361,7 @@ let%expect_test "%log with print_scope_ids, mixed up scopes" =
   let%debug_show _foobar : unit = !foo1 () in
   let () = !foo2 () in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect {|
     [debug] bar => () @ test/test_expect_test.ml:2342:21-2347:19
       ("This is like", 3, "or", 3.14, "above")
@@ -2403,7 +2403,7 @@ let%expect_test "%diagn_show ignores type annots" =
   in
   ignore toplevel;
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect {|
     336
     109
@@ -2435,7 +2435,7 @@ let%expect_test "%diagn_show ignores non-empty bindings" =
   in
   let () = print_endline @@ Int.to_string @@ baz { first = 7; second = 42 } in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect
     {|
     336
@@ -2502,7 +2502,7 @@ let%expect_test "%debug_show log level compile time" =
       print_endline @@ Int.to_string @@ baz { first = 7; second = 42 }]
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect
     {|
     336
@@ -2548,7 +2548,7 @@ let%expect_test "%debug_show log level runtime" =
     print_endline @@ Int.to_string @@ baz { first = 7; second = 42 }
   in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect {|
     336
     336
@@ -2604,7 +2604,7 @@ let%expect_test "%log_printbox" =
   in
   let () = foo () in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect
     {|
     [debug] foo => () @ test/test_expect_test.ml:2590:21-2603:91
@@ -2690,7 +2690,7 @@ let%expect_test "%log_entry" =
            "postscript";
          ]
   in
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name run_name));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name run_name));
   [%expect {|
     [diagn] _logging_logic @ test/test_expect_test.ml:2657:17-2657:31
       "preamble"
@@ -2721,7 +2721,7 @@ let%expect_test "%debug_show skip module bindings" =
   in
   let () = print_endline @@ Int.to_string @@ bar ~rt:(module Debug_runtime) 7 in
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db;
+  Minidebug_cli.Cli.show_trace db;
   [%expect {|
     15
     [track] bar => 15 @ test/test_expect_test.ml:2712:23-2720:9
@@ -2749,9 +2749,9 @@ let%expect_test "%track_rt_show expression runtime passing" =
       [%log "line C"]]]
     Minidebug_db.(debug_db_file ~run_name:"t3" ~log_level:0 db_file_base);
   let db = Option.get (open_db_by_run_name "t1") in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   let db = Option.get (open_db_by_run_name "t2") in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     [track] test A @ :0:0-0:0
@@ -2782,7 +2782,7 @@ let%expect_test "%logN_block runtime log levels" =
        (result
           Minidebug_db.(debug_db_file ~run_name:"for=2,with=default" db_file_base)
           ~for_log_level:2);
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "for=2,with=default"));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "for=2,with=default"));
   print_endline
   @@ Int.to_string
        (result
@@ -2795,19 +2795,19 @@ let%expect_test "%logN_block runtime log levels" =
        (result
           Minidebug_db.(debug_db_file ~log_level:1 ~run_name:"for=2,with=1" db_file_base)
           ~for_log_level:2);
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "for=2,with=1"));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "for=2,with=1"));
   print_endline
   @@ Int.to_string
        (result
           Minidebug_db.(debug_db_file ~log_level:2 ~run_name:"for=1,with=2" db_file_base)
           ~for_log_level:1);
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "for=1,with=2"));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "for=1,with=2"));
   print_endline
   @@ Int.to_string
        (result
           Minidebug_db.(debug_db_file ~log_level:3 ~run_name:"for=3,with=3" db_file_base)
           ~for_log_level:3);
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "for=3,with=3"));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "for=3,with=3"));
   (* Unlike with other constructs, INFO should not be printed in "for=4,with=3", because
      log_block filters out the whole body by the log level. *)
   print_endline
@@ -2815,7 +2815,7 @@ let%expect_test "%logN_block runtime log levels" =
        (result
           Minidebug_db.(debug_db_file ~log_level:3 ~run_name:"for=4,with=3" db_file_base)
           ~for_log_level:4);
-  Minidebug_client.Client.show_trace (Option.get (open_db_by_run_name "for=4,with=3"));
+  Minidebug_cli.Cli.show_trace (Option.get (open_db_by_run_name "for=4,with=3"));
   [%expect {|
     21
     [track] result => 21 @ test/test_expect_test.ml:2765:27-2777:6
@@ -3098,7 +3098,7 @@ let%expect_test "%log compile time log levels while-loop dynamic scope" =
   print_endline @@ Int.to_string @@ nothing ();
   print_endline @@ Int.to_string @@ warning ();
   let db = Option.get (open_db_by_run_name run_name) in
-  Minidebug_client.Client.show_trace db ~values_first_mode:false;
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:false;
   [%expect
     {|
     21

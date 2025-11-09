@@ -48,19 +48,19 @@ let () =
   in
   (* Query each versioned database file separately *)
   (* File 1: TOPLEVEL runtime - has the outer debug_sexp scope *)
-  let db1 = Minidebug_client.Client.open_db "test_comptime_log_level_rt_passing_1.db" in
+  let db1 = Minidebug_cli.Cli.open_db "test_comptime_log_level_rt_passing_1.db" in
   List.iter
     (fun run ->
       print_endline @@ "run: "
       ^ Option.value ~default:"<none>" run.Minidebug_client.Query.run_name;
-      Minidebug_client.Client.show_trace db1)
-    (Minidebug_client.Client.list_runs db1);
+      Minidebug_cli.Cli.show_trace db1)
+    (Minidebug_cli.Cli.list_runs db1);
   (* "nothing" runtime - compile-time log_level=0, no logs generated, no file created *)
   (* File 2: "warning" runtime - compile-time log_level=2, shows ERROR and WARNING *)
-  let db2 = Minidebug_client.Client.open_db "test_comptime_log_level_rt_passing_2.db" in
+  let db2 = Minidebug_cli.Cli.open_db "test_comptime_log_level_rt_passing_2.db" in
   List.iter
     (fun run ->
       print_endline @@ "run: "
       ^ Option.value ~default:"<none>" run.Minidebug_client.Query.run_name;
-      Minidebug_client.Client.show_trace db2)
-    (Minidebug_client.Client.list_runs db2)
+      Minidebug_cli.Cli.show_trace db2)
+    (Minidebug_cli.Cli.list_runs db2)

@@ -292,12 +292,12 @@ let () =
     Printf.eprintf "Error: Database file '%s' not found\n" db_path;
     exit 1);
 
-  let client = Minidebug_client.Client.open_db db_path in
+  let client = Minidebug_cli.Cli.open_db db_path in
 
   try
     match cmd with
     | List ->
-        let runs = Minidebug_client.Client.list_runs client in
+        let runs = Minidebug_cli.Cli.list_runs client in
         Printf.printf "Runs in %s:\n\n" db_path;
         List.iter
           (fun run ->
@@ -308,13 +308,13 @@ let () =
             Printf.printf "\n";
             Printf.printf "  Command: %s\n" run.command_line;
             Printf.printf "  Elapsed: %s\n\n"
-              (Minidebug_client.Renderer.format_elapsed_ns run.elapsed_ns))
+              (Minidebug_client.Query.format_elapsed_ns run.elapsed_ns))
           runs
-    | Stats -> Minidebug_client.Client.show_stats client
+    | Stats -> Minidebug_cli.Cli.show_stats client
     | Show ->
-        Minidebug_client.Client.(
+        Minidebug_cli.Cli.(
           show_run_summary client (Option.get (get_latest_run client)).run_id);
-        Minidebug_client.Client.show_trace client ~show_scope_ids:opts.show_scope_ids
+        Minidebug_cli.Cli.show_trace client ~show_scope_ids:opts.show_scope_ids
           ~show_times:opts.show_times ~max_depth:opts.max_depth
           ~values_first_mode:opts.values_first_mode
     | Interactive ->
@@ -324,67 +324,67 @@ let () =
         end) in
         Minidebug_client.Interactive.run (module Q) db_path
     | Compact ->
-        Minidebug_client.Client.(
+        Minidebug_cli.Cli.(
           show_run_summary client (Option.get (get_latest_run client)).run_id);
-        Minidebug_client.Client.show_compact_trace client
+        Minidebug_cli.Cli.show_compact_trace client
     | Roots ->
-        Minidebug_client.Client.(
+        Minidebug_cli.Cli.(
           show_run_summary client (Option.get (get_latest_run client)).run_id);
-        Minidebug_client.Client.show_roots client ~show_times:opts.show_times
+        Minidebug_cli.Cli.show_roots client ~show_times:opts.show_times
           ~with_values:opts.with_values
-    | Search pattern -> Minidebug_client.Client.search client ~pattern
+    | Search pattern -> Minidebug_cli.Cli.search client ~pattern
     | SearchTree pattern ->
         let _ =
-          Minidebug_client.Client.search_tree ~quiet_path:opts.quiet_path
+          Minidebug_cli.Cli.search_tree ~quiet_path:opts.quiet_path
             ~format:opts.format ~show_times:opts.show_times ~max_depth:opts.max_depth
             ~limit:opts.limit ~offset:opts.offset client ~pattern
         in
         ()
     | SearchSubtree pattern ->
         let _ =
-          Minidebug_client.Client.search_subtree ~quiet_path:opts.quiet_path
+          Minidebug_cli.Cli.search_subtree ~quiet_path:opts.quiet_path
             ~format:opts.format ~show_times:opts.show_times ~max_depth:opts.max_depth
             ~limit:opts.limit ~offset:opts.offset client ~pattern
         in
         ()
     | SearchAtDepth (pattern, depth) ->
-        Minidebug_client.Client.search_at_depth ~quiet_path:opts.quiet_path
+        Minidebug_cli.Cli.search_at_depth ~quiet_path:opts.quiet_path
           ~format:opts.format ~show_times:opts.show_times ~depth client ~pattern
     | SearchIntersection patterns ->
         let _ =
-          Minidebug_client.Client.search_intersection ~quiet_path:opts.quiet_path
+          Minidebug_cli.Cli.search_intersection ~quiet_path:opts.quiet_path
             ~format:opts.format ~show_times:opts.show_times ~max_depth:opts.max_depth
             ~limit:opts.limit ~offset:opts.offset client ~patterns
         in
         ()
     | SearchExtract (search_path, extraction_path) ->
-        Minidebug_client.Client.search_extract ~format:opts.format
+        Minidebug_cli.Cli.search_extract ~format:opts.format
           ~show_times:opts.show_times ~max_depth:opts.max_depth client ~search_path
           ~extraction_path
     | ShowScope scope_id ->
-        Minidebug_client.Client.show_scope ~format:opts.format ~show_times:opts.show_times
+        Minidebug_cli.Cli.show_scope ~format:opts.format ~show_times:opts.show_times
           ~max_depth:opts.max_depth ~show_ancestors:opts.show_ancestors client ~scope_id
     | ShowSubtree scope_id ->
-        Minidebug_client.Client.show_subtree ~format:opts.format ~show_times:opts.show_times
+        Minidebug_cli.Cli.show_subtree ~format:opts.format ~show_times:opts.show_times
           ~max_depth:opts.max_depth ~show_ancestors:opts.show_ancestors client ~scope_id
     | ShowEntry (scope_id, seq_id) ->
-        Minidebug_client.Client.show_entry ~format:opts.format client ~scope_id ~seq_id
+        Minidebug_cli.Cli.show_entry ~format:opts.format client ~scope_id ~seq_id
     | GetAncestors scope_id ->
-        Minidebug_client.Client.get_ancestors ~format:opts.format client ~scope_id
+        Minidebug_cli.Cli.get_ancestors ~format:opts.format client ~scope_id
     | GetParent scope_id ->
-        Minidebug_client.Client.get_parent ~format:opts.format client ~scope_id
+        Minidebug_cli.Cli.get_parent ~format:opts.format client ~scope_id
     | GetChildren scope_id ->
-        Minidebug_client.Client.get_children ~format:opts.format client ~scope_id
-    | Export file -> Minidebug_client.Client.export_markdown client ~output_file:file
+        Minidebug_cli.Cli.get_children ~format:opts.format client ~scope_id
+    | Export file -> Minidebug_cli.Cli.export_markdown client ~output_file:file
     | Help ->
         print_endline usage_msg;
         exit 0
   with
   | Failure msg ->
       Printf.eprintf "Error: %s\n" msg;
-      Minidebug_client.Client.close client;
+      Minidebug_cli.Cli.close client;
       exit 1
   | e ->
       Printf.eprintf "Error: %s\n" (Printexc.to_string e);
-      Minidebug_client.Client.close client;
+      Minidebug_cli.Cli.close client;
       exit 1

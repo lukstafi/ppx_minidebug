@@ -1625,7 +1625,7 @@ let _ =
     (fun args ->
        try
          let param = get_string_param args "param_name" in
-         let client = Minidebug_client.Client.open_db (get_db_path ()) in
+         let client = Minidebug_cli.Cli.open_db (get_db_path ()) in
          (* ... perform query ... *)
          Tool.create_tool_result [Mcp.make_text_content result] ~is_error:false
        with e -> Tool.create_error_result (Printexc.to_string e))

@@ -1,0 +1,35 @@
+(library
+ (public_name ppx_minidebug.client)
+ (name minidebug_client)
+ (modules query interactive)
+ (libraries sqlite3 re re.pcre unix uutf))
+
+(library
+ (name minidebug_cli)
+ (modules renderer cli)
+ (libraries minidebug_client))
+
+(library
+ (name minidebug_tui)
+ (modules tui)
+ (libraries
+  minidebug_client
+  notty-community
+  notty-community.unix
+  uutf))
+
+(library
+ (name minidebug_mcp)
+ (modules minidebug_mcp)
+ (libraries
+  minidebug_client
+  minidebug_cli
+  unix
+  logs
+  eio_main
+  mcp
+  mcp.sdk
+  mcp.rpc
+  mcp.server)
+ (flags
+  (:standard -w -27)))

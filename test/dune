@@ -145,7 +145,7 @@
 (test
  (name test_boxify_sexp)
  (modules test_boxify_sexp)
- (libraries sexplib0 minidebug_db minidebug_client)
+ (libraries sexplib0 minidebug_db minidebug_cli)
  (preprocess
   (pps ppx_minidebug ppx_sexp_conv)))
 
@@ -323,7 +323,7 @@
  (name test_inline_tests)
  (inline_tests)
  (modules test_expect_test)
- (libraries minidebug_db minidebug_client str)
+ (libraries minidebug_db minidebug_cli str)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show ppx_sexp_conv ppx_expect)))
 
@@ -397,7 +397,7 @@
 (test
  (name test_path_filter)
  (modules test_path_filter)
- (libraries sexplib0 minidebug_db minidebug_client re)
+ (libraries sexplib0 minidebug_db minidebug_cli re)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
 
@@ -412,28 +412,28 @@
 (test
  (name test_values_first)
  (modules test_values_first)
- (libraries minidebug_db minidebug_client)
+ (libraries minidebug_db minidebug_cli)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
 
 (test
  (name test_indentation_parsing)
  (modules test_indentation_parsing)
- (libraries sexplib0 minidebug_db minidebug_client)
+ (libraries sexplib0 minidebug_db minidebug_cli)
  (preprocess
   (pps ppx_minidebug ppx_sexp_conv)))
 
 (test
  (name test_comptime_log_level_rt_passing)
  (modules test_comptime_log_level_rt_passing)
- (libraries sexplib0 minidebug_db minidebug_client)
+ (libraries sexplib0 minidebug_db minidebug_cli)
  (preprocess
   (pps ppx_minidebug ppx_sexp_conv)))
 
 (test
  (name test_programmatic_log_entry)
  (modules test_programmatic_log_entry)
- (libraries minidebug_db minidebug_client)
+ (libraries minidebug_db minidebug_cli)
  (preprocess
   (pps ppx_minidebug ppx_deriving.show)))
 
@@ -490,7 +490,7 @@
 (test
  (name test_highlight_propagation)
  (modules test_highlight_propagation)
- (libraries sexplib0 minidebug_db minidebug_client)
+ (libraries sexplib0 minidebug_db minidebug_cli)
  (preprocess
   (pps ppx_minidebug ppx_sexp_conv)))
 

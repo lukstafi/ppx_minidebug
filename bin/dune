@@ -2,13 +2,13 @@
  (public_name minidebug_view)
  (name minidebug_view)
  (modules minidebug_view)
- (libraries minidebug_client))
+ (libraries minidebug_cli))
 
 (executable
  (public_name minidebug_mcp)
  (name minidebug_mcp)
  (modules minidebug_mcp)
- (libraries minidebug_mcp_server minidebug_client eio_main logs mcp.server))
+ (libraries minidebug_mcp minidebug_client eio_main logs mcp.server))
 
 (executable
  (name filter_test_output)

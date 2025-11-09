@@ -13,6 +13,6 @@ let%debug_show compute (a : int) (b : int) : int =
 
 let () =
   let _ = compute 3 2 in
-  let db = Minidebug_client.Client.open_db "test_values_first.db" in
-  Minidebug_client.Client.show_trace db ~values_first_mode:true;
+  let db = Minidebug_cli.Cli.open_db "test_values_first.db" in
+  Minidebug_cli.Cli.show_trace db ~values_first_mode:true;
   ()

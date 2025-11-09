@@ -35,6 +35,6 @@ let () =
   test_small ();
   test_medium ();
   test_large ();
-  let db = Minidebug_client.Client.open_db "test_boxify_sexp.db" in
-  Minidebug_client.Client.show_trace db;
+  let db = Minidebug_cli.Cli.open_db "test_boxify_sexp.db" in
+  Minidebug_cli.Cli.show_trace db;
   Printf.printf "Test complete.\n%!"

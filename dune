@@ -37,12 +37,6 @@
   mtime.clock.os
   sexplib0))
 
-(library
- (public_name ppx_minidebug.client)
- (name minidebug_client)
- (modules minidebug_client)
- (libraries sqlite3 re re.pcre unix notty-community notty-community.unix uutf))
-
 (mdx
  (files README_LEGACY.md)
  (libraries minidebug_runtime))
