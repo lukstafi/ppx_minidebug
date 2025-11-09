@@ -2529,6 +2529,7 @@ module Interactive = struct
     current_slot : SlotNumber.t; (* Next slot to use *)
     search_input : string option; (* Active search input buffer *)
     quiet_path_input : string option; (* Active quiet path input buffer *)
+    goto_input : string option; (* Active goto input buffer *)
     quiet_path : string option;
         (* Shared quiet path filter - stops highlight propagation *)
     search_order : Query.search_order; (* Ordering for search results *)
@@ -3003,6 +3004,12 @@ module Interactive = struct
     (* Header *)
     let header =
       let line1 =
+        match state.goto_input with
+        | Some input ->
+            (* Show goto input prompt *)
+            I.string A.(fg lightmagenta)
+              (sanitize_for_notty (Printf.sprintf "Goto Scope ID: %s_" input))
+        | None -> (
         match state.quiet_path_input with
         | Some input ->
             (* Show quiet_path input prompt *)
@@ -3076,7 +3083,7 @@ module Interactive = struct
                     if filtered = [] then "" else " | " ^ String.concat " " filtered
                 in
                 I.string A.(fg lightcyan)
-                  (sanitize_for_notty (base_info ^ chronological_status)))
+                  (sanitize_for_notty (base_info ^ chronological_status))))
       in
       I.vcat [ line1; I.string A.(fg white) (String.make term_width '-') ]
     in
@@ -3110,6 +3117,9 @@ module Interactive = struct
     (* Footer *)
     let footer =
       let help_text =
+        match state.goto_input with
+        | Some _ -> "[Enter] Goto scope ID | [Esc] Cancel | [Backspace] Delete | [0-9] Type ID"
+        | None -> (
         match state.quiet_path_input with
         | Some _ -> "[Enter] Confirm quiet path | [Esc] Cancel | [Backspace] Delete"
         | None -> (
@@ -3118,7 +3128,7 @@ module Interactive = struct
             | None ->
                 "[↑/↓] Navigate | [Home/End] First/Last | [PgUp/PgDn] Page | [u/d] \
                  Quarter | [n/N] Next/Prev Match | [Enter/Space] Expand | [f] Fold | [/] \
-                 Search | [Q] Quiet | [t] Times | [v] Values | [o] Order | [q] Quit")
+                 Search | [g] Goto | [Q] Quiet | [t] Times | [v] Values | [o] Order | [q] Quit"))
       in
       I.vcat
         [
@@ -3375,11 +3385,173 @@ module Interactive = struct
                 visible_items = new_visible;
               })
 
+  (** Jump to scope with given ID (find header entry with child_scope_id = target_id).
+      Returns updated state with cursor positioned at scope header if visible, or at the
+      closest visible ancestor (which may be an ellipsis containing it). Does not unfold. *)
+  let goto_scope state target_scope_id =
+    let module Q = (val state.query) in
+
+    (* Find the header entry with child_scope_id = target_scope_id *)
+    match Q.find_scope_header ~scope_id:target_scope_id with
+    | None -> None (* Scope not found *)
+    | Some header_entry ->
+        (* Expand all ancestors of the header entry to make parent scope visible *)
+        let ancestors = Q.get_ancestors ~scope_id:header_entry.scope_id in
+        List.iter
+          (fun ancestor_id -> Hashtbl.replace state.expanded ancestor_id ())
+          ancestors;
+
+        (* Rebuild visible items with expanded ancestors *)
+        let new_visible =
+          build_visible_items state.query state.expanded state.values_first
+            ~search_slots:state.search_slots ~current_slot:state.current_slot
+            ~unfolded_ellipsis:state.unfolded_ellipsis
+        in
+
+        (* Try to find the target entry in visible items *)
+        let rec find_entry_by_ids ~scope_id ~seq_id idx =
+          if idx >= Array.length new_visible then None
+          else
+            let item = new_visible.(idx) in
+            match item.content with
+            | RealEntry entry ->
+                if entry.scope_id = scope_id && entry.seq_id = seq_id then Some idx
+                else find_entry_by_ids ~scope_id ~seq_id (idx + 1)
+            | Ellipsis _ -> find_entry_by_ids ~scope_id ~seq_id (idx + 1)
+        in
+
+        (* Try to find ellipsis covering a given entry *)
+        let rec find_covering_ellipsis ~parent_scope_id ~seq_id idx =
+          if idx >= Array.length new_visible then None
+          else
+            let item = new_visible.(idx) in
+            match item.content with
+            | Ellipsis { parent_scope_id = ell_parent; start_seq_id; end_seq_id; _ }
+              when ell_parent = parent_scope_id
+                   && start_seq_id <= seq_id
+                   && seq_id <= end_seq_id ->
+                Some idx
+            | _ -> find_covering_ellipsis ~parent_scope_id ~seq_id (idx + 1)
+        in
+
+        (* Search strategy: try target first, then walk up ancestor chain *)
+        let rec find_closest_visible targets =
+          match targets with
+          | [] -> None (* Shouldn't happen - root should always be visible *)
+          | (scope_id, seq_id, _parent_scope_id) :: rest ->
+              (* Try to find the entry itself *)
+              (match find_entry_by_ids ~scope_id ~seq_id 0 with
+              | Some idx -> Some idx
+              | None ->
+                  (* Entry not visible - try to find ellipsis covering it.
+                     The ellipsis that hides an entry at (scope_id, seq_id) has
+                     parent_scope_id=scope_id (the scope the entry belongs to). *)
+                  (match find_covering_ellipsis ~parent_scope_id:scope_id ~seq_id 0 with
+                  | Some idx -> Some idx
+                  | None ->
+                      (* Not in any ellipsis either - try parent *)
+                      find_closest_visible rest))
+        in
+
+        (* Build target list: header_entry, then its ancestors.
+           Each element is (scope_id, seq_id, parent_scope_id).
+           Ancestors list is [target_scope; parent; grandparent; ...] *)
+        let target_chain =
+          (* First, add the target header entry itself *)
+          let target_parent_scope_id =
+            match ancestors with
+            | _ :: parent :: _ -> parent (* Target's parent is second in list *)
+            | _ -> header_entry.scope_id (* Fallback if no parent *)
+          in
+          let initial_chain =
+            [ (header_entry.scope_id, header_entry.seq_id, target_parent_scope_id) ]
+          in
+
+          (* Then add ancestor entries, walking from target upward *)
+          let rec build_ancestor_chain acc remaining_ancestors =
+            match remaining_ancestors with
+            | [] | [ _ ] ->
+                acc (* Done - no more ancestors or just root left *)
+            | child_scope_id :: (parent_scope_id :: _ as rest) ->
+                (* Find header entry for this ancestor scope *)
+                (match Q.find_scope_header ~scope_id:child_scope_id with
+                | Some anc_entry ->
+                    build_ancestor_chain
+                      ((anc_entry.scope_id, anc_entry.seq_id, parent_scope_id) :: acc)
+                      rest
+                | None ->
+                    (* Skip this ancestor if we can't find its header *)
+                    build_ancestor_chain acc rest)
+          in
+
+          (* Start from the second element (first ancestor after target) *)
+          match ancestors with
+          | [] | [ _ ] ->
+              initial_chain (* No ancestors to add *)
+          | _ :: ancestor_tail ->
+              initial_chain @ build_ancestor_chain [] ancestor_tail
+        in
+
+        (match find_closest_visible target_chain with
+        | Some cursor_idx ->
+            (* Found closest visible item - position cursor there *)
+            let _, term_height = Term.size (Term.create ()) in
+            let content_height = term_height - 4 in
+            let new_scroll =
+              if cursor_idx < state.scroll_offset then cursor_idx
+              else if cursor_idx >= state.scroll_offset + content_height then
+                max 0 (cursor_idx - (content_height / 2))
+              else state.scroll_offset
+            in
+            Some
+              {
+                state with
+                cursor = cursor_idx;
+                scroll_offset = new_scroll;
+                visible_items = new_visible;
+              }
+        | None ->
+            (* Couldn't find anything - return state with expanded ancestors anyway *)
+            Some { state with visible_items = new_visible })
+
   (** Handle key events *)
   let handle_key state key term_height =
     let content_height = term_height - 4 in
 
-    (* Handle quiet_path input mode first *)
+    (* Handle goto input mode first *)
+    match state.goto_input with
+    | Some input -> (
+        match key with
+        | `Escape, _ ->
+            (* Cancel goto input *)
+            Some { state with goto_input = None }
+        | `Enter, _ ->
+            (* Confirm goto - jump to scope with given ID *)
+            if String.length input > 0 then
+              (try
+                let target_scope_id = int_of_string (String.trim input) in
+                match goto_scope state target_scope_id with
+                | Some new_state -> Some { new_state with goto_input = None }
+                | None -> Some { state with goto_input = None } (* Scope not found *)
+              with Failure _ ->
+                (* Invalid number *)
+                Some { state with goto_input = None })
+            else
+              (* Empty input - just cancel *)
+              Some { state with goto_input = None }
+        | `Backspace, _ ->
+            (* Remove last character *)
+            let new_input =
+              if String.length input > 0 then String.sub input 0 (String.length input - 1)
+              else input
+            in
+            Some { state with goto_input = Some new_input }
+        | `ASCII c, _ when c >= '0' && c <= '9' ->
+            (* Add digit character only *)
+            Some { state with goto_input = Some (input ^ String.make 1 c) }
+        | _ -> Some state)
+    | None -> (
+    (* Handle quiet_path input mode next *)
     match state.quiet_path_input with
     | Some input -> (
         match key with
@@ -3608,6 +3780,9 @@ module Interactive = struct
                     state with
                     quiet_path_input = Some (Option.value ~default:"" state.quiet_path);
                   }
+            | `ASCII 'g', _ ->
+                (* Enter goto mode *)
+                Some { state with goto_input = Some "" }
             | `Arrow `Up, _ | `ASCII 'k', _ ->
                 let new_cursor = max 0 (state.cursor - 1) in
                 let new_scroll =
@@ -3717,7 +3892,7 @@ module Interactive = struct
                 match find_and_jump_to_search_result state ~forward:false with
                 | Some new_state -> Some new_state
                 | None -> Some state (* No more results, stay in place *))
-            | _ -> Some state))
+            | _ -> Some state)))
 
   (** Main interactive loop *)
   let run (module Q : Query.S) db_path =
@@ -3748,6 +3923,7 @@ module Interactive = struct
         current_slot = S1;
         search_input = None;
         quiet_path_input = None;
+        goto_input = None;
         quiet_path = None;
         search_order = Query.AscendingIds;
         (* Default: uses index efficiently *)

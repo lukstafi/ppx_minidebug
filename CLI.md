@@ -579,6 +579,7 @@ minidebug_view trace.db interactive
 - `Enter` or `Space`: Expand/collapse
 - `f`: Fold — re-fold unfolded ellipsis or collapse containing scope
 - `/`: Search (up to 4 concurrent searches in slots)
+- `g`: Goto scope by ID — jump to specific scope
 - `Q`: Set quiet path filter
 - `n/N`: Next/previous match
 - `t`: Toggle times
@@ -596,7 +597,24 @@ minidebug_view trace.db interactive
 
 **Example:** If you search for both "compute" and "validation", entries matching both will display with alternating green-cyan-green-cyan segments, immediately showing where both concepts intersect.
 
-**Use Case:** Interactive exploration when you don't know exactly what you're looking for. The multi-pattern highlighting helps identify complex interactions visually.
+**Goto Command (v3.2.0+):**
+- Press `g` to enter goto mode
+- Type a scope ID (digits only, e.g., `2093`)
+- Press Enter to jump to that scope
+- The TUI will:
+  1. Expand all ancestor scopes to make the path visible
+  2. Position cursor at the target scope header if visible
+  3. Or position at the closest visible ancestor (e.g., ellipsis hiding the target)
+  4. Or position at the parent scope header if target is deeply hidden
+- Works seamlessly with scope IDs from search results or external tools
+
+**Goto Behavior with Ellipsis:**
+- **Target visible**: Cursor jumps directly to the scope header ✓
+- **Hidden by one ellipsis**: Cursor positions at the ellipsis line (unfold to reveal target) ✓
+- **Hidden by nested ellipsis**: Cursor positions at the parent scope header (manual navigation needed)
+- Never unfolds automatically — you control when to expand
+
+**Use Case:** Interactive exploration when you don't know exactly what you're looking for. The multi-pattern highlighting helps identify complex interactions visually. The goto command enables precise navigation when you know the scope ID from CLI searches, error messages, or external analysis tools.
 
 ## Global Options
 

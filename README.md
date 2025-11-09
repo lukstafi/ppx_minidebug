@@ -77,9 +77,10 @@ minidebug_view trace.db tui
 - `Enter` or `Space`: Expand/collapse entry
 - `f`: Fold — re-fold unfolded ellipsis or collapse containing scope
 
-**Search:**
+**Search & Navigation:**
 - `/`: Open search prompt (supports 4 concurrent searches: S1-S4)
 - `n`/`N`: Jump to next/previous match (auto-expands tree to reveal match)
+- `g`: Goto scope by ID (jump directly to a specific scope)
 - `Q`: Set quiet path filter (stops highlight propagation at matching ancestors)
 - `o`: Toggle search ordering (Ascending/Descending scope_id)
 
