@@ -401,7 +401,6 @@ let make_bounded_formatter ~budget buffer =
     {
       (Format.get_formatter_out_functions ()) with
       out_string = check_and_write;
-      out_flush = (fun () -> ());
       out_newline =
         (fun () ->
           written := !written + 1;

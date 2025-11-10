@@ -17,6 +17,7 @@ jobs:
           # - freebsd-latest
         ocaml-compiler:
           - 5.3.x
+          - 5.4.x
     runs-on: ${{ matrix.os }}
     steps:
     - name: Set git to use LF
