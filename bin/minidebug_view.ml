@@ -322,7 +322,9 @@ let () =
         let module Q = Minidebug_client.Query.Make (struct
           let db_path = db_path
         end) in
-        Minidebug_client.Interactive.run (module Q) db_path
+        let initial_state = Minidebug_client.Interactive.initial_state (module Q) in
+        let _term, command_stream, render_screen, output_size, finalize = Minidebug_tui.Tui.create_tui_callbacks () in
+        Minidebug_client.Interactive.run (module Q) ~initial_state ~command_stream ~render_screen ~output_size ~finalize
     | Compact ->
         Minidebug_cli.Cli.(
           show_run_summary client (Option.get (get_latest_run client)).run_id);

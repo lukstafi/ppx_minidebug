@@ -2,7 +2,7 @@
  (public_name minidebug_view)
  (name minidebug_view)
  (modules minidebug_view)
- (libraries minidebug_cli))
+ (libraries minidebug_cli minidebug_tui))
 
 (executable
  (public_name minidebug_mcp)

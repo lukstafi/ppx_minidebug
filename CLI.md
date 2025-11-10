@@ -1724,17 +1724,36 @@ The current MCP tools provide powerful search and navigation, but they operate a
 
 ### Architecture (Implemented So Far)
 
-#### 1. Shared Type System ✅
+#### 1. Module Structure - Function-Based Composition ✅
 
-Added to `minidebug_client.ml` Interactive module:
+**Design Decision:** Instead of using a functor (which would complicate instantiation), the architecture uses a simple function with callback parameters. This makes it easy for both TUI and MCP frontends to configure behavior via callbacks.
+
+**Directory Structure:**
+```
+client/
+├── query.ml              # Bottom layer: Database queries (Query.S module type)
+├── interactive.ml        # Core TUI logic: state, commands, tree building, search
+├── renderer.ml           # Rendering abstraction (currently empty, might be removed)
+├── tui.ml                # TUI frontend: Notty rendering + keyboard event parsing
+├── minidebug_mcp.ml      # MCP frontend: Text rendering + command parsing
+└── cli.ml                # CLI commands: Non-interactive operations
+```
+
+**Dependency Flow:**
+- `Query` (bottom) ← `Interactive` ← `Tui` / `Minidebug_mcp` (frontends)
+- `Cli` depends on `Query` and `Renderer` but NOT on `Interactive`
+
+#### 2. Shared Type System ✅
+
+Added to `client/interactive.ml`:
 
 ```ocaml
 (** Command type - abstracts keyboard events for both TUI and MCP *)
 type command =
-  | Navigate of [ `Up | `Down | `PageUp | `PageDown | ... ]
+  | Navigate of [ `Up | `Down | `PageUp | `PageDown | `QuarterUp | `QuarterDown | `Home | `End ]
   | ToggleExpansion | Fold
   | SearchNext | SearchPrev
-  | BeginSearch of string option
+  | BeginSearch of string option  (* None = enter input mode, Some = execute search *)
   | BeginQuietPath of string option
   | BeginGoto of int option
   | ToggleTimes | ToggleValues | ToggleSearchOrder
@@ -1744,127 +1763,92 @@ type command =
 
 This unified command type allows both keyboard events (TUI) and string commands (MCP) to manipulate the same state.
 
-#### 2. Renderer Abstraction ✅
+#### 3. Core Interactive Logic ✅
 
-Created pluggable renderer architecture:
-
-```ocaml
-module type RENDERER = sig
-  type output
-
-  type render_context = {
-    width : int;
-    is_selected : bool;
-    show_times : bool;
-    margin_width : int;
-    search_slots : slot_map;
-    current_slot : SlotNumber.t;
-    query : (module Query.S);
-    values_first : bool;
-  }
-
-  val render_line : render_context -> visible_item -> output
-  val render_screen : view_state -> term_width:int -> term_height:int -> output
-end
-```
-
-#### 3. TextRenderer Implementation ✅
-
-Complete text-based renderer for MCP (lines 2813-3106 of minidebug_client.ml):
+Implemented in `client/interactive.ml`:
 
 ```ocaml
-module TextRenderer : RENDERER with type output = string = struct
-  (** Renders TUI screen as plain text with inline markers *)
-
-  (* Selection: >>> line content <<< *)
-  (* Search highlighting: [G] line (green), [C] line (cyan), etc. *)
-  (* Checkered pattern: [G/C] line (multiple matches) *)
-  (* Ellipsis: ⋯ (42 hidden entries: seq 10-52) *)
-  (* Tree structure: preserved with indentation, ▶/▼ markers *)
-end
+(** Main interactive loop - configured via callbacks *)
+val run : (module Query.S) ->
+  initial_state:view_state ->
+  command_stream:(view_state -> 'event option) ->  (* Returns events (keyboard, resize, timeout) *)
+  render_screen:(view_state -> width:int -> height:int -> unit) ->  (* Renders screen *)
+  output_size:(unit -> int * int) ->  (* Gets terminal width/height *)
+  finalize:(unit -> unit) ->  (* Cleanup function *)
+  unit
 ```
 
-**Key Features:**
-- **Selection marking**: `>>> ... <<<` wrapper for cursor position
-- **Color tags**: `[G]`, `[C]`, `[M]`, `[Y]` for search slot 1-4
-- **Checkered highlighting**: `[G/C/M]` for multiple overlapping matches
-- **Ellipsis support**: Shows folded ranges with unfold capability
-- **Full screen rendering**: Header (status), content (visible items), footer (help)
+**Key Functions:**
+- `handle_key`: Processes keyboard/command events, returns updated state or None (quit)
+- `toggle_expansion`: Expands/collapses scopes, unfolds ellipsis
+- `fold_selection`: Re-folds ellipsis or parent scope
+- `find_and_jump_to_search_result`: Jumps to next/prev search match with auto-expansion
+- `goto_scope`: Jumps to scope by ID
+- `build_visible_items`: Lazy tree construction with ellipsis computation
 
-**Example Output:**
-```
-Items: 145 | Times: ON | Values First: ON | Search: Asc | Entry: 42/1234 (3.4%) | G:error[15]
-────────────────────────────────────────────────────────────────────────────────────────
-   1 │ [entry] main
-   2 │   [entry] init_system
-   3 │     [entry] load_config
-[G] 4 │       [value] error => "Config file not found"
->>>5 │     [entry] fallback_config <<<
-   6 │       [value] using_defaults => true
-   7 │     ⋯ (42 hidden entries: seq 8-50)
-────────────────────────────────────────────────────────────────────────────────────────
-[↑/↓] Navigate | [Enter/Space] Expand | [f] Fold | [/] Search | [g] Goto | [q] Quit
+#### 4. TUI Frontend ✅
+
+Implemented in `client/tui.ml`:
+
+**Rendering:**
+- Uses Notty for terminal UI with colors and Unicode
+- `render_line`: Renders individual tree lines with search highlighting
+- `render_screen`: Full screen layout (header, content, footer)
+- Checkered pattern for multiple overlapping search matches
+
+**Event Handling:**
+- `event_with_timeout`: Polls terminal events with 0.2s timeout
+- Keyboard events are passed directly to `Interactive.handle_key`
+
+**Integration:**
+```ocaml
+(* TUI-specific setup at bottom of tui.ml *)
+let term, command_stream, render_screen, finalize =
+  let term = Term.create () in
+  let command_stream state = parse_key state @@ event_with_timeout term 0.2 in
+  let finalize () = Term.release term in
+  let render_screen state ~width ~height =
+    let image = render_screen state ~width ~height in
+    Term.image term image
+  in
+  (term, command_stream, render_screen, finalize)
 ```
 
 ### Remaining Implementation (Next Steps)
 
-#### 4. TUI State Management 🚧
+#### 5. Command Parser 🚧 TODO
 
-Add to MCP server session:
+The current `handle_key` function in `interactive.ml` directly processes Notty keyboard events. This needs to be split:
 
+**Split `handle_key` into:**
+1. `parse_command` (in `tui.ml`): Converts Notty events to `command` type
+2. `handle_command` (in `interactive.ml`): Processes `command` type, returns updated state
+
+This will allow `minidebug_mcp.ml` to parse string commands (e.g., "j", "/pattern", "g42") into the same `command` type.
+
+**Target signature:**
 ```ocaml
-type tui_state = {
-  state : Minidebug_client.Interactive.view_state;
-  last_update : float;  (* Unix timestamp *)
-}
+(* In interactive.ml *)
+val handle_command : view_state -> command -> height:int -> view_state option
 
-type session_state = {
-  db_path : string;
-  query : (module Minidebug_client.Query.S);
-  search_cache : (string, (int * int, bool) Hashtbl.t) Hashtbl.t;
-  tui_state : tui_state option ref;  (* NEW *)
-}
+(* In tui.ml *)
+val parse_command : [< Notty.Unescape.key ] * 'a -> command option
 ```
 
-#### 5. Command Parser 🚧
+#### 6. Search Background Execution ✅
 
-Convert string commands to `command` type:
-
-```ocaml
-let parse_command : string -> state -> command = function
-  | "j" | "down" -> Navigate `Down
-  | "k" | "up" -> Navigate `Up
-  | "enter" | "space" -> ToggleExpansion
-  | "f" -> Fold
-  | "n" -> SearchNext
-  | "N" -> SearchPrev
-  | "/" -> BeginSearch None
-  | s when String.starts_with ~prefix:"/" s ->
-      (* "/pattern\n" = search for pattern *)
-      let pattern = String.sub s 1 (String.length s - 2) in
-      BeginSearch (Some pattern)
-  | "g" -> BeginGoto None
-  | s when String.starts_with ~prefix:"g" s ->
-      let id_str = String.sub s 1 (String.length s - 1) in
-      BeginGoto (Some (int_of_string id_str))
-  | "t" -> ToggleTimes
-  | "v" -> ToggleValues
-  | "o" -> ToggleSearchOrder
-  | "q" -> Quit
-  | ...
-```
-
-#### 6. Search Background Execution 🚧
+Already implemented! The `handle_key` function spawns background Domains for search:
 
 ```ocaml
-val wait_for_searches : state -> timeout_sec:float -> state
+(* Spawn background search Domain *)
+let domain_handle = Domain.spawn (fun () ->
+  let module DomainQ = Query.Make (struct let db_path = state.db_path end) in
+  DomainQ.populate_search_results ~search_term ~quiet_path ~search_order
+    ~completed_ref ~results_table
+) in
 ```
 
-After executing a search command:
-1. Spawn Domain for `populate_search_results`
-2. Poll `completed_ref` every 100ms
-3. Return after 3 seconds OR when search completes
-4. Rebuild `visible_items` if search results changed
+The main loop polls `completed_ref` and `results_table` (shared memory) every render cycle, automatically rebuilding `visible_items` when search results change.
 
 Status line shows `G:error[15...]` during search, `G:error[15]` when complete.
 

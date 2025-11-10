@@ -878,63 +878,316 @@ let goto_scope state target_scope_id ~height =
           (* Couldn't find anything - return state with expanded ancestors anyway *)
           Some { state with visible_items = new_visible })
 
-(** Handle key events *)
-let handle_key state key ~height =
+(** Handle commands - core command processing logic *)
+let rec handle_command state command ~height =
   let content_height = height - 4 in
 
-  (* Handle goto input mode first *)
-  match state.goto_input with
-  | Some input -> (
-      match key with
-      | `Escape, _ ->
-          (* Cancel goto input *)
-          Some { state with goto_input = None }
-      | `Enter, _ ->
-          (* Confirm goto - jump to scope with given ID *)
+  match command with
+  | Quit -> None
+  | Navigate direction -> (
+      match direction with
+      | `Up ->
+          let new_cursor = max 0 (state.cursor - 1) in
+          let new_scroll =
+            if new_cursor < state.scroll_offset then new_cursor else state.scroll_offset
+          in
+          Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+      | `Down ->
+          let max_cursor = Array.length state.visible_items - 1 in
+          let new_cursor = min max_cursor (state.cursor + 1) in
+          let new_scroll =
+            if new_cursor >= state.scroll_offset + content_height then
+              new_cursor - content_height + 1
+            else state.scroll_offset
+          in
+          Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+      | `Home -> Some { state with cursor = 0; scroll_offset = 0 }
+      | `End ->
+          let max_cursor = Array.length state.visible_items - 1 in
+          let new_scroll = max 0 (max_cursor - content_height + 1) in
+          Some { state with cursor = max_cursor; scroll_offset = new_scroll }
+      | `PageUp ->
+          if state.cursor = state.scroll_offset then
+            let new_scroll = max 0 (state.scroll_offset - (content_height - 1)) in
+            let new_cursor = new_scroll in
+            Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+          else Some { state with cursor = state.scroll_offset }
+      | `PageDown ->
+          let max_cursor = Array.length state.visible_items - 1 in
+          let bottom_of_screen =
+            min max_cursor (state.scroll_offset + content_height - 1)
+          in
+          if state.cursor = bottom_of_screen then
+            let new_scroll =
+              min
+                (max 0 (max_cursor - content_height + 1))
+                (state.scroll_offset + (content_height - 1))
+            in
+            let new_cursor = min max_cursor (new_scroll + content_height - 1) in
+            Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+          else Some { state with cursor = bottom_of_screen }
+      | `QuarterUp ->
+          let quarter_page = max 1 (content_height / 4) in
+          let new_cursor = max 0 (state.cursor - quarter_page) in
+          let new_scroll = max 0 (min state.scroll_offset new_cursor) in
+          Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+      | `QuarterDown ->
+          let max_cursor = Array.length state.visible_items - 1 in
+          let quarter_page = max 1 (content_height / 4) in
+          let new_cursor = min max_cursor (state.cursor + quarter_page) in
+          let new_scroll =
+            if new_cursor >= state.scroll_offset + content_height then
+              min
+                (max 0 (max_cursor - content_height + 1))
+                (new_cursor - content_height + 1)
+            else state.scroll_offset
+          in
+          Some { state with cursor = new_cursor; scroll_offset = new_scroll })
+  | ToggleExpansion -> Some (toggle_expansion state)
+  | Fold -> Some (fold_selection state)
+  | SearchNext -> (
+      match find_and_jump_to_search_result state ~forward:true ~height with
+      | Some new_state -> Some new_state
+      | None -> Some state)
+  | SearchPrev -> (
+      match find_and_jump_to_search_result state ~forward:false ~height with
+      | Some new_state -> Some new_state
+      | None -> Some state)
+  | BeginSearch None -> Some { state with search_input = Some "" }
+  | BeginSearch (Some search_term) ->
+      if String.length search_term > 0 then
+        let slot = state.current_slot in
+        (* Check if this is an extract search (contains '>') *)
+        let search_type, is_valid =
+          match String.index_opt search_term '>' with
+          | None -> (RegularSearch search_term, true)
+          | Some sep_idx ->
+              let search_part = String.sub search_term 0 sep_idx in
+              let extract_part =
+                String.sub search_term (sep_idx + 1)
+                  (String.length search_term - sep_idx - 1)
+              in
+              let search_path = String.split_on_char ',' search_part in
+              let extraction_path = String.split_on_char ',' extract_part in
+              let validate_path path =
+                List.for_all (fun s -> String.trim s <> "") path && path <> []
+              in
+              let valid_paths =
+                validate_path search_path && validate_path extraction_path
+              in
+              let same_first =
+                match (search_path, extraction_path) with
+                | s :: _, e :: _ -> String.trim s = String.trim e
+                | _ -> false
+              in
+              if valid_paths && same_first then
+                let search_path = List.map String.trim search_path in
+                let extraction_path = List.map String.trim extraction_path in
+                let display_text =
+                  match extraction_path with
+                  | _ :: tail when tail <> [] ->
+                      Printf.sprintf "%s>%s"
+                        (String.concat "," search_path)
+                        (String.concat "," tail)
+                  | _ ->
+                      Printf.sprintf "%s>%s"
+                        (String.concat "," search_path)
+                        (String.concat "," extraction_path)
+                in
+                (ExtractSearch { search_path; extraction_path; display_text }, true)
+              else (RegularSearch search_term, false)
+        in
+        if is_valid then (
+          let completed_ref = ref false in
+          let results_table = Hashtbl.create 1024 in
+          let domain_handle =
+            Domain.spawn (fun () ->
+                let module DomainQ = Query.Make (struct
+                  let db_path = state.db_path
+                end) in
+                match search_type with
+                | RegularSearch term ->
+                    DomainQ.populate_search_results ~search_term:term
+                      ~quiet_path:state.quiet_path ~search_order:state.search_order
+                      ~completed_ref ~results_table
+                | ExtractSearch { search_path; extraction_path; _ } ->
+                    DomainQ.populate_extract_search_results ~search_path ~extraction_path
+                      ~quiet_path:state.quiet_path ~completed_ref ~results_table)
+          in
+          let new_slots =
+            SlotMap.update slot
+              (fun _ ->
+                Some
+                  {
+                    search_type;
+                    domain_handle = Some domain_handle;
+                    completed_ref;
+                    results = results_table;
+                  })
+              state.search_slots
+          in
+          let filtered_history =
+            List.filter
+              (fun event ->
+                match event with
+                | SearchEvent (old_slot, _) -> old_slot <> slot
+                | QuietPathEvent _ -> true)
+              state.status_history
+          in
+          let rec deduplicate_consecutive acc = function
+            | [] -> List.rev acc
+            | (QuietPathEvent _ as qp) :: QuietPathEvent _ :: rest ->
+                deduplicate_consecutive (qp :: acc) rest
+            | event :: rest -> deduplicate_consecutive (event :: acc) rest
+          in
+          let deduped_history = deduplicate_consecutive [] filtered_history in
+          let new_history = SearchEvent (slot, search_type) :: deduped_history in
+          let new_count = Hashtbl.length results_table in
+          let old_count =
+            match Hashtbl.find_opt state.search_result_counts slot with
+            | Some c -> c
+            | None -> -1
+          in
+          let search_changed = new_count <> old_count in
+          let new_result_counts = Hashtbl.copy state.search_result_counts in
+          Hashtbl.replace new_result_counts slot new_count;
+          let new_unfolded =
+            if search_changed then EllipsisSet.empty else state.unfolded_ellipsis
+          in
+          let new_visible =
+            if search_changed then
+              build_visible_items state.query state.expanded state.values_first
+                ~search_slots:new_slots ~current_slot:state.current_slot
+                ~unfolded_ellipsis:new_unfolded
+            else state.visible_items
+          in
+          Some
+            {
+              state with
+              search_input = None;
+              search_slots = new_slots;
+              current_slot = SlotNumber.next slot;
+              status_history = new_history;
+              search_result_counts = new_result_counts;
+              unfolded_ellipsis = new_unfolded;
+              visible_items = new_visible;
+            })
+        else Some { state with search_input = None }
+      else Some { state with search_input = None }
+  | BeginQuietPath None ->
+      Some
+        { state with quiet_path_input = Some (Option.value ~default:"" state.quiet_path) }
+  | BeginQuietPath (Some quiet_path_value) ->
+      let new_quiet_path =
+        if String.length quiet_path_value > 0 then Some quiet_path_value else None
+      in
+      let filtered_history =
+        match state.status_history with
+        | QuietPathEvent _ :: rest -> rest
+        | _ -> state.status_history
+      in
+      let new_history = QuietPathEvent new_quiet_path :: filtered_history in
+      Some
+        {
+          state with
+          quiet_path_input = None;
+          quiet_path = new_quiet_path;
+          status_history = new_history;
+        }
+  | BeginGoto None -> Some { state with goto_input = Some "" }
+  | BeginGoto (Some scope_id) -> (
+      match goto_scope state scope_id ~height with
+      | Some new_state -> Some { new_state with goto_input = None }
+      | None -> Some { state with goto_input = None })
+  | ToggleTimes -> Some { state with show_times = not state.show_times }
+  | ToggleValues ->
+      let new_values_first = not state.values_first in
+      let new_visible =
+        build_visible_items state.query state.expanded new_values_first
+          ~search_slots:state.search_slots ~current_slot:state.current_slot
+          ~unfolded_ellipsis:state.unfolded_ellipsis
+      in
+      Some { state with values_first = new_values_first; visible_items = new_visible }
+  | ToggleSearchOrder ->
+      let new_order =
+        match state.search_order with
+        | Query.AscendingIds -> Query.DescendingIds
+        | Query.DescendingIds -> Query.AscendingIds
+      in
+      Some { state with search_order = new_order }
+  | InputChar c -> (
+      (* Handle input based on current input mode *)
+      match state.goto_input with
+      | Some input when c >= '0' && c <= '9' ->
+          Some { state with goto_input = Some (input ^ String.make 1 c) }
+      | Some _ -> Some state
+      | None -> (
+          match state.quiet_path_input with
+          | Some input when c >= ' ' && c <= '~' ->
+              Some { state with quiet_path_input = Some (input ^ String.make 1 c) }
+          | Some _ -> Some state
+          | None -> (
+              match state.search_input with
+              | Some input when c >= ' ' && c <= '~' ->
+                  Some { state with search_input = Some (input ^ String.make 1 c) }
+              | Some _ -> Some state
+              | None -> Some state)))
+  | InputBackspace -> (
+      match state.goto_input with
+      | Some input ->
+          let new_input =
+            if String.length input > 0 then String.sub input 0 (String.length input - 1)
+            else input
+          in
+          Some { state with goto_input = Some new_input }
+      | None -> (
+          match state.quiet_path_input with
+          | Some input ->
+              let new_input =
+                if String.length input > 0 then
+                  String.sub input 0 (String.length input - 1)
+                else input
+              in
+              Some { state with quiet_path_input = Some new_input }
+          | None -> (
+              match state.search_input with
+              | Some input ->
+                  let new_input =
+                    if String.length input > 0 then
+                      String.sub input 0 (String.length input - 1)
+                    else input
+                  in
+                  Some { state with search_input = Some new_input }
+              | None -> Some state)))
+  | InputEscape -> (
+      match state.goto_input with
+      | Some _ -> Some { state with goto_input = None }
+      | None -> (
+          match state.quiet_path_input with
+          | Some _ -> Some { state with quiet_path_input = None }
+          | None -> (
+              match state.search_input with
+              | Some _ -> Some { state with search_input = None }
+              | None -> None (* Escape in normal mode = quit *))))
+  | InputEnter -> (
+      match state.goto_input with
+      | Some input ->
           if String.length input > 0 then
             try
               let target_scope_id = int_of_string (String.trim input) in
               match goto_scope state target_scope_id ~height with
               | Some new_state -> Some { new_state with goto_input = None }
               | None -> Some { state with goto_input = None }
-              (* Scope not found *)
-            with Failure _ ->
-              (* Invalid number *)
-              Some { state with goto_input = None }
-          else
-            (* Empty input - just cancel *)
-            Some { state with goto_input = None }
-      | `Backspace, _ ->
-          (* Remove last character *)
-          let new_input =
-            if String.length input > 0 then String.sub input 0 (String.length input - 1)
-            else input
-          in
-          Some { state with goto_input = Some new_input }
-      | `ASCII c, _ when c >= '0' && c <= '9' ->
-          (* Add digit character only *)
-          Some { state with goto_input = Some (input ^ String.make 1 c) }
-      | _ -> Some state)
-  | None -> (
-      (* Handle quiet_path input mode next *)
-      match state.quiet_path_input with
-      | Some input -> (
-          match key with
-          | `Escape, _ ->
-              (* Cancel quiet_path input *)
-              Some { state with quiet_path_input = None }
-          | `Enter, _ ->
-              (* Confirm quiet_path *)
+            with Failure _ -> Some { state with goto_input = None }
+          else Some { state with goto_input = None }
+      | None -> (
+          match state.quiet_path_input with
+          | Some input ->
               let new_quiet_path = if String.length input > 0 then Some input else None in
-              (* Add quiet path event to chronological history. Only remove if the most
-                 recent event is also a QuietPathEvent (consecutive duplicates). This
-                 preserves the chronological record showing which searches were influenced
-                 by which quiet path filters. *)
               let filtered_history =
                 match state.status_history with
-                | QuietPathEvent _ :: rest ->
-                    rest (* Remove previous quiet path to avoid consecutive duplicates *)
-                | _ -> state.status_history (* Keep history if last event was a search *)
+                | QuietPathEvent _ :: rest -> rest
+                | _ -> state.status_history
               in
               let new_history = QuietPathEvent new_quiet_path :: filtered_history in
               Some
@@ -944,335 +1197,13 @@ let handle_key state key ~height =
                   quiet_path = new_quiet_path;
                   status_history = new_history;
                 }
-          | `Backspace, _ ->
-              (* Remove last character *)
-              let new_input =
-                if String.length input > 0 then
-                  String.sub input 0 (String.length input - 1)
-                else input
-              in
-              Some { state with quiet_path_input = Some new_input }
-          | `ASCII c, _ when c >= ' ' && c <= '~' ->
-              (* Add printable character *)
-              Some { state with quiet_path_input = Some (input ^ String.make 1 c) }
-          | _ -> Some state)
-      | None -> (
-          (* Handle search input mode *)
-          match state.search_input with
-          | Some input -> (
-              match key with
-              | `Escape, _ ->
-                  (* Cancel search input *)
-                  Some { state with search_input = None }
-              | `Enter, _ ->
-                  (* Confirm search - spawn Domain to populate search hash table *)
-                  if String.length input > 0 then
-                    let slot = state.current_slot in
-
-                    (* Check if this is an extract search (contains '>') *)
-                    let search_type, is_valid =
-                      match String.index_opt input '>' with
-                      | None ->
-                          (* Regular search *)
-                          (RegularSearch input, true)
-                      | Some sep_idx ->
-                          (* Extract search - parse paths *)
-                          let search_part = String.sub input 0 sep_idx in
-                          let extract_part =
-                            String.sub input (sep_idx + 1)
-                              (String.length input - sep_idx - 1)
-                          in
-                          let search_path = String.split_on_char ',' search_part in
-                          let extraction_path = String.split_on_char ',' extract_part in
-
-                          (* Validate paths *)
-                          let validate_path path =
-                            List.for_all (fun s -> String.trim s <> "") path && path <> []
-                          in
-                          let valid_paths =
-                            validate_path search_path && validate_path extraction_path
-                          in
-                          let same_first =
-                            match (search_path, extraction_path) with
-                            | s :: _, e :: _ -> String.trim s = String.trim e
-                            | _ -> false
-                          in
-
-                          if valid_paths && same_first then
-                            (* Trim whitespace from all path elements *)
-                            let search_path = List.map String.trim search_path in
-                            let extraction_path = List.map String.trim extraction_path in
-
-                            (* Create display text with shared prefix removed from
-                               extraction *)
-                            let display_text =
-                              match extraction_path with
-                              | _ :: tail when tail <> [] ->
-                                  Printf.sprintf "%s>%s"
-                                    (String.concat "," search_path)
-                                    (String.concat "," tail)
-                              | _ ->
-                                  Printf.sprintf "%s>%s"
-                                    (String.concat "," search_path)
-                                    (String.concat "," extraction_path)
-                            in
-                            ( ExtractSearch { search_path; extraction_path; display_text },
-                              true )
-                          else (RegularSearch input, false)
-                    in
-
-                    if is_valid then (
-                      (* Create shared completion flag and results hash table *)
-                      let completed_ref = ref false in
-                      let results_table = Hashtbl.create 1024 in
-
-                      (* Spawn background search Domain based on search type *)
-                      let domain_handle =
-                        Domain.spawn (fun () ->
-                            let module DomainQ = Query.Make (struct
-                              let db_path = state.db_path
-                            end) in
-                            match search_type with
-                            | RegularSearch search_term ->
-                                DomainQ.populate_search_results ~search_term
-                                  ~quiet_path:state.quiet_path
-                                  ~search_order:state.search_order ~completed_ref
-                                  ~results_table
-                            | ExtractSearch { search_path; extraction_path; _ } ->
-                                DomainQ.populate_extract_search_results ~search_path
-                                  ~extraction_path ~quiet_path:state.quiet_path
-                                  ~completed_ref ~results_table)
-                      in
-
-                      (* Update search slots *)
-                      let new_slots =
-                        SlotMap.update slot
-                          (fun _ ->
-                            Some
-                              {
-                                search_type;
-                                domain_handle = Some domain_handle;
-                                completed_ref;
-                                results = results_table;
-                              })
-                          state.search_slots
-                      in
-
-                      (* Add search event to chronological history. Remove any old search
-                         event for this slot (LRU behavior when slots wrap). After
-                         filtering, deduplicate consecutive quiet path events. *)
-                      let filtered_history =
-                        List.filter
-                          (fun event ->
-                            match event with
-                            | SearchEvent (old_slot, _) -> old_slot <> slot
-                            | QuietPathEvent _ -> true)
-                          state.status_history
-                      in
-                      (* Deduplicate consecutive quiet path events that may have been
-                         exposed by removing the search event. Keep the more recent
-                         (first) one. *)
-                      let rec deduplicate_consecutive acc = function
-                        | [] -> List.rev acc
-                        | (QuietPathEvent _ as qp) :: QuietPathEvent _ :: rest ->
-                            (* Keep first (more recent) quiet path, skip second (older),
-                               continue *)
-                            deduplicate_consecutive (qp :: acc) rest
-                        | event :: rest -> deduplicate_consecutive (event :: acc) rest
-                      in
-                      let deduped_history = deduplicate_consecutive [] filtered_history in
-                      let new_history =
-                        SearchEvent (slot, search_type) :: deduped_history
-                      in
-
-                      (* Check if search results changed - invalidate ellipsis if so *)
-                      let new_count = Hashtbl.length results_table in
-                      let old_count =
-                        match Hashtbl.find_opt state.search_result_counts slot with
-                        | Some c -> c
-                        | None -> -1
-                      in
-                      let search_changed = new_count <> old_count in
-
-                      (* Update result counts *)
-                      let new_result_counts = Hashtbl.copy state.search_result_counts in
-                      Hashtbl.replace new_result_counts slot new_count;
-
-                      (* If search changed, invalidate all ellipsis (clear unfolded
-                         set) *)
-                      let new_unfolded =
-                        if search_changed then EllipsisSet.empty
-                        else state.unfolded_ellipsis
-                      in
-
-                      (* Rebuild visible items if ellipsis was invalidated *)
-                      let new_visible =
-                        if search_changed then
-                          build_visible_items state.query state.expanded
-                            state.values_first ~search_slots:new_slots
-                            ~current_slot:state.current_slot
-                            ~unfolded_ellipsis:new_unfolded
-                        else state.visible_items
-                      in
-
-                      Some
-                        {
-                          state with
-                          search_input = None;
-                          search_slots = new_slots;
-                          current_slot = SlotNumber.next slot;
-                          status_history = new_history;
-                          search_result_counts = new_result_counts;
-                          unfolded_ellipsis = new_unfolded;
-                          visible_items = new_visible;
-                        })
-                    else
-                      (* Invalid extract search format - just cancel *)
-                      Some { state with search_input = None }
-                  else
-                    (* Empty input - just cancel *)
-                    Some { state with search_input = None }
-              | `Backspace, _ ->
-                  (* Remove last character *)
-                  let new_input =
-                    if String.length input > 0 then
-                      String.sub input 0 (String.length input - 1)
-                    else input
-                  in
-                  Some { state with search_input = Some new_input }
-              | `ASCII c, _ when c >= ' ' && c <= '~' ->
-                  (* Add printable character *)
-                  Some { state with search_input = Some (input ^ String.make 1 c) }
-              | _ -> Some state)
           | None -> (
-              (* Normal navigation mode *)
-              match key with
-              | `ASCII 'q', _ | `Escape, _ -> None (* Quit *)
-              | `ASCII '/', _ ->
-                  (* Enter search mode *)
-                  Some { state with search_input = Some "" }
-              | `ASCII 'Q', _ ->
-                  (* Enter quiet_path mode *)
-                  Some
-                    {
-                      state with
-                      quiet_path_input = Some (Option.value ~default:"" state.quiet_path);
-                    }
-              | `ASCII 'g', _ ->
-                  (* Enter goto mode *)
-                  Some { state with goto_input = Some "" }
-              | `Arrow `Up, _ | `ASCII 'k', _ ->
-                  let new_cursor = max 0 (state.cursor - 1) in
-                  let new_scroll =
-                    if new_cursor < state.scroll_offset then new_cursor
-                    else state.scroll_offset
-                  in
-                  Some { state with cursor = new_cursor; scroll_offset = new_scroll }
-              | `Arrow `Down, _ | `ASCII 'j', _ ->
-                  let max_cursor = Array.length state.visible_items - 1 in
-                  let new_cursor = min max_cursor (state.cursor + 1) in
-                  let new_scroll =
-                    if new_cursor >= state.scroll_offset + content_height then
-                      new_cursor - content_height + 1
-                    else state.scroll_offset
-                  in
-                  Some { state with cursor = new_cursor; scroll_offset = new_scroll }
-              | `Home, _ ->
-                  (* Jump to first entry *)
-                  Some { state with cursor = 0; scroll_offset = 0 }
-              | `End, _ ->
-                  (* Jump to last entry *)
-                  let max_cursor = Array.length state.visible_items - 1 in
-                  let new_scroll = max 0 (max_cursor - content_height + 1) in
-                  Some { state with cursor = max_cursor; scroll_offset = new_scroll }
-              | `Enter, _ | `ASCII ' ', _ -> Some (toggle_expansion state)
-              | `ASCII 'f', _ -> Some (fold_selection state)
-              | `ASCII 't', _ -> Some { state with show_times = not state.show_times }
-              | `ASCII 'v', _ ->
-                  let new_values_first = not state.values_first in
-                  let new_visible =
-                    build_visible_items state.query state.expanded new_values_first
-                      ~search_slots:state.search_slots ~current_slot:state.current_slot
-                      ~unfolded_ellipsis:state.unfolded_ellipsis
-                  in
-                  Some
-                    {
-                      state with
-                      values_first = new_values_first;
-                      visible_items = new_visible;
-                    }
-              | `ASCII 'o', _ ->
-                  (* Toggle search order *)
-                  let new_order =
-                    match state.search_order with
-                    | Query.AscendingIds -> Query.DescendingIds
-                    | Query.DescendingIds -> Query.AscendingIds
-                  in
-                  Some { state with search_order = new_order }
-              | `Page `Up, _ ->
-                  (* Page Up: Move cursor to top of screen, then scroll up by
-                     content_height - 1 *)
-                  if state.cursor = state.scroll_offset then
-                    (* Cursor already at top - scroll up one page, keeping one row
-                       overlap *)
-                    let new_scroll = max 0 (state.scroll_offset - (content_height - 1)) in
-                    let new_cursor = new_scroll in
-                    Some { state with cursor = new_cursor; scroll_offset = new_scroll }
-                  else
-                    (* Move cursor to top of current view *)
-                    Some { state with cursor = state.scroll_offset }
-              | `Page `Down, _ ->
-                  (* Page Down: Move cursor to bottom of screen, then scroll down by
-                     content_height - 1 *)
-                  let max_cursor = Array.length state.visible_items - 1 in
-                  let bottom_of_screen =
-                    min max_cursor (state.scroll_offset + content_height - 1)
-                  in
-                  if state.cursor = bottom_of_screen then
-                    (* Cursor already at bottom - scroll down one page, keeping one row
-                       overlap *)
-                    let new_scroll =
-                      min
-                        (max 0 (max_cursor - content_height + 1))
-                        (state.scroll_offset + (content_height - 1))
-                    in
-                    let new_cursor = min max_cursor (new_scroll + content_height - 1) in
-                    Some { state with cursor = new_cursor; scroll_offset = new_scroll }
-                  else
-                    (* Move cursor to bottom of current view *)
-                    Some { state with cursor = bottom_of_screen }
-              | `ASCII 'u', _ ->
-                  (* Quarter-page Up: Scroll up by content_height / 4 *)
-                  let quarter_page = max 1 (content_height / 4) in
-                  let new_cursor = max 0 (state.cursor - quarter_page) in
-                  let new_scroll = max 0 (min state.scroll_offset new_cursor) in
-                  Some { state with cursor = new_cursor; scroll_offset = new_scroll }
-              | `ASCII 'd', _ ->
-                  (* Quarter-page Down: Scroll down by content_height / 4 *)
-                  let max_cursor = Array.length state.visible_items - 1 in
-                  let quarter_page = max 1 (content_height / 4) in
-                  let new_cursor = min max_cursor (state.cursor + quarter_page) in
-                  let new_scroll =
-                    if new_cursor >= state.scroll_offset + content_height then
-                      min
-                        (max 0 (max_cursor - content_height + 1))
-                        (new_cursor - content_height + 1)
-                    else state.scroll_offset
-                  in
-                  Some { state with cursor = new_cursor; scroll_offset = new_scroll }
-              | `ASCII 'n', _ -> (
-                  (* Next search result - searches entire DB and auto-expands path *)
-                  match find_and_jump_to_search_result state ~forward:true ~height with
-                  | Some new_state -> Some new_state
-                  | None -> Some state (* No more results, stay in place *))
-              | `ASCII 'N', _ -> (
-                  (* Previous search result - searches entire DB and auto-expands path *)
-                  match find_and_jump_to_search_result state ~forward:false ~height with
-                  | Some new_state -> Some new_state
-                  | None -> Some state (* No more results, stay in place *))
-              | _ -> Some state)))
+              match state.search_input with
+              | Some input -> handle_command state (BeginSearch (Some input)) ~height
+              | None ->
+                  (* Enter in normal mode = toggle expansion *)
+                  Some (toggle_expansion state))))
 
-(* Initialize empty search slots (no persistence across sessions) *)
 let initial_state (module Q : Query.S) =
   let expanded = Hashtbl.create 64 in
   let values_first = true in
@@ -1311,7 +1242,8 @@ let initial_state (module Q : Query.S) =
   }
 
 (** Main interactive loop *)
-let run (module Q : Query.S) ~initial_state ~command_stream ~render_screen ~output_size ~finalize =
+let run (module Q : Query.S) ~initial_state ~command_stream ~render_screen ~output_size
+    ~finalize =
   let rec loop state =
     (* Check if any search results have changed *)
     let state_with_updated_searches =
@@ -1350,15 +1282,9 @@ let run (module Q : Query.S) ~initial_state ~command_stream ~render_screen ~outp
     let width, height = output_size () in
     render_screen state_with_updated_searches ~width ~height;
 
-    match command_stream () with
-    | Some event -> (
-        match event with
-        | `Key key -> (
-            match handle_key state_with_updated_searches key ~height with
-            | Some new_state -> loop new_state
-            | None -> ())
-        | `Resize _ -> loop state_with_updated_searches
-        | _ -> loop state_with_updated_searches)
+    match command_stream state_with_updated_searches with
+    | Some command ->
+        Option.iter loop (handle_command state_with_updated_searches command ~height)
     | None ->
         (* Timeout - just redraw to update search status *)
         loop state_with_updated_searches

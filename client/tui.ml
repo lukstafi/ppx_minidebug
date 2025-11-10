@@ -1,13 +1,11 @@
 (** Original Notty render functions - for terminal TUI *)
 
 module Query = Minidebug_client.Query
-
 open Notty
-
 open Notty_unix
-
 module I = Minidebug_client.Interactive
 module NI = Notty.I
+
 let sanitize_for_notty = I.sanitize_text
 
 (** Poll for terminal event with timeout. Returns None on timeout. *)
@@ -161,7 +159,8 @@ let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
 
       (* Get all matching search slots for checkered pattern *)
       let all_matches =
-        I.get_all_search_matches ~search_slots ~scope_id:entry.scope_id ~seq_id:entry.seq_id
+        I.get_all_search_matches ~search_slots ~scope_id:entry.scope_id
+          ~seq_id:entry.seq_id
       in
 
       (* Helper: get color attribute for a slot number *)
@@ -169,7 +168,8 @@ let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
         | I.SlotNumber.S1 -> A.(fg green) (* Search slot 1: green *)
         | S2 -> A.(fg cyan) (* Search slot 2: cyan *)
         | S3 -> A.(fg magenta) (* Search slot 3: magenta *)
-        | S4 -> A.(fg yellow) (* Search slot 4: yellow *)
+        | S4 -> A.(fg yellow)
+        (* Search slot 4: yellow *)
         (* Search slot 4: yellow *)
       in
 
@@ -359,8 +359,8 @@ let render_screen state ~width ~height =
     let is_selected = i = state.cursor in
     let item = state.visible_items.(i) in
     let line =
-      render_line ~width ~is_selected ~show_times:state.show_times
-        ~margin_width ~search_slots:state.search_slots ~current_slot:state.current_slot
+      render_line ~width ~is_selected ~show_times:state.show_times ~margin_width
+        ~search_slots:state.search_slots ~current_slot:state.current_slot
         ~query:state.query ~values_first:state.values_first item
     in
     content_lines := line :: !content_lines
@@ -401,12 +401,64 @@ let render_screen state ~width ~height =
 
   NI.vcat [ header; content; footer ]
 
-let term, command_stream, render_screen, finalize =
+(** Handle key events - converts Notty keys to commands and delegates to handle_command *)
+let parse_key state event =
+  (* Convert Notty key events to commands, prioritizing input modes *)
+  match event with
+  | None -> None
+  | Some (`Resize _) -> None
+  | Some `End -> Some I.Quit
+  | Some (`Mouse _) -> None
+  | Some (`Paste _) -> None
+  | Some (`Key (key : Unescape.key)) -> (
+      match state.I.quiet_path_input with
+      | Some _ -> (
+          match key with
+          | `Escape, _ -> Some I.InputEscape
+          | `Enter, _ -> Some InputEnter
+          | `Backspace, _ -> Some InputBackspace
+          | `ASCII c, _ when c >= ' ' && c <= '~' -> Some (InputChar c)
+          | _ -> None)
+      | None -> (
+          match state.search_input with
+          | Some _ -> (
+              match key with
+              | `Escape, _ -> Some InputEscape
+              | `Enter, _ -> Some InputEnter
+              | `Backspace, _ -> Some InputBackspace
+              | `ASCII c, _ when c >= ' ' && c <= '~' -> Some (InputChar c)
+              | _ -> None)
+          | None -> (
+              (* Normal navigation mode *)
+              match key with
+              | `ASCII 'q', _ | `Escape, _ -> Some Quit
+              | `ASCII '/', _ -> Some (BeginSearch None)
+              | `ASCII 'Q', _ -> Some (BeginQuietPath None)
+              | `ASCII 'g', _ -> Some (BeginGoto None)
+              | `Arrow `Up, _ | `ASCII 'k', _ -> Some (Navigate `Up)
+              | `Arrow `Down, _ | `ASCII 'j', _ -> Some (Navigate `Down)
+              | `Home, _ -> Some (Navigate `Home)
+              | `End, _ -> Some (Navigate `End)
+              | `Enter, _ | `ASCII ' ', _ -> Some ToggleExpansion
+              | `ASCII 'f', _ -> Some Fold
+              | `ASCII 't', _ -> Some ToggleTimes
+              | `ASCII 'v', _ -> Some ToggleValues
+              | `ASCII 'o', _ -> Some ToggleSearchOrder
+              | `Page `Up, _ -> Some (Navigate `PageUp)
+              | `Page `Down, _ -> Some (Navigate `PageDown)
+              | `ASCII 'u', _ -> Some (Navigate `QuarterUp)
+              | `ASCII 'd', _ -> Some (Navigate `QuarterDown)
+              | `ASCII 'n', _ -> Some SearchNext
+              | `ASCII 'N', _ -> Some SearchPrev
+              | _ -> None)))
+
+let create_tui_callbacks () =
   let term = Term.create () in
-  let command_stream () = event_with_timeout term 0.2 in
+  let command_stream state = parse_key state @@ event_with_timeout term 0.2 in
   let finalize () = Term.release term in
   let render_screen state ~width ~height =
     let image = render_screen state ~width ~height in
     Term.image term image
   in
-  (term, command_stream, render_screen, finalize)
+  let output_size () = Term.size term in
+  (term, command_stream, render_screen, output_size, finalize)
