@@ -322,11 +322,11 @@ let parse_command cmd_str =
       let pattern = String.sub s 1 (String.length s - 1) in
       if pattern = "" then Some (I.BeginSearch None)
       else Some (I.BeginSearch (Some pattern))
-  | s when String.starts_with ~prefix:"g" s ->
+  | s when String.starts_with ~prefix:"g" s -> (
       (* Goto: "g42" *)
       let rest = String.sub s 1 (String.length s - 1) in
       if rest = "" then Some (I.BeginGoto None)
-      else (
+      else
         try
           let scope_id = int_of_string rest in
           Some (I.BeginGoto (Some scope_id))
@@ -399,6 +399,7 @@ let make_bounded_formatter ~budget buffer =
   in
   Format.formatter_of_out_functions
     {
+      (Format.get_formatter_out_functions ()) with
       out_string = check_and_write;
       out_flush = (fun () -> ());
       out_newline =
@@ -421,10 +422,7 @@ let make_bounded_formatter ~budget buffer =
           Buffer.add_string buffer (String.make n ' '));
     }
 
-type tui_state = {
-  state : I.view_state;
-  last_update : float; (* Unix timestamp *)
-}
+type tui_state = { state : I.view_state; last_update : float (* Unix timestamp *) }
 
 type session_state = {
   db_path : string;
@@ -689,7 +687,8 @@ let create_server ?db_path () =
          tool for AI assistants to understand code execution flow. For large result \
          sets, use limit/offset parameters for pagination (e.g., limit=50) and max_depth \
          to limit tree depth. Uses SQL GLOB patterns (case-sensitive): pattern is \
-         auto-wrapped as *pattern*. Wildcards: * (any chars), ? (one char), [abc] (char set)."
+         auto-wrapped as *pattern*. Wildcards: * (any chars), ? (one char), [abc] (char \
+         set)."
       ~schema_properties:
         [
           ( "pattern",
@@ -797,8 +796,8 @@ let create_server ?db_path () =
       ~description:
         "Search entries and show only matching subtrees (pruned). Returns each match \
          with its descendants but prunes non-matching branches. For large result sets, \
-         use limit parameter (e.g., limit=50) and max_depth to limit subtree depth. \
-         Uses SQL GLOB patterns (auto-wrapped as *pattern*)."
+         use limit parameter (e.g., limit=50) and max_depth to limit subtree depth. Uses \
+         SQL GLOB patterns (auto-wrapped as *pattern*)."
       ~schema_properties:
         [
           ( "pattern",
@@ -1276,8 +1275,7 @@ let create_server ?db_path () =
                  (if show_times then
                     match Query.elapsed_time entry with
                     | Some elapsed ->
-                        Format.fprintf fmt " <%s>"
-                          (Query.format_elapsed_ns elapsed)
+                        Format.fprintf fmt " <%s>" (Query.format_elapsed_ns elapsed)
                     | None -> ());
                  Format.fprintf fmt "\n")
                unique_entries;
@@ -1308,7 +1306,8 @@ let create_server ?db_path () =
         [
           ( "patterns",
             "array",
-            "Array of 2-4 SQL GLOB patterns (all must match, auto-wrapped as *pattern*)" );
+            "Array of 2-4 SQL GLOB patterns (all must match, auto-wrapped as *pattern*)"
+          );
           ("show_times", "boolean", "Include elapsed times (optional, default false)");
           ("max_depth", "integer", "Maximum tree depth (optional)");
           ("quiet_path", "string", "Stop ancestor propagation at pattern (optional)");
@@ -1467,8 +1466,7 @@ let create_server ?db_path () =
                      let elapsed_str =
                        match Query.elapsed_time entry with
                        | Some ns when show_times ->
-                           Printf.sprintf " (%s)"
-                             (Query.format_elapsed_ns ns)
+                           Printf.sprintf " (%s)" (Query.format_elapsed_ns ns)
                        | _ -> ""
                      in
                      Format.fprintf fmt "  Scope %d: %s%s%s\n" lca_scope_id
@@ -1642,9 +1640,9 @@ let create_server ?db_path () =
          navigation across calls (cursor position, expansions, searches persist). \
          Commands: j/k (down/up), u/d (quarter page), pgup/pgdn, home/end, enter/space \
          (expand), f (fold), n/N (next/prev match), /pattern (search with SQL GLOB - \
-         auto-wrapped as *pattern*), g42 (goto scope), Qpattern (quiet path filter), \
-         t (toggle times), v (toggle values), o (toggle search order), q (quit). \
-         GLOB wildcards: * (any chars), ? (one char), [abc] (char set)."
+         auto-wrapped as *pattern*), g42 (goto scope), Qpattern (quiet path filter), t \
+         (toggle times), v (toggle values), o (toggle search order), q (quit). GLOB \
+         wildcards: * (any chars), ? (one char), [abc] (char set)."
       ~schema_properties:
         [
           ( "commands",
@@ -1667,8 +1665,7 @@ let create_server ?db_path () =
                 | Some (`List cmd_list) ->
                     List.map
                       (function
-                        | `String s -> s
-                        | _ -> failwith "Each command must be a string")
+                        | `String s -> s | _ -> failwith "Each command must be a string")
                       cmd_list
                 | _ -> failwith "Missing or invalid 'commands' parameter")
             | _ -> failwith "Expected JSON object"
@@ -1724,7 +1721,8 @@ let create_server ?db_path () =
   (* Tool: tui-reset - Reset TUI state to initial view *)
   let _ =
     add_tool server ~name:"minidebug/tui-reset"
-      ~description:"Reset TUI state to initial view (clears navigation, search, expansions)"
+      ~description:
+        "Reset TUI state to initial view (clears navigation, search, expansions)"
       ~schema_properties:[] ~schema_required:[] (fun _args ->
         try
           let session = get_session () in
