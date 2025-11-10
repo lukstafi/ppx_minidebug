@@ -32,7 +32,10 @@ depends: [
   "sqlite3"
   "notty-community" {>= "0.2.4"}
   "uutf"
-  "mcp"
+  "eio_main"
+  "yojson"
+  "jsonrpc"
+  "cohttp-eio"
 ]
 build: [
   ["dune" "subst"] {dev}

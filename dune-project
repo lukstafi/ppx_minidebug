@@ -62,6 +62,9 @@
   (notty-community
    (>= 0.2.4))
   uutf
-  mcp)
+  eio_main
+  yojson
+  jsonrpc
+  cohttp-eio)
  (tags
   (logger debugger "printf debugging")))

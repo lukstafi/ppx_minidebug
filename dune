@@ -1,3 +1,5 @@
+(vendored_dirs vendor)
+
 (library
  (public_name ppx_minidebug)
  (name ppx_minidebug)
