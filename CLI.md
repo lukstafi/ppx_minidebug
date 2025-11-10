@@ -1814,30 +1814,27 @@ let term, command_stream, render_screen, finalize =
   (term, command_stream, render_screen, finalize)
 ```
 
-### Remaining Implementation (Next Steps)
+### Completed Implementation ✅
 
-#### 5. Command Parser 🚧 TODO
+#### 5. Command Parser ✅
 
-The current `handle_key` function in `interactive.ml` directly processes Notty keyboard events. This needs to be split:
+Successfully split keyboard event parsing from command processing:
 
-**Split `handle_key` into:**
-1. `parse_command` (in `tui.ml`): Converts Notty events to `command` type
-2. `handle_command` (in `interactive.ml`): Processes `command` type, returns updated state
+**In `interactive.ml`:**
+- `handle_command`: Generic command processing (works with `command` type)
+- `handle_key`: Notty-specific wrapper (converts keyboard events → commands → delegates to `handle_command`)
 
-This will allow `minidebug_mcp.ml` to parse string commands (e.g., "j", "/pattern", "g42") into the same `command` type.
+**In `tui.ml`:**
+- `create_tui_callbacks()`: Creates terminal and TUI callbacks for `Interactive.run`
+- Returns: `(term, command_stream, render_screen, output_size, finalize)`
 
-**Target signature:**
-```ocaml
-(* In interactive.ml *)
-val handle_command : view_state -> command -> height:int -> view_state option
-
-(* In tui.ml *)
-val parse_command : [< Notty.Unescape.key ] * 'a -> command option
-```
+**In `minidebug_mcp.ml`:**
+- `parse_command`: Converts string commands to `command` type
+- Supports: `"j"`, `"k"`, `"enter"`, `"/pattern"`, `"g42"`, `"Qpattern"`, etc.
 
 #### 6. Search Background Execution ✅
 
-Already implemented! The `handle_key` function spawns background Domains for search:
+Already implemented! The `handle_command` function spawns background Domains for search:
 
 ```ocaml
 (* Spawn background search Domain *)
@@ -1852,76 +1849,34 @@ The main loop polls `completed_ref` and `results_table` (shared memory) every re
 
 Status line shows `G:error[15...]` during search, `G:error[15]` when complete.
 
-#### 7. MCP Tools 🚧
+#### 7. MCP Tools ✅
 
-**New tool: `minidebug/tui-execute`**
+**Implemented Tool: `minidebug/tui-execute`**
 
-```json
-{
-  "name": "minidebug/tui-execute",
-  "description": "Execute TUI command sequence and return screen rendering",
-  "parameters": {
-    "commands": {
-      "type": "array",
-      "description": "Sequence of commands (e.g., ['j', 'j', 'enter', '/error\\n'])"
-    },
-    "term_width": {
-      "type": "integer",
-      "default": 120
-    },
-    "term_height": {
-      "type": "integer",
-      "default": 40
-    }
-  }
-}
-```
+Executes a sequence of TUI commands and returns text rendering of the screen. Maintains stateful navigation across calls.
 
-**Implementation:**
-```ocaml
-let tui_execute args =
-  let commands = get_array_param args "commands" in
-  let width = get_int_param_default args "term_width" 120 in
-  let height = get_int_param_default args "term_height" 40 in
+**Parameters:**
+- `commands` (array, required): Array of command strings (e.g., `["j", "j", "enter", "/error"]`)
+- `term_width` (integer, optional): Terminal width for rendering (default: 120)
+- `term_height` (integer, optional): Terminal height for rendering (default: 40)
 
-  (* Get or initialize TUI state *)
-  let state =
-    match !(session.tui_state) with
-    | Some ts -> ts.state
-    | None ->
-        let module Q = (val session.query) in
-        init_tui_state (module Q) ~db_path:session.db_path
-  in
+**Supported Commands:**
+- Navigation: `j/k` (down/up), `u/d` (quarter page), `pgup/pgdn`, `home/end`
+- Actions: `enter/space` (expand), `f` (fold), `n/N` (next/prev match)
+- Search: `/pattern` (regex search)
+- Goto: `g42` (jump to scope ID 42)
+- Filters: `Qpattern` (set quiet path filter)
+- Toggles: `t` (times), `v` (values first), `o` (search order)
 
-  (* Execute command sequence *)
-  let final_state =
-    List.fold_left (fun st cmd_str ->
-      match parse_command cmd_str st with
-      | Some command -> execute_command st command
-      | None -> st  (* Quit command *)
-    ) state commands
-  in
+**Implementation:** Located in [client/minidebug_mcp.ml:1624-1707](client/minidebug_mcp.ml#L1624-L1707)
 
-  (* Wait for searches if any were initiated *)
-  let final_state = wait_for_searches final_state ~timeout_sec:3.0 in
+**Implemented Tool: `minidebug/tui-reset`**
 
-  (* Render with TextRenderer *)
-  let output = TextRenderer.render_screen final_state ~term_width:width ~term_height:height in
+Resets TUI state to initial view (clears navigation, search, expansions).
 
-  (* Update session *)
-  session.tui_state := Some { state = final_state; last_update = Unix.gettimeofday () };
+**Parameters:** None
 
-  Tool.create_tool_result [Mcp.make_text_content output] ~is_error:false
-```
-
-**New tool: `minidebug/tui-reset`**
-
-```json
-{
-  "name": "minidebug/tui-reset",
-  "description": "Reset TUI state to initial view"
-}
-```
+**Implementation:** Located in [client/minidebug_mcp.ml:1709-1722](client/minidebug_mcp.ml#L1709-L1722)
 
 ### Usage Examples
 

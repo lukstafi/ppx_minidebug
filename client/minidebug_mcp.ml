@@ -293,6 +293,51 @@ let render_screen state ~term_width ~term_height =
   String.concat "\n"
     ([ header_line; separator ] @ List.rev !content_lines @ [ separator; footer_line ])
 
+(** Parse string command to command type for MCP TUI *)
+let parse_command cmd_str =
+  match String.trim cmd_str with
+  (* Navigation *)
+  | "j" | "down" -> Some (I.Navigate `Down)
+  | "k" | "up" -> Some (I.Navigate `Up)
+  | "h" | "left" -> Some (I.Navigate `Up) (* Vim-style alternative *)
+  | "l" | "right" -> Some (I.Navigate `Down) (* Vim-style alternative *)
+  | "u" | "quarter-up" -> Some (I.Navigate `QuarterUp)
+  | "d" | "quarter-down" -> Some (I.Navigate `QuarterDown)
+  | "page-up" | "pgup" -> Some (I.Navigate `PageUp)
+  | "page-down" | "pgdn" -> Some (I.Navigate `PageDown)
+  | "home" -> Some (I.Navigate `Home)
+  | "end" -> Some (I.Navigate `End)
+  (* Actions *)
+  | "enter" | "space" | "expand" -> Some I.ToggleExpansion
+  | "f" | "fold" -> Some I.Fold
+  | "n" | "next" -> Some I.SearchNext
+  | "N" | "prev" -> Some I.SearchPrev
+  | "t" | "toggle-times" -> Some I.ToggleTimes
+  | "v" | "toggle-values" -> Some I.ToggleValues
+  | "o" | "toggle-order" -> Some I.ToggleSearchOrder
+  | "q" | "quit" -> Some I.Quit
+  (* Input modes - these accept arguments *)
+  | s when String.starts_with ~prefix:"/" s ->
+      (* Search: "/pattern" *)
+      let pattern = String.sub s 1 (String.length s - 1) in
+      if pattern = "" then Some (I.BeginSearch None)
+      else Some (I.BeginSearch (Some pattern))
+  | s when String.starts_with ~prefix:"g" s ->
+      (* Goto: "g42" *)
+      let rest = String.sub s 1 (String.length s - 1) in
+      if rest = "" then Some (I.BeginGoto None)
+      else (
+        try
+          let scope_id = int_of_string rest in
+          Some (I.BeginGoto (Some scope_id))
+        with Failure _ -> None)
+  | s when String.starts_with ~prefix:"Q" s ->
+      (* Quiet path: "Qpattern" *)
+      let pattern = String.sub s 1 (String.length s - 1) in
+      if pattern = "" then Some (I.BeginQuietPath None)
+      else Some (I.BeginQuietPath (Some pattern))
+  | _ -> None
+
 open Mcp_sdk
 
 (* Helper for extracting string parameter from JSON *)
@@ -376,11 +421,17 @@ let make_bounded_formatter ~budget buffer =
           Buffer.add_string buffer (String.make n ' '));
     }
 
+type tui_state = {
+  state : I.view_state;
+  last_update : float; (* Unix timestamp *)
+}
+
 type session_state = {
   db_path : string;
   query : (module Minidebug_client.Query.S); (* First-class module with DB connection *)
   search_cache : (string, (int * int, bool) Hashtbl.t) Hashtbl.t;
       (* pattern -> results_table: (scope_id, seq_id) -> is_match *)
+  mutable tui_state : tui_state option; (* TUI state for interactive navigation *)
 }
 (** Session state for MCP server *)
 
@@ -401,7 +452,7 @@ let init_session db_path =
   end) in
   let query = (module Q : Minidebug_client.Query.S) in
   let search_cache = Hashtbl.create 16 in
-  current_session := Some { db_path; query; search_cache };
+  current_session := Some { db_path; query; search_cache; tui_state = None };
   Logs.info (fun m -> m "Session initialized with database: %s" db_path)
 
 (** Get or compute search results with caching. Cache key includes pattern and quiet_path
@@ -1567,6 +1618,107 @@ let create_server ?db_path () =
           Tool.create_tool_result [ Mcp.make_text_content output ] ~is_error:false
         with e ->
           Logs.err (fun m -> m "Error in search-extract: %s" (Printexc.to_string e));
+          Tool.create_error_result (Printexc.to_string e))
+  in
+
+  (* Tool: tui-execute - Execute TUI command sequence and return screen rendering *)
+  let _ =
+    add_tool server ~name:"minidebug/tui-execute"
+      ~description:
+        "Execute TUI command sequence and return screen rendering. Maintains stateful \
+         navigation across calls. Commands: j/k (down/up), u/d (quarter page), pgup/pgdn, \
+         home/end, enter/space (expand), f (fold), n/N (next/prev match), /pattern (search), \
+         g42 (goto scope), Qpattern (quiet path filter), t (toggle times), v (toggle \
+         values), o (toggle search order), q (quit)."
+      ~schema_properties:
+        [
+          ( "commands",
+            "array",
+            "Array of command strings to execute sequentially (e.g., ['j', 'j', 'enter', \
+             '/error'])" );
+          ("term_width", "integer", "Terminal width for rendering (default: 120)");
+          ("term_height", "integer", "Terminal height for rendering (default: 40)");
+        ]
+      ~schema_required:[ "commands" ]
+      (fun args ->
+        try
+          let session = get_session () in
+
+          (* Extract parameters *)
+          let commands =
+            match args with
+            | `Assoc fields -> (
+                match List.assoc_opt "commands" fields with
+                | Some (`List cmd_list) ->
+                    List.map
+                      (function
+                        | `String s -> s
+                        | _ -> failwith "Each command must be a string")
+                      cmd_list
+                | _ -> failwith "Missing or invalid 'commands' parameter")
+            | _ -> failwith "Expected JSON object"
+          in
+          let term_width =
+            match get_optional_int_param args "term_width" with
+            | Some w -> w
+            | None -> 120
+          in
+          let term_height =
+            match get_optional_int_param args "term_height" with
+            | Some h -> h
+            | None -> 40
+          in
+
+          (* Get or initialize TUI state *)
+          let state =
+            match session.tui_state with
+            | Some ts -> ts.state
+            | None ->
+                let module Q = (val session.query) in
+                I.initial_state (module Q)
+          in
+
+          (* Execute command sequence *)
+          let final_state =
+            List.fold_left
+              (fun st cmd_str ->
+                match parse_command cmd_str with
+                | Some command -> (
+                    match I.handle_command st command ~height:term_height with
+                    | Some new_state -> new_state
+                    | None -> st (* Command returned None (quit) - keep current state *))
+                | None ->
+                    Logs.warn (fun m -> m "Unknown command: %s" cmd_str);
+                    st)
+              state commands
+          in
+
+          (* Update session *)
+          session.tui_state <-
+            Some { state = final_state; last_update = Unix.gettimeofday () };
+
+          (* Render with text renderer *)
+          let output = render_screen final_state ~term_width ~term_height in
+
+          Tool.create_tool_result [ Mcp.make_text_content output ] ~is_error:false
+        with e ->
+          Logs.err (fun m -> m "Error in tui-execute: %s" (Printexc.to_string e));
+          Tool.create_error_result (Printexc.to_string e))
+  in
+
+  (* Tool: tui-reset - Reset TUI state to initial view *)
+  let _ =
+    add_tool server ~name:"minidebug/tui-reset"
+      ~description:"Reset TUI state to initial view (clears navigation, search, expansions)"
+      ~schema_properties:[] ~schema_required:[] (fun _args ->
+        try
+          let session = get_session () in
+          session.tui_state <- None;
+          Tool.create_tool_result
+            [ Mcp.make_text_content "TUI state reset to initial view" ]
+            ~is_error:false
+        with e ->
+          Logs.err (fun m -> m "Error in tui-reset: %s" (Printexc.to_string e));
           Tool.create_error_result (Printexc.to_string e))
   in
 
