@@ -113,6 +113,50 @@ minidebug_view trace.db export > trace.md
 minidebug_view trace.db roots
 ```
 
+**Search Pattern Syntax:**
+All search commands use SQL GLOB patterns (case-sensitive wildcard matching). Patterns are automatically wrapped with wildcards: `"error"` becomes `"*error*"`.
+
+GLOB wildcards:
+- `*` matches any sequence of characters (including empty)
+- `?` matches exactly one character
+- `[abc]` matches one character from the set
+- `[^abc]` matches one character NOT in the set
+
+Examples:
+- `"error"` → matches `*error*` (finds "error" anywhere)
+- `"Error*"` → matches `*Error**` (finds "Error" at start of word)
+- `"test_[0-9]"` → matches `*test_[0-9]*` (finds "test_" followed by digit)
+
+### MCP Server (AI Agent Integration)
+
+**Model Context Protocol (MCP)** support enables AI assistants like Claude to directly query and explore debug traces. The MCP server provides interactive TUI-style navigation plus powerful search/query tools.
+
+```bash
+# Start MCP server for Claude Desktop or other MCP clients
+minidebug_mcp trace.db
+```
+
+**Configuration for Claude Desktop:**
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "ppx_minidebug": {
+      "command": "minidebug_mcp",
+      "args": ["/path/to/trace.db"]
+    }
+  }
+}
+```
+
+**Key MCP Tools:**
+- `minidebug/tui-execute` — Interactive TUI navigation with stateful cursor/search/expansions
+- `minidebug/search-tree` — Search with full ancestor context (best for AI analysis)
+- `minidebug/search-intersection` — Find scopes matching ALL patterns
+- `minidebug/search-extract` — Extract values along DAG paths with deduplication
+
+See [CLI.md](CLI.md) for complete MCP tool documentation.
+
 ## Extension Points
 
 `ppx_minidebug` provides three families of extension points:

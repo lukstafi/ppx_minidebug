@@ -17,7 +17,12 @@ DESCRIPTION:
   minidebug/init-db tool to initialize a session with a database.
 
 TOOLS PROVIDED:
-  - minidebug/init-db             Initialize/switch database session (NEW)
+  ** Interactive TUI Navigation (RECOMMENDED for exploration) **
+  - minidebug/tui-execute         Execute TUI commands with stateful navigation
+  - minidebug/tui-reset           Reset TUI state to initial view
+
+  ** Database & Query Tools **
+  - minidebug/init-db             Initialize/switch database session
   - minidebug/list-runs           List all trace runs with metadata
   - minidebug/stats               Show database statistics
   - minidebug/show-trace          Show full trace tree
@@ -30,6 +35,32 @@ TOOLS PROVIDED:
   - minidebug/search-at-depth     Search at specific depth
   - minidebug/search-intersection Find scopes matching all patterns
   - minidebug/search-extract      Extract values along DAG path
+
+INTERACTIVE TUI NAVIGATION:
+  The tui-execute tool provides a stateful, terminal-like interface for exploring
+  traces. Commands persist state (cursor, expansions, searches) across calls.
+
+  Example commands: ["j", "j", "enter", "/error", "n"]
+  - j/k: Navigate down/up       - enter/space: Expand/collapse
+  - u/d: Quarter page up/down   - f: Fold ellipsis/scope
+  - /pattern: Search (GLOB)     - n/N: Next/previous match
+  - g42: Goto scope ID 42       - Qpattern: Set quiet path filter
+  - t/v/o: Toggle times/values/order
+
+SEARCH PATTERN SYNTAX:
+  All search operations use SQL GLOB patterns (case-sensitive wildcard matching).
+  Patterns are automatically wrapped with wildcards: "/error" becomes "*error*"
+
+  GLOB wildcards:
+  - * matches any sequence of characters (including empty)
+  - ? matches exactly one character
+  - [abc] matches one character from the set
+  - [^abc] matches one character NOT in the set
+
+  Examples:
+  - "/error"      → matches "*error*" (finds "error" anywhere)
+  - "/Error*"     → matches "*Error**" (finds "Error" at start of word)
+  - "/test_[0-9]" → matches "*test_[0-9]*" (finds "test_" followed by digit)
 
 CONFIGURATION (for Claude Desktop):
   Add to ~/Library/Application Support/Claude/claude_desktop_config.json:

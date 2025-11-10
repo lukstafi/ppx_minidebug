@@ -688,10 +688,13 @@ let create_server ?db_path () =
          each match with its complete path from root. This is the recommended search \
          tool for AI assistants to understand code execution flow. For large result \
          sets, use limit/offset parameters for pagination (e.g., limit=50) and max_depth \
-         to limit tree depth."
+         to limit tree depth. Uses SQL GLOB patterns (case-sensitive): pattern is \
+         auto-wrapped as *pattern*. Wildcards: * (any chars), ? (one char), [abc] (char set)."
       ~schema_properties:
         [
-          ("pattern", "string", "Regex pattern to search for in entry messages");
+          ( "pattern",
+            "string",
+            "SQL GLOB pattern to search for (auto-wrapped: 'error' becomes '*error*')" );
           ("show_times", "boolean", "Include elapsed times (optional, default false)");
           ("max_depth", "integer", "Maximum tree depth (optional)");
           ("quiet_path", "string", "Stop ancestor propagation at pattern (optional)");
@@ -794,10 +797,13 @@ let create_server ?db_path () =
       ~description:
         "Search entries and show only matching subtrees (pruned). Returns each match \
          with its descendants but prunes non-matching branches. For large result sets, \
-         use limit parameter (e.g., limit=50) and max_depth to limit subtree depth."
+         use limit parameter (e.g., limit=50) and max_depth to limit subtree depth. \
+         Uses SQL GLOB patterns (auto-wrapped as *pattern*)."
       ~schema_properties:
         [
-          ("pattern", "string", "Regex pattern to search for");
+          ( "pattern",
+            "string",
+            "SQL GLOB pattern to search for (auto-wrapped: 'error' becomes '*error*')" );
           ("show_times", "boolean", "Include elapsed times (optional, default false)");
           ("max_depth", "integer", "Maximum depth from match (optional)");
           ("limit", "integer", "Limit number of results (optional)");
@@ -1187,10 +1193,13 @@ let create_server ?db_path () =
     add_tool server ~name:"minidebug/search-at-depth"
       ~description:
         "Search and show summary at a specific depth (TUI-like view). Good for large \
-         traces where you want to see matches organized by depth level."
+         traces where you want to see matches organized by depth level. Uses SQL GLOB \
+         patterns (auto-wrapped as *pattern*)."
       ~schema_properties:
         [
-          ("pattern", "string", "Regex pattern to search for");
+          ( "pattern",
+            "string",
+            "SQL GLOB pattern to search for (auto-wrapped: 'error' becomes '*error*')" );
           ("depth", "integer", "Depth level to show summary at");
           ("show_times", "boolean", "Include elapsed times (optional, default false)");
           ("quiet_path", "string", "Stop ancestor propagation at pattern (optional)");
@@ -1293,10 +1302,13 @@ let create_server ?db_path () =
       ~description:
         "Find scopes that match ALL provided patterns (intersection). Supports 2-4 \
          patterns. Returns full tree context for each matching scope. For large result \
-         sets, use limit/offset parameters (e.g., limit=50)."
+         sets, use limit/offset parameters (e.g., limit=50). Uses SQL GLOB patterns \
+         (auto-wrapped as *pattern*)."
       ~schema_properties:
         [
-          ("patterns", "array", "Array of 2-4 regex patterns (all must match)");
+          ( "patterns",
+            "array",
+            "Array of 2-4 SQL GLOB patterns (all must match, auto-wrapped as *pattern*)" );
           ("show_times", "boolean", "Include elapsed times (optional, default false)");
           ("max_depth", "integer", "Maximum tree depth (optional)");
           ("quiet_path", "string", "Stop ancestor propagation at pattern (optional)");
@@ -1494,15 +1506,16 @@ let create_server ?db_path () =
       ~description:
         "Search for matches along a DAG path, then extract values at a different path \
          with change tracking. Paths are comma-separated patterns. Both paths must start \
-         with the same pattern. Shows only changed values (deduplication)."
+         with the same pattern. Shows only changed values (deduplication). Uses SQL GLOB \
+         patterns (auto-wrapped as *pattern*)."
       ~schema_properties:
         [
           ( "search_path",
             "string",
-            "Comma-separated search path patterns (e.g., 'fn_a,param_x')" );
+            "Comma-separated SQL GLOB patterns (e.g., 'fn_a,param_x', auto-wrapped)" );
           ( "extraction_path",
             "string",
-            "Comma-separated extraction path patterns (e.g., 'fn_a,result')" );
+            "Comma-separated SQL GLOB patterns (e.g., 'fn_a,result', auto-wrapped)" );
           ("show_times", "boolean", "Include elapsed times (optional, default false)");
           ("max_depth", "integer", "Maximum depth from match (optional)");
         ]
@@ -1626,10 +1639,12 @@ let create_server ?db_path () =
     add_tool server ~name:"minidebug/tui-execute"
       ~description:
         "Execute TUI command sequence and return screen rendering. Maintains stateful \
-         navigation across calls. Commands: j/k (down/up), u/d (quarter page), pgup/pgdn, \
-         home/end, enter/space (expand), f (fold), n/N (next/prev match), /pattern (search), \
-         g42 (goto scope), Qpattern (quiet path filter), t (toggle times), v (toggle \
-         values), o (toggle search order), q (quit)."
+         navigation across calls (cursor position, expansions, searches persist). \
+         Commands: j/k (down/up), u/d (quarter page), pgup/pgdn, home/end, enter/space \
+         (expand), f (fold), n/N (next/prev match), /pattern (search with SQL GLOB - \
+         auto-wrapped as *pattern*), g42 (goto scope), Qpattern (quiet path filter), \
+         t (toggle times), v (toggle values), o (toggle search order), q (quit). \
+         GLOB wildcards: * (any chars), ? (one char), [abc] (char set)."
       ~schema_properties:
         [
           ( "commands",

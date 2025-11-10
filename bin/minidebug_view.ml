@@ -79,6 +79,22 @@ EXAMPLES:
   minidebug_view trace.db get-ancestors 100
   minidebug_view trace.db get-children 42 --format=json
 
+SEARCH PATTERN SYNTAX:
+  All search commands use SQL GLOB patterns (case-sensitive wildcard matching).
+  Patterns are automatically wrapped with wildcards: "error" becomes "*error*"
+
+  GLOB wildcards:
+  - * matches any sequence of characters (including empty)
+  - ? matches exactly one character
+  - [abc] matches one character from the set
+  - [^abc] matches one character NOT in the set
+
+  Examples:
+  - "error"       → matches "*error*" (finds "error" anywhere)
+  - "Error*"      → matches "*Error**" (finds "Error" at start of word)
+  - "test_[0-9]"  → matches "*test_[0-9]*" (finds "test_" followed by digit)
+  - "fn?a"        → matches "*fn?a*" (finds "fn" + any char + "a")
+
   # Export to markdown
   minidebug_view trace.db export output.md
 |}
