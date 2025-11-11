@@ -329,10 +329,14 @@ module Flushing (Log_to : Shared_config) : Debug_runtime = struct
         (if open_scope_id <> scope_id then
            let log_loc =
              Printf.sprintf
-               "%s\"%s\":%d: open scope_id=%d, close scope_id=%d, stack entries %s"
+               "%s\"%s\":%d: open scope_id=%d, close scope_id=%d, stack entries and \
+                messages %s"
                global_prefix fname start_lnum open_scope_id scope_id
                (String.concat ", "
-               @@ List.map (fun { scope_id; _ } -> Int.to_string scope_id) tl)
+               @@ List.map
+                    (fun { scope_id; message; _ } ->
+                      "{#" ^ Int.to_string scope_id ^ "} " ^ message)
+                    tl)
            in
            failwith
            @@ "ppx_minidebug: lexical scope of close_log not matching its dynamic scope; "
@@ -1644,10 +1648,14 @@ module PrintBox (Log_to : Shared_config) = struct
     | { scope_id = open_scope_id; _ } :: tl when open_scope_id <> scope_id ->
         let log_loc =
           Printf.sprintf
-            "%s\"%s\":%d: open scope_id=%d, close scope_id=%d, stack entries %s"
+            "%s\"%s\":%d: open scope_id=%d, close scope_id=%d, stack entries and \
+             messages %s"
             global_prefix fname start_lnum open_scope_id scope_id
             (String.concat ", "
-            @@ List.map (fun { scope_id; _ } -> Int.to_string scope_id) tl)
+            @@ List.map
+                 (fun { scope_id; entry_message; _ } ->
+                   "{#" ^ Int.to_string scope_id ^ "} " ^ entry_message)
+                 !stack)
         in
         snapshot ();
         failwith
