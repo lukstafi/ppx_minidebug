@@ -17,11 +17,6 @@
 
 (version 3.1.0)
 
-(pin
- (url https://github.com/lukstafi/notty-community#main)
- (package
-  (name notty-community)))
-
 (using mdx 0.4)
 
 (package
@@ -65,7 +60,7 @@
    (>= 2.5.0))
   sqlite3
   (notty-community
-   (>= 0.2.4))
+   (= dev))
   uutf
   eio_main
   yojson

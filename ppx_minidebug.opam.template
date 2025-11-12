@@ -1,1 +1,4 @@
 x-maintenance-intent: ["2.2.(latest)" "2.4.(latest)" "(latest)"]
+pin-depends: [
+  ["notty-community.dev" "git+https://github.com/lukstafi/notty-community.git"]
+]

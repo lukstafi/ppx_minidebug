@@ -30,7 +30,7 @@ depends: [
   "thread-local-storage" {>= "0.2"}
   "mdx" {>= "2.5.0"}
   "sqlite3"
-  "notty-community" {>= "0.2.4"}
+  "notty-community" {= "dev"}
   "uutf"
   "eio_main"
   "yojson"
@@ -53,3 +53,6 @@ build: [
 ]
 dev-repo: "git+https://github.com/lukstafi/ppx_minidebug.git"
 x-maintenance-intent: ["2.2.(latest)" "2.4.(latest)" "(latest)"]
+pin-depends: [
+  ["notty-community.dev" "git+https://github.com/lukstafi/notty-community.git"]
+]
