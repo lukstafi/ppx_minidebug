@@ -2,16 +2,77 @@
 
 ### Added
 
-- **Enhanced CLI for LLM/Agent Access**: Greatly expanded `minidebug_view` CLI to expose TUI functionality programmatically
+- **MCP Server for AI-Powered Debugging**: Full MCP (Model Context Protocol) server implementation enabling AI agents to explore traces
+  - `minidebug/init-db`: Initialize session with a trace database
+  - `minidebug/tui-execute`: Stateful TUI-style navigation with command sequences (j/k, /, expand, goto, etc.)
+  - `minidebug/tui-reset`: Reset TUI state to initial view
+  - `minidebug/search-tree`, `search-subtree`, `search-at-depth`, `search-intersection`, `search-extract`: Advanced search operations
+  - `minidebug/show-trace`, `show-scope`, `show-subtree`: Tree rendering with configurable depth
+  - `minidebug/get-ancestors`, `get-children`: Scope hierarchy navigation
+  - `minidebug/list-runs`, `minidebug/stats`: Database inspection
+  - Session state management with search caching and prepared statement optimization
+  - Text-based renderer with color-coded highlights ([G] [C] [M] [Y]) for AI consumption
+  - GLOB pattern syntax (SQL GLOB, auto-wrapped: `error` → `*error*`) documented across all surfaces
+- **Enhanced CLI Commands**: Expanded `minidebug_view` with comprehensive search and navigation
   - `search-tree <pattern>`: Search with full ancestor context (shows complete call paths to matches)
   - `search-subtree <pattern>`: Search with pruned trees (shows only matching branches)
+  - `search-at-depth <pattern> <depth>`: TUI-like summary view at specific depth
+  - `search-intersection <p1> <p2> [p3] [p4]`: Find scopes matching ALL patterns (2-4 patterns)
+  - `search-extract <search_path> <extraction_path>`: DAG path search with value extraction and change tracking
   - `show-scope <id>`: Display specific scope and descendants, or ancestor path with `--ancestors`
-  - `show-entry <scope_id> <seq_id>`: Show detailed entry information
-  - `get-ancestors <id>`, `get-parent <id>`, `get-children <id>`: Navigate scope hierarchy
-  - `--format=json`: Machine-readable JSON output for all commands (enables LLM analysis)
+  - `show-subtree <id>`: Focused scope exploration with depth limiting
+  - `get-ancestors <id>`: Show ancestor chain with messages and locations
+  - `get-children <id>`: List child scope IDs
+  - `--format=json`: Machine-readable JSON output for programmatic access
   - `--quiet-path=<pattern>`: Control ancestor propagation boundaries in search
-- **JSON Rendering**: Complete JSON output support for trees and entries in `Renderer` module
-- **Documentation**: Added comprehensive `CLI.md` covering both usage and implementation
+  - `--limit`, `--offset`: Pagination for large result sets
+- **Enhanced TUI Navigation**:
+  - `g<scope_id>`: Goto command for direct scope navigation with smart ancestor expansion
+  - `f`: Fold command to re-fold unfolded ellipsis or collapse containing scope
+  - Highlight-aware ellipsis with unfolding capability
+  - Chronological status history with LRU deduplication
+  - Character-aware UTF-8 operations using uutf (fixes crashes on Unicode)
+  - Exception string sanitization (removes control characters)
+- **Architecture Improvements**:
+  - Refactored `Interactive` module: separated command processing from keyboard event parsing
+  - Split `minidebug_client.ml` into modular `client/` directory structure
+  - Shared command type abstraction for TUI and MCP frontends
+  - Pluggable RENDERER module signature (Notty terminal vs. plain text)
+  - Query module refactored to functor with prepared statement caching
+  - Migrated from `get_entries` to targeted SQL queries for efficiency
+  - Output budget limiting for MCP responses
+  - DAG parent support: scopes can have multiple parents (fixes search ambiguity)
+- **Dependency Updates**:
+  - Migrated from `notty` to `notty-community` for OCaml 5.4+ and Windows support
+  - Removed unnecessary `nottui-unix` dependency
+  - Vendored `mcp` library (Anil Madhavapeddy's ocaml-mcp)
+  - Added `pin_depends` for `notty-community` fork
+- **Exception Logging**: PPX now logs exceptions with `Debug_runtime.log_exception`
+  - Physical equality tracking prevents duplicate logs during stack unwinding
+  - Exceptions logged once at raise point, close to their origin
+- **Documentation**:
+  - Comprehensive `CLI.md` covering CLI commands, MCP server, and TUI implementation
+  - MCP Server section in README.md with configuration examples for Claude Desktop
+  - GLOB pattern syntax reference across all user-facing surfaces
+  - Updated test expectations after metadata-based DB retrieval refactoring
+
+### Changed
+
+- **Test Suite Refactoring**: Tests now use metadata-based database retrieval instead of hardcoded paths
+- **Client API Enhancement**: `open_by_run_name` upstreamed from test code to public API
+- **Scope ID Notation**: Simplified from `{#N}` to `#N` in CLI output for readability
+
+### Fixed
+
+- **OCaml 5.4 Compatibility**: Tiny compatibility fixes for OCaml 5.4
+- **MCP Vendoring**: Fixed missing dependencies in vendored mcp library
+- **TUI Crashes**:
+  - Fixed UTF-8 crashes with character-aware operations using uutf
+  - Fixed crash on exception strings containing control characters
+- **DAG Parent Ambiguity**: Scopes now support multiple parents (resolves search path issues)
+- **Not_found Exceptions**: Fixed in `show-subtree` and other CLI commands
+- **Scope Retrieval**: `show-subtree` now works correctly with non-root scopes
+- **Client Refactoring**: Fixed MCP stdio transport after parametric output channel changes
 
 
 

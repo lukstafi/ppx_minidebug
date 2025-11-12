@@ -17,6 +17,9 @@
 
 (version 3.1.0)
 
+(pin_depends
+ (notty-community.0.2.4 "git+https://github.com/lukstafi/notty-community#main"))
+
 (using mdx 0.4)
 
 (package

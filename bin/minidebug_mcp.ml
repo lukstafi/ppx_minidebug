@@ -26,7 +26,7 @@ TOOLS PROVIDED:
   - minidebug/list-runs           List all trace runs with metadata
   - minidebug/stats               Show database statistics
   - minidebug/show-trace          Show full trace tree
-  - minidebug/search-tree         Search with ancestor context (best for AI)
+  - minidebug/search-tree         Search with ancestor context
   - minidebug/search-subtree      Search showing only matching subtrees
   - minidebug/show-scope          Show specific scope by ID
   - minidebug/get-ancestors       Get ancestor chain for navigation
