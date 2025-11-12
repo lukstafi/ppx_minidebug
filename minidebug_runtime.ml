@@ -1645,7 +1645,7 @@ module PrintBox (Log_to : Shared_config) = struct
             flush toc_ch)
     in
     (match !stack with
-    | { scope_id = open_scope_id; _ } :: tl when open_scope_id <> scope_id ->
+    | { scope_id = open_scope_id; _ } :: _tl when open_scope_id <> scope_id ->
         let log_loc =
           Printf.sprintf
             "%s\"%s\":%d: open scope_id=%d, close scope_id=%d, stack entries and \
