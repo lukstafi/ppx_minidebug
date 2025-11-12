@@ -397,29 +397,7 @@ let make_bounded_formatter ~budget buffer =
       raise (Output_budget_exceeded { written = !written; limit = budget })
     else Buffer.add_substring buffer s pos len
   in
-  Format.formatter_of_out_functions
-    {
-      (Format.get_formatter_out_functions ()) with
-      out_string = check_and_write;
-      out_newline =
-        (fun () ->
-          written := !written + 1;
-          if !written > budget then
-            raise (Output_budget_exceeded { written = !written; limit = budget });
-          Buffer.add_char buffer '\n');
-      out_spaces =
-        (fun n ->
-          written := !written + n;
-          if !written > budget then
-            raise (Output_budget_exceeded { written = !written; limit = budget });
-          Buffer.add_string buffer (String.make n ' '));
-      out_indent =
-        (fun n ->
-          written := !written + n;
-          if !written > budget then
-            raise (Output_budget_exceeded { written = !written; limit = budget });
-          Buffer.add_string buffer (String.make n ' '));
-    }
+  Format.make_formatter check_and_write (fun _ -> ())
 
 type tui_state = { state : I.view_state; last_update : float (* Unix timestamp *) }
 

@@ -17,8 +17,10 @@
 
 (version 3.1.0)
 
-(pin_depends
- (notty-community.0.2.4 "git+https://github.com/lukstafi/notty-community#main"))
+(pin
+ (url https://github.com/lukstafi/notty-community#main)
+ (package
+  (name notty-community)))
 
 (using mdx 0.4)
 
