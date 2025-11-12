@@ -4,9 +4,68 @@ module Query = Minidebug_client.Query
 
 type t = (module Query.S)
 
+(** Resolve a database path to the latest versioned file. This handles the case where
+    symlinks don't work (e.g., on Windows). If the exact path exists, returns it.
+    Otherwise, looks for versioned files and returns the latest one.
+
+    Example: "debug.db" -> "debug_3.db" (if debug_3.db is the latest)
+
+    Returns None if no database file exists. *)
+let resolve_db_path db_path =
+  (* If the exact path exists, use it *)
+  if Sys.file_exists db_path then Some db_path
+  else
+    (* Extract base name and extension *)
+    let base = Filename.remove_extension db_path in
+    let dir = Filename.dirname db_path in
+    let base_name = Filename.basename base in
+    let ext = Filename.extension db_path in
+
+    (* Look for versioned files: base_N.ext *)
+    try
+      let files = Sys.readdir dir in
+      let pattern = base_name ^ "_" in
+      let versioned_files =
+        Array.fold_left
+          (fun acc file ->
+            if String.starts_with ~prefix:pattern file && String.ends_with ~suffix:ext file
+            then
+              try
+                (* Extract the run number *)
+                let num_str =
+                  String.sub file (String.length pattern)
+                    (String.length file - String.length pattern - String.length ext)
+                in
+                let num = int_of_string num_str in
+                (num, file) :: acc
+              with _ -> acc
+            else acc)
+          [] files
+      in
+      (* Sort by run number descending and take the latest *)
+      match List.sort (fun (a, _) (b, _) -> compare b a) versioned_files with
+      | (_, latest_file) :: _ ->
+          let full_path =
+            if dir = "." then latest_file else Filename.concat dir latest_file
+          in
+          Some full_path
+      | [] -> None
+    with _ -> None
+
 let open_db db_path =
+  (* Resolve the database path to handle versioned files on systems where symlinks don't
+     work (e.g., Windows). If db_path doesn't exist, this will find the latest versioned
+     file (e.g., "debug.db" -> "debug_3.db"). *)
+  let resolved_path =
+    match resolve_db_path db_path with
+    | Some path -> path
+    | None ->
+        failwith
+          (Printf.sprintf
+             "Database file not found: %s (no versioned files found either)" db_path)
+  in
   let module Q = Query.Make (struct
-    let db_path = db_path
+    let db_path = resolved_path
   end) in
   (module Q : Query.S)
 

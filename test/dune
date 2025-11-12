@@ -126,7 +126,7 @@
   (pps ppx_minidebug ppx_sexp_conv)))
 
 (rule
- (targets debugger_sexp.db debugger_sexp.log)
+ (targets debugger_sexp_1.db debugger_sexp.log)
  (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
  (action
   (progn
@@ -134,7 +134,7 @@
    (with-stdout-to
     debugger_sexp.log
     (pipe-stdout
-     (run %{dep:../bin/minidebug_view.exe} debugger_sexp.db show)
+     (run %{dep:../bin/minidebug_view.exe} debugger_sexp_1.db show)
      (run %{dep:../bin/filter_test_output.exe}))))))
 
 (rule
@@ -158,7 +158,7 @@
   (pps ppx_minidebug ppx_deriving.show)))
 
 (rule
- (targets debugger_pp.db debugger_pp.log)
+ (targets debugger_pp_1.db debugger_pp.log)
  (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
  (action
   (progn
@@ -166,7 +166,7 @@
    (with-stdout-to
     debugger_pp.log
     (pipe-stdout
-     (run %{dep:../bin/minidebug_view.exe} debugger_pp.db show)
+     (run %{dep:../bin/minidebug_view.exe} debugger_pp_1.db show)
      (run %{dep:../bin/filter_test_output.exe}))))))
 
 (rule
@@ -183,7 +183,7 @@
   (pps ppx_minidebug ppx_deriving.show)))
 
 (rule
- (targets debugger_show.db debugger_show.log)
+ (targets debugger_show_1.db debugger_show.log)
  (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
  (action
   (progn
@@ -191,7 +191,7 @@
    (with-stdout-to
     debugger_show.log
     (pipe-stdout
-     (run %{dep:../bin/minidebug_view.exe} debugger_show.db show)
+     (run %{dep:../bin/minidebug_view.exe} debugger_show_1.db show)
      (run %{dep:../bin/filter_test_output.exe}))))))
 
 (rule
@@ -216,7 +216,7 @@
   (pps ppx_minidebug ppx_deriving.show)))
 
 (rule
- (targets debugger_interrupts.db debugger_interrupts.log)
+ (targets debugger_interrupts_1.db debugger_interrupts.log)
  (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
  (action
   (progn
@@ -224,7 +224,7 @@
    (with-stdout-to
     debugger_interrupts.log
     (pipe-stdout
-     (run %{dep:../bin/minidebug_view.exe} debugger_interrupts.db show)
+     (run %{dep:../bin/minidebug_view.exe} debugger_interrupts_1.db show)
      (run %{dep:../bin/filter_test_output.exe}))))))
 
 (rule
@@ -241,7 +241,7 @@
   (pps ppx_minidebug ppx_deriving.show)))
 
 (rule
- (targets debugger_exceptions.db debugger_exceptions.log)
+ (targets debugger_exceptions_1.db debugger_exceptions.log)
  (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
  (action
   (progn
@@ -249,7 +249,7 @@
    (with-stdout-to
     debugger_exceptions.log
     (pipe-stdout
-     (run %{dep:../bin/minidebug_view.exe} debugger_exceptions.db show)
+     (run %{dep:../bin/minidebug_view.exe} debugger_exceptions_1.db show)
      (run %{dep:../bin/filter_test_output.exe}))))))
 
 (rule
@@ -274,7 +274,7 @@
   (pps ppx_minidebug ppx_deriving.show)))
 
 (rule
- (targets debugger_log_prefixed.db debugger_log_prefixed.log)
+ (targets debugger_log_prefixed_1.db debugger_log_prefixed.log)
  (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
  (action
   (progn
@@ -282,7 +282,7 @@
    (with-stdout-to
     debugger_log_prefixed.log
     (pipe-stdout
-     (run %{dep:../bin/minidebug_view.exe} debugger_log_prefixed.db show)
+     (run %{dep:../bin/minidebug_view.exe} debugger_log_prefixed_1.db show)
      (run %{dep:../bin/filter_test_output.exe}))))))
 
 (rule
@@ -299,7 +299,7 @@
   (pps ppx_minidebug ppx_sexp_conv)))
 
 (rule
- (targets debugger_time_spans.db debugger_time_spans.log)
+ (targets debugger_time_spans_1.db debugger_time_spans.log)
  (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
  (action
   (progn
@@ -309,7 +309,7 @@
     (pipe-stdout
      (run
       %{dep:../bin/minidebug_view.exe}
-      debugger_time_spans.db
+      debugger_time_spans_1.db
       show
       --times)
      (run %{dep:../bin/filter_test_output.exe}))))))
@@ -446,7 +446,7 @@
   (pps ppx_minidebug ppx_sexp_conv)))
 
 (rule
- (targets debugger_no_debug_if.db debugger_no_debug_if.log)
+ (targets debugger_no_debug_if_1.db debugger_no_debug_if.log)
  (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
  (action
   (progn
@@ -454,7 +454,7 @@
    (with-stdout-to
     debugger_no_debug_if.log
     (pipe-stdout
-     (run %{dep:../bin/minidebug_view.exe} debugger_no_debug_if.db show)
+     (run %{dep:../bin/minidebug_view.exe} debugger_no_debug_if_1.db show)
      (run %{dep:../bin/filter_test_output.exe}))))))
 
 (rule
@@ -471,7 +471,7 @@
   (pps ppx_minidebug ppx_sexp_conv)))
 
 (rule
- (targets debugger_boxify_cache.db debugger_boxify_cache.log)
+ (targets debugger_boxify_cache_1.db debugger_boxify_cache.log)
  (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
  (action
   (progn
@@ -479,7 +479,7 @@
    (with-stdout-to
     debugger_boxify_cache.log
     (pipe-stdout
-     (run %{dep:../bin/minidebug_view.exe} debugger_boxify_cache.db show)
+     (run %{dep:../bin/minidebug_view.exe} debugger_boxify_cache_1.db show)
      (run %{dep:../bin/filter_test_output.exe}))))))
 
 (rule
@@ -517,7 +517,7 @@
   (pps ppx_minidebug ppx_sexp_conv)))
 
 (rule
- (targets debugger_ellipsis.db debugger_ellipsis.log)
+ (targets debugger_ellipsis_1.db debugger_ellipsis.log)
  (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
  (action
   (progn
@@ -525,7 +525,7 @@
    (with-stdout-to
     debugger_ellipsis.log
     (pipe-stdout
-     (run %{dep:../bin/minidebug_view.exe} debugger_ellipsis.db show)
+     (run %{dep:../bin/minidebug_view.exe} debugger_ellipsis_1.db show)
      (run %{dep:../bin/filter_test_output.exe}))))))
 
 (rule
