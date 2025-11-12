@@ -4,8 +4,6 @@
 
 `ppx_minidebug` is a PPX extension that automatically instruments your OCaml code with debug logging. Traces are stored in a SQLite database and explored via an interactive TUI, making it easy to understand program execution, debug issues, and analyze behavior.
 
-NOTE: `ppx_minidebug` 3.0 requires a Unix terminal.  See [ppx_minidebug 2.4.0](https://ocaml.org/p/ppx_minidebug/2.4.0) ([2.4.x-static-artifacts branch](https://github.com/lukstafi/ppx_minidebug/tree/2.4.x-static-artifacts)) for a version that has poor scaling because it produces pre-rendered artifacts from debugging, but is platform-independent.
-
 ## Quick Start
 
 ### Installation
