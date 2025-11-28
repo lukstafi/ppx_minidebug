@@ -1,8 +1,11 @@
 (lang dune 3.17)
+
 (name mcp)
 
 (license ISC)
+
 (authors "Anil Madhavapeddy")
+
 (maintainers "anil@recoil.org")
 
 (generate_opam_files true)
@@ -12,10 +15,12 @@
  (synopsis "Model Context Protocol for LLMs")
  (description "This is all still a work in progress")
  (depends
-  (ocaml (>= "5.2.0"))
+  (ocaml
+   (>= "5.2.0"))
   jsonrpc
   http
-  cohttp-eio
+  (cohttp-eio
+   (>= "6.1.1"))
   eio_main
   eio
   logs))

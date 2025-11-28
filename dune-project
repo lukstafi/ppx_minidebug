@@ -65,6 +65,7 @@
   eio_main
   yojson
   jsonrpc
-  cohttp-eio)
+  (cohttp-eio
+   (>= "6.1.1")))
  (tags
   (logger debugger "printf debugging")))
