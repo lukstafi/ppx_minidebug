@@ -278,6 +278,15 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
     in
     loop sexp
 
+  (** Check if a sexp list contains any numeric-only atoms (hard to search for) *)
+  let has_numeric_entry sexps =
+    let open Sexplib0.Sexp in
+    let is_numeric s =
+      String.length s > 0
+      && String.for_all (fun c -> c >= '0' && c <= '9' || c = '.' || c = '-') s
+    in
+    List.exists (function Atom s -> is_numeric s | List _ -> false) sexps
+
   type entry_info = {
     scope_id : int;
     parent_id : int option; [@warning "-69"]
@@ -888,11 +897,14 @@ module DatabaseBackend (Log_to : Db_config) : Minidebug_runtime.Debug_runtime = 
           (* Cache miss or toplevel - process normally and cache the result *)
           (* Process the sexp and return the scope_id created for it (if any) *)
           let process_and_return_scope () =
-            (* Check structure FIRST before applying size threshold. Always decompose List
-               (Atom _ :: _) structures (ADT constructors) regardless of size to preserve
-               navigable tree structure. *)
+            (* Check structure FIRST before applying size threshold. Decompose List
+               (Atom _ :: _) structures (ADT constructors) to preserve navigable tree
+               structure, unless it contains numeric-only atoms (hard to search for) and
+               is small enough to inline. *)
             match sexp with
-            | List (Atom s :: body) ->
+            | List (Atom s :: body)
+              when (not (has_numeric_entry (Atom s :: body)))
+                   || sexp_size sexp > boxify_threshold ->
                 (* Create a synthetic scope with first atom as header *)
                 let synthetic_id = get_boxify_scope_id () in
                 (* Insert header entry with first atom as content *)

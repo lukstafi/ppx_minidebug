@@ -5,19 +5,17 @@ Tree 2: (Node another ((Leaf 1) (Leaf 2) (Node nested ((Leaf 3) (Leaf 4)))))
 Database created: test_highlight_propagation_1.db
 
 Database statistics:
-  Total entries: 18
-  Total value references: 12
-  Unique values: 12
+  Total entries: 16
+  Total value references: 11
+  Unique values: 11
   Deduplication: 0.0%
 
 Trace (values_first_mode):
 [debug] create_nested_tree @ test/test_highlight_propagation.ml:12:34-13:70
   [value] create_nested_tree: Node
     root
-    [value] Leaf
-      1
-    [value] Leaf
-      2
+    (Leaf 1)
+    (Leaf 2)
     [value] Node
       nested
       ((Leaf 3) (Leaf 4))
@@ -25,10 +23,8 @@ Trace (values_first_mode):
 [debug] create_nested_tree @ test/test_highlight_propagation.ml:12:34-13:70
   [value] create_nested_tree: Node
     another
-    [value] Leaf
-      1
-    [value] Leaf
-      2
+    (Leaf 1)
+    (Leaf 2)
     [value] Node
       nested
       ((Leaf 3) (Leaf 4))

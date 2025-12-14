@@ -14,16 +14,10 @@
     item10
 [debug] test_large @ test/test_boxify_sexp.ml:31:28-33:73
   [value] <scope>
-    [value] a
-      1
-    [value] b
-      2
-    [value] c
-      3
-    [value] d
-      4
-    [value] e
-      5
-    [value] f
-      6
+    (a 1)
+    (b 2)
+    (c 3)
+    (d 4)
+    (e 5)
+    (f 6)
 Test complete.

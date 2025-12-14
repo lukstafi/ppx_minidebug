@@ -6,62 +6,45 @@ Command: ./test_boxify_cache.exe
     root
     [value] Node
       shared
-      [value] Leaf
-        1
-      [value] Leaf
-        2
+      (Leaf 1)
+      (Leaf 2)
       [value] Node
         nested
         ((Leaf 3) (Leaf 4) (Leaf 5))
-      [value] Leaf
-        6
-      [value] Leaf
-        7
+      (Leaf 6)
+      (Leaf 7)
     [value] Node
       middle
       [value] Node
         shared
-        [value] Leaf
-          1
-        [value] Leaf
-          2
+        (Leaf 1)
+        (Leaf 2)
         [value] Node
           nested
           ((Leaf 3) (Leaf 4) (Leaf 5))
-        [value] Leaf
-          6
-        [value] Leaf
-          7
-      [value] Leaf
-        10
+        (Leaf 6)
+        (Leaf 7)
+      (Leaf 10)
     [value] Node
       shared
-      [value] Leaf
-        1
-      [value] Leaf
-        2
+      (Leaf 1)
+      (Leaf 2)
       [value] Node
         nested
         ((Leaf 3) (Leaf 4) (Leaf 5))
-      [value] Leaf
-        6
-      [value] Leaf
-        7
+      (Leaf 6)
+      (Leaf 7)
   [debug] mapped @ test/test_boxify_cache.ml:18:10-18:16
     [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
       [value] tree: Node
         shared
-        [value] Leaf
-          1
-        [value] Leaf
-          2
+        (Leaf 1)
+        (Leaf 2)
         [value] Node
           nested
           ((Leaf 3) (Leaf 4) (Leaf 5))
-        [value] Leaf
-          6
-        [value] Leaf
-          7
+        (Leaf 6)
+        (Leaf 7)
       [debug] mapped @ test/test_boxify_cache.ml:18:10-18:16
         [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
           tree = (Leaf 1)
@@ -96,34 +79,25 @@ Command: ./test_boxify_cache.exe
         middle
         [value] Node
           shared
-          [value] Leaf
-            1
-          [value] Leaf
-            2
+          (Leaf 1)
+          (Leaf 2)
           [value] Node
             nested
             ((Leaf 3) (Leaf 4) (Leaf 5))
-          [value] Leaf
-            6
-          [value] Leaf
-            7
-        [value] Leaf
-          10
+          (Leaf 6)
+          (Leaf 7)
+        (Leaf 10)
       [debug] mapped @ test/test_boxify_cache.ml:18:10-18:16
         [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
           [value] tree: Node
             shared
-            [value] Leaf
-              1
-            [value] Leaf
-              2
+            (Leaf 1)
+            (Leaf 2)
             [value] Node
               nested
               ((Leaf 3) (Leaf 4) (Leaf 5))
-            [value] Leaf
-              6
-            [value] Leaf
-              7
+            (Leaf 6)
+            (Leaf 7)
           [debug] mapped @ test/test_boxify_cache.ml:18:10-18:16
             [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
               tree = (Leaf 1)
@@ -161,17 +135,13 @@ Command: ./test_boxify_cache.exe
     [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
       [value] tree: Node
         shared
-        [value] Leaf
-          1
-        [value] Leaf
-          2
+        (Leaf 1)
+        (Leaf 2)
         [value] Node
           nested
           ((Leaf 3) (Leaf 4) (Leaf 5))
-        [value] Leaf
-          6
-        [value] Leaf
-          7
+        (Leaf 6)
+        (Leaf 7)
       [debug] mapped @ test/test_boxify_cache.ml:18:10-18:16
         [debug] process_tree @ test/test_boxify_cache.ml:13:32-19:35
           tree = (Leaf 1)
