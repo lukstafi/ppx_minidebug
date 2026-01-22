@@ -251,6 +251,7 @@ type command =
   | Fold
   | SearchNext
   | SearchPrev
+  | HighlightNext
   | BeginSearch of string option (* None = enter input mode, Some = execute search *)
   | BeginQuietPath of string option
   | BeginGoto of int option
@@ -755,6 +756,89 @@ let find_and_jump_to_search_result state ~forward ~height =
               visible_items = new_visible;
             })
 
+(** Find and jump to the next highlight leaf by recursively expanding unexpanded highlights.
+    Starts from cursor position and searches within same scope or descendants (same or
+    bigger depth). Returns updated state with cursor at the deepest expanded highlight. *)
+let find_and_jump_to_highlight_leaf state ~height =
+  let content_height = height - 4 in
+  let min_depth =
+    if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
+      state.visible_items.(state.cursor).indent_level
+    else 0
+  in
+
+  (* Helper to adjust scroll for cursor *)
+  let adjust_scroll cursor scroll_offset =
+    if cursor < scroll_offset then cursor
+    else if cursor >= scroll_offset + content_height then
+      max 0 (cursor - (content_height / 2))
+    else scroll_offset
+  in
+
+  let rec loop state start_idx last_expanded_pos =
+    (* Find next visible highlighted item at same or bigger depth *)
+    let rec find_next_highlight idx =
+      if idx >= Array.length state.visible_items then None
+      else
+        let item = state.visible_items.(idx) in
+        if item.indent_level < min_depth then
+          (* Crossed into shallower scope - stop searching *)
+          None
+        else
+          match item.content with
+          | Ellipsis _ -> find_next_highlight (idx + 1)
+          | RealEntry entry ->
+              if
+                is_entry_highlighted ~search_slots:state.search_slots
+                  ~scope_id:entry.scope_id ~seq_id:entry.seq_id
+              then Some (idx, item, entry)
+              else find_next_highlight (idx + 1)
+    in
+
+    match find_next_highlight start_idx with
+    | None ->
+        (* No more highlights found - position cursor at last expanded position *)
+        let final_cursor = Option.value ~default:state.cursor last_expanded_pos in
+        let new_scroll = adjust_scroll final_cursor state.scroll_offset in
+        { state with cursor = final_cursor; scroll_offset = new_scroll }
+    | Some (idx, item, entry) ->
+        if item.is_expandable && not item.is_expanded then (
+          (* Found unexpanded highlight - expand it and recurse *)
+          match entry.child_scope_id with
+          | Some hid ->
+              Hashtbl.replace state.expanded hid ();
+              let new_visible =
+                build_visible_items state.query state.expanded state.values_first
+                  ~search_slots:state.search_slots ~current_slot:state.current_slot
+                  ~unfolded_ellipsis:state.unfolded_ellipsis
+              in
+              let expanded_state = { state with visible_items = new_visible } in
+              (* Find the expanded entry in the new visible items *)
+              let header_pos, new_start =
+                let rec find_entry_pos i =
+                  if i >= Array.length expanded_state.visible_items then (idx, idx + 1)
+                  else
+                    match expanded_state.visible_items.(i).content with
+                    | RealEntry e
+                      when e.scope_id = entry.scope_id && e.seq_id = entry.seq_id ->
+                        (i, i + 1) (* Return header pos and start searching after it *)
+                    | _ -> find_entry_pos (i + 1)
+                in
+                find_entry_pos 0
+              in
+              loop expanded_state new_start (Some header_pos)
+          | None ->
+              (* No child_scope_id but marked expandable - shouldn't happen, treat as leaf *)
+              let new_scroll = adjust_scroll idx state.scroll_offset in
+              { state with cursor = idx; scroll_offset = new_scroll })
+        else
+          (* Found a leaf highlight (not expandable or already expanded) - done *)
+          let new_scroll = adjust_scroll idx state.scroll_offset in
+          { state with cursor = idx; scroll_offset = new_scroll }
+  in
+
+  loop state (state.cursor + 1) None
+
 (** Jump to scope with given ID (find header entry with child_scope_id = target_id).
     Returns updated state with cursor positioned at scope header if visible, or at the
     closest visible ancestor (which may be an ellipsis containing it). Does not unfold. *)
@@ -953,6 +1037,7 @@ let rec handle_command state command ~height =
       match find_and_jump_to_search_result state ~forward:false ~height with
       | Some new_state -> Some new_state
       | None -> Some state)
+  | HighlightNext -> Some (find_and_jump_to_highlight_leaf state ~height)
   | BeginSearch None -> Some { state with search_input = Some "" }
   | BeginSearch (Some search_term) ->
       if String.length search_term > 0 then

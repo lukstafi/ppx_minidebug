@@ -508,6 +508,13 @@
  (preprocess
   (pps ppx_minidebug ppx_sexp_conv)))
 
+(test
+ (name test_highlight_next)
+ (modules test_highlight_next)
+ (libraries sexplib0 minidebug_db minidebug_client)
+ (preprocess
+  (pps ppx_minidebug ppx_sexp_conv)))
+
 (executable
  (name test_ellipsis)
  (modules test_ellipsis)

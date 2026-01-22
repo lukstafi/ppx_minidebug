@@ -283,9 +283,9 @@ let render_screen state ~term_width ~term_height =
             | Some _ -> "[Enter] Confirm search | [Esc] Cancel | [Backspace] Delete"
             | None ->
                 "[↑/↓] Navigate | [Home/End] First/Last | [PgUp/PgDn] Page | [u/d] \
-                 Quarter | [n/N] Next/Prev Match | [Enter/Space] Expand | [f] Fold | [/] \
-                 Search | [g] Goto | [Q] Quiet | [t] Times | [v] Values | [o] Order | \
-                 [q] Quit"))
+                 Quarter | [n/N] Next/Prev Match | [H] Next Highlight Leaf | \
+                 [Enter/Space] Expand | [f] Fold | [/] Search | [g] Goto | [Q] Quiet | \
+                 [t] Times | [v] Values | [o] Order | [q] Quit"))
   in
 
   (* Combine all parts *)
@@ -312,6 +312,7 @@ let parse_command cmd_str =
   | "f" | "fold" -> Some I.Fold
   | "n" | "next" -> Some I.SearchNext
   | "N" | "prev" -> Some I.SearchPrev
+  | "H" | "highlight-next" | "next-highlight-leaf" -> Some I.HighlightNext
   | "t" | "toggle-times" -> Some I.ToggleTimes
   | "v" | "toggle-values" -> Some I.ToggleValues
   | "o" | "toggle-order" -> Some I.ToggleSearchOrder
@@ -1616,10 +1617,11 @@ let create_server ?db_path () =
         "Execute TUI command sequence and return screen rendering. Maintains stateful \
          navigation across calls (cursor position, expansions, searches persist). \
          Commands: j/k (down/up), u/d (quarter page), pgup/pgdn, home/end, enter/space \
-         (expand), f (fold), n/N (next/prev match), /pattern (search with SQL GLOB - \
-         auto-wrapped as *pattern*), g42 (goto scope), Qpattern (quiet path filter), t \
-         (toggle times), v (toggle values), o (toggle search order), q (quit). GLOB \
-         wildcards: * (any chars), ? (one char), [abc] (char set)."
+         (expand), f (fold), n/N (next/prev match), H (next highlight leaf - recursively \
+         expands highlights), /pattern (search with SQL GLOB - auto-wrapped as *pattern*), \
+         g42 (goto scope), Qpattern (quiet path filter), t (toggle times), v (toggle \
+         values), o (toggle search order), q (quit). GLOB wildcards: * (any chars), ? \
+         (one char), [abc] (char set)."
       ~schema_properties:
         [
           ( "commands",
