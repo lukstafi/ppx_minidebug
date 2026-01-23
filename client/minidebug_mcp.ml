@@ -283,9 +283,9 @@ let render_screen state ~term_width ~term_height =
             | Some _ -> "[Enter] Confirm search | [Esc] Cancel | [Backspace] Delete"
             | None ->
                 "[↑/↓] Navigate | [Home/End] First/Last | [PgUp/PgDn] Page | [u/d] \
-                 Quarter | [n/N] Next/Prev Match | [Enter/Space] Expand | [f] Fold | [/] \
-                 Search | [g] Goto | [Q] Quiet | [t] Times | [v] Values | [o] Order | \
-                 [q] Quit"))
+                 Quarter | [n/N] Next/Prev Match | [m] Next Highlight | [Enter/Space] \
+                 Expand | [f] Fold | [/] Search | [g] Goto | [Q] Quiet | [t] Times | [v] \
+                 Values | [o] Order | [q] Quit"))
   in
 
   (* Combine all parts *)
@@ -312,6 +312,7 @@ let parse_command cmd_str =
   | "f" | "fold" -> Some I.Fold
   | "n" | "next" -> Some I.SearchNext
   | "N" | "prev" -> Some I.SearchPrev
+  | "m" | "next-highlight" -> Some I.NextHighlightLeaf
   | "t" | "toggle-times" -> Some I.ToggleTimes
   | "v" | "toggle-values" -> Some I.ToggleValues
   | "o" | "toggle-order" -> Some I.ToggleSearchOrder
