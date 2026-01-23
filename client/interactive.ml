@@ -251,6 +251,7 @@ type command =
   | Fold
   | SearchNext
   | SearchPrev
+  | GotoNextHighlight (* Recursively expand to next unexpanded highlight at same/deeper depth *)
   | BeginSearch of string option (* None = enter input mode, Some = execute search *)
   | BeginQuietPath of string option
   | BeginGoto of int option
@@ -878,6 +879,106 @@ let goto_scope state target_scope_id ~height =
           (* Couldn't find anything - return state with expanded ancestors anyway *)
           Some { state with visible_items = new_visible })
 
+(** Go to next unexpanded highlight leaf. Recursively finds and expands the closest
+    unexpanded highlight following the cursor, then recurses into the expanded scope to
+    continue drilling down. Returns updated state with cursor positioned at the final
+    expanded location, or original state if no highlight found.
+
+    Per spec: "recurses from the beginning of the expanded scope" - after expanding, we
+    constrain the search to children of the just-expanded node (depth + 1). *)
+let goto_next_highlight_leaf state ~height =
+  let content_height = height - 4 in
+
+  (* Check if an ellipsis contains any highlighted entry in its range. Uses an
+     exception-based early exit for efficiency - stops as soon as any match is found
+     rather than scanning all entries. *)
+  let ellipsis_contains_highlight ~parent_scope_id ~start_seq_id ~end_seq_id =
+    let exception Found in
+    try
+      SlotMap.iter
+        (fun _ slot ->
+          Hashtbl.iter
+            (fun (scope_id, seq_id) _ ->
+              if scope_id = parent_scope_id && seq_id >= start_seq_id && seq_id <= end_seq_id
+              then raise_notrace Found)
+            slot.results)
+        state.search_slots;
+      false
+    with Found -> true
+  in
+
+  (* Find next unexpanded highlight starting from the given position with minimum depth
+     constraint. Returns Some (new_state, expanded_depth) if found and expanded. *)
+  let find_and_expand_next state start_pos min_depth =
+    let num_items = Array.length state.visible_items in
+
+    (* Scan visible items from start_pos looking for unexpanded highlighted entries *)
+    let rec scan_from idx =
+      if idx >= num_items then None
+      else
+        let item = state.visible_items.(idx) in
+        (* Stop scanning if we've gone back to shallower depth (left our scope/subtree) *)
+        if item.indent_level < min_depth then None
+        else
+          (* Check if this item is a highlighted, expandable, unexpanded entry *)
+          let is_highlight_candidate =
+            item.is_expandable && not item.is_expanded
+            &&
+            match item.content with
+            | Ellipsis { parent_scope_id; start_seq_id; end_seq_id; _ } ->
+                (* Check if any entry in this ellipsis range is highlighted *)
+                ellipsis_contains_highlight ~parent_scope_id ~start_seq_id ~end_seq_id
+            | RealEntry entry ->
+                is_entry_highlighted ~search_slots:state.search_slots
+                  ~scope_id:entry.scope_id ~seq_id:entry.seq_id
+          in
+
+          if is_highlight_candidate then Some (idx, item.indent_level)
+          else scan_from (idx + 1)
+    in
+
+    match scan_from start_pos with
+    | None -> None (* No more unexpanded highlights at required depth *)
+    | Some (target_idx, target_depth) ->
+        (* Move cursor to target and expand it *)
+        let state_with_cursor = { state with cursor = target_idx } in
+        let expanded_state = toggle_expansion state_with_cursor in
+
+        (* Calculate scroll offset to keep cursor visible *)
+        let new_scroll =
+          if target_idx < expanded_state.scroll_offset then target_idx
+          else if target_idx >= expanded_state.scroll_offset + content_height then
+            max 0 (target_idx - (content_height / 2))
+          else expanded_state.scroll_offset
+        in
+        Some ({ expanded_state with scroll_offset = new_scroll }, target_depth)
+  in
+
+  (* Get initial depth constraint from cursor position *)
+  let num_items = Array.length state.visible_items in
+  let initial_min_depth =
+    if state.cursor >= 0 && state.cursor < num_items then
+      state.visible_items.(state.cursor).indent_level
+    else 0
+  in
+
+  (* Recursive loop: after expanding, constrain to children of expanded scope *)
+  let rec expand_loop state min_depth =
+    let search_start = state.cursor + 1 in
+    match find_and_expand_next state search_start min_depth with
+    | None -> state (* Done - no more unexpanded highlights *)
+    | Some (new_state, expanded_depth) ->
+        (* Recurse into the expanded scope: search children only (depth + 1) *)
+        expand_loop new_state (expanded_depth + 1)
+  in
+
+  (* Start the search from cursor + 1 *)
+  match find_and_expand_next state (state.cursor + 1) initial_min_depth with
+  | None -> state (* No highlight found - return unchanged *)
+  | Some (first_expanded, first_depth) ->
+      (* After first expansion, constrain to children of that scope *)
+      expand_loop first_expanded (first_depth + 1)
+
 (** Handle commands - core command processing logic *)
 let rec handle_command state command ~height =
   let content_height = height - 4 in
@@ -953,6 +1054,7 @@ let rec handle_command state command ~height =
       match find_and_jump_to_search_result state ~forward:false ~height with
       | Some new_state -> Some new_state
       | None -> Some state)
+  | GotoNextHighlight -> Some (goto_next_highlight_leaf state ~height)
   | BeginSearch None -> Some { state with search_input = Some "" }
   | BeginSearch (Some search_term) ->
       if String.length search_term > 0 then

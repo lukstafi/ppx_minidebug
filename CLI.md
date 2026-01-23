@@ -582,6 +582,7 @@ minidebug_view trace.db interactive
 - `g`: Goto scope by ID — jump to specific scope
 - `Q`: Set quiet path filter
 - `n/N`: Next/previous match
+- `m`: Expand next highlighted leaf — recursively expands to next unexpanded highlight
 - `t`: Toggle times
 - `v`: Toggle values-first mode
 - `q` or `Esc`: Quit
