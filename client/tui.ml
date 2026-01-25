@@ -388,9 +388,9 @@ let render_screen state ~width ~height =
               | Some _ -> "[Enter] Confirm search | [Esc] Cancel | [Backspace] Delete"
               | None ->
                   "[↑/↓] Navigate | [Home/End] First/Last | [PgUp/PgDn] Page | [u/d] \
-                   Quarter | [n/N] Next/Prev Match | [Enter/Space] Expand | [f] Fold | \
-                   [/] Search | [g] Goto | [Q] Quiet | [t] Times | [v] Values | [o] \
-                   Order | [q] Quit"))
+                   Quarter | [n/N] Next/Prev Match | [m/M] Drill Match | [Enter/Space] \
+                   Expand | [f] Fold | [/] Search | [g] Goto | [Q] Quiet | [t] Times | \
+                   [v] Values | [o] Order | [q] Quit"))
     in
     NI.vcat
       [
@@ -450,6 +450,8 @@ let parse_key state event =
               | `ASCII 'd', _ -> Some (Navigate `QuarterDown)
               | `ASCII 'n', _ -> Some SearchNext
               | `ASCII 'N', _ -> Some SearchPrev
+              | `ASCII 'm', _ -> Some GotoHighlightNext
+              | `ASCII 'M', _ -> Some GotoHighlightPrev
               | _ -> None)))
 
 let create_tui_callbacks () =

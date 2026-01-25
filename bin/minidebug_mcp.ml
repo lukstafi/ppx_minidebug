@@ -44,8 +44,8 @@ INTERACTIVE TUI NAVIGATION:
   - j/k: Navigate down/up       - enter/space: Expand/collapse
   - u/d: Quarter page up/down   - f: Fold ellipsis/scope
   - /pattern: Search (GLOB)     - n/N: Next/previous match
-  - g42: Goto scope ID 42       - Qpattern: Set quiet path filter
-  - t/v/o: Toggle times/values/order
+  - m/M: Drill into match       - g42: Goto scope ID 42
+  - Qpattern: Quiet path filter - t/v/o: Toggle times/values/order
 
 SEARCH PATTERN SYNTAX:
   All search operations use SQL GLOB patterns (case-sensitive wildcard matching).
