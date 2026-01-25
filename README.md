@@ -78,6 +78,7 @@ minidebug_view trace.db tui
 **Search & Navigation:**
 - `/`: Open search prompt (supports 4 concurrent searches: S1-S4)
 - `n`/`N`: Jump to next/previous match (auto-expands tree to reveal match)
+- `m`/`M`: Drill into next/previous match (recursively expands scopes to reach value)
 - `g`: Goto scope by ID (jump directly to a specific scope)
 - `Q`: Set quiet path filter (stops highlight propagation at matching ancestors)
 - `o`: Toggle search ordering (Ascending/Descending scope_id)

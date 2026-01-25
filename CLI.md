@@ -582,6 +582,7 @@ minidebug_view trace.db interactive
 - `g`: Goto scope by ID — jump to specific scope
 - `Q`: Set quiet path filter
 - `n/N`: Next/previous match
+- `m/M`: Drill into next/previous match — recursively expands scopes to reach value
 - `t`: Toggle times
 - `v`: Toggle values-first mode
 - `q` or `Esc`: Quit
@@ -615,6 +616,29 @@ minidebug_view trace.db interactive
 - Never unfolds automatically — you control when to expand
 
 **Use Case:** Interactive exploration when you don't know exactly what you're looking for. The multi-pattern highlighting helps identify complex interactions visually. The goto command enables precise navigation when you know the scope ID from CLI searches, error messages, or external analysis tools.
+
+**Drill Match Command (v3.2.0+):**
+- Press `m` to drill into the next search match, or `M` for previous
+- Unlike `n`/`N` which just jump to the match, `m`/`M` recursively expand INTO highlighted scopes
+- The command keeps expanding nested highlighted scopes until it reaches a value (non-scope) entry
+- This is useful when search highlights a function scope but you want to see the actual matching value inside
+
+**Drill Match Behavior:**
+1. Find next/previous highlight from cursor position
+2. If the highlight is a **value** (leaf entry): move cursor there, done
+3. If the highlight is a **scope**: expand it and find highlights within
+4. Repeat step 3 until reaching a value highlight
+5. Position cursor on the final value
+
+**Example:** If you search for "error" and it highlights a function scope that contains an error value nested 3 levels deep, pressing `m` will:
+1. Find the highlighted function scope
+2. Expand it (since it's a scope, not a value)
+3. Find the highlighted child scope within
+4. Expand that child scope
+5. Continue until reaching the actual "error" value
+6. Position cursor at that value
+
+**Use Case:** Quickly drill down to the actual matching data without manually expanding each scope along the way.
 
 ## Global Options
 
@@ -1862,7 +1886,7 @@ Executes a sequence of TUI commands and returns text rendering of the screen. Ma
 
 **Supported Commands:**
 - Navigation: `j/k` (down/up), `u/d` (quarter page), `pgup/pgdn`, `home/end`
-- Actions: `enter/space` (expand), `f` (fold), `n/N` (next/prev match)
+- Actions: `enter/space` (expand), `f` (fold), `n/N` (next/prev match), `m/M` (drill into match)
 - Search: `/pattern` (regex search)
 - Goto: `g42` (jump to scope ID 42)
 - Filters: `Qpattern` (set quiet path filter)
@@ -2149,7 +2173,7 @@ Helps agents understand "scrolled off screen" situations
 When exploring ppx_minidebug traces:
 - Use tui-execute for natural navigation (j/k/enter/f)
 - Batch commands: ["j","j","enter"] is one call, not three
-- Search syntax: "/pattern\n" to execute, "n"/"N" to navigate
+- Search syntax: "/pattern\n" to execute, "n"/"N" to navigate, "m"/"M" to drill into
 - Goto syntax: "g<id>\n" to jump to scope ID
 - Screen format:
   - >>> marks cursor position

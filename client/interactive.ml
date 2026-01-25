@@ -251,6 +251,8 @@ type command =
   | Fold
   | SearchNext
   | SearchPrev
+  | GotoHighlightNext (* m - goto next highlight, drilling into scopes *)
+  | GotoHighlightPrev (* M - goto previous highlight, drilling into scopes *)
   | BeginSearch of string option (* None = enter input mode, Some = execute search *)
   | BeginQuietPath of string option
   | BeginGoto of int option
@@ -755,6 +757,175 @@ let find_and_jump_to_search_result state ~forward ~height =
               visible_items = new_visible;
             })
 
+(** Check if entry_scope_id is a descendant of ancestor_scope_id.
+    Uses get_ancestors to walk up the tree and check if ancestor_scope_id is found.
+    Uses ancestor_cache to avoid repeated DB queries for the same scope. *)
+let is_descendant_of (module Q : Query.S) ~ancestor_cache ~ancestor_scope_id
+    ~entry_scope_id =
+  if entry_scope_id = ancestor_scope_id then true
+  else
+    let ancestors =
+      match Hashtbl.find_opt ancestor_cache entry_scope_id with
+      | Some cached -> cached
+      | None ->
+          let computed = Q.get_ancestors ~scope_id:entry_scope_id in
+          Hashtbl.add ancestor_cache entry_scope_id computed;
+          computed
+    in
+    List.exists (fun id -> id = ancestor_scope_id) ancestors
+
+(** Find the first/last highlight within a scope (including all descendants).
+    Returns (scope_id, seq_id) of the highlight, or None if no highlights found.
+    Only considers actual matches (is_match = true), not propagated ancestors.
+    Uses ancestor_cache to avoid repeated DB queries during filtering. *)
+let find_highlight_within_scope (module Q : Query.S) ~ancestor_cache ~search_slots
+    ~parent_scope_id ~forward =
+  (* Collect all actual matches that are descendants of parent_scope_id *)
+  let matches_in_scope = ref [] in
+  SlotMap.iter
+    (fun _slot_num slot ->
+      Hashtbl.iter
+        (fun (scope_id, seq_id) is_match ->
+          if
+            is_match
+            && is_descendant_of
+                 (module Q)
+                 ~ancestor_cache ~ancestor_scope_id:parent_scope_id
+                 ~entry_scope_id:scope_id
+          then matches_in_scope := (scope_id, seq_id) :: !matches_in_scope)
+        slot.results)
+    search_slots;
+
+  (* Sort by (scope_id, seq_id) to get consistent ordering *)
+  let sorted =
+    List.sort
+      (fun (e1, s1) (e2, s2) ->
+        let c = compare e1 e2 in
+        if c = 0 then compare s1 s2 else c)
+      !matches_in_scope
+  in
+  match sorted with
+  | [] -> None
+  | _ -> if forward then Some (List.hd sorted) else Some (List.hd (List.rev sorted))
+
+(** Goto next/previous highlight with recursive drill-down into scopes.
+    Unlike SearchNext/Prev which just positions cursor at the match, this command
+    drills INTO highlighted scopes until it finds a value (non-scope) highlight.
+
+    Algorithm:
+    1. Find next/prev highlight from current cursor position
+    2. Expand ancestors to make the path visible
+    3. If the highlight is a scope (has child_scope_id):
+       a. Expand the scope
+       b. Find first/last highlight within that scope
+       c. Recursively drill down until we reach a value
+    4. Position cursor on the final value highlight *)
+let goto_highlight_and_drill_down state ~forward ~height =
+  let module Q = (val state.query) in
+
+  (* Get current entry's (scope_id, seq_id) *)
+  let current_scope_id, current_seq_id =
+    if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
+      match state.visible_items.(state.cursor).content with
+      | Ellipsis { parent_scope_id; start_seq_id; _ } -> (parent_scope_id, start_seq_id)
+      | RealEntry entry -> (entry.scope_id, entry.seq_id)
+    else (0, 0)
+  in
+
+  (* Find the next/prev highlight *)
+  match
+    find_next_search_result ~search_slots:state.search_slots ~current_scope_id
+      ~current_seq_id ~forward
+  with
+  | None -> None (* No more highlights *)
+  | Some (target_scope_id, target_seq_id) ->
+      (* Cache for ancestor lookups to avoid repeated DB queries *)
+      let ancestor_cache = Hashtbl.create 256 in
+
+      (* Recursive drill-down function: given a highlight (scope_id, seq_id),
+         if it's a scope, expand and find highlight within; repeat until value *)
+      let rec drill_down state (scope_id, seq_id) =
+        (* Get the entry to check if it's a scope *)
+        match Q.find_entry ~scope_id ~seq_id with
+        | None ->
+            (* Entry not found - just expand ancestors and position there *)
+            (state, (scope_id, seq_id))
+        | Some entry -> (
+            match entry.child_scope_id with
+            | None ->
+                (* It's a value, not a scope - we've reached our destination *)
+                (state, (scope_id, seq_id))
+            | Some child_scope_id ->
+                (* It's a scope - expand it and look for highlights within *)
+                Hashtbl.replace state.expanded child_scope_id ();
+
+                (* Find a highlight within this scope (including descendants) *)
+                match
+                  find_highlight_within_scope
+                    (module Q)
+                    ~ancestor_cache ~search_slots:state.search_slots
+                    ~parent_scope_id:child_scope_id ~forward
+                with
+                | None ->
+                    (* No highlights within - stay at this scope header *)
+                    (state, (scope_id, seq_id))
+                | Some inner_highlight ->
+                    (* Found a highlight within - drill down recursively *)
+                    drill_down state inner_highlight)
+      in
+
+      (* Expand all ancestors of the initial target to make the path visible *)
+      let ancestors = Q.get_ancestors ~scope_id:target_scope_id in
+      List.iter
+        (fun ancestor_id -> Hashtbl.replace state.expanded ancestor_id ())
+        ancestors;
+
+      (* Drill down from the initial highlight *)
+      let state, (final_scope_id, final_seq_id) =
+        drill_down state (target_scope_id, target_seq_id)
+      in
+
+      (* Rebuild visible items with all expansions *)
+      let new_visible =
+        build_visible_items state.query state.expanded state.values_first
+          ~search_slots:state.search_slots ~current_slot:state.current_slot
+          ~unfolded_ellipsis:state.unfolded_ellipsis
+      in
+
+      (* Find the final target entry in the visible items *)
+      let rec find_in_visible idx =
+        if idx >= Array.length new_visible then None
+        else
+          let item = new_visible.(idx) in
+          match item.content with
+          | Ellipsis _ -> find_in_visible (idx + 1)
+          | RealEntry entry ->
+              if entry.scope_id = final_scope_id && entry.seq_id = final_seq_id then
+                Some idx
+              else find_in_visible (idx + 1)
+      in
+
+      match find_in_visible 0 with
+      | None ->
+          (* Couldn't find target - return state with expanded path anyway *)
+          Some { state with visible_items = new_visible }
+      | Some new_cursor ->
+          (* Calculate scroll offset to center the match on screen *)
+          let content_height = height - 4 in
+          let new_scroll =
+            if new_cursor < state.scroll_offset then new_cursor
+            else if new_cursor >= state.scroll_offset + content_height then
+              max 0 (new_cursor - (content_height / 2))
+            else state.scroll_offset
+          in
+          Some
+            {
+              state with
+              cursor = new_cursor;
+              scroll_offset = new_scroll;
+              visible_items = new_visible;
+            }
+
 (** Jump to scope with given ID (find header entry with child_scope_id = target_id).
     Returns updated state with cursor positioned at scope header if visible, or at the
     closest visible ancestor (which may be an ellipsis containing it). Does not unfold. *)
@@ -951,6 +1122,14 @@ let rec handle_command state command ~height =
       | None -> Some state)
   | SearchPrev -> (
       match find_and_jump_to_search_result state ~forward:false ~height with
+      | Some new_state -> Some new_state
+      | None -> Some state)
+  | GotoHighlightNext -> (
+      match goto_highlight_and_drill_down state ~forward:true ~height with
+      | Some new_state -> Some new_state
+      | None -> Some state)
+  | GotoHighlightPrev -> (
+      match goto_highlight_and_drill_down state ~forward:false ~height with
       | Some new_state -> Some new_state
       | None -> Some state)
   | BeginSearch None -> Some { state with search_input = Some "" }

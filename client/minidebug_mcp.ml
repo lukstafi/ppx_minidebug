@@ -312,6 +312,8 @@ let parse_command cmd_str =
   | "f" | "fold" -> Some I.Fold
   | "n" | "next" -> Some I.SearchNext
   | "N" | "prev" -> Some I.SearchPrev
+  | "m" | "drill-next" -> Some I.GotoHighlightNext
+  | "M" | "drill-prev" -> Some I.GotoHighlightPrev
   | "t" | "toggle-times" -> Some I.ToggleTimes
   | "v" | "toggle-values" -> Some I.ToggleValues
   | "o" | "toggle-order" -> Some I.ToggleSearchOrder
