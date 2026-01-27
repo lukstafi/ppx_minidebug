@@ -1,7 +1,7 @@
 (library
  (public_name ppx_minidebug.client)
  (name minidebug_client)
- (modules query interactive)
+ (modules query interactive tui_db)
  (libraries sqlite3 re re.pcre unix uutf))
 
 (library

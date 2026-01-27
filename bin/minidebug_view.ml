@@ -26,6 +26,9 @@ COMMANDS:
   get-parent <id>           Get parent scope ID
   get-children <id>         Get child scope IDs
   export <file>             Export latest run to markdown
+  tui-render                Render TUI state from DB (for CLI clients)
+  tui-status                Show TUI status (state, search slots)
+  tui-cmd <cmd> [<cmd>...]  Send commands to TUI server via DB queue
 
 OPTIONS:
   --run=<id>              Specify run ID (for show, compact, search, roots)
@@ -39,6 +42,8 @@ OPTIONS:
   --ancestors             Show ancestors (show-scope, show-subtree: default true)
   --limit=<n>             Limit number of results (for search commands)
   --offset=<n>            Skip first n results (for search commands)
+  --db-mode               Enable DB-backed TUI state (for interactive command)
+  --client-id=<id>        Client ID for tui-cmd (default: cli-<pid>)
   --help                  Show this help message
 
 NOTE: For show-subtree, --max-depth is INCREMENTAL (relative to target scope).
@@ -78,6 +83,18 @@ EXAMPLES:
   # Get navigation info
   minidebug_view trace.db get-ancestors 100
   minidebug_view trace.db get-children 42 --format=json
+
+  # Start TUI in DB-backed mode (for AI agent access)
+  minidebug_view trace.db tui --db-mode
+
+  # CLI client: render current TUI state from DB
+  minidebug_view trace.db tui-render
+
+  # CLI client: send commands to TUI server
+  minidebug_view trace.db tui-cmd down down enter /error
+
+  # CLI client: check TUI status (searches, cursor, etc.)
+  minidebug_view trace.db tui-status
 
 SEARCH PATTERN SYNTAX:
   All search commands use SQL GLOB patterns (case-sensitive wildcard matching).
@@ -119,6 +136,9 @@ type command =
   | GetParent of int
   | GetChildren of int
   | Export of string
+  | TuiRender
+  | TuiCmd of string list
+  | TuiStatus
   | Help
 
 type options = {
@@ -132,6 +152,8 @@ type options = {
   show_ancestors : bool;
   limit : int option;
   offset : int option;
+  db_mode : bool;
+  client_id : string;
 }
 
 let parse_args () =
@@ -155,6 +177,8 @@ let parse_args () =
             show_ancestors = false;
             limit = None;
             offset = None;
+            db_mode = false;
+            client_id = Printf.sprintf "cli-%d" (Unix.getpid ());
           }
       in
 
@@ -250,6 +274,26 @@ let parse_args () =
         | "export" :: file :: rest ->
             cmd_ref := Export file;
             parse_rest rest
+        | "tui-render" :: rest ->
+            cmd_ref := TuiRender;
+            parse_rest rest
+        | "tui-status" :: rest ->
+            cmd_ref := TuiStatus;
+            parse_rest rest
+        | "tui-cmd" :: rest ->
+            (* Collect all non-option arguments as commands *)
+            let rec collect_cmds acc = function
+              | [] -> (List.rev acc, [])
+              | arg :: rest when String.starts_with ~prefix:"--" arg ->
+                  (List.rev acc, arg :: rest)
+              | arg :: rest -> collect_cmds (arg :: acc) rest
+            in
+            let cmds, remaining = collect_cmds [] rest in
+            if cmds = [] then (
+              Printf.eprintf "Error: tui-cmd requires at least one command\n";
+              exit 1);
+            cmd_ref := TuiCmd cmds;
+            parse_rest remaining
         | "--help" :: _ | "-h" :: _ -> cmd_ref := Help
         | opt :: rest when String.starts_with ~prefix:"--" opt -> (
             match String.split_on_char '=' opt with
@@ -285,6 +329,12 @@ let parse_args () =
                 parse_rest rest
             | [ "--offset"; n ] ->
                 opts := { !opts with offset = Some (int_of_string n) };
+                parse_rest rest
+            | [ "--db-mode" ] ->
+                opts := { !opts with db_mode = true };
+                parse_rest rest
+            | [ "--client-id"; id ] ->
+                opts := { !opts with client_id = id };
                 parse_rest rest
             | _ ->
                 Printf.eprintf "Unknown option: %s\n" opt;
@@ -340,7 +390,14 @@ let () =
         end) in
         let initial_state = Minidebug_client.Interactive.initial_state (module Q) in
         let _term, command_stream, render_screen, output_size, finalize = Minidebug_tui.Tui.create_tui_callbacks () in
-        Minidebug_client.Interactive.run (module Q) ~initial_state ~command_stream ~render_screen ~output_size ~finalize
+        if opts.db_mode then (
+          (* DB-backed mode: create TUI DB context and use run_with_db *)
+          let tui_db = Minidebug_client.Tui_db.create db_path in
+          let db_callbacks = Minidebug_client.Tui_db.make_db_callbacks tui_db in
+          Minidebug_client.Interactive.run_with_db (module Q) ~initial_state ~command_stream ~render_screen ~output_size ~finalize ~db_callbacks;
+          Minidebug_client.Tui_db.close tui_db)
+        else
+          Minidebug_client.Interactive.run (module Q) ~initial_state ~command_stream ~render_screen ~output_size ~finalize
     | Compact ->
         Minidebug_cli.Cli.(
           show_run_summary client (Option.get (get_latest_run client)).run_id);
@@ -394,6 +451,111 @@ let () =
     | GetChildren scope_id ->
         Minidebug_cli.Cli.get_children ~format:opts.format client ~scope_id
     | Export file -> Minidebug_cli.Cli.export_markdown client ~output_file:file
+    | TuiRender ->
+        (* Render current TUI state from DB using atomic snapshot read *)
+        let module Q = Minidebug_client.Query.Make (struct
+          let db_path = db_path
+        end) in
+        let tui_db = Minidebug_client.Tui_db.create db_path in
+        (* Use read_snapshot for consistent read of all state *)
+        let (revision, basic_state_opt, visible_items, _search_slots) =
+          Minidebug_client.Tui_db.read_snapshot tui_db (module Q)
+        in
+        (match basic_state_opt with
+        | None ->
+            Printf.printf "No TUI state found in database.\n";
+            Printf.printf "Start TUI server first: minidebug_view %s tui --db-mode\n" db_path
+        | Some state ->
+            Printf.printf "=== TUI State (revision %d) ===\n" revision;
+            Printf.printf "Cursor: %d | Scroll: %d | Items: %d\n"
+              state.cursor state.scroll_offset (Array.length visible_items);
+            Printf.printf "Times: %s | Values First: %s | Max Scope: %d\n"
+              (if state.show_times then "ON" else "OFF")
+              (if state.values_first then "ON" else "OFF")
+              state.max_scope_id;
+            Printf.printf "\n--- Visible Items ---\n";
+            Array.iteri
+              (fun idx item ->
+                let cursor_mark = if idx = state.cursor then ">" else " " in
+                let indent = String.make (item.Minidebug_client.Interactive.indent_level * 2) ' ' in
+                let expand_mark =
+                  if item.is_expandable then
+                    if item.is_expanded then "▼ " else "▶ "
+                  else "  "
+                in
+                match item.content with
+                | Minidebug_client.Interactive.RealEntry entry ->
+                    let display_text =
+                      match entry.Minidebug_client.Query.data with
+                      | Some d when entry.message <> "" -> Printf.sprintf "%s = %s" entry.message d
+                      | Some d -> d
+                      | None -> entry.message
+                    in
+                    Printf.printf "%s%s%s%s\n" cursor_mark indent expand_mark display_text
+                | Minidebug_client.Interactive.Ellipsis { hidden_count; start_seq_id; end_seq_id; _ } ->
+                    Printf.printf "%s%s⋯ (%d hidden: seq %d-%d)\n" cursor_mark indent hidden_count start_seq_id end_seq_id)
+              visible_items);
+        Minidebug_client.Tui_db.close tui_db
+    | TuiCmd commands ->
+        (* Send commands to TUI server via DB queue *)
+        let tui_db = Minidebug_client.Tui_db.create db_path in
+        let batch_id = Printf.sprintf "%s-%f" opts.client_id (Unix.gettimeofday ()) in
+        List.iter
+          (fun cmd ->
+            match Minidebug_client.Tui_db.insert_command tui_db ~client_id:opts.client_id ~batch_id cmd with
+            | Ok _ -> ()
+            | Error e -> Printf.eprintf "Failed to insert command '%s': %s\n" cmd e)
+          commands;
+        (* Wait for commands to be processed *)
+        (match Minidebug_client.Tui_db.wait_for_batch tui_db batch_id ~timeout_sec:10.0 with
+        | Ok () -> Printf.printf "Commands processed successfully.\n"
+        | Error e -> Printf.eprintf "Error: %s\n" e);
+        Minidebug_client.Tui_db.close tui_db
+    | TuiStatus ->
+        (* Show TUI status using atomic snapshot read for consistency *)
+        let module Q = Minidebug_client.Query.Make (struct
+          let db_path = db_path
+        end) in
+        let tui_db = Minidebug_client.Tui_db.create db_path in
+        (* Use read_snapshot for consistent read of all state *)
+        let (revision, basic_state_opt, _visible_items, search_slots) =
+          Minidebug_client.Tui_db.read_snapshot tui_db (module Q)
+        in
+        (match basic_state_opt with
+        | None ->
+            Printf.printf "No TUI state found in database.\n"
+        | Some state ->
+            Printf.printf "=== TUI Status (revision %d) ===\n" revision;
+            Printf.printf "Cursor: %d | Scroll: %d | Max Scope: %d\n"
+              state.cursor state.scroll_offset state.max_scope_id;
+            Printf.printf "Times: %s | Values First: %s\n"
+              (if state.show_times then "ON" else "OFF")
+              (if state.values_first then "ON" else "OFF");
+            (match state.quiet_path with
+            | Some qp -> Printf.printf "Quiet Path: %s\n" qp
+            | None -> ());
+            Printf.printf "Expanded Scopes: %d\n" (List.length state.expanded_scopes);
+            Printf.printf "\n--- Search Slots ---\n";
+            if search_slots = [] then
+              Printf.printf "No active searches.\n"
+            else
+              List.iter
+                (fun slot ->
+                  let status = if slot.Minidebug_client.Tui_db.completed then "done" else "searching..." in
+                  let term_display =
+                    match slot.search_term with
+                    | Some t -> t
+                    | None -> Option.value ~default:"" slot.display_text
+                  in
+                  Printf.printf "Slot %d: %s [%s] - %d results (%s)\n"
+                    (match slot.slot_number with
+                     | Minidebug_client.Interactive.SlotNumber.S1 -> 1
+                     | S2 -> 2
+                     | S3 -> 3
+                     | S4 -> 4)
+                    slot.search_type term_display slot.result_count status)
+                search_slots);
+        Minidebug_client.Tui_db.close tui_db
     | Help ->
         print_endline usage_msg;
         exit 0
