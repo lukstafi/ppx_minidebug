@@ -926,8 +926,22 @@ let goto_highlight_and_expand state ~forward ~height =
         loop start_idx
     in
 
-    (* Find first highlighted item at or after/before cursor *)
-    let start_search_idx = if forward then state.cursor else state.cursor in
+    (* Find first highlighted item at or after/before cursor.
+       For backward search: if cursor is on a highlight, first move to the nearest
+       non-highlighted position before searching. This ensures M repeatedly moves
+       backward through highlights rather than getting stuck on the current one. *)
+    let start_search_idx =
+      if forward then state.cursor
+      else
+        (* For backward: skip past current highlight if we're on one *)
+        let rec skip_current_highlight idx =
+          if idx < 0 then 0
+          else if is_item_highlighted ~search_slots:state.search_slots state.visible_items.(idx)
+          then skip_current_highlight (idx - 1)
+          else idx
+        in
+        skip_current_highlight state.cursor
+    in
     match find_highlight_from start_search_idx with
     | None ->
         (* No highlight found in search direction *)
