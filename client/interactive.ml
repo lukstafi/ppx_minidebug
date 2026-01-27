@@ -251,6 +251,8 @@ type command =
   | Fold
   | SearchNext
   | SearchPrev
+  | GotoNextHighlight (* Go to next highlight and expand *)
+  | GotoPrevHighlight (* Go to previous highlight and expand *)
   | BeginSearch of string option (* None = enter input mode, Some = execute search *)
   | BeginQuietPath of string option
   | BeginGoto of int option
@@ -878,6 +880,364 @@ let goto_scope state target_scope_id ~height =
           (* Couldn't find anything - return state with expanded ancestors anyway *)
           Some { state with visible_items = new_visible })
 
+(** Check if a visible_item is highlighted in any search slot *)
+let is_item_highlighted ~search_slots item =
+  match item.content with
+  | Ellipsis _ -> false
+  | RealEntry entry ->
+      is_entry_highlighted ~search_slots ~scope_id:entry.Query.scope_id
+        ~seq_id:entry.Query.seq_id
+
+(** Go to next/previous highlight and expand. Searches through potentially visible items,
+    expands highlighted scopes, and searches within for nested highlights.
+    Returns updated state with cursor at highlight, or None if no highlight found. *)
+let goto_highlight_and_expand state ~forward ~height =
+  let num_items = Array.length state.visible_items in
+  if num_items = 0 then Some state
+  else
+    let content_height = height - 4 in
+
+    (* Helper to adjust scroll offset for a given cursor position *)
+    let adjust_scroll cursor =
+      if cursor < state.scroll_offset then cursor
+      else if cursor >= state.scroll_offset + content_height then
+        max 0 (cursor - (content_height / 2))
+      else state.scroll_offset
+    in
+
+    (* Find next/prev highlighted item starting from position (inclusive).
+       Returns index or None. *)
+    let find_highlight_from start_idx =
+      if forward then
+        let rec loop idx =
+          if idx >= num_items then None
+          else if is_item_highlighted ~search_slots:state.search_slots state.visible_items.(idx)
+          then Some idx
+          else loop (idx + 1)
+        in
+        loop start_idx
+      else
+        let rec loop idx =
+          if idx < 0 then None
+          else if is_item_highlighted ~search_slots:state.search_slots state.visible_items.(idx)
+          then Some idx
+          else loop (idx - 1)
+        in
+        loop start_idx
+    in
+
+    (* Find first highlighted item at or after/before cursor *)
+    let start_search_idx = if forward then state.cursor else state.cursor in
+    match find_highlight_from start_search_idx with
+    | None ->
+        (* No highlight found in search direction *)
+        Some state
+    | Some highlight_idx ->
+        let item = state.visible_items.(highlight_idx) in
+        if not item.is_expandable then
+          (* Not expandable - just position cursor there *)
+          let new_scroll = adjust_scroll highlight_idx in
+          Some { state with cursor = highlight_idx; scroll_offset = new_scroll }
+        else
+          (* Expandable - expand if needed, then search within *)
+          let item_indent = item.indent_level in
+          match item.content with
+          | Ellipsis { parent_scope_id; start_seq_id; end_seq_id; _ } ->
+              (* Unfold ellipsis if not already unfolded *)
+              let key = (parent_scope_id, start_seq_id, end_seq_id) in
+              let was_folded = not (EllipsisSet.mem key state.unfolded_ellipsis) in
+              let new_unfolded =
+                if was_folded then EllipsisSet.add key state.unfolded_ellipsis
+                else state.unfolded_ellipsis
+              in
+              let new_visible =
+                if was_folded then
+                  build_visible_items state.query state.expanded state.values_first
+                    ~search_slots:state.search_slots ~current_slot:state.current_slot
+                    ~unfolded_ellipsis:new_unfolded
+                else state.visible_items
+              in
+              let state_after_expand =
+                if was_folded then
+                  { state with visible_items = new_visible; unfolded_ellipsis = new_unfolded }
+                else state
+              in
+              (* Search for highlight within expanded region *)
+              let curr_visible = state_after_expand.visible_items in
+              let curr_num_items = Array.length curr_visible in
+              (* Find highlight within expanded scope (same or greater indent), starting after
+                 the header *)
+              let search_start = if forward then highlight_idx + 1 else highlight_idx - 1 in
+              let rec find_in_scope idx =
+                let out_of_bounds =
+                  if forward then idx >= curr_num_items else idx < 0
+                in
+                if out_of_bounds then None
+                else
+                  let curr_item = curr_visible.(idx) in
+                  if curr_item.indent_level < item_indent then None
+                  else if
+                    is_item_highlighted ~search_slots:state_after_expand.search_slots curr_item
+                  then Some idx
+                  else find_in_scope (if forward then idx + 1 else idx - 1)
+              in
+              (match find_in_scope search_start with
+              | Some nested_idx ->
+                  let new_scroll = adjust_scroll nested_idx in
+                  Some
+                    { state_after_expand with cursor = nested_idx; scroll_offset = new_scroll }
+              | None ->
+                  (* No highlight in expanded region - position at the expanded item *)
+                  let new_scroll = adjust_scroll highlight_idx in
+                  Some
+                    {
+                      state_after_expand with
+                      cursor = highlight_idx;
+                      scroll_offset = new_scroll;
+                    })
+          | RealEntry entry -> (
+              match entry.child_scope_id with
+              | None ->
+                  (* Not actually expandable - just position cursor *)
+                  let new_scroll = adjust_scroll highlight_idx in
+                  Some { state with cursor = highlight_idx; scroll_offset = new_scroll }
+              | Some hid ->
+                  (* Expand the scope if not already expanded *)
+                  let was_collapsed = not (Hashtbl.mem state.expanded hid) in
+                  if was_collapsed then Hashtbl.add state.expanded hid ();
+                  let new_visible =
+                    if was_collapsed then
+                      build_visible_items state.query state.expanded state.values_first
+                        ~search_slots:state.search_slots ~current_slot:state.current_slot
+                        ~unfolded_ellipsis:state.unfolded_ellipsis
+                    else state.visible_items
+                  in
+                  let state_after_expand =
+                    if was_collapsed then { state with visible_items = new_visible } else state
+                  in
+                  let new_num_items = Array.length new_visible in
+
+                  (* Find highlight within expanded scope (children have greater indent) *)
+                  let search_start =
+                    if forward then highlight_idx + 1
+                    else min (highlight_idx + 1) (new_num_items - 1)
+                  in
+                  let rec find_in_expanded_scope idx =
+                    let out_of_bounds =
+                      if forward then idx >= new_num_items else idx < 0
+                    in
+                    if out_of_bounds then None
+                    else
+                      let curr_item = new_visible.(idx) in
+                      (* Stop when we leave the expanded scope (back to same or lesser indent) *)
+                      if curr_item.indent_level <= item_indent then None
+                      else if
+                        is_item_highlighted ~search_slots:state_after_expand.search_slots
+                          curr_item
+                      then Some idx
+                      else find_in_expanded_scope (if forward then idx + 1 else idx - 1)
+                  in
+
+                  (* First, search in the direct children area *)
+                  (match find_in_expanded_scope search_start with
+                  | Some nested_idx ->
+                      let new_scroll = adjust_scroll nested_idx in
+                      Some
+                        {
+                          state_after_expand with
+                          cursor = nested_idx;
+                          scroll_offset = new_scroll;
+                        }
+                  | None ->
+                      (* No highlight found in immediate expansion. Now iterate over scope's
+                         entries at child level (indent_level = item_indent + 1), unfolding
+                         each to search for highlights. *)
+                      let child_indent = item_indent + 1 in
+
+                      (* Collect indices of direct children (at child_indent level) *)
+                      let rec collect_children idx acc =
+                        if idx >= new_num_items then List.rev acc
+                        else
+                          let curr_item = new_visible.(idx) in
+                          if curr_item.indent_level < child_indent then List.rev acc
+                          else if curr_item.indent_level = child_indent then
+                            collect_children (idx + 1) (idx :: acc)
+                          else collect_children (idx + 1) acc
+                      in
+                      let children_indices =
+                        let collected = collect_children (highlight_idx + 1) [] in
+                        if forward then collected else List.rev collected
+                      in
+
+                      (* Try unfolding each child and searching within *)
+                      let rec try_children indices current_state =
+                        match indices with
+                        | [] ->
+                            (* No highlights found in any child - position at expanded item *)
+                            let new_scroll = adjust_scroll highlight_idx in
+                            Some
+                              {
+                                current_state with
+                                cursor = highlight_idx;
+                                scroll_offset = new_scroll;
+                              }
+                        | child_idx :: rest ->
+                            (* Re-fetch the item since visible_items may have changed *)
+                            let curr_visible = current_state.visible_items in
+                            if child_idx >= Array.length curr_visible then
+                              try_children rest current_state
+                            else
+                              let child_item = curr_visible.(child_idx) in
+                              if not child_item.is_expandable then
+                                try_children rest current_state
+                              else if child_item.is_expanded then
+                                (* Already expanded - skip to next *)
+                                try_children rest current_state
+                              else (
+                                (* Unfold/expand this child *)
+                                let state_after_unfold, was_unfolded =
+                                  match child_item.content with
+                                  | Ellipsis
+                                      { parent_scope_id; start_seq_id; end_seq_id; _ } ->
+                                      let key =
+                                        (parent_scope_id, start_seq_id, end_seq_id)
+                                      in
+                                      let new_unfolded =
+                                        EllipsisSet.add key current_state.unfolded_ellipsis
+                                      in
+                                      let new_vis =
+                                        build_visible_items current_state.query
+                                          current_state.expanded current_state.values_first
+                                          ~search_slots:current_state.search_slots
+                                          ~current_slot:current_state.current_slot
+                                          ~unfolded_ellipsis:new_unfolded
+                                      in
+                                      ( {
+                                          current_state with
+                                          visible_items = new_vis;
+                                          unfolded_ellipsis = new_unfolded;
+                                        },
+                                        true )
+                                  | RealEntry child_entry -> (
+                                      match child_entry.child_scope_id with
+                                      | Some child_hid ->
+                                          Hashtbl.add current_state.expanded child_hid ();
+                                          let new_vis =
+                                            build_visible_items current_state.query
+                                              current_state.expanded
+                                              current_state.values_first
+                                              ~search_slots:current_state.search_slots
+                                              ~current_slot:current_state.current_slot
+                                              ~unfolded_ellipsis:current_state.unfolded_ellipsis
+                                          in
+                                          ( { current_state with visible_items = new_vis },
+                                            true )
+                                      | None -> (current_state, false))
+                                in
+                                if not was_unfolded then try_children rest current_state
+                                else
+                                  let unfolded_visible = state_after_unfold.visible_items in
+                                  let unfolded_num = Array.length unfolded_visible in
+
+                                  (* Search for highlight in the unfolded content *)
+                                  let rec find_in_unfolded idx =
+                                    let out_of_bounds =
+                                      if forward then idx >= unfolded_num else idx < 0
+                                    in
+                                    if out_of_bounds then None
+                                    else
+                                      let curr = unfolded_visible.(idx) in
+                                      (* Stop when we leave the child scope *)
+                                      if curr.indent_level <= child_indent then None
+                                      else if
+                                        is_item_highlighted
+                                          ~search_slots:state_after_unfold.search_slots curr
+                                      then Some idx
+                                      else
+                                        find_in_unfolded (if forward then idx + 1 else idx - 1)
+                                  in
+
+                                  (* Find where the unfolded child starts in new visible *)
+                                  let rec find_child_in_new idx =
+                                    if idx >= unfolded_num then None
+                                    else
+                                      let curr = unfolded_visible.(idx) in
+                                      match (curr.content, child_item.content) with
+                                      | RealEntry e1, RealEntry e2
+                                        when e1.scope_id = e2.scope_id
+                                             && e1.seq_id = e2.seq_id ->
+                                          Some idx
+                                      | _ -> find_child_in_new (idx + 1)
+                                  in
+
+                                  let search_from =
+                                    match find_child_in_new 0 with
+                                    | Some idx -> if forward then idx + 1 else idx + 1
+                                    | None -> if forward then 0 else unfolded_num - 1
+                                  in
+
+                                  (match find_in_unfolded search_from with
+                                  | Some found_idx ->
+                                      let new_scroll = adjust_scroll found_idx in
+                                      Some
+                                        {
+                                          state_after_unfold with
+                                          cursor = found_idx;
+                                          scroll_offset = new_scroll;
+                                        }
+                                  | None ->
+                                      (* No highlight - fold back and try next child *)
+                                      let state_refolded =
+                                        match child_item.content with
+                                        | Ellipsis
+                                            { parent_scope_id; start_seq_id; end_seq_id; _ }
+                                          ->
+                                            let key =
+                                              (parent_scope_id, start_seq_id, end_seq_id)
+                                            in
+                                            let restored_unfolded =
+                                              EllipsisSet.remove key
+                                                state_after_unfold.unfolded_ellipsis
+                                            in
+                                            let new_vis =
+                                              build_visible_items state_after_unfold.query
+                                                state_after_unfold.expanded
+                                                state_after_unfold.values_first
+                                                ~search_slots:state_after_unfold.search_slots
+                                                ~current_slot:state_after_unfold.current_slot
+                                                ~unfolded_ellipsis:restored_unfolded
+                                            in
+                                            {
+                                              state_after_unfold with
+                                              visible_items = new_vis;
+                                              unfolded_ellipsis = restored_unfolded;
+                                            }
+                                        | RealEntry child_entry -> (
+                                            match child_entry.child_scope_id with
+                                            | Some child_hid ->
+                                                Hashtbl.remove state_after_unfold.expanded
+                                                  child_hid;
+                                                let new_vis =
+                                                  build_visible_items state_after_unfold.query
+                                                    state_after_unfold.expanded
+                                                    state_after_unfold.values_first
+                                                    ~search_slots:
+                                                      state_after_unfold.search_slots
+                                                    ~current_slot:
+                                                      state_after_unfold.current_slot
+                                                    ~unfolded_ellipsis:
+                                                      state_after_unfold.unfolded_ellipsis
+                                                in
+                                                {
+                                                  state_after_unfold with
+                                                  visible_items = new_vis;
+                                                }
+                                            | None -> state_after_unfold)
+                                      in
+                                      try_children rest state_refolded))
+                      in
+                      try_children children_indices state_after_expand))
+
 (** Handle commands - core command processing logic *)
 let rec handle_command state command ~height =
   let content_height = height - 4 in
@@ -953,6 +1313,8 @@ let rec handle_command state command ~height =
       match find_and_jump_to_search_result state ~forward:false ~height with
       | Some new_state -> Some new_state
       | None -> Some state)
+  | GotoNextHighlight -> goto_highlight_and_expand state ~forward:true ~height
+  | GotoPrevHighlight -> goto_highlight_and_expand state ~forward:false ~height
   | BeginSearch None -> Some { state with search_input = Some "" }
   | BeginSearch (Some search_term) ->
       if String.length search_term > 0 then
