@@ -1668,3 +1668,185 @@ let run (module Q : Query.S) ~initial_state ~command_stream ~render_screen ~outp
 
   loop initial_state;
   finalize ()
+
+(** Parse a command string from CLI/DB into a command type *)
+let parse_command_string str =
+  let str = String.trim str in
+  match str with
+  | "q" | "quit" -> Some Quit
+  | "j" | "down" -> Some (Navigate `Down)
+  | "k" | "up" -> Some (Navigate `Up)
+  | "home" -> Some (Navigate `Home)
+  | "end" -> Some (Navigate `End)
+  | "pgup" | "pageup" -> Some (Navigate `PageUp)
+  | "pgdn" | "pagedown" -> Some (Navigate `PageDown)
+  | "u" -> Some (Navigate `QuarterUp)
+  | "d" -> Some (Navigate `QuarterDown)
+  | "enter" | "space" -> Some ToggleExpansion
+  | "f" | "fold" -> Some Fold
+  | "t" -> Some ToggleTimes
+  | "v" -> Some ToggleValues
+  | "o" -> Some ToggleSearchOrder
+  | "n" -> Some SearchNext
+  | "N" -> Some SearchPrev
+  | "m" -> Some GotoNextHighlight
+  | "M" -> Some GotoPrevHighlight
+  | "esc" | "escape" -> Some InputEscape
+  | "backspace" -> Some InputBackspace
+  | _ when String.length str > 0 && str.[0] = '/' ->
+      (* Search command: /term *)
+      let term = String.sub str 1 (String.length str - 1) in
+      if term = "" then Some (BeginSearch None)
+      else Some (BeginSearch (Some term))
+  | _ when String.length str > 0 && str.[0] = 'g' ->
+      (* Goto command: g<scope_id> *)
+      let rest = String.sub str 1 (String.length str - 1) in
+      if rest = "" then Some (BeginGoto None)
+      else (
+        try Some (BeginGoto (Some (int_of_string rest)))
+        with Failure _ -> None)
+  | _ when String.length str > 0 && str.[0] = 'Q' ->
+      (* Quiet path command: Q<pattern> *)
+      let rest = String.sub str 1 (String.length str - 1) in
+      if rest = "" then Some (BeginQuietPath None)
+      else Some (BeginQuietPath (Some rest))
+  | _ when String.length str = 1 ->
+      (* Single printable character - treat as input char *)
+      let c = str.[0] in
+      if c >= ' ' && c <= '~' then Some (InputChar c) else None
+  | _ -> None
+
+(** Pending command record for DB-backed mode *)
+type pending_command = {
+  cmd_id : int;
+  client_id : string;
+  batch_id : string option;
+  command : string;
+}
+
+(** Callbacks for DB persistence in TUI server mode *)
+type db_callbacks = {
+  persist_state : view_state -> unit;
+  poll_commands : unit -> pending_command list;
+  mark_processing : int -> unit;
+  mark_done : int -> unit;
+  mark_error : int -> string -> unit;
+}
+
+(** Main interactive loop with DB persistence for TUI server mode. Persists state to DB
+    after each change and polls for commands from tui_commands table. *)
+let run_with_db (module Q : Query.S) ~initial_state ~command_stream ~render_screen
+    ~output_size ~finalize ~db_callbacks =
+  let persist_state state =
+    db_callbacks.persist_state state
+  in
+
+  let process_db_command state pending_cmd ~height =
+    db_callbacks.mark_processing pending_cmd.cmd_id;
+    match parse_command_string pending_cmd.command with
+    | None ->
+        db_callbacks.mark_error pending_cmd.cmd_id ("Unknown command: " ^ pending_cmd.command);
+        Some state
+    | Some cmd -> (
+        (* Catch all exceptions and convert to mark_error to prevent stuck 'processing' *)
+        try
+          match handle_command state cmd ~height with
+          | None ->
+              db_callbacks.mark_done pending_cmd.cmd_id;
+              None (* Quit command *)
+          | Some new_state ->
+              db_callbacks.mark_done pending_cmd.cmd_id;
+              Some new_state
+        with e ->
+          let error_msg = Printexc.to_string e in
+          db_callbacks.mark_error pending_cmd.cmd_id
+            (Printf.sprintf "Exception: %s" error_msg);
+          Some state)
+  in
+
+  let rec loop state =
+    (* Check if any search results have changed *)
+    let state_with_updated_searches =
+      let search_changed = ref false in
+      let new_result_counts = Hashtbl.copy state.search_result_counts in
+      SlotMap.iter
+        (fun slot search_slot ->
+          let new_count = Hashtbl.length search_slot.results in
+          let old_count =
+            match Hashtbl.find_opt state.search_result_counts slot with
+            | Some c -> c
+            | None -> -1
+          in
+          if new_count <> old_count then (
+            search_changed := true;
+            Hashtbl.replace new_result_counts slot new_count))
+        state.search_slots;
+
+      if !search_changed then (
+        (* Search results changed - invalidate ellipsis and rebuild *)
+        let new_unfolded = EllipsisSet.empty in
+        let new_visible =
+          build_visible_items state.query state.expanded state.values_first
+            ~search_slots:state.search_slots ~current_slot:state.current_slot
+            ~unfolded_ellipsis:new_unfolded
+        in
+        let updated =
+          {
+            state with
+            search_result_counts = new_result_counts;
+            unfolded_ellipsis = new_unfolded;
+            visible_items = new_visible;
+          }
+        in
+        persist_state updated;
+        updated)
+      else state
+    in
+
+    let width, height = output_size () in
+
+    (* First, process any pending commands from DB.
+       Track last good state to persist on quit. *)
+    let state_after_db_cmds, last_good_state =
+      let pending = db_callbacks.poll_commands () in
+      List.fold_left
+        (fun (acc_state_opt, last_good) pending_cmd ->
+          match acc_state_opt with
+          | None -> (None, last_good) (* Already got quit - keep last good state *)
+          | Some s ->
+              match process_db_command s pending_cmd ~height with
+              | None -> (None, s) (* Quit - remember state before quit *)
+              | Some new_s -> (Some new_s, new_s))
+        (Some state_with_updated_searches, state_with_updated_searches)
+        pending
+    in
+
+    match state_after_db_cmds with
+    | None ->
+        (* Quit was requested via DB command - persist last good state *)
+        persist_state last_good_state;
+        finalize ()
+    | Some state_after_db ->
+        (* Persist after DB commands if any were processed *)
+        if state_after_db != state_with_updated_searches then persist_state state_after_db;
+
+        render_screen state_after_db ~width ~height;
+
+        (* Then check for keyboard input *)
+        (match command_stream state_after_db with
+        | Some command -> (
+            match handle_command state_after_db command ~height with
+            | None ->
+                persist_state state_after_db;
+                finalize ()
+            | Some new_state ->
+                persist_state new_state;
+                loop new_state)
+        | None ->
+            (* Timeout - just redraw to update search status *)
+            loop state_after_db)
+  in
+
+  (* Persist initial state *)
+  persist_state initial_state;
+  loop initial_state
