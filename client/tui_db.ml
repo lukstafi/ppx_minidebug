@@ -66,7 +66,7 @@ module Json = struct
           parse_arrays s (end_idx + 1) acc'
         else parse_arrays s (i + 1) acc
       in
-      parse_arrays json 0 I.EllipsisSet.empty
+      parse_arrays json 1 I.EllipsisSet.empty
 
   (** Encode search type to JSON *)
   let encode_search_type = function
