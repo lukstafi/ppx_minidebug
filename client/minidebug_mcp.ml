@@ -34,6 +34,28 @@ let render_line ctx item =
       in
       let suffix = if ctx.is_selected then " <<<" else "" in
       scope_id_str ^ text ^ suffix
+  | WrappedLine { scope_id; seq_id; text } ->
+      let scope_id_str = String.make (ctx.margin_width + 3) ' ' in
+      let content_width = ctx.width - String.length scope_id_str in
+      let sanitized = I.sanitize_text text in
+      let line_text =
+        if I.Utf8.char_count sanitized > content_width then
+          I.Utf8.truncate sanitized (content_width - 3) ^ "..."
+        else sanitized
+      in
+      let all_matches =
+        I.get_all_search_matches ~search_slots:ctx.search_slots ~scope_id ~seq_id
+      in
+      let prefix, suffix =
+        if ctx.is_selected then (">>> ", " <<<")
+        else
+          match all_matches with
+          | [] -> ("    ", "")
+          | matches ->
+              let tags = List.map slot_tag matches |> String.concat "/" in
+              (Printf.sprintf "[%s] " tags, "")
+      in
+      prefix ^ scope_id_str ^ line_text ^ suffix
   | RealEntry entry ->
       let module Q = (val ctx.query) in
       (* Compute display ID *)
@@ -57,44 +79,77 @@ let render_line ctx item =
       in
 
       (* Entry content - same logic as Notty version *)
-      let content =
+      let content, override_truncation =
         match entry.child_scope_id with
+        | None when item.is_expanded ->
+            let content_width = ctx.width - String.length scope_id_str in
+            let line_width =
+              max 1 (content_width - ((item.indent_level * 2) + 2))
+            in
+            let body_lines =
+              I.leaf_body_lines ~line_width ~show_times:ctx.show_times entry
+            in
+            let lines =
+              I.prefix_leaf_lines ~indent_level:item.indent_level
+                ~expansion_mark:"▼ " body_lines
+            in
+            let first_line = match lines with [] -> "" | line :: _ -> line in
+            (first_line, true)
         | Some hid when ctx.values_first && item.is_expanded -> (
             let children = Q.get_scope_children ~parent_scope_id:hid in
             let results, _non_results =
               List.partition (fun e -> e.Query.is_result) children
             in
+            let render_normal () =
+              let is_synthetic = entry.location = None in
+              let display_text =
+                match (entry.message, entry.data, is_synthetic) with
+                | msg, Some data, true when msg <> "" ->
+                    Printf.sprintf "%s: %s" msg data
+                | "", Some data, true -> data
+                | msg, _, _ when msg <> "" -> msg
+                | _ -> ""
+              in
+              ( Printf.sprintf "%s%s[%s] %s" indent expansion_mark entry.entry_type
+                  display_text,
+                false )
+            in
             match results with
             | [ single_result ] when single_result.child_scope_id = None ->
-                let result_data = Option.value ~default:"" single_result.data in
-                let result_msg = single_result.message in
-                let combined_result =
-                  if result_msg <> "" && result_msg <> entry.message then
-                    Printf.sprintf " => %s = %s" result_msg result_data
-                  else Printf.sprintf " => %s" result_data
+                let child_depth = item.indent_level + 1 in
+                let content_width = ctx.width - String.length scope_id_str in
+                let line_width =
+                  max 1 (content_width - ((child_depth * 2) + 2))
                 in
-                Printf.sprintf "%s%s[%s] %s%s" indent expansion_mark entry.entry_type
-                  entry.message combined_result
+                let result_wraps =
+                  List.length
+                    (I.leaf_body_lines ~line_width ~show_times:ctx.show_times
+                       single_result)
+                  > 1
+                in
+                if result_wraps then render_normal ()
+                else
+                  let result_data = Option.value ~default:"" single_result.data in
+                  let result_msg = single_result.message in
+                  let combined_result =
+                    if result_msg <> "" && result_msg <> entry.message then
+                      Printf.sprintf " => %s = %s" result_msg result_data
+                    else Printf.sprintf " => %s" result_data
+                  in
+                  ( Printf.sprintf "%s%s[%s] %s%s" indent expansion_mark entry.entry_type
+                      entry.message combined_result,
+                    false )
             | _ ->
-                let is_synthetic = entry.location = None in
-                let display_text =
-                  match (entry.message, entry.data, is_synthetic) with
-                  | msg, Some data, true when msg <> "" ->
-                      Printf.sprintf "%s: %s" msg data
-                  | "", Some data, true -> data
-                  | msg, _, _ when msg <> "" -> msg
-                  | _ -> ""
-                in
-                Printf.sprintf "%s%s[%s] %s" indent expansion_mark entry.entry_type
-                  display_text)
+                render_normal ())
         | Some _ ->
             let display_text =
               let message = entry.message in
               let data = Option.value ~default:"" entry.data in
               if message <> "" then message else data
             in
-            Printf.sprintf "%s%s[%s] %s" indent expansion_mark entry.entry_type
-              display_text
+            ( Printf.sprintf "%s%s[%s] %s" indent expansion_mark entry.entry_type
+                display_text,
+              false )
         | None ->
             let display_text =
               let message = entry.message in
@@ -106,7 +161,8 @@ let render_line ctx item =
                  else "")
               ^ data
             in
-            Printf.sprintf "%s  %s" indent display_text
+            ( Printf.sprintf "%s%s%s" indent expansion_mark display_text,
+              false )
       in
 
       (* Time *)
@@ -118,10 +174,11 @@ let render_line ctx item =
         else ""
       in
 
-      let full_text = content ^ time_str in
+      let full_text = content ^ (if override_truncation then "" else time_str) in
       let content_width = ctx.width - String.length scope_id_str in
       let truncated =
-        if I.Utf8.char_count full_text > content_width then
+        if override_truncation then full_text
+        else if I.Utf8.char_count full_text > content_width then
           I.Utf8.truncate full_text (content_width - 3) ^ "..."
         else full_text
       in
@@ -160,6 +217,10 @@ let render_screen state ~term_width ~term_height =
     if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
       match state.visible_items.(state.cursor).content with
       | Ellipsis { parent_scope_id; _ } -> parent_scope_id
+      | WrappedLine { scope_id; _ } -> (
+          match I.find_positive_ancestor_id state.query scope_id with
+          | Some id -> id
+          | None -> 0)
       | RealEntry entry -> (
           let id_to_check =
             match entry.child_scope_id with Some hid -> hid | None -> entry.scope_id
@@ -1666,6 +1727,7 @@ let create_server ?db_path () =
                 let module Q = (val session.query) in
                 I.initial_state (module Q)
           in
+          let state = I.ensure_render_width state ~width:term_width in
 
           (* Execute command sequence *)
           let final_state =
@@ -1681,6 +1743,7 @@ let create_server ?db_path () =
                     st)
               state commands
           in
+          let final_state = I.ensure_render_width final_state ~width:term_width in
 
           (* Update session *)
           session.tui_state <-

@@ -486,14 +486,38 @@ let () =
                 match item.content with
                 | Minidebug_client.Interactive.RealEntry entry ->
                     let display_text =
-                      match entry.Minidebug_client.Query.data with
-                      | Some d when entry.message <> "" -> Printf.sprintf "%s = %s" entry.message d
-                      | Some d -> d
-                      | None -> entry.message
+                      if entry.Minidebug_client.Query.child_scope_id = None && item.is_expanded
+                         && state.render_width > 0
+                      then
+                        let margin_width =
+                          String.length (string_of_int state.max_scope_id)
+                        in
+                        let content_width =
+                          max 1 (state.render_width - (margin_width + 3))
+                        in
+                        let line_width =
+                          max 1
+                            (content_width
+                            - ((item.Minidebug_client.Interactive.indent_level * 2) + 2))
+                        in
+                        match
+                          Minidebug_client.Interactive.leaf_body_lines ~line_width
+                            ~show_times:state.show_times entry
+                        with
+                        | first :: _ -> first
+                        | [] -> ""
+                      else
+                        match entry.Minidebug_client.Query.data with
+                        | Some d when entry.message <> "" ->
+                            Printf.sprintf "%s = %s" entry.message d
+                        | Some d -> d
+                        | None -> entry.message
                     in
                     Printf.printf "%s%s%s%s\n" cursor_mark indent expand_mark display_text
                 | Minidebug_client.Interactive.Ellipsis { hidden_count; start_seq_id; end_seq_id; _ } ->
-                    Printf.printf "%s%s⋯ (%d hidden: seq %d-%d)\n" cursor_mark indent hidden_count start_seq_id end_seq_id)
+                    Printf.printf "%s%s⋯ (%d hidden: seq %d-%d)\n" cursor_mark indent hidden_count start_seq_id end_seq_id
+                | Minidebug_client.Interactive.WrappedLine { text; _ } ->
+                    Printf.printf "%s%s\n" cursor_mark text)
               visible_items);
         Minidebug_client.Tui_db.close tui_db
     | TuiCmd commands ->

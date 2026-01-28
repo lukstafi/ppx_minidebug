@@ -27,6 +27,42 @@ module Json = struct
         String.split_on_char ',' trimmed
         |> List.map (fun s -> int_of_string (String.trim s))
 
+  (** Encode a list of (int * int) pairs as JSON array of [a,b] arrays *)
+  let encode_pair_list pairs =
+    let items =
+      List.map (fun (a, b) -> Printf.sprintf "[%d,%d]" a b) pairs
+    in
+    "[" ^ String.concat "," items ^ "]"
+
+  (** Decode JSON array of [a,b] arrays to list of pairs *)
+  let decode_pair_list json =
+    if json = "[]" || json = "" then []
+    else
+      (* Simple parser for [[a,b],[c,d],...] *)
+      let rec parse_arrays s i acc =
+        if i >= String.length s then List.rev acc
+        else if s.[i] = '[' && (i = 0 || s.[i - 1] = ',' || s.[i - 1] = '[') then
+          (* Find matching ] *)
+          let rec find_end j depth =
+            if j >= String.length s then j
+            else if s.[j] = '[' then find_end (j + 1) (depth + 1)
+            else if s.[j] = ']' then
+              if depth = 1 then j else find_end (j + 1) (depth - 1)
+            else find_end (j + 1) depth
+          in
+          let end_idx = find_end i 0 in
+          let inner = String.sub s (i + 1) (end_idx - i - 1) in
+          let nums = String.split_on_char ',' inner |> List.map String.trim in
+          let acc' =
+            match nums with
+            | [ a; b ] -> (int_of_string a, int_of_string b) :: acc
+            | _ -> acc
+          in
+          parse_arrays s (end_idx + 1) acc'
+        else parse_arrays s (i + 1) acc
+      in
+      parse_arrays json 1 []
+
   (** Encode ellipsis set as JSON array of [parent, start, end] arrays *)
   let encode_ellipsis_set set =
     let items =
@@ -137,11 +173,21 @@ let initialize_tui_tables db =
         quiet_path_input TEXT,
         goto_input TEXT,
         max_scope_id INTEGER NOT NULL DEFAULT 0,
+        render_width INTEGER NOT NULL DEFAULT 0,
         updated_at REAL NOT NULL DEFAULT (unixepoch()),
         expanded_scopes TEXT NOT NULL DEFAULT '[]',
+        expanded_values TEXT NOT NULL DEFAULT '[]',
         unfolded_ellipsis TEXT NOT NULL DEFAULT '[]',
         status_history TEXT NOT NULL DEFAULT '[]'
       )|}
+  |> ignore;
+
+  (* Add new columns for existing databases (ignore errors if already present) *)
+  Sqlite3.exec db
+    "ALTER TABLE tui_state ADD COLUMN expanded_values TEXT NOT NULL DEFAULT '[]'"
+  |> ignore;
+  Sqlite3.exec db
+    "ALTER TABLE tui_state ADD COLUMN render_width INTEGER NOT NULL DEFAULT 0"
   |> ignore;
 
   (* Insert singleton row if not exists *)
@@ -160,9 +206,11 @@ let initialize_tui_tables db =
         hidden_count INTEGER,
         indent_level INTEGER NOT NULL,
         is_expandable BOOLEAN NOT NULL,
-        is_expanded BOOLEAN NOT NULL
+        is_expanded BOOLEAN NOT NULL,
+        text TEXT
       )|}
   |> ignore;
+  Sqlite3.exec db "ALTER TABLE tui_visible_items ADD COLUMN text TEXT" |> ignore;
   Sqlite3.exec db
     "CREATE INDEX IF NOT EXISTS idx_tui_visible_items_content ON \
      tui_visible_items(content_type, scope_id, seq_id)"
@@ -245,6 +293,8 @@ let hashtbl_keys_to_list tbl =
 let write_state_in_txn db (state : I.view_state) =
   let expanded_scopes = hashtbl_keys_to_list state.expanded in
   let expanded_json = Json.encode_int_list expanded_scopes in
+  let expanded_values = hashtbl_keys_to_list state.expanded_values in
+  let expanded_values_json = Json.encode_pair_list expanded_values in
   let unfolded_json = Json.encode_ellipsis_set state.unfolded_ellipsis in
   let status_json = Json.encode_status_history state.status_history in
 
@@ -269,8 +319,10 @@ let write_state_in_txn db (state : I.view_state) =
           quiet_path_input = ?,
           goto_input = ?,
           max_scope_id = ?,
+          render_width = ?,
           updated_at = unixepoch(),
           expanded_scopes = ?,
+          expanded_values = ?,
           unfolded_ellipsis = ?,
           status_history = ?
         WHERE id = 1|}
@@ -304,9 +356,11 @@ let write_state_in_txn db (state : I.view_state) =
   |> ignore;
 
   Sqlite3.bind_int stmt 11 state.max_scope_id |> ignore;
-  Sqlite3.bind_text stmt 12 expanded_json |> ignore;
-  Sqlite3.bind_text stmt 13 unfolded_json |> ignore;
-  Sqlite3.bind_text stmt 14 status_json |> ignore;
+  Sqlite3.bind_int stmt 12 state.render_width |> ignore;
+  Sqlite3.bind_text stmt 13 expanded_json |> ignore;
+  Sqlite3.bind_text stmt 14 expanded_values_json |> ignore;
+  Sqlite3.bind_text stmt 15 unfolded_json |> ignore;
+  Sqlite3.bind_text stmt 16 status_json |> ignore;
 
   (match Sqlite3.step stmt with
   | Sqlite3.Rc.DONE -> ()
@@ -322,8 +376,8 @@ let write_visible_items_in_txn db (items : I.visible_item array) =
     Sqlite3.prepare db
       {|INSERT INTO tui_visible_items
         (idx, content_type, scope_id, seq_id, parent_scope_id, start_seq_id,
-         end_seq_id, hidden_count, indent_level, is_expandable, is_expanded)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)|}
+         end_seq_id, hidden_count, indent_level, is_expandable, is_expanded, text)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)|}
   in
 
   Array.iteri
@@ -339,7 +393,8 @@ let write_visible_items_in_txn db (items : I.visible_item array) =
           Sqlite3.bind stmt 5 Sqlite3.Data.NULL |> ignore;
           Sqlite3.bind stmt 6 Sqlite3.Data.NULL |> ignore;
           Sqlite3.bind stmt 7 Sqlite3.Data.NULL |> ignore;
-          Sqlite3.bind stmt 8 Sqlite3.Data.NULL |> ignore
+          Sqlite3.bind stmt 8 Sqlite3.Data.NULL |> ignore;
+          Sqlite3.bind stmt 12 Sqlite3.Data.NULL |> ignore
       | I.Ellipsis { parent_scope_id; start_seq_id; end_seq_id; hidden_count } ->
           Sqlite3.bind_text stmt 2 "ellipsis" |> ignore;
           Sqlite3.bind stmt 3 Sqlite3.Data.NULL |> ignore;
@@ -347,7 +402,17 @@ let write_visible_items_in_txn db (items : I.visible_item array) =
           Sqlite3.bind_int stmt 5 parent_scope_id |> ignore;
           Sqlite3.bind_int stmt 6 start_seq_id |> ignore;
           Sqlite3.bind_int stmt 7 end_seq_id |> ignore;
-          Sqlite3.bind_int stmt 8 hidden_count |> ignore);
+          Sqlite3.bind_int stmt 8 hidden_count |> ignore;
+          Sqlite3.bind stmt 12 Sqlite3.Data.NULL |> ignore
+      | I.WrappedLine { scope_id; seq_id; text } ->
+          Sqlite3.bind_text stmt 2 "wrapped" |> ignore;
+          Sqlite3.bind_int stmt 3 scope_id |> ignore;
+          Sqlite3.bind_int stmt 4 seq_id |> ignore;
+          Sqlite3.bind stmt 5 Sqlite3.Data.NULL |> ignore;
+          Sqlite3.bind stmt 6 Sqlite3.Data.NULL |> ignore;
+          Sqlite3.bind stmt 7 Sqlite3.Data.NULL |> ignore;
+          Sqlite3.bind stmt 8 Sqlite3.Data.NULL |> ignore;
+          Sqlite3.bind_text stmt 12 text |> ignore);
 
       Sqlite3.bind_int stmt 9 item.indent_level |> ignore;
       Sqlite3.bind_int stmt 10 (if item.is_expandable then 1 else 0) |> ignore;
@@ -472,7 +537,9 @@ type basic_state = {
   quiet_path_input : string option;
   goto_input : string option;
   max_scope_id : int;
+  render_width : int;
   expanded_scopes : int list;
+  expanded_values : (int * int) list;
   unfolded_ellipsis : I.EllipsisSet.t;
 }
 
@@ -483,8 +550,8 @@ let read_basic_state tui_db =
     Sqlite3.prepare db
       {|SELECT revision, cursor, scroll_offset, show_times, values_first,
                current_slot, search_order, quiet_path, search_input,
-               quiet_path_input, goto_input, max_scope_id, expanded_scopes,
-               unfolded_ellipsis
+               quiet_path_input, goto_input, max_scope_id, render_width,
+               expanded_scopes, expanded_values, unfolded_ellipsis
         FROM tui_state WHERE id = 1|}
   in
   let result =
@@ -518,9 +585,12 @@ let read_basic_state tui_db =
             quiet_path_input = col_text 9;
             goto_input = col_text 10;
             max_scope_id = col_int 11;
-            expanded_scopes = Json.decode_int_list (Option.value ~default:"[]" (col_text 12));
+            render_width = col_int 12;
+            expanded_scopes = Json.decode_int_list (Option.value ~default:"[]" (col_text 13));
+            expanded_values =
+              Json.decode_pair_list (Option.value ~default:"[]" (col_text 14));
             unfolded_ellipsis =
-              Json.decode_ellipsis_set (Option.value ~default:"[]" (col_text 13));
+              Json.decode_ellipsis_set (Option.value ~default:"[]" (col_text 15));
           }
     | _ -> None
   in
@@ -534,7 +604,7 @@ let read_visible_items tui_db (module Q : Q.S) =
   let stmt =
     Sqlite3.prepare db
       {|SELECT idx, content_type, scope_id, seq_id, parent_scope_id, start_seq_id,
-               end_seq_id, hidden_count, indent_level, is_expandable, is_expanded
+               end_seq_id, hidden_count, indent_level, is_expandable, is_expanded, text
         FROM tui_visible_items ORDER BY idx|}
   in
 
@@ -563,6 +633,11 @@ let read_visible_items tui_db (module Q : Q.S) =
             match Q.find_entry ~scope_id ~seq_id with
             | Some entry -> Some (I.RealEntry entry)
             | None -> None
+          else if content_type = "wrapped" then
+            let scope_id = col_int 2 in
+            let seq_id = col_int 3 in
+            let text = col_text 11 in
+            Some (I.WrappedLine { scope_id; seq_id; text })
           else
             match
               (col_int_opt 4, col_int_opt 5, col_int_opt 6, col_int_opt 7)

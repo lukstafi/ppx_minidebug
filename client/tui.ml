@@ -44,6 +44,72 @@ let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
           NI.string (if is_selected then attr else A.(fg yellow)) scope_id_str;
           NI.string attr text;
         ]
+  | WrappedLine { scope_id; seq_id; text } ->
+      let scope_id_str = String.make (margin_width + 3) ' ' in
+      let content_width = width - String.length scope_id_str in
+      let sanitized = sanitize_for_notty text in
+      let line_text =
+        if I.Utf8.char_count sanitized > content_width then
+          I.Utf8.truncate sanitized (content_width - 3) ^ "..."
+        else sanitized
+      in
+      let all_matches =
+        I.get_all_search_matches ~search_slots ~scope_id ~seq_id
+      in
+      let content_image, margin_image =
+        if is_selected then
+          let attr = A.(bg lightblue ++ fg black) in
+          (NI.string attr line_text, NI.string attr scope_id_str)
+        else
+          match all_matches with
+          | [] ->
+              (NI.string A.empty line_text, NI.string A.(fg yellow) scope_id_str)
+          | [ single_match ] ->
+              let attr =
+                match single_match with
+                | I.SlotNumber.S1 -> A.(fg green)
+                | S2 -> A.(fg cyan)
+                | S3 -> A.(fg magenta)
+                | S4 -> A.(fg yellow)
+              in
+              (NI.string attr line_text, NI.string attr scope_id_str)
+          | multiple_matches when List.length multiple_matches >= 2 ->
+              let num_matches = List.length multiple_matches in
+              let text_len = I.Utf8.char_count line_text in
+              let num_segments = min (num_matches * 2) text_len in
+              let segment_size = max 1 (text_len / num_segments) in
+              let content_segments = ref [] in
+              let pos = ref 0 in
+              let color_idx = ref 0 in
+              while !pos < text_len do
+                let remaining = text_len - !pos in
+                let seg_len = min segment_size remaining in
+                let segment = I.Utf8.sub line_text !pos seg_len in
+                let color =
+                  match List.nth multiple_matches (!color_idx mod num_matches) with
+                  | I.SlotNumber.S1 -> A.(fg green)
+                  | S2 -> A.(fg cyan)
+                  | S3 -> A.(fg magenta)
+                  | S4 -> A.(fg yellow)
+                in
+                content_segments := NI.string color segment :: !content_segments;
+                pos := !pos + seg_len;
+                color_idx := !color_idx + 1
+              done;
+              let content_img = NI.hcat (List.rev !content_segments) in
+              let margin_color =
+                match List.hd multiple_matches with
+                | I.SlotNumber.S1 -> A.(fg green)
+                | S2 -> A.(fg cyan)
+                | S3 -> A.(fg magenta)
+                | S4 -> A.(fg yellow)
+              in
+              let margin_img = NI.string margin_color scope_id_str in
+              (content_img, margin_img)
+          | _ ->
+              (NI.string A.empty line_text, NI.string A.(fg yellow) scope_id_str)
+      in
+      NI.hcat [ margin_image; content_image ]
   | RealEntry entry ->
       (* Entry ID margin - use child_scope_id for scopes, scope_id for values *)
       (* Don't display negative IDs (used for boxified/decomposed values) *)
@@ -71,8 +137,22 @@ let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
       in
 
       (* Entry content *)
-      let content =
+      let content, override_truncation =
         match entry.child_scope_id with
+        | None when item.is_expanded ->
+            let content_width = width - String.length scope_id_str in
+            let line_width =
+              max 1 (content_width - ((item.indent_level * 2) + 2))
+            in
+            let body_lines =
+              I.leaf_body_lines ~line_width ~show_times entry
+            in
+            let lines =
+              I.prefix_leaf_lines ~indent_level:item.indent_level
+                ~expansion_mark:"▼ " body_lines
+            in
+            let first_line = match lines with [] -> "" | line :: _ -> line in
+            (first_line, true)
         | Some hid when values_first && item.is_expanded -> (
             (* Header/scope in values_first mode: check for single result child to
                combine *)
@@ -80,12 +160,39 @@ let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
             let results, _non_results =
               List.partition (fun e -> e.Query.is_result) children
             in
+            let render_normal () =
+              (* Multiple results or no results: normal rendering *)
+              (* For synthetic scopes (no location), show data inline with message *)
+              let is_synthetic = entry.location = None in
+              let display_text =
+                match (entry.message, entry.data, is_synthetic) with
+                | msg, Some data, true when msg <> "" ->
+                    Printf.sprintf "%s: %s" msg data
+                | "", Some data, true -> data
+                | msg, _, _ when msg <> "" -> msg
+                | _ -> ""
+              in
+              ( Printf.sprintf "%s%s[%s] %s" indent expansion_mark entry.entry_type
+                  display_text,
+                false )
+            in
             match results with
             | [ single_result ] ->
                 (* Don't combine if result is itself a scope/header (e.g., synthetic
                    scopes from boxify). Only combine simple value results with their
                    parent headers. *)
-                if single_result.child_scope_id = None then
+                if single_result.child_scope_id = None then (
+                  let child_depth = item.indent_level + 1 in
+                  let line_width =
+                    max 1 (content_width - ((child_depth * 2) + 2))
+                  in
+                  let result_wraps =
+                    List.length
+                      (I.leaf_body_lines ~line_width ~show_times single_result)
+                    > 1
+                  in
+                  if result_wraps then render_normal ()
+                  else
                   (* Combine result with header: [type] message => result_data *)
                   let result_data = Option.value ~default:"" single_result.data in
                   let result_msg = single_result.message in
@@ -95,25 +202,15 @@ let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
                     else Printf.sprintf " => %s" result_data
                   in
                   Printf.sprintf "%s%s[%s] %s%s" indent expansion_mark entry.entry_type
-                    entry.message combined_result
+                    entry.message combined_result,
+                  false)
                 else
                   (* Result has children: normal rendering *)
-                  Printf.sprintf "%s%s[%s] %s" indent expansion_mark entry.entry_type
-                    entry.message
+                  ( Printf.sprintf "%s%s[%s] %s" indent expansion_mark entry.entry_type
+                      entry.message,
+                    false )
             | _ ->
-                (* Multiple results or no results: normal rendering *)
-                (* For synthetic scopes (no location), show data inline with message *)
-                let is_synthetic = entry.location = None in
-                let display_text =
-                  match (entry.message, entry.data, is_synthetic) with
-                  | msg, Some data, true when msg <> "" ->
-                      Printf.sprintf "%s: %s" msg data
-                  | "", Some data, true -> data
-                  | msg, _, _ when msg <> "" -> msg
-                  | _ -> ""
-                in
-                Printf.sprintf "%s%s[%s] %s" indent expansion_mark entry.entry_type
-                  display_text)
+                render_normal ())
         | Some _ ->
             (* Header/scope - normal rendering *)
             let display_text =
@@ -121,8 +218,9 @@ let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
               let data = Option.value ~default:"" entry.data in
               if message <> "" then message else data
             in
-            Printf.sprintf "%s%s[%s] %s" indent expansion_mark entry.entry_type
-              display_text
+            ( Printf.sprintf "%s%s[%s] %s" indent expansion_mark entry.entry_type
+                display_text,
+              false )
         | None ->
             (* Value *)
             let display_text =
@@ -135,7 +233,8 @@ let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
                  else "")
               ^ data
             in
-            Printf.sprintf "%s  %s" indent display_text
+            ( Printf.sprintf "%s%s%s" indent expansion_mark display_text,
+              false )
       in
 
       (* Time *)
@@ -147,10 +246,11 @@ let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
         else ""
       in
 
-      let full_text = content ^ time_str in
+      let full_text = content ^ (if override_truncation then "" else time_str) in
       let truncated =
         let t =
-          if I.Utf8.char_count full_text > content_width then
+          if override_truncation then full_text
+          else if I.Utf8.char_count full_text > content_width then
             I.Utf8.truncate full_text (content_width - 3) ^ "..."
           else full_text
         in
@@ -239,6 +339,10 @@ let render_screen state ~width ~height =
     if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
       match state.visible_items.(state.cursor).content with
       | Ellipsis { parent_scope_id; _ } -> parent_scope_id
+      | WrappedLine { scope_id; _ } -> (
+          match I.find_positive_ancestor_id state.query scope_id with
+          | Some id -> id
+          | None -> 0)
       | RealEntry entry -> (
           (* For scopes, use child_scope_id; for values, use scope_id *)
           let id_to_check =
