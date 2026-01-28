@@ -532,3 +532,28 @@
  (alias runtest)
  (action
   (diff debugger_ellipsis.expected.log debugger_ellipsis.log)))
+
+(executable
+ (name test_long_values)
+ (modules test_long_values)
+ (libraries minidebug_db)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_deriving.show)))
+
+(rule
+ (targets debugger_long_values.db debugger_long_values.log)
+ (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
+ (action
+  (progn
+   (run %{dep:test_long_values.exe})
+   (with-stdout-to
+    debugger_long_values.log
+    (pipe-stdout
+     (run %{dep:../bin/minidebug_view.exe} debugger_long_values.db show)
+     (run %{dep:../bin/filter_test_output.exe}))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_long_values.expected.log debugger_long_values.log)))

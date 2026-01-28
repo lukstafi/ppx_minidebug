@@ -388,8 +388,9 @@ let () =
         let module Q = Minidebug_client.Query.Make (struct
           let db_path = db_path
         end) in
-        let initial_state = Minidebug_client.Interactive.initial_state (module Q) in
         let _term, command_stream, render_screen, output_size, finalize = Minidebug_tui.Tui.create_tui_callbacks () in
+        let terminal_width, _ = output_size () in
+        let initial_state = Minidebug_client.Interactive.initial_state (module Q) ~terminal_width in
         if opts.db_mode then (
           (* DB-backed mode: create TUI DB context and use run_with_db *)
           let tui_db = Minidebug_client.Tui_db.create db_path in
@@ -484,6 +485,8 @@ let () =
                   else "  "
                 in
                 match item.content with
+                | Minidebug_client.Interactive.ExpandedValueLine { entry = _; line_text; line_num; total_lines } ->
+                    Printf.printf "%s%s│ [%d/%d] %s\n" cursor_mark indent line_num total_lines line_text
                 | Minidebug_client.Interactive.RealEntry entry ->
                     let display_text =
                       match entry.Minidebug_client.Query.data with

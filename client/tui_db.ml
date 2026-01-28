@@ -340,6 +340,15 @@ let write_visible_items_in_txn db (items : I.visible_item array) =
           Sqlite3.bind stmt 6 Sqlite3.Data.NULL |> ignore;
           Sqlite3.bind stmt 7 Sqlite3.Data.NULL |> ignore;
           Sqlite3.bind stmt 8 Sqlite3.Data.NULL |> ignore
+      | I.ExpandedValueLine { entry; _ } ->
+          (* Store expanded value lines as a special entry type - use parent entry's IDs *)
+          Sqlite3.bind_text stmt 2 "expanded_value_line" |> ignore;
+          Sqlite3.bind_int stmt 3 entry.Q.scope_id |> ignore;
+          Sqlite3.bind_int stmt 4 entry.Q.seq_id |> ignore;
+          Sqlite3.bind stmt 5 Sqlite3.Data.NULL |> ignore;
+          Sqlite3.bind stmt 6 Sqlite3.Data.NULL |> ignore;
+          Sqlite3.bind stmt 7 Sqlite3.Data.NULL |> ignore;
+          Sqlite3.bind stmt 8 Sqlite3.Data.NULL |> ignore
       | I.Ellipsis { parent_scope_id; start_seq_id; end_seq_id; hidden_count } ->
           Sqlite3.bind_text stmt 2 "ellipsis" |> ignore;
           Sqlite3.bind stmt 3 Sqlite3.Data.NULL |> ignore;

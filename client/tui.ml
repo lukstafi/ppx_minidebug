@@ -28,6 +28,50 @@ let event_with_timeout term timeout_sec =
 let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
     ~current_slot:_ ~query:(module Q : Query.S) ~values_first item =
   match item.I.content with
+  | ExpandedValueLine { entry; line_text; line_num; total_lines } ->
+      (* Render continuation line of an expanded value *)
+      let scope_id_str = String.make (margin_width + 3) ' ' in
+      (* Blank margin *)
+      let content_width = width - String.length scope_id_str in
+      let indent = String.make (item.indent_level * 2) ' ' in
+      (* Show line number and continuation marker *)
+      let line_indicator =
+        Printf.sprintf "│ [%d/%d] " line_num total_lines
+      in
+      let available = content_width - String.length indent - String.length line_indicator in
+      let truncated_text =
+        if I.Utf8.char_count line_text > available then
+          I.Utf8.truncate line_text (available - 3) ^ "..."
+        else line_text
+      in
+      let full_text = indent ^ line_indicator ^ truncated_text in
+      let sanitized = I.sanitize_text full_text in
+      (* Get search highlighting for parent entry *)
+      let all_matches =
+        I.get_all_search_matches ~search_slots ~scope_id:entry.scope_id
+          ~seq_id:entry.seq_id
+      in
+      let slot_color = function
+        | I.SlotNumber.S1 -> A.(fg green)
+        | S2 -> A.(fg cyan)
+        | S3 -> A.(fg magenta)
+        | S4 -> A.(fg yellow)
+      in
+      let content_image, margin_image =
+        if is_selected then
+          let attr = A.(bg lightblue ++ fg black) in
+          (NI.string attr sanitized, NI.string attr scope_id_str)
+        else
+          match all_matches with
+          | [] -> (NI.string A.(fg (gray 14)) sanitized, NI.string A.(fg yellow) scope_id_str)
+          | [ single_match ] ->
+              let attr = slot_color single_match in
+              (NI.string attr sanitized, NI.string attr scope_id_str)
+          | first_match :: _ ->
+              let attr = slot_color first_match in
+              (NI.string attr sanitized, NI.string attr scope_id_str)
+      in
+      NI.hcat [ margin_image; content_image ]
   | Ellipsis { parent_scope_id; start_seq_id; end_seq_id; hidden_count } ->
       (* Render ellipsis placeholder *)
       let scope_id_str = Printf.sprintf "%*d │ " margin_width parent_scope_id in
@@ -239,6 +283,11 @@ let render_screen state ~width ~height =
     if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
       match state.visible_items.(state.cursor).content with
       | Ellipsis { parent_scope_id; _ } -> parent_scope_id
+      | ExpandedValueLine { entry; _ } ->
+          let id_to_check = entry.scope_id in
+          (match I.find_positive_ancestor_id state.query id_to_check with
+          | Some id -> id
+          | None -> 0)
       | RealEntry entry -> (
           (* For scopes, use child_scope_id; for values, use scope_id *)
           let id_to_check =

@@ -1,0 +1,21 @@
+Run #1
+Command: ./test_long_values.exe
+
+[debug] test_long_value @ test/test_long_values.ml:17:29-26:8
+  [debug] result @ test/test_long_values.ml:18:6-18:12
+    result => { Test_long_values.field1 =
+  "This is a very long string that should exceed the terminal width when rendered";
+  field2 =
+  "Another lengthy string field that contributes to the overall length";
+  field3 = "Yet more text to ensure the value is definitely truncated";
+  field4 = "Final field with additional text content" }
+  test_long_value => { Test_long_values.field1 =
+  "This is a very long string that should exceed the terminal width when rendered";
+  field2 =
+  "Another lengthy string field that contributes to the overall length";
+  field3 = "Yet more text to ensure the value is definitely truncated";
+  field4 = "Final field with additional text content" }
+[debug] test_very_long_string @ test/test_long_values.ml:29:37-33:13
+  [debug] long_string @ test/test_long_values.ml:30:6-30:17
+    long_string => "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx middle part yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+  test_very_long_string => "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx middle part yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"

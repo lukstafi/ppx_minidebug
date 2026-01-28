@@ -24,6 +24,17 @@ let slot_tag = function
 (** Render a single line as text with markers *)
 let render_line ctx item =
   match item.I.content with
+  | ExpandedValueLine { entry = _; line_text; line_num; total_lines } ->
+      (* Render continuation line of an expanded value *)
+      let scope_id_str = String.make (ctx.margin_width + 3) ' ' in
+      let indent = String.make (item.indent_level * 2) ' ' in
+      let line_indicator = Printf.sprintf "│ [%d/%d] " line_num total_lines in
+      let text =
+        Printf.sprintf "%s%s%s%s" indent (if ctx.is_selected then ">>> " else "")
+          line_indicator line_text
+      in
+      let suffix = if ctx.is_selected then " <<<" else "" in
+      scope_id_str ^ text ^ suffix
   | Ellipsis { parent_scope_id; start_seq_id; end_seq_id; hidden_count } ->
       let scope_id_str = Printf.sprintf "%*d │ " ctx.margin_width parent_scope_id in
       let indent = String.make (item.indent_level * 2) ' ' in
@@ -160,6 +171,11 @@ let render_screen state ~term_width ~term_height =
     if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
       match state.visible_items.(state.cursor).content with
       | Ellipsis { parent_scope_id; _ } -> parent_scope_id
+      | ExpandedValueLine { entry; _ } ->
+          let id_to_check = entry.scope_id in
+          (match I.find_positive_ancestor_id state.query id_to_check with
+          | Some id -> id
+          | None -> 0)
       | RealEntry entry -> (
           let id_to_check =
             match entry.child_scope_id with Some hid -> hid | None -> entry.scope_id
@@ -1664,7 +1680,7 @@ let create_server ?db_path () =
             | Some ts -> ts.state
             | None ->
                 let module Q = (val session.query) in
-                I.initial_state (module Q)
+                I.initial_state (module Q) ~terminal_width:term_width
           in
 
           (* Execute command sequence *)
