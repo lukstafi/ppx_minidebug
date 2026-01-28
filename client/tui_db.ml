@@ -160,7 +160,9 @@ let initialize_tui_tables db =
         hidden_count INTEGER,
         indent_level INTEGER NOT NULL,
         is_expandable BOOLEAN NOT NULL,
-        is_expanded BOOLEAN NOT NULL
+        is_expanded BOOLEAN NOT NULL,
+        is_value_long BOOLEAN NOT NULL DEFAULT 0,
+        is_value_expanded BOOLEAN NOT NULL DEFAULT 0
       )|}
   |> ignore;
   Sqlite3.exec db
@@ -322,8 +324,9 @@ let write_visible_items_in_txn db (items : I.visible_item array) =
     Sqlite3.prepare db
       {|INSERT INTO tui_visible_items
         (idx, content_type, scope_id, seq_id, parent_scope_id, start_seq_id,
-         end_seq_id, hidden_count, indent_level, is_expandable, is_expanded)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)|}
+         end_seq_id, hidden_count, indent_level, is_expandable, is_expanded,
+         is_value_long, is_value_expanded)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)|}
   in
 
   Array.iteri
@@ -352,6 +355,8 @@ let write_visible_items_in_txn db (items : I.visible_item array) =
       Sqlite3.bind_int stmt 9 item.indent_level |> ignore;
       Sqlite3.bind_int stmt 10 (if item.is_expandable then 1 else 0) |> ignore;
       Sqlite3.bind_int stmt 11 (if item.is_expanded then 1 else 0) |> ignore;
+      Sqlite3.bind_int stmt 12 (if item.is_value_long then 1 else 0) |> ignore;
+      Sqlite3.bind_int stmt 13 (if item.is_value_expanded then 1 else 0) |> ignore;
 
       match Sqlite3.step stmt with
       | Sqlite3.Rc.DONE -> ()
@@ -534,7 +539,8 @@ let read_visible_items tui_db (module Q : Q.S) =
   let stmt =
     Sqlite3.prepare db
       {|SELECT idx, content_type, scope_id, seq_id, parent_scope_id, start_seq_id,
-               end_seq_id, hidden_count, indent_level, is_expandable, is_expanded
+               end_seq_id, hidden_count, indent_level, is_expandable, is_expanded,
+               is_value_long, is_value_expanded
         FROM tui_visible_items ORDER BY idx|}
   in
 
@@ -587,6 +593,8 @@ let read_visible_items tui_db (module Q : Q.S) =
                 indent_level = col_int 8;
                 is_expandable = col_bool 9;
                 is_expanded = col_bool 10;
+                is_value_long = col_bool 11;
+                is_value_expanded = col_bool 12;
               }
             in
             items := item :: !items
