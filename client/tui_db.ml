@@ -182,13 +182,6 @@ let initialize_tui_tables db =
       )|}
   |> ignore;
 
-  (* Add new columns for existing databases (ignore errors if already present) *)
-  Sqlite3.exec db
-    "ALTER TABLE tui_state ADD COLUMN expanded_values TEXT NOT NULL DEFAULT '[]'"
-  |> ignore;
-  Sqlite3.exec db
-    "ALTER TABLE tui_state ADD COLUMN render_width INTEGER NOT NULL DEFAULT 0"
-  |> ignore;
 
   (* Insert singleton row if not exists *)
   Sqlite3.exec db "INSERT OR IGNORE INTO tui_state (id) VALUES (1)" |> ignore;
@@ -210,7 +203,6 @@ let initialize_tui_tables db =
         text TEXT
       )|}
   |> ignore;
-  Sqlite3.exec db "ALTER TABLE tui_visible_items ADD COLUMN text TEXT" |> ignore;
   Sqlite3.exec db
     "CREATE INDEX IF NOT EXISTS idx_tui_visible_items_content ON \
      tui_visible_items(content_type, scope_id, seq_id)"
