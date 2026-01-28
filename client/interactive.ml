@@ -403,13 +403,18 @@ let build_visible_items (module Q : Query.S) expanded ~expanded_values values_fi
       match entry.child_scope_id with
       | Some _ -> false (* Scopes are not "long values" *)
       | None ->
-          (* Leaf value - check content length *)
-          let content_len =
-            match entry.data with
-            | Some data -> Utf8.char_count data
-            | None -> 0
+          (* Leaf value - check full display text length (message + markers + data) *)
+          let message = entry.message in
+          let data = Option.value ~default:"" entry.data in
+          let is_result = entry.is_result in
+          let display_text =
+            (if message <> "" then message ^ " " else "")
+            ^ (if is_result then "=> "
+               else if message <> "" && data <> "" then "= "
+               else "")
+            ^ data
           in
-          content_len > long_value_threshold
+          Utf8.char_count display_text > long_value_threshold
     in
 
     (* Check if this long value is expanded for viewing *)

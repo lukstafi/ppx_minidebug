@@ -165,6 +165,13 @@ let initialize_tui_tables db =
         is_value_expanded BOOLEAN NOT NULL DEFAULT 0
       )|}
   |> ignore;
+  (* Add new columns for existing databases (ignore errors if columns already exist) *)
+  Sqlite3.exec db
+    "ALTER TABLE tui_visible_items ADD COLUMN is_value_long BOOLEAN NOT NULL DEFAULT 0"
+  |> ignore;
+  Sqlite3.exec db
+    "ALTER TABLE tui_visible_items ADD COLUMN is_value_expanded BOOLEAN NOT NULL DEFAULT 0"
+  |> ignore;
   Sqlite3.exec db
     "CREATE INDEX IF NOT EXISTS idx_tui_visible_items_content ON \
      tui_visible_items(content_type, scope_id, seq_id)"
