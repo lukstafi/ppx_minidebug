@@ -271,9 +271,10 @@ let render_lines ~width ~is_selected ~show_times ~margin_width ~search_slots
 
           (* Remaining text goes on continuation lines - just show the raw data wrapped *)
           let first_data_offset =
-            (* How much of data was shown in first line? Approximate by removing prefix *)
+            (* How much of data was shown in first line? Use content (without time suffix)
+               to compute prefix length, so time_str doesn't cause duplicate data. *)
             let prefix_len =
-              I.Utf8.char_count full_text - I.Utf8.char_count raw_data
+              I.Utf8.char_count content - I.Utf8.char_count raw_data
             in
             max 0 (first_line_content_width - prefix_len)
           in
