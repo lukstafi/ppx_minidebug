@@ -24,8 +24,34 @@ let event_with_timeout term timeout_sec =
   in
   select_with_retry ()
 
-(** Render a single line *)
-let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
+(** Wrap text to fit within width, returning list of lines. Each line includes the full
+    prefix (margin + indent). First line uses the given prefix, continuation lines use
+    cont_prefix. *)
+let wrap_text_lines ~prefix ~cont_prefix ~content_width text =
+  if content_width <= 0 then [ prefix ^ text ]
+  else
+    let text_len = I.Utf8.char_count text in
+    if text_len <= content_width then [ prefix ^ text ]
+    else
+      let lines = ref [] in
+      let pos = ref 0 in
+      let remaining = ref text_len in
+      let is_first = ref true in
+      while !remaining > 0 do
+        let line_width = content_width in
+        let chars_to_take = min line_width !remaining in
+        let segment = I.Utf8.sub text !pos chars_to_take in
+        let line_prefix = if !is_first then prefix else cont_prefix in
+        lines := (line_prefix ^ segment) :: !lines;
+        pos := !pos + chars_to_take;
+        remaining := !remaining - chars_to_take;
+        is_first := false
+      done;
+      List.rev !lines
+
+(** Render a visible item, returning a list of lines (usually 1, but may be more for
+    expanded long values). *)
+let render_lines ~width ~is_selected ~show_times ~margin_width ~search_slots
     ~current_slot:_ ~query:(module Q : Query.S) ~values_first item =
   match item.I.content with
   | Ellipsis { parent_scope_id; start_seq_id; end_seq_id; hidden_count } ->
@@ -39,11 +65,13 @@ let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
           (String.make (item.indent_level * 2) ' ')
       in
       let attr = if is_selected then A.(bg lightblue ++ fg black) else A.(fg (gray 12)) in
-      NI.hcat
-        [
-          NI.string (if is_selected then attr else A.(fg yellow)) scope_id_str;
-          NI.string attr text;
-        ]
+      [
+        NI.hcat
+          [
+            NI.string (if is_selected then attr else A.(fg yellow)) scope_id_str;
+            NI.string attr text;
+          ];
+      ]
   | RealEntry entry ->
       (* Entry ID margin - use child_scope_id for scopes, scope_id for values *)
       (* Don't display negative IDs (used for boxified/decomposed values) *)
@@ -65,9 +93,11 @@ let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
 
       let indent = String.make (item.indent_level * 2) ' ' in
 
-      (* Expansion indicator *)
+      (* Expansion indicator - for scopes or long values *)
       let expansion_mark =
-        if item.is_expandable then if item.is_expanded then "▼ " else "▶ " else "  "
+        if item.is_expandable then if item.is_expanded then "▼ " else "▶ "
+        else if item.is_value_long then if item.is_value_expanded then "▼ " else "▶ "
+        else "  "
       in
 
       (* Entry content *)
@@ -124,7 +154,10 @@ let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
             Printf.sprintf "%s%s[%s] %s" indent expansion_mark entry.entry_type
               display_text
         | None ->
-            (* Value *)
+            (* Value - use expansion mark if it's a long value, otherwise just spaces *)
+            let value_mark =
+              if item.is_value_long then expansion_mark else "  "
+            in
             let display_text =
               let message = entry.message in
               let data = Option.value ~default:"" entry.data in
@@ -135,7 +168,7 @@ let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
                  else "")
               ^ data
             in
-            Printf.sprintf "%s  %s" indent display_text
+            Printf.sprintf "%s%s%s" indent value_mark display_text
       in
 
       (* Time *)
@@ -148,14 +181,6 @@ let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
       in
 
       let full_text = content ^ time_str in
-      let truncated =
-        let t =
-          if I.Utf8.char_count full_text > content_width then
-            I.Utf8.truncate full_text (content_width - 3) ^ "..."
-          else full_text
-        in
-        I.sanitize_text t
-      in
 
       (* Get all matching search slots for checkered pattern *)
       let all_matches =
@@ -169,41 +194,39 @@ let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
         | S2 -> A.(fg cyan) (* Search slot 2: cyan *)
         | S3 -> A.(fg magenta) (* Search slot 3: magenta *)
         | S4 -> A.(fg yellow)
-        (* Search slot 4: yellow *)
-        (* Search slot 4: yellow *)
       in
 
-      (* Render line with appropriate highlighting *)
-      let content_image, margin_image =
+      (* Helper: render a single line of content with appropriate styling *)
+      let render_single_line text_content =
+        let sanitized = I.sanitize_text text_content in
         if is_selected then
           (* Selection takes priority - blue background *)
           let attr = A.(bg lightblue ++ fg black) in
-          (NI.string attr truncated, NI.string attr scope_id_str)
+          NI.hcat [ NI.string attr scope_id_str; NI.string attr sanitized ]
         else
           match all_matches with
           | [] ->
               (* No match: default (margin still yellow) *)
-              (NI.string A.empty truncated, NI.string A.(fg yellow) scope_id_str)
+              NI.hcat
+                [ NI.string A.(fg yellow) scope_id_str; NI.string A.empty sanitized ]
           | [ single_match ] ->
               (* Single match: simple uniform coloring *)
               let attr = slot_color single_match in
-              (NI.string attr truncated, NI.string attr scope_id_str)
+              NI.hcat [ NI.string attr scope_id_str; NI.string attr sanitized ]
           | multiple_matches when List.length multiple_matches >= 2 ->
-              (* Multiple matches: checkered pattern - split text into segments *)
+              (* Multiple matches: checkered pattern *)
               let num_matches = List.length multiple_matches in
-              let text_len = I.Utf8.char_count truncated in
-              (* Create min(num_matches * 2, text_len) segments *)
-              let num_segments = min (num_matches * 2) text_len in
+              let text_len = I.Utf8.char_count sanitized in
+              let num_segments = min (num_matches * 2) (max 1 text_len) in
               let segment_size = max 1 (text_len / num_segments) in
 
-              (* Build checkered content by alternating colors *)
               let content_segments = ref [] in
               let pos = ref 0 in
               let color_idx = ref 0 in
               while !pos < text_len do
                 let remaining = text_len - !pos in
                 let seg_len = min segment_size remaining in
-                let segment = I.Utf8.sub truncated !pos seg_len in
+                let segment = I.Utf8.sub sanitized !pos seg_len in
                 let color =
                   slot_color (List.nth multiple_matches (!color_idx mod num_matches))
                 in
@@ -212,18 +235,86 @@ let render_line ~width ~is_selected ~show_times ~margin_width ~search_slots
                 color_idx := !color_idx + 1
               done;
               let content_img = NI.hcat (List.rev !content_segments) in
-
-              (* Margin uses first matching color *)
               let margin_color = slot_color (List.hd multiple_matches) in
-              let margin_img = NI.string margin_color scope_id_str in
-
-              (content_img, margin_img)
+              NI.hcat [ NI.string margin_color scope_id_str; content_img ]
           | _ ->
-              (* Fallback (shouldn't happen) *)
-              (NI.string A.empty truncated, NI.string A.(fg yellow) scope_id_str)
+              (* Fallback *)
+              NI.hcat
+                [ NI.string A.(fg yellow) scope_id_str; NI.string A.empty sanitized ]
       in
 
-      NI.hcat [ margin_image; content_image ]
+      (* Check if this is an expanded long value - if so, wrap content *)
+      if item.is_value_expanded then
+        (* Expanded long value: wrap content into multiple lines *)
+        let margin_len = String.length scope_id_str in
+        let indent_str = String.make (item.indent_level * 2) ' ' in
+        (* Continuation lines use empty margin and deeper indent *)
+        let cont_margin = String.make margin_len ' ' in
+        let cont_prefix = cont_margin ^ indent_str ^ "  " in
+        (* First line has the margin already in scope_id_str *)
+        let first_line_content_width = content_width in
+        let cont_line_content_width = width - String.length cont_prefix in
+
+        (* Wrap the raw data (not the formatted content) for better display *)
+        let raw_data = Option.value ~default:"" entry.data in
+        let full_len = I.Utf8.char_count full_text in
+
+        if full_len <= first_line_content_width then
+          (* Fits on one line even when "expanded" *)
+          [ render_single_line full_text ]
+        else
+          (* Need to wrap across multiple lines *)
+          let lines = ref [] in
+          (* First line: render the full_text prefix that fits *)
+          let first_chunk = I.Utf8.truncate full_text first_line_content_width in
+          lines := [ render_single_line first_chunk ];
+
+          (* Remaining text goes on continuation lines - just show the raw data wrapped *)
+          let first_data_offset =
+            (* How much of data was shown in first line? Use content (without time suffix)
+               to compute prefix length, so time_str doesn't cause duplicate data. *)
+            let prefix_len =
+              I.Utf8.char_count content - I.Utf8.char_count raw_data
+            in
+            max 0 (first_line_content_width - prefix_len)
+          in
+          let remaining_data =
+            let data_len = I.Utf8.char_count raw_data in
+            if first_data_offset >= data_len then ""
+            else I.Utf8.sub raw_data first_data_offset (data_len - first_data_offset)
+          in
+          let remaining_len = I.Utf8.char_count remaining_data in
+
+          if remaining_len > 0 && cont_line_content_width > 0 then (
+            let pos = ref 0 in
+            while !pos < remaining_len do
+              let chunk_size = min cont_line_content_width (remaining_len - !pos) in
+              let chunk = I.Utf8.sub remaining_data !pos chunk_size in
+              let line_text = cont_prefix ^ chunk in
+              (* Continuation lines get simpler styling *)
+              let cont_attr =
+                if is_selected then A.(bg lightblue ++ fg black)
+                else
+                  match all_matches with
+                  | [] -> A.empty
+                  | m :: _ -> slot_color m
+              in
+              lines := NI.string cont_attr (I.sanitize_text line_text) :: !lines;
+              pos := !pos + chunk_size
+            done);
+
+          List.rev !lines
+      else
+        (* Normal rendering: truncate if needed *)
+        let truncated =
+          let t =
+            if I.Utf8.char_count full_text > content_width then
+              I.Utf8.truncate full_text (content_width - 3) ^ "..."
+            else full_text
+          in
+          t
+        in
+        [ render_single_line truncated ]
 
 (** Render the full screen *)
 let render_screen state ~width ~height =
@@ -348,26 +439,35 @@ let render_screen state ~width ~height =
     NI.vcat [ line1; NI.string A.(fg white) (String.make width '-') ]
   in
 
-  (* Content lines *)
+  (* Content lines - now handling multiline items (expanded long values) *)
   let visible_start = state.scroll_offset in
-  let visible_end =
-    min (visible_start + content_height) (Array.length state.visible_items)
-  in
+  let num_items = Array.length state.visible_items in
 
   let content_lines = ref [] in
-  for i = visible_start to visible_end - 1 do
-    let is_selected = i = state.cursor in
-    let item = state.visible_items.(i) in
-    let line =
-      render_line ~width ~is_selected ~show_times:state.show_times ~margin_width
+  let lines_rendered = ref 0 in
+  let i = ref visible_start in
+
+  (* Render items until we fill content_height or run out of items *)
+  while !lines_rendered < content_height && !i < num_items do
+    let is_selected = !i = state.cursor in
+    let item = state.visible_items.(!i) in
+    let item_lines =
+      render_lines ~width ~is_selected ~show_times:state.show_times ~margin_width
         ~search_slots:state.search_slots ~current_slot:state.current_slot
         ~query:state.query ~values_first:state.values_first item
     in
-    content_lines := line :: !content_lines
+    (* Add as many lines as we can fit *)
+    List.iter
+      (fun line ->
+        if !lines_rendered < content_height then (
+          content_lines := line :: !content_lines;
+          incr lines_rendered))
+      item_lines;
+    incr i
   done;
 
   (* Pad if needed *)
-  let padding_lines = content_height - (visible_end - visible_start) in
+  let padding_lines = content_height - !lines_rendered in
   for _ = 1 to padding_lines do
     content_lines := NI.string A.empty "" :: !content_lines
   done;

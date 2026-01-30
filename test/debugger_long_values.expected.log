@@ -1,0 +1,25 @@
+Run #1
+Command: ./test_long_values.exe
+
+[debug] short_value @ test/test_long_values.ml:19:27-20:29
+  x = 42
+  short_value => "Short: 42"
+[debug] long_value @ test/test_long_values.ml:23:26-24:53
+  x = 123
+  long_value => "This is a very long string that should definitely exceed the threshold for long values in the TUI. When expanded, it should wrap across multiple lines to show the full content without truncation. This allows users to see the complete value instead of just seeing '...' at the end. (input=123)"
+[debug] short_value @ test/test_long_values.ml:19:27-20:29
+  x = 99
+  short_value => "Short: 99"
+[debug] process_data @ test/test_long_values.ml:27:28-33:8
+  input = "test input"
+  factor = 7
+  [debug] step1 @ test/test_long_values.ml:28:6-28:11
+    step1 => "Processing: test input with detailed context information that spans well beyond the normal display width of the terminal"
+  [debug] step2 @ test/test_long_values.ml:30:6-30:11
+    step2 => "Processing: test input with detailed context information that spans well beyond the normal display width of the terminal and then we add even more text to make this value extremely long so it definitely needs expansion"
+  [debug] result @ test/test_long_values.ml:32:6-32:12
+    result => "Processing: test input with detailed context information that spans well beyond the normal display width of the terminal and then we add even more text to make this value extremely long so it definitely needs expansion (factor=7)"
+  process_data => "Processing: test input with detailed context information that spans well beyond the normal display width of the terminal and then we add even more text to make this value extremely long so it definitely needs expansion (factor=7)"
+[debug] long_value @ test/test_long_values.ml:23:26-24:53
+  x = 456
+  long_value => "This is a very long string that should definitely exceed the threshold for long values in the TUI. When expanded, it should wrap across multiple lines to show the full content without truncation. This allows users to see the complete value instead of just seeing '...' at the end. (input=456)"

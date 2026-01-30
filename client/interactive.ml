@@ -212,12 +212,37 @@ type visible_item_content =
       hidden_count : int;
     }
 
+(** Key for identifying value entries (scope_id, seq_id) *)
+module ValueKey = struct
+  type t = int * int
+
+  let hash (scope_id, seq_id) = Hashtbl.hash (scope_id, seq_id)
+  let equal (s1, q1) (s2, q2) = s1 = s2 && q1 = q2
+end
+
+module ValueKeyHash = Hashtbl.Make (ValueKey)
+
+(** Threshold for marking values as "long" - values exceeding this character count
+    may be truncated and benefit from expansion *)
+let long_value_threshold = 80
+
+type visible_item = {
+  content : visible_item_content;
+  indent_level : int;
+  is_expandable : bool;
+  is_expanded : bool;
+  is_value_long : bool; (* True if this is a leaf value with long content *)
+  is_value_expanded : bool; (* True if this long value is expanded for viewing *)
+}
+
 type view_state = {
   query : (module Query.S);
   db_path : string; (* Path to database file for spawning Domains *)
   cursor : int; (* Current cursor position in visible items *)
   scroll_offset : int; (* Top visible item index *)
   expanded : (int, unit) Hashtbl.t; (* Set of expanded scope_ids *)
+  expanded_values : unit ValueKeyHash.t;
+      (* Set of expanded value entries (scope_id, seq_id) for viewing full content *)
   visible_items : visible_item array; (* Flattened view of tree *)
   show_times : bool;
   values_first : bool;
@@ -234,13 +259,6 @@ type view_state = {
   unfolded_ellipsis : EllipsisSet.t; (* Set of manually unfolded ellipsis segments *)
   search_result_counts : (SlotNumber.t, int) Hashtbl.t;
       (* Track result counts per slot to detect search updates *)
-}
-
-and visible_item = {
-  content : visible_item_content;
-  indent_level : int;
-  is_expandable : bool;
-  is_expanded : bool;
 }
 
 (** Command type - abstracts keyboard events for both TUI and MCP *)
@@ -364,8 +382,8 @@ let compute_ellipsis_segments ~parent_scope_id ~children ~search_slots ~unfolded
     build_segments [] (-1) highlighted_indices
 
 (** Build visible items list from database using lazy loading *)
-let build_visible_items (module Q : Query.S) expanded values_first ~search_slots
-    ~current_slot ~unfolded_ellipsis =
+let build_visible_items (module Q : Query.S) expanded ~expanded_values values_first
+    ~search_slots ~current_slot ~unfolded_ellipsis =
   let rec flatten_entry ~depth entry =
     (* Check if this entry actually has children *)
     let is_expandable =
@@ -380,8 +398,40 @@ let build_visible_items (module Q : Query.S) expanded values_first ~search_slots
       | None -> false
     in
 
+    (* Check if this is a leaf value with long content *)
+    let is_value_long =
+      match entry.child_scope_id with
+      | Some _ -> false (* Scopes are not "long values" *)
+      | None ->
+          (* Leaf value - check full display text length (message + markers + data) *)
+          let message = entry.message in
+          let data = Option.value ~default:"" entry.data in
+          let is_result = entry.is_result in
+          let display_text =
+            (if message <> "" then message ^ " " else "")
+            ^ (if is_result then "=> "
+               else if message <> "" && data <> "" then "= "
+               else "")
+            ^ data
+          in
+          Utf8.char_count display_text > long_value_threshold
+    in
+
+    (* Check if this long value is expanded for viewing *)
+    let is_value_expanded =
+      is_value_long
+      && ValueKeyHash.mem expanded_values (entry.Query.scope_id, entry.Query.seq_id)
+    in
+
     let visible =
-      { content = RealEntry entry; indent_level = depth; is_expandable; is_expanded }
+      {
+        content = RealEntry entry;
+        indent_level = depth;
+        is_expandable;
+        is_expanded;
+        is_value_long;
+        is_value_expanded;
+      }
     in
 
     (* Add children if this is expanded *)
@@ -444,6 +494,8 @@ let build_visible_items (module Q : Query.S) expanded values_first ~search_slots
                         is_expandable = true;
                         (* Ellipsis can be "expanded" to unfold *)
                         is_expanded = false;
+                        is_value_long = false;
+                        is_value_expanded = false;
                       };
                     ])
               segments
@@ -477,6 +529,8 @@ let build_visible_items (module Q : Query.S) expanded values_first ~search_slots
                 indent_level = 0;
                 is_expandable = true;
                 is_expanded = false;
+                is_value_long = false;
+                is_value_expanded = false;
               };
             ])
       root_segments
@@ -494,7 +548,7 @@ end
 [@@warning "-32"]
 (* Suppress unused value warnings - will be implemented for MCP *)
 
-(** Toggle expansion of current item (or unfold ellipsis) *)
+(** Toggle expansion of current item (or unfold ellipsis, or expand long value) *)
 let toggle_expansion state =
   if state.cursor >= 0 && state.cursor < Array.length state.visible_items then
     let item = state.visible_items.(state.cursor) in
@@ -505,7 +559,8 @@ let toggle_expansion state =
           let key = (parent_scope_id, start_seq_id, end_seq_id) in
           let new_unfolded = EllipsisSet.add key state.unfolded_ellipsis in
           let new_visible =
-            build_visible_items state.query state.expanded state.values_first
+            build_visible_items state.query state.expanded
+              ~expanded_values:state.expanded_values state.values_first
               ~search_slots:state.search_slots ~current_slot:state.current_slot
               ~unfolded_ellipsis:new_unfolded
           in
@@ -519,12 +574,31 @@ let toggle_expansion state =
 
               (* Rebuild visible items *)
               let new_visible =
-                build_visible_items state.query state.expanded state.values_first
+                build_visible_items state.query state.expanded
+                  ~expanded_values:state.expanded_values state.values_first
                   ~search_slots:state.search_slots ~current_slot:state.current_slot
                   ~unfolded_ellipsis:state.unfolded_ellipsis
               in
               { state with visible_items = new_visible }
           | None -> state)
+    else if item.is_value_long then
+      (* Toggle expansion of long value to show full content *)
+      match item.content with
+      | RealEntry entry ->
+          let key = (entry.Query.scope_id, entry.Query.seq_id) in
+          if ValueKeyHash.mem state.expanded_values key then
+            ValueKeyHash.remove state.expanded_values key
+          else ValueKeyHash.add state.expanded_values key ();
+
+          (* Rebuild visible items to update is_value_expanded flag *)
+          let new_visible =
+            build_visible_items state.query state.expanded
+              ~expanded_values:state.expanded_values state.values_first
+              ~search_slots:state.search_slots ~current_slot:state.current_slot
+              ~unfolded_ellipsis:state.unfolded_ellipsis
+          in
+          { state with visible_items = new_visible }
+      | Ellipsis _ -> state (* Ellipsis can't be a long value *)
     else state
   else state
 
@@ -610,7 +684,8 @@ let fold_selection state =
             if EllipsisSet.mem key state.unfolded_ellipsis then
               let new_unfolded = EllipsisSet.remove key state.unfolded_ellipsis in
               let new_visible =
-                build_visible_items state.query state.expanded state.values_first
+                build_visible_items state.query state.expanded
+              ~expanded_values:state.expanded_values state.values_first
                   ~search_slots:state.search_slots ~current_slot:state.current_slot
                   ~unfolded_ellipsis:new_unfolded
               in
@@ -648,7 +723,8 @@ let fold_selection state =
             if Hashtbl.mem state.expanded containing_scope_id then (
               Hashtbl.remove state.expanded containing_scope_id;
               let new_visible =
-                build_visible_items state.query state.expanded state.values_first
+                build_visible_items state.query state.expanded
+              ~expanded_values:state.expanded_values state.values_first
                   ~search_slots:state.search_slots ~current_slot:state.current_slot
                   ~unfolded_ellipsis:state.unfolded_ellipsis
               in
@@ -715,7 +791,8 @@ let find_and_jump_to_search_result state ~forward ~height =
 
       (* Rebuild visible items with expanded path *)
       let new_visible =
-        build_visible_items state.query state.expanded state.values_first
+        build_visible_items state.query state.expanded
+              ~expanded_values:state.expanded_values state.values_first
           ~search_slots:state.search_slots ~current_slot:state.current_slot
           ~unfolded_ellipsis:state.unfolded_ellipsis
       in
@@ -774,7 +851,8 @@ let goto_scope state target_scope_id ~height =
 
       (* Rebuild visible items with expanded ancestors *)
       let new_visible =
-        build_visible_items state.query state.expanded state.values_first
+        build_visible_items state.query state.expanded
+              ~expanded_values:state.expanded_values state.values_first
           ~search_slots:state.search_slots ~current_slot:state.current_slot
           ~unfolded_ellipsis:state.unfolded_ellipsis
       in
@@ -966,7 +1044,8 @@ let goto_highlight_and_expand state ~forward ~height =
               in
               let new_visible =
                 if was_folded then
-                  build_visible_items state.query state.expanded state.values_first
+                  build_visible_items state.query state.expanded
+              ~expanded_values:state.expanded_values state.values_first
                     ~search_slots:state.search_slots ~current_slot:state.current_slot
                     ~unfolded_ellipsis:new_unfolded
                 else state.visible_items
@@ -1021,7 +1100,8 @@ let goto_highlight_and_expand state ~forward ~height =
                   if was_collapsed then Hashtbl.add state.expanded hid ();
                   let new_visible =
                     if was_collapsed then
-                      build_visible_items state.query state.expanded state.values_first
+                      build_visible_items state.query state.expanded
+              ~expanded_values:state.expanded_values state.values_first
                         ~search_slots:state.search_slots ~current_slot:state.current_slot
                         ~unfolded_ellipsis:state.unfolded_ellipsis
                     else state.visible_items
@@ -1121,7 +1201,9 @@ let goto_highlight_and_expand state ~forward ~height =
                                       in
                                       let new_vis =
                                         build_visible_items current_state.query
-                                          current_state.expanded current_state.values_first
+                                          current_state.expanded
+                                          ~expanded_values:current_state.expanded_values
+                                          current_state.values_first
                                           ~search_slots:current_state.search_slots
                                           ~current_slot:current_state.current_slot
                                           ~unfolded_ellipsis:new_unfolded
@@ -1139,6 +1221,7 @@ let goto_highlight_and_expand state ~forward ~height =
                                           let new_vis =
                                             build_visible_items current_state.query
                                               current_state.expanded
+                                              ~expanded_values:current_state.expanded_values
                                               current_state.values_first
                                               ~search_slots:current_state.search_slots
                                               ~current_slot:current_state.current_slot
@@ -1216,6 +1299,8 @@ let goto_highlight_and_expand state ~forward ~height =
                                             let new_vis =
                                               build_visible_items state_after_unfold.query
                                                 state_after_unfold.expanded
+                                                ~expanded_values:
+                                                  state_after_unfold.expanded_values
                                                 state_after_unfold.values_first
                                                 ~search_slots:state_after_unfold.search_slots
                                                 ~current_slot:state_after_unfold.current_slot
@@ -1234,6 +1319,8 @@ let goto_highlight_and_expand state ~forward ~height =
                                                 let new_vis =
                                                   build_visible_items state_after_unfold.query
                                                     state_after_unfold.expanded
+                                                    ~expanded_values:
+                                                      state_after_unfold.expanded_values
                                                     state_after_unfold.values_first
                                                     ~search_slots:
                                                       state_after_unfold.search_slots
@@ -1432,7 +1519,8 @@ let rec handle_command state command ~height =
           in
           let new_visible =
             if search_changed then
-              build_visible_items state.query state.expanded state.values_first
+              build_visible_items state.query state.expanded
+              ~expanded_values:state.expanded_values state.values_first
                 ~search_slots:new_slots ~current_slot:state.current_slot
                 ~unfolded_ellipsis:new_unfolded
             else state.visible_items
@@ -1479,7 +1567,8 @@ let rec handle_command state command ~height =
   | ToggleValues ->
       let new_values_first = not state.values_first in
       let new_visible =
-        build_visible_items state.query state.expanded new_values_first
+        build_visible_items state.query state.expanded
+          ~expanded_values:state.expanded_values new_values_first
           ~search_slots:state.search_slots ~current_slot:state.current_slot
           ~unfolded_ellipsis:state.unfolded_ellipsis
       in
@@ -1582,6 +1671,7 @@ let rec handle_command state command ~height =
 
 let initial_state (module Q : Query.S) =
   let expanded = Hashtbl.create 64 in
+  let expanded_values = ValueKeyHash.create 16 in
   let values_first = true in
   (* Initialize with empty search slots for initial build *)
   let empty_search_slots = SlotMap.empty in
@@ -1589,8 +1679,8 @@ let initial_state (module Q : Query.S) =
   let visible_items =
     build_visible_items
       (module Q)
-      expanded values_first ~search_slots:empty_search_slots ~current_slot:S1
-      ~unfolded_ellipsis
+      expanded ~expanded_values values_first ~search_slots:empty_search_slots
+      ~current_slot:S1 ~unfolded_ellipsis
   in
   let max_scope_id = Q.get_max_scope_id () in
 
@@ -1600,6 +1690,7 @@ let initial_state (module Q : Query.S) =
     cursor = 0;
     scroll_offset = 0;
     expanded;
+    expanded_values;
     visible_items;
     show_times = true;
     values_first;
@@ -1642,7 +1733,8 @@ let run (module Q : Query.S) ~initial_state ~command_stream ~render_screen ~outp
         (* Search results changed - invalidate ellipsis and rebuild *)
         let new_unfolded = EllipsisSet.empty in
         let new_visible =
-          build_visible_items state.query state.expanded state.values_first
+          build_visible_items state.query state.expanded
+              ~expanded_values:state.expanded_values state.values_first
             ~search_slots:state.search_slots ~current_slot:state.current_slot
             ~unfolded_ellipsis:new_unfolded
         in
@@ -1786,7 +1878,8 @@ let run_with_db (module Q : Query.S) ~initial_state ~command_stream ~render_scre
         (* Search results changed - invalidate ellipsis and rebuild *)
         let new_unfolded = EllipsisSet.empty in
         let new_visible =
-          build_visible_items state.query state.expanded state.values_first
+          build_visible_items state.query state.expanded
+              ~expanded_values:state.expanded_values state.values_first
             ~search_slots:state.search_slots ~current_slot:state.current_slot
             ~unfolded_ellipsis:new_unfolded
         in
