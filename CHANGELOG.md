@@ -1,3 +1,25 @@
+# [Unreleased]
+
+### Added
+
+- **Expandable Long Values**: Truncated leaf entries now render as expandable multiline content, improving readability for large data structures
+- **Highlight Navigation in TUI**: New `m`/`M` keys to jump to next/previous search highlight with automatic expansion
+- **Numeric Sexp Inlining**: Numeric-only sexp entries are now inlined for better searchability
+
+### Fixed
+
+- Fixed duplicate data in wrapped long values when `show_times` enabled
+- Fixed `decode_ellipsis_set` skipping outer bracket when parsing inner arrays
+- Fixed backward goto-highlight (`M`) to skip current highlight first
+- Fixed Windows symlink issue with database file resolution
+- Removed unnecessary `ALTER` statements in DB migration code
+
+### Changed
+
+- Lower-bound `cohttp-eio` dependency for `ocaml-mcp`
+- Updated README to remove outdated platform independence note
+- Database-backed TUI state improvements
+
 # [3.1.0] -- 2025-11-12
 
 ### Added
