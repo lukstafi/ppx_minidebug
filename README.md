@@ -46,7 +46,7 @@ Run and explore:
 minidebug_view my_trace.db tui   # Launch interactive TUI
 ```
 
-![Screenshot of TUI showing factorial trace with expanded tree](doc/tui-factorial-values_first.png)
+![Screenshot of TUI showing factorial trace with expanded tree](docs/tui-factorial-values_first.png)
 
 ## Why ppx_minidebug?
 
@@ -87,7 +87,7 @@ minidebug_view trace.db tui
 - `v`: Toggle values-first mode
 - `q`: Quit
 
-![Screenshot showing search results with highlighted paths](doc/tui-search_results.png)
+![Screenshot showing search results with highlighted paths](docs/tui-search_results.png)
 
 ### CLI Commands
 

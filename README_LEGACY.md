@@ -38,7 +38,7 @@ To use `ppx_minidebug` in a Dune project, add/modify these stanzas: `(preprocess
 
 We can introduce `ppx_minidebug` runtimes in a project in multiple ways, but the most convenient is via the functions `local_runtime`, `local_runtime_flushing`, `prefixed_runtime`, `prefixed_runtime_flushing`.
 
-<!-- $MDX file=doc/sync_to_md.ml,part=introduction -->
+<!-- $MDX file=docs/sync_to_md.ml,part=introduction -->
 ```ocaml
 let _get_local_debug_runtime = Minidebug_runtime.local_runtime "sync_to_md-introduction"
 let%debug_sexp rec foo : int list -> int = function [] -> 0 | x :: xs -> x + foo xs
@@ -47,26 +47,26 @@ let (_ : int) = foo [ 1; 2; 3 ]
 
 The logged traces will be pretty-printed as trees using the `printbox` package. This produces:
 
-<!-- $MDX file=doc/sync_to_md-introduction.log -->
+<!-- $MDX file=docs/sync_to_md-introduction.log -->
 ```
 BEGIN DEBUG SESSION 
 foo = 6
-├─"doc/sync_to_md.ml":5:73
+├─"docs/sync_to_md.ml":5:73
 ├─<function -- branch 1> :: (x, xs)
 ├─x = 1
 ├─xs = (2 3)
 └─foo = 5
-  ├─"doc/sync_to_md.ml":5:73
+  ├─"docs/sync_to_md.ml":5:73
   ├─<function -- branch 1> :: (x, xs)
   ├─x = 2
   ├─xs = 3
   └─foo = 3
-    ├─"doc/sync_to_md.ml":5:73
+    ├─"docs/sync_to_md.ml":5:73
     ├─<function -- branch 1> :: (x, xs)
     ├─x = 3
     ├─xs
     └─foo = 0
-      ├─"doc/sync_to_md.ml":5:58
+      ├─"docs/sync_to_md.ml":5:58
       └─<function -- branch 0> []
 ```
 
@@ -74,7 +74,7 @@ foo = 6
 
 The `PrintBox` runtime can be configured to output logs using HTML or Markdown. The logs then become collapsible trees, so that you can expose only the relevant information when debugging. Example:
 
-<!-- $MDX file=doc/sync_to_md.ml,part=simple_html -->
+<!-- $MDX file=docs/sync_to_md.ml,part=simple_html -->
 ```ocaml
 let _get_local_debug_runtime =
   Minidebug_runtime.local_runtime ~backend:(`Html Minidebug_runtime.default_html_config)
@@ -86,20 +86,20 @@ let (_ : int) = foo [ 1; 2; 3 ]
 
 This produces:
 
-<!-- $MDX file=doc/sync_to_md-simple_html.html -->
+<!-- $MDX file=docs/sync_to_md-simple_html.html -->
 ```
 BEGIN DEBUG SESSION 
-<div><details><summary><span><span><span><a id="1"></a></span>&nbsp;<span><span style="font-family: monospace">foo = 6</span></span></span></span></summary><ul><li><div>&quot;doc/sync_to_md.ml&quot;:14:73</div></li><li><table class="non-framed"><tr><td><a id="1"></a></td><td><div>&lt;function -- branch 1&gt; :: (x, xs)</div></td></tr></table></li><li><pre style="font-family: monospace">x = 1</pre></li><li><pre style="font-family: monospace">xs = (2 3)</pre></li><li><details><summary><span><span><span><a id="2"></a></span>&nbsp;<span><span style="font-family: monospace">foo = 5</span></span></span></span></summary><ul><li><div>&quot;doc/sync_to_md.ml&quot;:14:73</div></li><li><table class="non-framed"><tr><td><a id="2"></a></td><td><div>&lt;function -- branch 1&gt; :: (x, xs)</div></td></tr></table></li><li><pre style="font-family: monospace">x = 2</pre></li><li><pre style="font-family: monospace">xs = 3</pre></li><li><details><summary><span><span><span><a id="3"></a></span>&nbsp;<span><span style="font-family: monospace">foo = 3</span></span></span></span></summary><ul><li><div>&quot;doc/sync_to_md.ml&quot;:14:73</div></li><li><table class="non-framed"><tr><td><a id="3"></a></td><td><div>&lt;function -- branch 1&gt; :: (x, xs)</div></td></tr></table></li><li><pre style="font-family: monospace">x = 3</pre></li><li><div>xs</div></li><li><details><summary><span><span><span><a id="4"></a></span>&nbsp;<span><span style="font-family: monospace">foo = 0</span></span></span></span></summary><ul><li><div>&quot;doc/sync_to_md.ml&quot;:14:58</div></li><li><table class="non-framed"><tr><td><a id="4"></a></td><td><div>&lt;function -- branch 0&gt; []</div></td></tr></table></li></ul></details></li></ul></details></li></ul></details></li></ul></details></div>
+<div><details><summary><span><span><span><a id="1"></a></span>&nbsp;<span><span style="font-family: monospace">foo = 6</span></span></span></span></summary><ul><li><div>&quot;docs/sync_to_md.ml&quot;:14:73</div></li><li><table class="non-framed"><tr><td><a id="1"></a></td><td><div>&lt;function -- branch 1&gt; :: (x, xs)</div></td></tr></table></li><li><pre style="font-family: monospace">x = 1</pre></li><li><pre style="font-family: monospace">xs = (2 3)</pre></li><li><details><summary><span><span><span><a id="2"></a></span>&nbsp;<span><span style="font-family: monospace">foo = 5</span></span></span></span></summary><ul><li><div>&quot;docs/sync_to_md.ml&quot;:14:73</div></li><li><table class="non-framed"><tr><td><a id="2"></a></td><td><div>&lt;function -- branch 1&gt; :: (x, xs)</div></td></tr></table></li><li><pre style="font-family: monospace">x = 2</pre></li><li><pre style="font-family: monospace">xs = 3</pre></li><li><details><summary><span><span><span><a id="3"></a></span>&nbsp;<span><span style="font-family: monospace">foo = 3</span></span></span></span></summary><ul><li><div>&quot;docs/sync_to_md.ml&quot;:14:73</div></li><li><table class="non-framed"><tr><td><a id="3"></a></td><td><div>&lt;function -- branch 1&gt; :: (x, xs)</div></td></tr></table></li><li><pre style="font-family: monospace">x = 3</pre></li><li><div>xs</div></li><li><details><summary><span><span><span><a id="4"></a></span>&nbsp;<span><span style="font-family: monospace">foo = 0</span></span></span></span></summary><ul><li><div>&quot;docs/sync_to_md.ml&quot;:14:58</div></li><li><table class="non-framed"><tr><td><a id="4"></a></td><td><div>&lt;function -- branch 0&gt; []</div></td></tr></table></li></ul></details></li></ul></details></li></ul></details></li></ul></details></div>
 ```
 
 The backend will also convert the logged `sexp` values (with at least [boxify_sexp_from_size] atoms, default is 50) to trees. Example result:
-![PrintBox runtime with collapsible/foldable trees](doc/foldable_trees.png)
+![PrintBox runtime with collapsible/foldable trees](docs/foldable_trees.png)
 
 ### Highlighting search terms
 
 The `PrintBox` runtime also supports highlighting paths to logs that match a `highlight_terms`
 regular expression. For example:
-![PrintBox runtime with collapsible/foldable trees](doc/highlight_term_169.png)
+![PrintBox runtime with collapsible/foldable trees](docs/highlight_term_169.png)
 
 To limit the highlight noise, some log entries can be excluded from propagating the highlight status
 using the `exclude_on_path` setting. To trim excessive logging while still providing some context,
@@ -109,7 +109,7 @@ you can set `prune_upto` to a level greater than 0, which only outputs highlight
 
 The `PrintBox` runtime can highlight differences between the current run and a previous run's logs. This is useful for understanding how program behavior changes between executions. To enable this feature, provide the `prev_run_file` argument when creating the runtime. It should be the "raw" messages file of the previous run, including the `.raw` suffix:
 
-<!-- $MDX file=doc/sync_to_md.ml,part=highlight_diffs -->
+<!-- $MDX file=docs/sync_to_md.ml,part=highlight_diffs -->
 ```ocaml
 let _get_local_debug_runtime =
   Minidebug_runtime.local_runtime ~prev_run_file:"sync_to_md-introduction.raw"
@@ -121,7 +121,7 @@ let (_ : int) = foo [ 1; 5; 3; 4 ]
 
 This produces:
 
-<!-- $MDX file=doc/sync_to_md-highlight_diffs.log -->
+<!-- $MDX file=docs/sync_to_md-highlight_diffs.log -->
 ```
 BEGIN DEBUG SESSION 
 ┌───────────────────────────────┐Changed from: xs = (2 3)
@@ -129,7 +129,7 @@ BEGIN DEBUG SESSION
 ││foo = 13│                     │
 │└────────┘                     │
 ├───────────────────────────────┘
-├─"doc/sync_to_md.ml":23:73
+├─"docs/sync_to_md.ml":23:73
 ├─┬─────────────────────────────────┐Changed from: xs = (2 3)
 │ │<function -- branch 1> :: (x, xs)│
 │ └─────────────────────────────────┘
@@ -142,7 +142,7 @@ BEGIN DEBUG SESSION
   ││foo = 12│                       │
   │└────────┘                       │
   ├─────────────────────────────────┘
-  ├─"doc/sync_to_md.ml":23:73
+  ├─"docs/sync_to_md.ml":23:73
   ├─┬─────────────────────────────────┐Changed from: x = 2
   │ │<function -- branch 1> :: (x, xs)│
   │ └─────────────────────────────────┘
@@ -157,7 +157,7 @@ BEGIN DEBUG SESSION
     ││foo = 7│                     │
     │└───────┘                     │
     ├──────────────────────────────┘
-    ├─"doc/sync_to_md.ml":23:73
+    ├─"docs/sync_to_md.ml":23:73
     ├─┬─────────────────────────────────┐Inserted in current run
     │ │<function -- branch 1> :: (x, xs)│
     │ └─────────────────────────────────┘
@@ -170,7 +170,7 @@ BEGIN DEBUG SESSION
       ││foo = 4│                     │
       │└───────┘                     │
       ├──────────────────────────────┘
-      ├─"doc/sync_to_md.ml":23:73
+      ├─"docs/sync_to_md.ml":23:73
       ├─┬─────────────────────────────────┐Inserted in current run
       │ │<function -- branch 1> :: (x, xs)│
       │ └─────────────────────────────────┘
@@ -179,7 +179,7 @@ BEGIN DEBUG SESSION
       │ └─────┘
       ├─xs
       └─foo = 0
-        ├─"doc/sync_to_md.ml":23:58
+        ├─"docs/sync_to_md.ml":23:58
         └─<function -- branch 0> []
 ```
 
@@ -214,10 +214,10 @@ Binding `_get_local_debug_runtime` to a result of the `_runtime` functions is th
 
 
 When logging uses sexps and boxification, and the result is decomposed into a subtree, only the header of the result subtree is put in the header line, and the rest of the result subtree is just underneath it with a `<returns>` or a `<values>` header. Example showcasing the `printbox-html` backend:
-![PrintBox HTML backend -- follow hyperlink](doc/html-hyperlink.png)
+![PrintBox HTML backend -- follow hyperlink](docs/html-hyperlink.png)
 
 Example showcasing the `printbox-md` (Markdown) backend:
-![PrintBox Markdown backend -- follow hyperlink](doc/md-hyperlink.png)
+![PrintBox Markdown backend -- follow hyperlink](docs/md-hyperlink.png)
 
 ## Usage
 
@@ -803,7 +803,7 @@ To express the runtime-known levels to log at more concisely, we have extension 
 
 In particular, `[%logN_block for_log_level "header"; Printf.printf "level %d" for_log_level]` is roughly equivalent to:
 
-<!-- $MDX file=doc/sync_to_md.ml,part=at_log_level -->
+<!-- $MDX file=docs/sync_to_md.ml,part=at_log_level -->
 ```ocaml
 let _get_local_debug_runtime = Minidebug_runtime.local_runtime "sync_to_md-at_log_level"
 
@@ -1046,8 +1046,8 @@ There are a few ways `ppx_minidebug` is helpful with large logs. You can:
 
 The _table of contents_ generation is enabled via `~with_toc_listing:true` or `~toc_flame_graph:true` or both (for file-based runtimes -- via `table_of_contents_ch` for channel-based runtimes). This will create an additional file (name ending in `-toc`), mirroring the main logs in a summarized way. Selected log headers are output there preserving the tree structure, and for `~with_toc_listing:true` they look the same as in the main file except there is no folding. The headers are hyperlinks pointing to the main log file (or files, if file splitting is enabled). For `~toc_flame_graph:true`, the entries are put in boxes, like in the depicted example from the test suite. Presenting two configurations here:
 
-![Flame graph with paths, no time tags](doc/flame_graph_paths_no_time.png)
-![Flame graph with values first mode, elapsed times](doc/flame_graph_values_first_elapsed.png)
+![Flame graph with paths, no time tags](docs/flame_graph_paths_no_time.png)
+![Flame graph with values first mode, elapsed times](docs/flame_graph_values_first_elapsed.png)
 
 Note: if your flame graph trees run into each other, try setting `~flame_graph_separation:50` or higher.
 

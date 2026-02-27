@@ -51,7 +51,7 @@ Run and explore:
 minidebug_view my_trace.db tui   # Launch interactive TUI
 ]}
 
-{%html: <img src="doc/tui-factorial-values_first.png" alt="Screenshot of TUI showing factorial trace with expanded tree"/>%}
+{%html: <img src="docs/tui-factorial-values_first.png" alt="Screenshot of TUI showing factorial trace with expanded tree"/>%}
 
 {1 Why ppx_minidebug?}
 {ul {- {b Zero runtime overhead with compile-time filtering}: [[%%global_debug_log_level 0]] eliminates all logging code
@@ -93,7 +93,7 @@ minidebug_view trace.db tui
 }{- [q]: Quit
 }}
 
-{%html: <img src="doc/tui-search_results.png" alt="Screenshot showing search results with highlighted paths"/>%}
+{%html: <img src="docs/tui-search_results.png" alt="Screenshot showing search results with highlighted paths"/>%}
 
 {2 CLI Commands}
 

@@ -5,7 +5,7 @@ BEGIN DEBUG SESSION
 ││foo = 13│                     │
 │└────────┘                     │
 ├───────────────────────────────┘
-├─"doc/sync_to_md.ml":23:73
+├─"docs/sync_to_md.ml":23:73
 ├─┬─────────────────────────────────┐Changed from: xs = (2 3)
 │ │<function -- branch 1> :: (x, xs)│
 │ └─────────────────────────────────┘
@@ -18,7 +18,7 @@ BEGIN DEBUG SESSION
   ││foo = 12│                       │
   │└────────┘                       │
   ├─────────────────────────────────┘
-  ├─"doc/sync_to_md.ml":23:73
+  ├─"docs/sync_to_md.ml":23:73
   ├─┬─────────────────────────────────┐Changed from: x = 2
   │ │<function -- branch 1> :: (x, xs)│
   │ └─────────────────────────────────┘
@@ -33,7 +33,7 @@ BEGIN DEBUG SESSION
     ││foo = 7│                     │
     │└───────┘                     │
     ├──────────────────────────────┘
-    ├─"doc/sync_to_md.ml":23:73
+    ├─"docs/sync_to_md.ml":23:73
     ├─┬─────────────────────────────────┐Inserted in current run
     │ │<function -- branch 1> :: (x, xs)│
     │ └─────────────────────────────────┘
@@ -46,7 +46,7 @@ BEGIN DEBUG SESSION
       ││foo = 4│                     │
       │└───────┘                     │
       ├──────────────────────────────┘
-      ├─"doc/sync_to_md.ml":23:73
+      ├─"docs/sync_to_md.ml":23:73
       ├─┬─────────────────────────────────┐Inserted in current run
       │ │<function -- branch 1> :: (x, xs)│
       │ └─────────────────────────────────┘
@@ -55,5 +55,5 @@ BEGIN DEBUG SESSION
       │ └─────┘
       ├─xs
       └─foo = 0
-        ├─"doc/sync_to_md.ml":23:58
+        ├─"docs/sync_to_md.ml":23:58
         └─<function -- branch 0> []
