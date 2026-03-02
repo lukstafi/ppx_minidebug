@@ -868,8 +868,40 @@ end) : S = struct
           stmt_ref := Some stmt;
           stmt
 
-  (* Cached prepared statement for fetching scope entry by child_scope_id *)
-  let get_scope_entry_stmt =
+  (* Cached prepared statement for fetching all scope headers by child_scope_id *)
+  let get_all_scope_entries =
+    let entry_of_stmt stmt =
+      {
+        scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
+        seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
+        child_scope_id =
+          (match Sqlite3.column stmt 2 with
+          | Sqlite3.Data.INT id -> Some (Int64.to_int id)
+          | _ -> None);
+        depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
+        message =
+          (match Sqlite3.column stmt 4 with Sqlite3.Data.TEXT s -> s | _ -> "");
+        location =
+          (match Sqlite3.column stmt 5 with
+          | Sqlite3.Data.TEXT s -> Some s
+          | _ -> None);
+        data =
+          (match Sqlite3.column stmt 6 with
+          | Sqlite3.Data.TEXT s -> Some s
+          | _ -> None);
+        elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
+        elapsed_end_ns =
+          (match Sqlite3.column stmt 8 with
+          | Sqlite3.Data.INT i -> Some (Int64.to_int i)
+          | _ -> None);
+        is_result =
+          (match Sqlite3.Data.to_bool (Sqlite3.column stmt 9) with
+          | Some b -> b
+          | None -> false);
+        log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
+        entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
+      }
+    in
     let query =
       {|
         SELECT e.scope_id, e.seq_id, e.child_scope_id, e.depth,
@@ -880,14 +912,23 @@ end) : S = struct
         LEFT JOIN value_atoms l ON e.location_value_id = l.value_id
         LEFT JOIN value_atoms d ON e.data_value_id = d.value_id
         WHERE e.child_scope_id = ?
-        LIMIT 1
+        ORDER BY e.scope_id, e.seq_id
       |}
     in
     let stmt = Sqlite3.prepare db query in
     fun ~scope_id ->
       Sqlite3.reset stmt |> ignore;
       Sqlite3.bind_int stmt 1 scope_id |> ignore;
-      stmt
+      let entries = ref [] in
+      let rec loop () =
+        match Sqlite3.step stmt with
+        | Sqlite3.Rc.ROW ->
+            entries := entry_of_stmt stmt :: !entries;
+            loop ()
+        | _ -> ()
+      in
+      loop ();
+      List.rev !entries
 
   let populate_search_results ~search_term ~quiet_path ~search_order ~completed_ref
       ~results_table =
@@ -954,74 +995,12 @@ end) : S = struct
       (* Track propagated ancestors to avoid duplicates *)
       let propagation_count = ref 0 in
 
-      (* Helper to eagerly fetch and cache a scope entry by ID. Strategy: First check
-         cache, then query for the header entry that creates this scope. For incremental
-         updates, we accept that some parent headers may not be found yet (they'll be
-         highlighted when the streaming query reaches them). *)
-      let get_scope_entry scope_id =
-        match Hashtbl.find_opt scope_by_id scope_id with
-        | Some entry -> Some entry
-        | None ->
-            (* Not in cache - fetch from database and cache it. Query finds the header
-               entry that creates scope_id (child_scope_id = scope_id). NOTE: For
-               incremental updates during streaming, this may return None if the header
-               hasn't been scanned yet. That's OK - we'll highlight it when we reach
-               it. *)
-            let stmt = get_scope_entry_stmt ~scope_id in
-            let result =
-              match Sqlite3.step stmt with
-              | Sqlite3.Rc.ROW ->
-                  let entry =
-                    {
-                      scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
-                      seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
-                      child_scope_id =
-                        (match Sqlite3.column stmt 2 with
-                        | Sqlite3.Data.INT id -> Some (Int64.to_int id)
-                        | _ -> None);
-                      depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
-                      message =
-                        (match Sqlite3.column stmt 4 with
-                        | Sqlite3.Data.TEXT s -> s
-                        | _ -> "");
-                      location =
-                        (match Sqlite3.column stmt 5 with
-                        | Sqlite3.Data.TEXT s -> Some s
-                        | _ -> None);
-                      data =
-                        (match Sqlite3.column stmt 6 with
-                        | Sqlite3.Data.TEXT s -> Some s
-                        | _ -> None);
-                      elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
-                      elapsed_end_ns =
-                        (match Sqlite3.column stmt 8 with
-                        | Sqlite3.Data.INT i -> Some (Int64.to_int i)
-                        | _ -> None);
-                      is_result =
-                        (match Sqlite3.Data.to_bool (Sqlite3.column stmt 9) with
-                        | Some b -> b
-                        | None -> false);
-                      log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
-                      entry_type = Sqlite3.Data.to_string_exn (Sqlite3.column stmt 11);
-                    }
-                  in
-                  Hashtbl.add scope_by_id scope_id entry;
-                  log_debug
-                    (Printf.sprintf "  get_scope_entry: fetched and cached scope %d"
-                       scope_id);
-                  Some entry
-              | _ ->
-                  (* Header not found - either it doesn't exist, or hasn't been scanned
-                     yet in streaming mode. For incremental updates, we'll just skip this
-                     ancestor for now. *)
-                  log_debug
-                    (Printf.sprintf
-                       "  get_scope_entry: scope %d header not found (may not be scanned \
-                        yet)"
-                       scope_id);
-                  None
-            in
-            result
+      (* Helper to eagerly fetch scope headers by ID. We include both cached rows (already
+         streamed) and all headers from DB so DAG parents are handled consistently. *)
+      let get_scope_entries scope_id =
+        match get_all_scope_entries ~scope_id with
+        | [] -> Hashtbl.find_all scope_by_id scope_id
+        | entries -> entries
       in
 
       (* Helper to propagate highlights to ancestors immediately *)
@@ -1038,8 +1017,8 @@ end) : S = struct
            highlighted *)
         let direct_parent_id = entry.scope_id in
         if not (Hashtbl.mem propagated direct_parent_id) then
-          match get_scope_entry direct_parent_id with
-          | Some parent_scope when matches_quiet_path parent_scope ->
+          match get_scope_entries direct_parent_id with
+          | parent_scope :: _ when matches_quiet_path parent_scope ->
               (* Direct parent matches quiet_path - mark it but don't add to results, stop
                  here *)
               Hashtbl.add propagated direct_parent_id ();
@@ -1047,13 +1026,14 @@ end) : S = struct
                 (Printf.sprintf
                    "  propagate: direct parent %d matches quiet_path, stopping"
                    direct_parent_id)
-          | Some parent_scope ->
+          | parent_scope :: other_parent_scopes ->
               (* Direct parent doesn't match quiet_path - add it and propagate upward *)
               Hashtbl.add propagated direct_parent_id ();
               log_debug
                 (Printf.sprintf "  propagate: adding direct parent %d to results"
                    direct_parent_id);
               insert_entry ~is_match:false parent_scope;
+              List.iter (insert_entry ~is_match:false) other_parent_scopes;
               incr propagation_count;
 
               (* Now propagate to ancestors. In a DAG, we must propagate through ALL
@@ -1076,9 +1056,9 @@ end) : S = struct
                       else (
                         log_debug
                           (Printf.sprintf "  propagate: checking parent_id=%d" parent_id);
-                        (* Eagerly fetch parent entry if not in cache *)
-                        match get_scope_entry parent_id with
-                        | Some parent_entry when matches_quiet_path parent_entry ->
+                        (* Eagerly fetch all parent headers *)
+                        match get_scope_entries parent_id with
+                        | parent_entry :: _ when matches_quiet_path parent_entry ->
                             (* Parent matches quiet_path, stop propagation on this path.
                                IMPORTANT: Mark in propagated table so other matches also
                                stop here! *)
@@ -1088,7 +1068,7 @@ end) : S = struct
                                  "  propagate: parent_id=%d matches quiet_path, marking \
                                   and stopping propagation on this path"
                                  parent_id)
-                        | Some parent_entry ->
+                        | parent_entry :: other_parent_entries ->
                             (* Parent found and doesn't match quiet_path - mark it and
                                continue on this path *)
                             Hashtbl.add propagated parent_id ();
@@ -1098,9 +1078,12 @@ end) : S = struct
                                   adding to results"
                                  parent_id);
                             insert_entry ~is_match:false parent_entry;
+                            List.iter
+                              (insert_entry ~is_match:false)
+                              other_parent_entries;
                             incr propagation_count;
                             propagate_to_parent parent_id
-                        | None ->
+                        | [] ->
                             (* Parent entry not found in database - shouldn't happen but
                                handle gracefully *)
                             log_debug
@@ -1111,7 +1094,7 @@ end) : S = struct
                     parent_ids
               in
               propagate_to_parent direct_parent_id
-          | None ->
+          | [] ->
               log_debug
                 (Printf.sprintf "  propagate: direct parent %d not found in database"
                    direct_parent_id)
@@ -1729,64 +1712,29 @@ end) : S = struct
           in
 
           (* Helper to get scope entry by scope_id (header that creates this scope) *)
-          let get_scope_entry scope_id =
-            let stmt = get_scope_entry_stmt ~scope_id in
-            match Sqlite3.step stmt with
-            | Sqlite3.Rc.ROW ->
-                Some
-                  {
-                    scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0);
-                    seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1);
-                    child_scope_id =
-                      (match Sqlite3.column stmt 2 with
-                      | Sqlite3.Data.INT id -> Some (Int64.to_int id)
-                      | _ -> None);
-                    depth = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
-                    message =
-                      (match Sqlite3.column stmt 4 with
-                      | Sqlite3.Data.TEXT s -> s
-                      | _ -> "");
-                    location =
-                      (match Sqlite3.column stmt 5 with
-                      | Sqlite3.Data.TEXT s -> Some s
-                      | _ -> None);
-                    data =
-                      (match Sqlite3.column stmt 6 with
-                      | Sqlite3.Data.TEXT s -> Some s
-                      | _ -> None);
-                    elapsed_start_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 7);
-                    elapsed_end_ns =
-                      (match Sqlite3.column stmt 8 with
-                      | Sqlite3.Data.INT i -> Some (Int64.to_int i)
-                      | _ -> None);
-                    is_result =
-                      (match Sqlite3.Data.to_bool (Sqlite3.column stmt 9) with
-                      | Some b -> b
-                      | None -> false);
-                    log_level = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 10);
-                    entry_type =
-                      (match Sqlite3.column stmt 11 with
-                      | Sqlite3.Data.TEXT s -> s
-                      | _ -> "");
-                  }
-            | _ -> None
-          in
+          let get_scope_entries scope_id = get_all_scope_entries ~scope_id in
 
           (* Helper to propagate highlights from shared node and its ancestors *)
           let highlight_shared_and_ancestors shared_scope_id =
             let highlighted_entries = ref [] in
 
             (* Get the shared node entry *)
-            match get_scope_entry shared_scope_id with
-            | None ->
+            match get_scope_entries shared_scope_id with
+            | [] ->
                 log_debug
                   (Printf.sprintf "WARNING: Could not find entry for shared_scope_id=%d"
                      shared_scope_id)
-            | Some shared_entry ->
+            | shared_entry :: other_shared_entries ->
                 (* Highlight the shared node itself *)
                 insert_entry ~is_match:true shared_entry;
+                List.iter (insert_entry ~is_match:true) other_shared_entries;
                 highlighted_entries :=
                   (shared_entry.scope_id, shared_entry.seq_id) :: !highlighted_entries;
+                List.iter
+                  (fun entry ->
+                    highlighted_entries :=
+                      (entry.scope_id, entry.seq_id) :: !highlighted_entries)
+                  other_shared_entries;
                 log_debug
                   (Printf.sprintf "Highlighted shared node: scope_id=%d, seq_id=%d"
                      shared_entry.scope_id shared_entry.seq_id);
@@ -1810,8 +1758,8 @@ end) : S = struct
                         else (
                           log_debug
                             (Printf.sprintf "  propagate: checking parent_id=%d" parent_id);
-                          match get_scope_entry parent_id with
-                          | Some parent_entry when matches_quiet_path parent_entry ->
+                          match get_scope_entries parent_id with
+                          | parent_entry :: _ when matches_quiet_path parent_entry ->
                               (* Parent matches quiet_path, stop propagation *)
                               Hashtbl.add propagated parent_id ();
                               log_debug
@@ -1819,26 +1767,73 @@ end) : S = struct
                                    "  propagate: parent_id=%d matches quiet_path, \
                                     stopping"
                                    parent_id)
-                          | Some parent_entry ->
+                          | parent_entry :: other_parent_entries ->
                               (* Parent doesn't match quiet_path - highlight and
                                  continue *)
                               Hashtbl.add propagated parent_id ();
                               insert_entry ~is_match:false parent_entry;
+                              List.iter
+                                (insert_entry ~is_match:false)
+                                other_parent_entries;
                               highlighted_entries :=
                                 (parent_entry.scope_id, parent_entry.seq_id)
                                 :: !highlighted_entries;
+                              List.iter
+                                (fun entry ->
+                                  highlighted_entries :=
+                                    (entry.scope_id, entry.seq_id)
+                                    :: !highlighted_entries)
+                                other_parent_entries;
                               log_debug
                                 (Printf.sprintf "  propagate: highlighted parent_id=%d"
                                    parent_id);
                               propagate_to_parent parent_id
-                          | None ->
+                          | [] ->
                               log_debug
                                 (Printf.sprintf
                                    "  propagate: parent_id=%d not found in database"
                                    parent_id)))
                       parent_ids
                 in
-                propagate_to_parent shared_entry.scope_id;
+                let direct_parent_id = shared_entry.scope_id in
+                if Hashtbl.mem propagated direct_parent_id then
+                  log_debug
+                    (Printf.sprintf
+                       "  propagate: direct parent %d already propagated"
+                       direct_parent_id)
+                else
+                  match get_scope_entries direct_parent_id with
+                  | direct_parent_entry :: _
+                    when matches_quiet_path direct_parent_entry ->
+                      Hashtbl.add propagated direct_parent_id ();
+                      log_debug
+                        (Printf.sprintf
+                           "  propagate: direct parent %d matches quiet_path, stopping"
+                           direct_parent_id)
+                  | direct_parent_entry :: other_direct_parent_entries ->
+                      Hashtbl.add propagated direct_parent_id ();
+                      insert_entry ~is_match:false direct_parent_entry;
+                      List.iter
+                        (insert_entry ~is_match:false)
+                        other_direct_parent_entries;
+                      highlighted_entries :=
+                        (direct_parent_entry.scope_id, direct_parent_entry.seq_id)
+                        :: !highlighted_entries;
+                      List.iter
+                        (fun entry ->
+                          highlighted_entries :=
+                            (entry.scope_id, entry.seq_id) :: !highlighted_entries)
+                        other_direct_parent_entries;
+                      log_debug
+                        (Printf.sprintf
+                           "  propagate: highlighted direct parent %d"
+                           direct_parent_id);
+                      propagate_to_parent direct_parent_id
+                  | [] ->
+                      log_debug
+                        (Printf.sprintf
+                           "  propagate: direct parent %d not found in database"
+                           direct_parent_id);
 
                 (* Store highlighted entries for potential cleanup *)
                 Hashtbl.add shared_to_highlighted shared_scope_id !highlighted_entries

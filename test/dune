@@ -495,6 +495,13 @@
   (pps ppx_minidebug ppx_sexp_conv)))
 
 (test
+ (name test_dag_highlight_propagation)
+ (modules test_dag_highlight_propagation)
+ (libraries sexplib0 minidebug_db minidebug_client sqlite3)
+ (preprocess
+  (pps ppx_minidebug ppx_sexp_conv)))
+
+(test
  (name test_sexp_structure)
  (modules test_sexp_structure)
  (libraries sexplib0)
