@@ -23,54 +23,6 @@ let%debug_sexp build_dag_value () : tree =
 
 let failf fmt = Printf.ksprintf failwith fmt
 
-let latest_run_db_file ~base_name =
-  let meta_db_path = base_name ^ "_meta.db" in
-  if not (Sys.file_exists meta_db_path) then
-    failf "Test setup failed: metadata DB %s not found" meta_db_path;
-  let db = Sqlite3.db_open ~mode:`READONLY meta_db_path in
-  let stmt =
-    Sqlite3.prepare db
-      "SELECT db_file FROM runs ORDER BY run_id DESC LIMIT 1"
-  in
-  let db_file =
-    match Sqlite3.step stmt with
-    | Sqlite3.Rc.ROW -> (
-        match Sqlite3.column stmt 0 with
-        | Sqlite3.Data.TEXT s -> s
-        | _ -> failwith "Test setup failed: latest run has no db_file")
-    | _ -> failwith "Test setup failed: no runs found in metadata DB"
-  in
-  Sqlite3.finalize stmt |> ignore;
-  Sqlite3.db_close db |> ignore;
-  db_file
-
-let headers_for_child_scope ~db_path ~child_scope_id =
-  let db = Sqlite3.db_open ~mode:`READONLY db_path in
-  let stmt =
-    Sqlite3.prepare db
-      {|
-      SELECT scope_id, seq_id
-      FROM entries
-      WHERE child_scope_id = ?
-      ORDER BY scope_id, seq_id
-    |}
-  in
-  Sqlite3.bind_int stmt 1 child_scope_id |> ignore;
-  let rows = ref [] in
-  let rec loop () =
-    match Sqlite3.step stmt with
-    | Sqlite3.Rc.ROW ->
-        let scope_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 0) in
-        let seq_id = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 1) in
-        rows := (scope_id, seq_id) :: !rows;
-        loop ()
-    | _ -> ()
-  in
-  loop ();
-  Sqlite3.finalize stmt |> ignore;
-  Sqlite3.db_close db |> ignore;
-  List.rev !rows
-
 let assert_headers_highlighted ~label ~results_table ~headers =
   List.iter
     (fun key ->
@@ -78,48 +30,59 @@ let assert_headers_highlighted ~label ~results_table ~headers =
         failf "%s: missing highlighted header (%d, %d)" label (fst key) (snd key))
     headers
 
-let find_first_duplicated_ancestor_scope ~db_path ~get_parent_ids ~start_scope_id =
-  let visited = Hashtbl.create 32 in
-  let rec bfs = function
-    | [] -> None
-    | scope_id :: rest ->
-        if Hashtbl.mem visited scope_id then bfs rest
-        else (
-          Hashtbl.add visited scope_id ();
-          let headers = headers_for_child_scope ~db_path ~child_scope_id:scope_id in
-          if List.length headers >= 2 then Some (scope_id, headers)
-          else bfs (rest @ get_parent_ids ~scope_id))
-  in
-  bfs [ start_scope_id ]
-
 let () =
   let (_ : tree) = build_dag_value () in
 
-  let db_path = latest_run_db_file ~base_name:"debugger_dag_highlight_propagation" in
+  let db_path =
+    Test_db_fixture_utils.latest_run_db_file
+      ~base_name:"debugger_dag_highlight_propagation"
+  in
   let module Query =
     Minidebug_client.Query.Make (struct
       let db_path = db_path
     end)
   in
 
+  let header_keys_of_entries (entries : Minidebug_client.Query.entry list) =
+    List.map
+      (fun entry ->
+        ( entry.Minidebug_client.Query.scope_id,
+          entry.Minidebug_client.Query.seq_id ))
+      entries
+  in
+
+  let find_first_duplicated_ancestor_scope ~start_scope_id =
+    let visited = Hashtbl.create 32 in
+    let rec bfs = function
+      | [] -> None
+      | scope_id :: rest ->
+          if Hashtbl.mem visited scope_id then bfs rest
+          else (
+            Hashtbl.add visited scope_id ();
+            let headers = Query.find_scope_headers ~scope_id in
+            if List.length headers >= 2 then Some scope_id
+            else bfs (rest @ Query.get_parent_ids ~scope_id))
+    in
+    bfs [ start_scope_id ]
+  in
+
   let needle_matches = Query.search_entries ~pattern:"needle" in
   let needle_scope_id =
     match needle_matches with
-    | entry :: _ -> entry.scope_id
+    | entry :: _ -> entry.Minidebug_client.Query.scope_id
     | [] -> failwith "Test setup failed: no value entry matched 'needle'"
   in
 
-  let duplicated_scope_id, shared_headers =
-    match
-      find_first_duplicated_ancestor_scope ~db_path
-        ~get_parent_ids:Query.get_parent_ids
-        ~start_scope_id:needle_scope_id
-    with
+  let duplicated_scope_id =
+    match find_first_duplicated_ancestor_scope ~start_scope_id:needle_scope_id with
     | Some found -> found
     | None ->
         failf
           "Test setup failed: no duplicated ancestor scope found for match scope_id=%d"
           needle_scope_id
+  in
+  let shared_headers =
+    Query.find_scope_headers ~scope_id:duplicated_scope_id |> header_keys_of_entries
   in
   if List.length shared_headers < 2 then
     failf
