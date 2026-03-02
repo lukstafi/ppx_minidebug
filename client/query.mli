@@ -50,6 +50,7 @@ module type S = sig
   val get_stats : unit -> stats
   val search_entries : pattern:string -> entry list
   val find_entry : scope_id:int -> seq_id:int -> entry option
+  val find_scope_headers : scope_id:int -> entry list
   val find_scope_header : scope_id:int -> entry option
   val get_entries_for_scopes : scope_ids:int list -> entry list
   val get_entries_from_results : results_table:(int * int, bool) Hashtbl.t -> entry list

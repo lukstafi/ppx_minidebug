@@ -487,17 +487,29 @@
  (action
   (diff debugger_boxify_cache.expected.log debugger_boxify_cache.log)))
 
+(library
+ (name test_db_fixture_utils)
+ (modules test_db_fixture_utils)
+ (libraries sqlite3))
+
 (test
  (name test_highlight_propagation)
  (modules test_highlight_propagation)
- (libraries sexplib0 minidebug_db minidebug_cli)
+ (libraries sexplib0 minidebug_db minidebug_cli test_db_fixture_utils)
  (preprocess
   (pps ppx_minidebug ppx_sexp_conv)))
 
 (test
  (name test_dag_highlight_propagation)
  (modules test_dag_highlight_propagation)
- (libraries sexplib0 minidebug_db minidebug_client sqlite3)
+ (libraries sexplib0 minidebug_db minidebug_client sqlite3 test_db_fixture_utils)
+ (preprocess
+  (pps ppx_minidebug ppx_sexp_conv)))
+
+(test
+ (name test_dag_quiet_path_stop)
+ (modules test_dag_quiet_path_stop)
+ (libraries sexplib0 minidebug_db minidebug_client sqlite3 test_db_fixture_utils)
  (preprocess
   (pps ppx_minidebug ppx_sexp_conv)))
 

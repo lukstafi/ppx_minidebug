@@ -18,11 +18,14 @@ let () =
   let tree2 = create_nested_tree "another" in
   Printf.printf "Tree 1: %s\n%!" (Sexplib0.Sexp.to_string_hum (sexp_of_tree tree1));
   Printf.printf "Tree 2: %s\n%!" (Sexplib0.Sexp.to_string_hum (sexp_of_tree tree2));
-  Printf.printf "\nDatabase created: test_highlight_propagation_1.db\n\n%!";
+  let db_path =
+    Test_db_fixture_utils.latest_run_db_file ~base_name:"test_highlight_propagation"
+  in
+  Printf.printf "\nDatabase created: %s\n\n%!" db_path;
 
   (* Verify we can query the database *)
   let module Q = Minidebug_client.Query.Make (struct
-    let db_path = "test_highlight_propagation_1.db"
+    let db_path = db_path
   end) in
   let stats = Q.get_stats () in
 
