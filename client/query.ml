@@ -1795,7 +1795,45 @@ end) : S = struct
                                    parent_id)))
                       parent_ids
                 in
-                propagate_to_parent shared_entry.scope_id;
+                let direct_parent_id = shared_entry.scope_id in
+                if Hashtbl.mem propagated direct_parent_id then
+                  log_debug
+                    (Printf.sprintf
+                       "  propagate: direct parent %d already propagated"
+                       direct_parent_id)
+                else
+                  match get_scope_entries direct_parent_id with
+                  | direct_parent_entry :: _
+                    when matches_quiet_path direct_parent_entry ->
+                      Hashtbl.add propagated direct_parent_id ();
+                      log_debug
+                        (Printf.sprintf
+                           "  propagate: direct parent %d matches quiet_path, stopping"
+                           direct_parent_id)
+                  | direct_parent_entry :: other_direct_parent_entries ->
+                      Hashtbl.add propagated direct_parent_id ();
+                      insert_entry ~is_match:false direct_parent_entry;
+                      List.iter
+                        (insert_entry ~is_match:false)
+                        other_direct_parent_entries;
+                      highlighted_entries :=
+                        (direct_parent_entry.scope_id, direct_parent_entry.seq_id)
+                        :: !highlighted_entries;
+                      List.iter
+                        (fun entry ->
+                          highlighted_entries :=
+                            (entry.scope_id, entry.seq_id) :: !highlighted_entries)
+                        other_direct_parent_entries;
+                      log_debug
+                        (Printf.sprintf
+                           "  propagate: highlighted direct parent %d"
+                           direct_parent_id);
+                      propagate_to_parent direct_parent_id
+                  | [] ->
+                      log_debug
+                        (Printf.sprintf
+                           "  propagate: direct parent %d not found in database"
+                           direct_parent_id);
 
                 (* Store highlighted entries for potential cleanup *)
                 Hashtbl.add shared_to_highlighted shared_scope_id !highlighted_entries
