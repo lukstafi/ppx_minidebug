@@ -29,19 +29,3 @@ Focus especially on the last comment(s) for the actionable task.
 - Add a deterministic regression test fixture utility in `test/` for resolving latest run DB via metadata (`*_meta.db`), so tests do not hardcode `_1.db` and do not depend on filesystem cleanup state.
 - Add one focused test that validates quiet-path stopping behavior in DAG propagation for both search and extract modes, to lock down the intended semantics when a duplicated ancestor matches quiet-path.
 
-## Implementation Notes (2026-03-02)
-
-- Added `entry_of_stmt`, regex-matching helpers, and a shared
-  `propagate_highlight_to_ancestors` helper in `client/query.ml`.
-- Added public API `find_scope_headers` in `client/query.mli`/`client/query.ml`;
-  `find_scope_header` now delegates to it.
-- Migrated internal header fetch usage to `find_scope_headers`, including search and
-  extract propagation paths.
-- Refactored `populate_extract_search_results` into smaller local helpers:
-  candidate enumeration, dedup application, highlight insertion/removal, and shared
-  ancestor propagation.
-- Added deterministic test fixture helper `test/test_db_fixture_utils.ml` and wired
-  touched tests to use metadata-based latest run DB resolution.
-- Added focused regression test `test/test_dag_quiet_path_stop.ml` covering quiet-path
-  stop behavior in both search and extract modes when propagation reaches a duplicated
-  ancestor.
