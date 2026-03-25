@@ -1068,3 +1068,59 @@ let search_extract ?(output = Format.std_formatter) ?(format = `Text)
         !total_matches !unique_extractions
         (!total_matches - !unique_extractions)
   | `Json -> ()
+
+(** Show aggregated profiling summary. Groups scope headers by function name
+    and aggregates elapsed times, similar to Landmarks' aggregate_landmarks.
+    This provides a flat profiling view showing total time, call count,
+    average, min, and max per function. *)
+let show_profiling_summary ?(output = Format.std_formatter) ?(format = `Text)
+    ?(limit = None) t =
+  let module Q = (val t : Query.S) in
+  let entries = Q.get_profiling_summary () in
+  let entries =
+    match limit with
+    | None -> entries
+    | Some n -> List.filteri (fun i _ -> i < n) entries
+  in
+  match format with
+  | `Text ->
+      Format.fprintf output "Profiling Summary\n";
+      Format.fprintf output "=================\n";
+      if entries = [] then
+        Format.fprintf output "(no scope entries with elapsed times found)\n"
+      else (
+        Format.fprintf output
+          "%-6s  %-12s  %-12s  %-12s  %-12s  %s\n" "Calls" "Total" "Avg"
+          "Min" "Max" "Function";
+        Format.fprintf output "%s\n" (String.make 78 '-');
+        List.iter
+          (fun (entry : Query.profiling_entry) ->
+            let loc_str =
+              match entry.location with
+              | Some loc -> Printf.sprintf " @ %s" loc
+              | None -> ""
+            in
+            Format.fprintf output "%6d  %-12s  %-12s  %-12s  %-12s  %s%s\n"
+              entry.call_count
+              (Query.format_elapsed_ns entry.total_ns)
+              (Query.format_elapsed_ns entry.avg_ns)
+              (Query.format_elapsed_ns entry.min_ns)
+              (Query.format_elapsed_ns entry.max_ns)
+              entry.function_name loc_str)
+          entries)
+  | `Json ->
+      let json_entries =
+        List.map
+          (fun (entry : Query.profiling_entry) ->
+            Printf.sprintf
+              {|{"function_name": "%s", "location": %s, "call_count": %d, "total_ns": %d, "avg_ns": %d, "min_ns": %d, "max_ns": %d}|}
+              (String.escaped entry.function_name)
+              (match entry.location with
+              | Some loc ->
+                  Printf.sprintf "\"%s\"" (String.escaped loc)
+              | None -> "null")
+              entry.call_count entry.total_ns entry.avg_ns entry.min_ns
+              entry.max_ns)
+          entries
+      in
+      Format.fprintf output "[%s]\n" (String.concat ", " json_entries)

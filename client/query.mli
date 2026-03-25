@@ -34,6 +34,19 @@ type stats = {
 
 type search_order = AscendingIds | DescendingIds
 
+(** Aggregated profiling summary for a single function/scope name. Inspired by
+    Landmarks' aggregate_landmarks which merges all nodes with the same landmark
+    ID into a single entry with accumulated metrics. *)
+type profiling_entry = {
+  function_name : string;
+  location : string option;
+  call_count : int;
+  total_ns : int;
+  avg_ns : int;
+  min_ns : int;
+  max_ns : int;
+}
+
 val format_elapsed_ns : int -> string
 (** Format elapsed time in human-readable units *)
 
@@ -82,6 +95,12 @@ module type S = sig
     completed_ref:bool ref ->
     results_table:(int * int, bool) Hashtbl.t ->
     unit
+
+  val get_profiling_summary : unit -> profiling_entry list
+  (** Get aggregated profiling summary: for each unique function name (scope
+      header message), returns total time, call count, average, min, and max
+      elapsed time. Results are sorted by total time descending. Inspired by
+      Landmarks' aggregate_landmarks. *)
 end
 
 (** Functor creating Query module with connections to main DB and metadata DB *)

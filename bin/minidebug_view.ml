@@ -25,6 +25,7 @@ COMMANDS:
   get-ancestors <id>        Get ancestor scope IDs from root to target
   get-parent <id>           Get parent scope ID
   get-children <id>         Get child scope IDs
+  profile                   Show aggregated profiling summary (inspired by Landmarks)
   export <file>             Export latest run to markdown
   tui-render                Render TUI state from DB (for CLI clients)
   tui-status                Show TUI status (state, search slots)
@@ -40,7 +41,7 @@ OPTIONS:
   --format=<fmt>          Output format: text (default) or json
   --quiet-path=<pattern>  Stop ancestor propagation at pattern (search-tree only)
   --ancestors             Show ancestors (show-scope, show-subtree: default true)
-  --limit=<n>             Limit number of results (for search commands)
+  --limit=<n>             Limit number of results (for search and profile commands)
   --offset=<n>            Skip first n results (for search commands)
   --db-mode               Enable DB-backed TUI state (for interactive command)
   --client-id=<id>        Client ID for tui-cmd (default: cli-<pid>)
@@ -70,6 +71,9 @@ EXAMPLES:
 
   # Search and extract with change tracking (comma-separated paths)
   minidebug_view trace.db search-extract "fn_a,param_x" "fn_a,result" --times
+
+  # Show aggregated profiling summary (inspired by Landmarks)
+  minidebug_view trace.db profile --limit=10
 
   # Show specific scope with descendants
   minidebug_view trace.db show-scope 42 --depth=2 --format=json
@@ -135,6 +139,7 @@ type command =
   | GetAncestors of int
   | GetParent of int
   | GetChildren of int
+  | Profile
   | Export of string
   | TuiRender
   | TuiCmd of string list
@@ -270,6 +275,9 @@ let parse_args () =
             parse_rest rest
         | "get-children" :: id_str :: rest ->
             cmd_ref := GetChildren (int_of_string id_str);
+            parse_rest rest
+        | "profile" :: rest ->
+            cmd_ref := Profile;
             parse_rest rest
         | "export" :: file :: rest ->
             cmd_ref := Export file;
@@ -450,6 +458,9 @@ let () =
         Minidebug_cli.Cli.get_parent ~format:opts.format client ~scope_id
     | GetChildren scope_id ->
         Minidebug_cli.Cli.get_children ~format:opts.format client ~scope_id
+    | Profile ->
+        Minidebug_cli.Cli.show_profiling_summary ~format:opts.format
+          ~limit:opts.limit client
     | Export file -> Minidebug_cli.Cli.export_markdown client ~output_file:file
     | TuiRender ->
         (* Render current TUI state from DB using atomic snapshot read *)

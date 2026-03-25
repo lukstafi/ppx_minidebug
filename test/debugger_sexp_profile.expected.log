@@ -1,0 +1,6 @@
+Profiling Summary
+=================
+Calls   Total         Avg           Min           Max           Function
+------------------------------------------------------------------------------
+     6  TIME     TIME     TIME      TIME     loop @ test/test_debug_sexp.ml:34:26-40:9
+     1  TIME     TIME     TIME     TIME     foo @ test/test_debug_sexp.ml:7:21-9:17

@@ -142,6 +142,23 @@
  (action
   (diff debugger_sexp.expected.log debugger_sexp.log)))
 
+; Profile command test: runs "minidebug_view profile" on the sexp DB
+; to verify aggregated profiling summary (inspired by Landmarks, issue #27)
+(rule
+ (targets debugger_sexp_profile.log)
+ (deps debugger_sexp_1.db ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
+ (action
+  (with-stdout-to
+   debugger_sexp_profile.log
+   (pipe-stdout
+    (run %{dep:../bin/minidebug_view.exe} debugger_sexp_1.db profile)
+    (run %{dep:../bin/filter_test_output.exe})))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_sexp_profile.expected.log debugger_sexp_profile.log)))
+
 (test
  (name test_boxify_sexp)
  (modules test_boxify_sexp)
