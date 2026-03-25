@@ -237,3 +237,18 @@ val search_extract :
     [search_extract ~search_path:["fn_a"; "param_x"] ~extraction_path:["fn_a"; "result"]
      client] finds all paths matching "fn_a" → "param_x", then from each match extracts
     "fn_a" → "result" and prints unique results. *)
+
+val show_profiling_summary :
+  ?output:Format.formatter ->
+  ?format:[ `Text | `Json ] ->
+  ?limit:int option ->
+  t ->
+  unit
+(** Show aggregated profiling summary. Groups scope headers by function name
+    and aggregates elapsed times, similar to Landmarks' aggregate_landmarks.
+    Provides total time, call count, average, min, and max per function,
+    sorted by total time descending.
+
+    Arguments:
+    - [format]: Output format (Text or JSON)
+    - [limit]: Limit number of results *)

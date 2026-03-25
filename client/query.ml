@@ -38,6 +38,18 @@ type search_order =
   | DescendingIds
 (** ORDER BY scope_id DESC: newest-pos → oldest-pos → oldest-neg → newest-neg *)
 
+(** Aggregated profiling summary for a single function/scope name. Inspired by
+    Landmarks' aggregate_landmarks which merges all nodes with the same landmark
+    ID into a single entry with accumulated metrics. *)
+type profiling_entry = {
+  function_name : string;
+  location : string option;
+  call_count : int;
+  total_ns : int;
+  avg_ns : int;
+  min_ns : int;
+  max_ns : int;
+}
 
 (** Format elapsed time *)
 let format_elapsed_ns ns =
@@ -94,6 +106,12 @@ module type S = sig
     completed_ref:bool ref ->
     results_table:(int * int, bool) Hashtbl.t ->
     unit
+
+  val get_profiling_summary : unit -> profiling_entry list
+  (** Get aggregated profiling summary: for each unique function name (scope
+      header message), returns total time, call count, average, min, and max
+      elapsed time. Results are sorted by total time descending. Inspired by
+      Landmarks' aggregate_landmarks. *)
 end
 
 (** Helper: normalize db_path by removing versioned suffix (_N.db -> .db). Examples:
@@ -1465,4 +1483,57 @@ end) : S = struct
         (Printf.sprintf "ERROR: %s\n%s" (Printexc.to_string exn)
            (Printexc.get_backtrace ()));
       completed_ref := true
+
+  (** Get aggregated profiling summary. Groups scope headers by function name
+      (message) and aggregates elapsed times. Inspired by Landmarks'
+      aggregate_landmarks which merges call graph nodes by landmark ID. *)
+  let get_profiling_summary =
+    let stmt =
+      Sqlite3.prepare db
+        {|
+        SELECT
+          va_msg.value_content AS function_name,
+          va_loc.value_content AS location,
+          COUNT(*) AS call_count,
+          SUM(e.elapsed_end_ns - e.elapsed_start_ns) AS total_ns,
+          CAST(AVG(e.elapsed_end_ns - e.elapsed_start_ns) AS INTEGER) AS avg_ns,
+          MIN(e.elapsed_end_ns - e.elapsed_start_ns) AS min_ns,
+          MAX(e.elapsed_end_ns - e.elapsed_start_ns) AS max_ns
+        FROM entries e
+        JOIN value_atoms va_msg ON e.message_value_id = va_msg.value_id
+        LEFT JOIN value_atoms va_loc ON e.location_value_id = va_loc.value_id
+        WHERE e.elapsed_end_ns IS NOT NULL
+          AND e.child_scope_id IS NOT NULL
+          AND e.seq_id = 0
+        GROUP BY va_msg.value_content, va_loc.value_content
+        ORDER BY total_ns DESC
+      |}
+    in
+    fun () ->
+      Sqlite3.reset stmt |> ignore;
+      let results = ref [] in
+      let rec loop () =
+        match Sqlite3.step stmt with
+        | Sqlite3.Rc.ROW ->
+            let entry =
+              {
+                function_name =
+                  Sqlite3.Data.to_string_exn (Sqlite3.column stmt 0);
+                location =
+                  (match Sqlite3.column stmt 1 with
+                  | Sqlite3.Data.TEXT s -> Some s
+                  | _ -> None);
+                call_count = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 2);
+                total_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 3);
+                avg_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 4);
+                min_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 5);
+                max_ns = Sqlite3.Data.to_int_exn (Sqlite3.column stmt 6);
+              }
+            in
+            results := entry :: !results;
+            loop ()
+        | _ -> ()
+      in
+      loop ();
+      List.rev !results
 end
