@@ -1,0 +1,5 @@
+(executable
+ (name main)
+ (libraries minidebug_db)
+ (instrumentation
+  (backend ppx_minidebug --auto)))
