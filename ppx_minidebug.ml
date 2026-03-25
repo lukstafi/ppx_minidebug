@@ -2057,10 +2057,12 @@ let noop_for_testing =
        Ast_pattern.(single_expr_payload __)
        (fun ~loc:_ ~path:_ payload -> payload)
 
-(* Strip type annotations from a value binding so that auto-instrumented
-   functions only get entry/exit tracing, not value logging. This is necessary
-   because the impl hook runs AFTER context-free rules, so generated
-   [%show: ...] / [%sexp_of: ...] extensions would not be expanded. *)
+(* Strip type annotations from a value binding's parameters so that
+   auto-instrumented functions only get entry/exit tracing, not value logging.
+   This is necessary because the impl hook runs AFTER context-free rules, so
+   generated [%show: ...] / [%sexp_of: ...] extensions would not be expanded.
+   Note: pvb_constraint is stripped for the debug_binding input but MUST be
+   restored on the output to preserve locally abstract types, GADTs, etc. *)
 let strip_annotations_for_auto vb =
   let rec strip_pat pat =
     match pat.ppat_desc with
@@ -2144,8 +2146,12 @@ let auto_instrument_impl str =
                     && is_function_expr vb.pvb_expr
                     && not (is_already_instrumented vb)
                   then
-                    debug_binding context callback
-                      (strip_annotations_for_auto vb)
+                    let original_constraint = vb.pvb_constraint in
+                    let result =
+                      debug_binding context callback
+                        (strip_annotations_for_auto vb)
+                    in
+                    { result with pvb_constraint = original_constraint }
                   else vb)
                 bindings
             in

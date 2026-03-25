@@ -650,6 +650,19 @@
  (action
   (diff test_auto_mixed.expected.ml test_auto_mixed.actual.ml)))
 
+(rule
+ (targets test_auto_poly.actual.ml)
+ (deps
+  (:pp pp.exe)
+  (:input test_auto_poly.ml))
+ (action
+  (run ./%{pp} --auto --impl %{input} -o %{targets})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff test_auto_poly.expected.ml test_auto_poly.actual.ml)))
+
 ;; Auto-instrumentation runtime behavior test
 
 (executable
