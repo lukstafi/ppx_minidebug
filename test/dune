@@ -593,3 +593,89 @@
  (alias runtest)
  (action
   (diff debugger_long_values.expected.log debugger_long_values.log)))
+
+;; Auto-instrumentation PPX transformation tests
+
+(rule
+ (targets test_auto_instrument.actual.ml)
+ (deps
+  (:pp pp.exe)
+  (:input test_auto_instrument.ml))
+ (action
+  (run ./%{pp} --auto --impl %{input} -o %{targets})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff test_auto_instrument.expected.ml test_auto_instrument.actual.ml)))
+
+(rule
+ (targets test_auto_disable.actual.ml)
+ (deps
+  (:pp pp.exe)
+  (:input test_auto_disable.ml))
+ (action
+  (run ./%{pp} --auto --impl %{input} -o %{targets})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff test_auto_disable.expected.ml test_auto_disable.actual.ml)))
+
+(rule
+ (targets test_auto_no_functions.actual.ml)
+ (deps
+  (:pp pp.exe)
+  (:input test_auto_no_functions.ml))
+ (action
+  (run ./%{pp} --auto --impl %{input} -o %{targets})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff
+   test_auto_no_functions.expected.ml
+   test_auto_no_functions.actual.ml)))
+
+(rule
+ (targets test_auto_mixed.actual.ml)
+ (deps
+  (:pp pp.exe)
+  (:input test_auto_mixed.ml))
+ (action
+  (run ./%{pp} --auto --impl %{input} -o %{targets})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff test_auto_mixed.expected.ml test_auto_mixed.actual.ml)))
+
+;; Auto-instrumentation runtime behavior test
+
+(executable
+ (name test_auto_runtime)
+ (modules test_auto_runtime)
+ (libraries minidebug_db)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug --auto ppx_deriving.show)))
+
+(rule
+ (targets debugger_test_auto_runtime.db debugger_auto_runtime.log)
+ (deps ../bin/minidebug_view.exe ../bin/filter_test_output.exe)
+ (action
+  (progn
+   (run %{dep:test_auto_runtime.exe})
+   (with-stdout-to
+    debugger_auto_runtime.log
+    (pipe-stdout
+     (run
+      %{dep:../bin/minidebug_view.exe}
+      debugger_test_auto_runtime.db
+      show)
+     (run %{dep:../bin/filter_test_output.exe}))))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_auto_runtime.expected.log debugger_auto_runtime.log)))

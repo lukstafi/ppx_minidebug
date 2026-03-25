@@ -4,9 +4,11 @@
  (public_name ppx_minidebug)
  (name ppx_minidebug)
  (kind ppx_rewriter)
+ (instrumentation.backend
+  (ppx ppx_minidebug))
  (modules ppx_minidebug)
  (libraries ppxlib re)
- (ppx_runtime_libraries ppx_minidebug.runtime)
+ (ppx_runtime_libraries ppx_minidebug.runtime ppx_minidebug.db)
  (preprocess
   (pps ppxlib.metaquot)))
 

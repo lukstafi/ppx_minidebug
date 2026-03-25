@@ -43,6 +43,44 @@ let init_context =
       toplevel_kind = Runtime_local;
     }
 
+(* Auto-instrumentation mode configuration *)
+let auto_mode = ref false
+let auto_track_or_explicit = ref `Track
+let auto_log_value = ref Show
+let auto_entry_log_level = ref (Comptime 1)
+let auto_db_base_name = ref ""
+
+let () =
+  Driver.add_arg "--auto" (Arg.Set auto_mode)
+    ~doc:" Enable auto-instrumentation of all top-level functions";
+  Driver.add_arg "--auto-mode"
+    (Arg.Symbol
+       ( [ "track"; "debug"; "diagn" ],
+         fun s ->
+           auto_track_or_explicit :=
+             (match s with
+             | "track" -> `Track
+             | "debug" -> `Debug
+             | "diagn" -> `Diagn
+             | _ -> assert false) ))
+    ~doc:" Auto-instrumentation mode (default: track)";
+  Driver.add_arg "--auto-log-value"
+    (Arg.Symbol
+       ( [ "sexp"; "show"; "pp" ],
+         fun s ->
+           auto_log_value :=
+             (match s with
+             | "sexp" -> Sexp
+             | "show" -> Show
+             | "pp" -> Pp
+             | _ -> assert false) ))
+    ~doc:" Value serialization for auto mode (default: show)";
+  Driver.add_arg "--auto-db-base-name"
+    (Arg.Set_string auto_db_base_name)
+    ~doc:
+      "NAME Base name for auto-generated debug DB (default: derived from \
+       source filename)"
+
 let parse_log_level = function
   | { pexp_desc = Pexp_constant (Pconst_integer (i, None)); _ } ->
       Comptime (int_of_string i)
@@ -706,6 +744,87 @@ let loc_to_name loc =
 
 let is_comptime_nothing context =
   match context.log_level with Comptime i when i <= 0 -> true | _ -> false
+
+(* Auto-instrumentation helpers *)
+let rec is_function_expr e =
+  match e.pexp_desc with
+  | Pexp_function _ | Pexp_newtype _ -> true
+  | Pexp_constraint (e, _) | Pexp_coerce (e, _, _) -> is_function_expr e
+  | Pexp_open (_, e) -> is_function_expr e
+  | _ -> false
+
+let is_unit_pattern pat =
+  match pat.ppat_desc with
+  | Ppat_construct ({ txt = Lident "()"; _ }, None) -> true
+  | _ -> false
+
+let is_runtime_setup_binding vb =
+  match vb.pvb_pat.ppat_desc with
+  | Ppat_var { txt; _ } ->
+      txt = "_get_local_debug_runtime" || txt = "_debug_runtime"
+  | _ -> false
+
+let ppx_minidebug_disabled_binding = "__ppx_minidebug_disabled"
+
+let has_disable_sentinel str =
+  List.exists
+    (fun si ->
+      match si.pstr_desc with
+      | Pstr_value (_, bindings) ->
+          List.exists
+            (fun vb ->
+              match vb.pvb_pat.ppat_desc with
+              | Ppat_var { txt; _ } -> txt = ppx_minidebug_disabled_binding
+              | _ -> false)
+            bindings
+      | _ -> false)
+    str
+
+(* Check if a value binding has already been instrumented by a context-free
+   rule (e.g. let%debug_show). After expansion, the function body contains
+   either [let module Debug_runtime = ...] (Runtime_local) or
+   [let __scope_id = ...] (Runtime_outer). *)
+let is_already_instrumented vb =
+  let rec check_body e =
+    match e.pexp_desc with
+    | Pexp_function (_, _, Pfunction_body body) -> check_body body
+    | Pexp_newtype (_, body) -> check_body body
+    | Pexp_letmodule ({ txt = Some "Debug_runtime"; _ }, _, _) -> true
+    | Pexp_let (_, bindings, _) ->
+        List.exists
+          (fun vb ->
+            match vb.pvb_pat.ppat_desc with
+            | Ppat_var { txt = "__scope_id"; _ } -> true
+            | _ -> false)
+          bindings
+    | _ -> false
+  in
+  check_body vb.pvb_expr
+
+(* Check if Debug_runtime is defined before the first eligible function.
+   Returns true if we need to inject a Debug_runtime module.
+   This is called from the impl hook, so already-instrumented bindings
+   (from context-free rules) must be excluded.
+   Returns false if there are no eligible functions at all. *)
+let needs_runtime_injection str =
+  let is_eligible_binding vb =
+    (not (is_unit_pattern vb.pvb_pat))
+    && (not (is_runtime_setup_binding vb))
+    && is_function_expr vb.pvb_expr
+    && not (is_already_instrumented vb)
+  in
+  let rec scan = function
+    | [] -> false (* no eligible functions found *)
+    | si :: rest -> (
+        match si.pstr_desc with
+        | Pstr_module { pmb_name = { txt = Some "Debug_runtime"; _ }; _ } ->
+            false (* found user's Debug_runtime before any eligible function *)
+        | Pstr_value (_, bindings)
+          when List.exists is_eligible_binding bindings ->
+            true (* found eligible function before Debug_runtime *)
+        | _ -> scan rest)
+  in
+  scan str
 
 let debug_fun context callback ?typ ?ret_descr ?ret_typ exp =
   let log_count_before = !global_log_count in
@@ -1922,14 +2041,134 @@ let global_log_level_from_env_var ~check_consistency =
   in
   Ppxlib.Context_free.Rule.extension declaration
 
+let global_disable =
+  let declaration =
+    Extension.V3.declare "ppx_minidebug_disable" Extension.Context.structure_item
+      Ast_pattern.(pstr nil)
+      (fun ~ctxt ->
+        let loc = Expansion_context.Extension.extension_point_loc ctxt in
+        [%stri let __ppx_minidebug_disabled = true])
+  in
+  Ppxlib.Context_free.Rule.extension declaration
+
 let noop_for_testing =
   Ppxlib.Context_free.Rule.extension
   @@ Extension.declare "ppx_minidebug_noop_for_testing" Extension.Context.expression
        Ast_pattern.(single_expr_payload __)
        (fun ~loc:_ ~path:_ payload -> payload)
 
+(* Strip type annotations from a value binding so that auto-instrumented
+   functions only get entry/exit tracing, not value logging. This is necessary
+   because the impl hook runs AFTER context-free rules, so generated
+   [%show: ...] / [%sexp_of: ...] extensions would not be expanded. *)
+let strip_annotations_for_auto vb =
+  let rec strip_pat pat =
+    match pat.ppat_desc with
+    | Ppat_constraint (inner, _) -> strip_pat inner
+    | _ -> pat
+  in
+  let strip_param param =
+    match param.pparam_desc with
+    | Pparam_val (lbl, default, pat) ->
+        { param with pparam_desc = Pparam_val (lbl, default, strip_pat pat) }
+    | Pparam_newtype _ -> param
+  in
+  let rec strip_expr e =
+    match e.pexp_desc with
+    | Pexp_function (params, _constraint_, body) ->
+        let params = List.map strip_param params in
+        { e with pexp_desc = Pexp_function (params, None, body) }
+    | Pexp_constraint (inner, _) -> strip_expr inner
+    | Pexp_coerce (inner, _, _) -> strip_expr inner
+    | Pexp_newtype (s, inner) ->
+        { e with pexp_desc = Pexp_newtype (s, strip_expr inner) }
+    | Pexp_open (od, inner) ->
+        { e with pexp_desc = Pexp_open (od, strip_expr inner) }
+    | _ -> e
+  in
+  {
+    vb with
+    pvb_expr = strip_expr vb.pvb_expr;
+    pvb_pat = strip_pat vb.pvb_pat;
+    pvb_constraint = None;
+  }
+
+(* Auto-instrumentation: transform unannotated top-level function bindings
+   when --auto flag is passed. Runs as an impl hook AFTER context-free rules
+   have already expanded [%%ppx_minidebug_disable] and [let%debug_...] etc. *)
+let auto_instrument_impl str =
+  if not !auto_mode then str
+  else if has_disable_sentinel str then str
+  else
+    let callback context e = traverse_expression#expression context e in
+    let context =
+      {
+        !init_context with
+        log_value = !auto_log_value;
+        track_or_explicit = !auto_track_or_explicit;
+        entry_log_level = !auto_entry_log_level;
+        toplevel_kind = Runtime_outer;
+      }
+    in
+    let inject_runtime = needs_runtime_injection str in
+    let source_file =
+      match str with
+      | { pstr_loc = loc; _ } :: _ -> loc.loc_start.pos_fname
+      | [] -> "unknown"
+    in
+    let db_base_name =
+      if !auto_db_base_name <> "" then !auto_db_base_name
+      else
+        "debugger_"
+        ^ (Filename.basename source_file |> Filename.remove_extension)
+    in
+    let transform_item si =
+      match si.pstr_desc with
+      | Pstr_value (rec_flag, bindings) ->
+          let any_eligible =
+            List.exists
+              (fun vb ->
+                (not (is_unit_pattern vb.pvb_pat))
+                && (not (is_runtime_setup_binding vb))
+                && is_function_expr vb.pvb_expr
+                && not (is_already_instrumented vb))
+              bindings
+          in
+          if any_eligible then
+            let bindings =
+              List.map
+                (fun vb ->
+                  if
+                    (not (is_unit_pattern vb.pvb_pat))
+                    && (not (is_runtime_setup_binding vb))
+                    && is_function_expr vb.pvb_expr
+                    && not (is_already_instrumented vb)
+                  then
+                    debug_binding context callback
+                      (strip_annotations_for_auto vb)
+                  else vb)
+                bindings
+            in
+            { si with pstr_desc = Pstr_value (rec_flag, bindings) }
+          else si
+      | _ -> si
+    in
+    let str = List.map transform_item str in
+    if inject_runtime then
+      let loc = Location.in_file source_file in
+      let runtime_module =
+        [%stri
+          module Debug_runtime =
+            (val Minidebug_db.debug_db_file
+                   [%e
+                     Ast_helper.Exp.constant ~loc
+                     @@ Ast_helper.Const.string ~loc db_base_name])]
+      in
+      runtime_module :: str
+    else str
+
 let rules =
-  noop_for_testing
+  noop_for_testing :: global_disable
   :: global_log_level_from_env_var ~check_consistency:true
   :: global_log_level_from_env_var ~check_consistency:false
   :: global_log_level :: global_output_type_info :: global_interrupts
@@ -1975,4 +2214,6 @@ let rules =
          Ppxlib.Context_free.Rule.extension declaration)
        rules
 
-let () = Driver.register_transformation ~rules "ppx_minidebug"
+let () =
+  Driver.register_transformation ~rules
+    ~impl:auto_instrument_impl "ppx_minidebug"
