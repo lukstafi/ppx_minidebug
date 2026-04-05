@@ -134,6 +134,7 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
           Int64.to_int (Stdlib.LargeFile.out_channel_length !!current_ch) > split_after
 
     let current_snapshot = ref 0
+    let toc_snapshot = ref 0
 
     let debug_ch () =
       if refresh_ch () then (
@@ -143,12 +144,6 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
       !!current_ch
 
     let debug_ch_name () = !current_ch_name
-
-    let snapshot_ch () =
-      flush !!current_ch;
-      current_snapshot := pos_out !!current_ch
-
-    let reset_to_snapshot () = seek_out !!current_ch !current_snapshot
 
     let table_of_contents_ch =
       if with_table_of_contents then (
@@ -161,6 +156,21 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
         Gc.finalise (fun _ -> close_out ch) ch;
         Some ch)
       else None
+
+    let snapshot_ch () =
+      flush !!current_ch;
+      current_snapshot := pos_out !!current_ch;
+      match table_of_contents_ch with
+      | None -> ()
+      | Some toc_ch ->
+          flush toc_ch;
+          toc_snapshot := pos_out toc_ch
+
+    let reset_to_snapshot () =
+      seek_out !!current_ch !current_snapshot;
+      match table_of_contents_ch with
+      | None -> ()
+      | Some toc_ch -> seek_out toc_ch !toc_snapshot
 
     let time_tagged = time_tagged
     let elapsed_times = elapsed_times
@@ -1624,9 +1634,8 @@ module PrintBox (Log_to : Shared_config) = struct
       let ch = debug_ch () in
       pop_snapshot ();
       output_box ~for_toc:false ch box;
-      if not from_snapshot then snapshot_ch ();
       PrevRun.signal_chunk_end !prev_run_state;
-      match table_of_contents_ch with
+      (match table_of_contents_ch with
       | None -> ()
       | Some toc_ch ->
           let toc_depth, toc_header, toc_box =
@@ -1642,7 +1651,8 @@ module PrintBox (Log_to : Shared_config) = struct
             output_string toc_ch @@ {|</div><div style="height: |}
             ^ Int.to_string (toc_depth * config.flame_graph_separation)
             ^ {|px;"></div>|};
-            flush toc_ch)
+            flush toc_ch));
+      if not from_snapshot then snapshot_ch ()
     in
     (match !stack with
     | { scope_id = open_scope_id; _ } :: _tl when open_scope_id <> scope_id ->
@@ -2192,18 +2202,27 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
     let refresh_ch () = false
     let ch = match debug_ch with None -> stdout | Some ch -> ch
     let current_snapshot = ref 0
+    let toc_snapshot = ref 0
 
     let snapshot_ch () =
-      match debug_ch with
+      (match debug_ch with
       | None -> ()
       | Some _ ->
           flush ch;
-          current_snapshot := pos_out ch
+          current_snapshot := pos_out ch);
+      match table_of_contents_ch with
+      | None -> ()
+      | Some toc_ch ->
+          flush toc_ch;
+          toc_snapshot := pos_out toc_ch
 
     let reset_to_snapshot () =
-      match debug_ch with
+      (match debug_ch with
       | None -> Printf.fprintf ch "\027[2J\027[1;1H%!"
-      | Some _ -> seek_out ch !current_snapshot
+      | Some _ -> seek_out ch !current_snapshot);
+      match table_of_contents_ch with
+      | None -> ()
+      | Some toc_ch -> seek_out toc_ch !toc_snapshot
 
     let debug_ch () = ch
     let debug_ch_name () = global_prefix
@@ -2247,27 +2266,38 @@ let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename
           let refresh_ch () = false
           let ch = match d_ch with None -> stdout | Some ch -> ch
           let current_snapshot = ref 0
-
-          let snapshot_ch () =
-            match d_ch with
-            | None -> ()
-            | Some _ ->
-                flush ch;
-                current_snapshot := pos_out ch
-
-          let reset_to_snapshot () =
-            match d_ch with
-            | None -> Printf.fprintf ch "\027[2J\027[1;1H%!"
-            | Some _ -> seek_out ch !current_snapshot
-
-          let debug_ch () = ch
-          let debug_ch_name () = global_prefix
+          let toc_snapshot = ref 0
 
           let table_of_contents_ch =
             match (table_of_contents_ch, with_table_of_contents) with
             | Some toc_ch, _ -> Some toc_ch
             | None, true -> Some ch
             | _ -> None
+
+          let snapshot_ch () =
+            (match d_ch with
+            | None -> ()
+            | Some _ ->
+                flush ch;
+                current_snapshot := pos_out ch);
+            match table_of_contents_ch with
+            | None -> ()
+            | Some toc_ch when toc_ch == ch -> ()
+            | Some toc_ch ->
+                flush toc_ch;
+                toc_snapshot := pos_out toc_ch
+
+          let reset_to_snapshot () =
+            (match d_ch with
+            | None -> Printf.fprintf ch "\027[2J\027[1;1H%!"
+            | Some _ -> seek_out ch !current_snapshot);
+            match table_of_contents_ch with
+            | None -> ()
+            | Some toc_ch when toc_ch == ch -> ()
+            | Some toc_ch -> seek_out toc_ch !toc_snapshot
+
+          let debug_ch () = ch
+          let debug_ch_name () = global_prefix
 
           let time_tagged = time_tagged
           let elapsed_times = elapsed_times

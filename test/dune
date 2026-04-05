@@ -692,3 +692,23 @@
  (alias runtest)
  (action
   (diff debugger_auto_runtime.expected.log debugger_auto_runtime.log)))
+
+(executable
+ (name test_snapshot_toc)
+ (modules test_snapshot_toc)
+ (libraries minidebug_runtime unix)
+ (modes exe)
+ (preprocess
+  (pps ppx_minidebug ppx_deriving.show)))
+
+(rule
+ (target debugger_snapshot_toc.log)
+ (action
+  (with-stdout-to
+   %{target}
+   (run %{dep:test_snapshot_toc.exe}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debugger_snapshot_toc.expected.log debugger_snapshot_toc.log)))
