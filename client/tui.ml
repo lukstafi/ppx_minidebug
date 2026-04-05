@@ -316,6 +316,9 @@ let render_lines ~width ~is_selected ~show_times ~margin_width ~search_slots
         in
         [ render_single_line truncated ]
 
+(** Row-to-item mapping for mouse click resolution. Updated on each render. *)
+let last_row_to_item : int array ref = ref [||]
+
 (** Render the full screen *)
 let render_screen state ~width ~height =
   let header_height = 2 in
@@ -446,6 +449,7 @@ let render_screen state ~width ~height =
   let content_lines = ref [] in
   let lines_rendered = ref 0 in
   let i = ref visible_start in
+  let row_to_item = Array.make (max 0 content_height) (-1) in
 
   (* Render items until we fill content_height or run out of items *)
   while !lines_rendered < content_height && !i < num_items do
@@ -460,11 +464,13 @@ let render_screen state ~width ~height =
     List.iter
       (fun line ->
         if !lines_rendered < content_height then (
+          row_to_item.(!lines_rendered) <- !i;
           content_lines := line :: !content_lines;
           incr lines_rendered))
       item_lines;
     incr i
   done;
+  last_row_to_item := row_to_item;
 
   (* Pad if needed *)
   let padding_lines = content_height - !lines_rendered in
@@ -490,7 +496,7 @@ let render_screen state ~width ~height =
                   "[↑/↓] Navigate | [Home/End] First/Last | [PgUp/PgDn] Page | [u/d] \
                    Quarter | [n/N] Next/Prev Match | [m/M] Goto+Expand | [Enter/Space] \
                    Expand | [f] Fold | [/] Search | [g] Goto | [Q] Quiet | [t] Times | \
-                   [v] Values | [o] Order | [q] Quit"))
+                   [v] Values | [o] Order | [q] Quit | Mouse: Click/Scroll"))
     in
     NI.vcat
       [
@@ -508,7 +514,30 @@ let parse_key state event =
   | None -> None
   | Some (`Resize _) -> None
   | Some `End -> Some I.Quit
-  | Some (`Mouse _) -> None
+  | Some (`Mouse (event, (_x, y), _mods)) ->
+      (* Ignore mouse in any input mode *)
+      if
+        Option.is_some state.I.quiet_path_input
+        || Option.is_some state.I.search_input
+        || Option.is_some state.I.goto_input
+      then None
+      else (
+        let header_height = 2 in
+        match event with
+        | `Press `Left ->
+            let content_row = y - header_height in
+            if
+              content_row >= 0
+              && content_row < Array.length !last_row_to_item
+              && !last_row_to_item.(content_row) >= 0
+            then
+              let item_idx = !last_row_to_item.(content_row) in
+              if item_idx = state.I.cursor then Some I.ToggleExpansion
+              else Some (I.ClickAt item_idx)
+            else None
+        | `Press (`Scroll `Up) -> Some (I.ScrollUp 3)
+        | `Press (`Scroll `Down) -> Some (I.ScrollDown 3)
+        | _ -> None)
   | Some (`Paste _) -> None
   | Some (`Key (key : Unescape.key)) -> (
       match state.I.quiet_path_input with
@@ -555,7 +584,7 @@ let parse_key state event =
               | _ -> None)))
 
 let create_tui_callbacks () =
-  let term = Term.create () in
+  let term = Term.create ~mouse:true () in
   let command_stream state = parse_key state @@ event_with_timeout term 0.2 in
   let finalize () = Term.release term in
   let render_screen state ~width ~height =

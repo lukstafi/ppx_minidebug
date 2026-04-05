@@ -282,6 +282,9 @@ type command =
   | InputBackspace
   | InputEscape
   | InputEnter
+  | ClickAt of int (* visible_items index to move cursor to *)
+  | ScrollUp of int (* move cursor up by N items *)
+  | ScrollDown of int (* move cursor down by N items *)
 
 (** Find closest ancestor with positive ID by walking up the tree *)
 let rec find_positive_ancestor_id (module Q : Query.S) scope_id =
@@ -1404,6 +1407,38 @@ let rec handle_command state command ~height =
             else state.scroll_offset
           in
           Some { state with cursor = new_cursor; scroll_offset = new_scroll })
+  | ClickAt index ->
+      let max_cursor = Array.length state.visible_items - 1 in
+      if max_cursor < 0 then Some state
+      else
+        let new_cursor = max 0 (min index max_cursor) in
+        let new_scroll =
+          if new_cursor < state.scroll_offset then new_cursor
+          else if new_cursor >= state.scroll_offset + content_height then
+            new_cursor - content_height + 1
+          else state.scroll_offset
+        in
+        Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+  | ScrollUp n ->
+      let max_cursor = Array.length state.visible_items - 1 in
+      if max_cursor < 0 then Some state
+      else
+        let new_cursor = max 0 (state.cursor - n) in
+        let new_scroll = max 0 (min state.scroll_offset new_cursor) in
+        Some { state with cursor = new_cursor; scroll_offset = new_scroll }
+  | ScrollDown n ->
+      let max_cursor = Array.length state.visible_items - 1 in
+      if max_cursor < 0 then Some state
+      else
+        let new_cursor = min max_cursor (state.cursor + n) in
+        let new_scroll =
+          if new_cursor >= state.scroll_offset + content_height then
+            min
+              (max 0 (max_cursor - content_height + 1))
+              (new_cursor - content_height + 1)
+          else state.scroll_offset
+        in
+        Some { state with cursor = new_cursor; scroll_offset = new_scroll }
   | ToggleExpansion -> Some (toggle_expansion state)
   | Fold -> Some (fold_selection state)
   | SearchNext -> (
@@ -1785,6 +1820,12 @@ let parse_command_string str =
   | "M" -> Some GotoPrevHighlight
   | "esc" | "escape" -> Some InputEscape
   | "backspace" -> Some InputBackspace
+  | "scrollup" -> Some (ScrollUp 3)
+  | "scrolldown" -> Some (ScrollDown 3)
+  | _ when String.length str > 6 && String.sub str 0 6 = "click " ->
+      let rest = String.sub str 6 (String.length str - 6) in
+      (try Some (ClickAt (int_of_string (String.trim rest)))
+       with Failure _ -> None)
   | _ when String.length str > 0 && str.[0] = '/' ->
       (* Search command: /term *)
       let term = String.sub str 1 (String.length str - 1) in
