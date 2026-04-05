@@ -1,0 +1,12 @@
+uri  │debugger_snapshot_toc_debug.log#1
+─────┼──────────────────────────────────────────────────
+inner│"test/test_snapshot_toc.ml":5:32: slow_computation
+├─uri  │debugger_snapshot_toc_debug.log#2
+│ ─────┼──────────────────────────────────
+│ inner│"test/test_snapshot_toc.ml":6:6: y
+├─uri  │debugger_snapshot_toc_debug.log#3
+│ ─────┼──────────────────────────────────
+│ inner│"test/test_snapshot_toc.ml":8:6: z
+└─uri  │debugger_snapshot_toc_debug.log#4
+  ─────┼───────────────────────────────────
+  inner│"test/test_snapshot_toc.ml":10:6: w

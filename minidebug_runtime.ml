@@ -1634,9 +1634,8 @@ module PrintBox (Log_to : Shared_config) = struct
       let ch = debug_ch () in
       pop_snapshot ();
       output_box ~for_toc:false ch box;
-      if not from_snapshot then snapshot_ch ();
       PrevRun.signal_chunk_end !prev_run_state;
-      match table_of_contents_ch with
+      (match table_of_contents_ch with
       | None -> ()
       | Some toc_ch ->
           let toc_depth, toc_header, toc_box =
@@ -1652,7 +1651,8 @@ module PrintBox (Log_to : Shared_config) = struct
             output_string toc_ch @@ {|</div><div style="height: |}
             ^ Int.to_string (toc_depth * config.flame_graph_separation)
             ^ {|px;"></div>|};
-            flush toc_ch)
+            flush toc_ch));
+      if not from_snapshot then snapshot_ch ()
     in
     (match !stack with
     | { scope_id = open_scope_id; _ } :: _tl when open_scope_id <> scope_id ->
