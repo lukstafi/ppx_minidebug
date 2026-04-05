@@ -30,6 +30,7 @@ let () =
   for i = 0 to len - nlen do
     if String.sub content i nlen = needle then incr count
   done;
-  if !count > 1 then
-    Printf.printf "FAIL: toc has %d entries for slow_computation (expected 1)\n" !count
-  else Printf.printf "PASS: toc has exactly %d entry for slow_computation\n" !count
+  if !count <> 1 then
+    Printf.printf "FAIL: toc has %d entries for slow_computation (expected exactly 1)\n"
+      !count
+  else Printf.printf "PASS: toc has exactly 1 entry for slow_computation\n"

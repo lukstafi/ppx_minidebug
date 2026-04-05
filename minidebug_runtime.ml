@@ -2205,25 +2205,24 @@ let debug ?debug_ch ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_defaul
     let toc_snapshot = ref 0
 
     let snapshot_ch () =
-      match debug_ch with
+      (match debug_ch with
       | None -> ()
       | Some _ ->
           flush ch;
-          current_snapshot := pos_out ch;
-          (match table_of_contents_ch with
-          | None -> ()
-          | Some toc_ch ->
-              flush toc_ch;
-              toc_snapshot := pos_out toc_ch)
+          current_snapshot := pos_out ch);
+      match table_of_contents_ch with
+      | None -> ()
+      | Some toc_ch ->
+          flush toc_ch;
+          toc_snapshot := pos_out toc_ch
 
     let reset_to_snapshot () =
-      match debug_ch with
+      (match debug_ch with
       | None -> Printf.fprintf ch "\027[2J\027[1;1H%!"
-      | Some _ ->
-          seek_out ch !current_snapshot;
-          (match table_of_contents_ch with
-          | None -> ()
-          | Some toc_ch -> seek_out toc_ch !toc_snapshot)
+      | Some _ -> seek_out ch !current_snapshot);
+      match table_of_contents_ch with
+      | None -> ()
+      | Some toc_ch -> seek_out toc_ch !toc_snapshot
 
     let debug_ch () = ch
     let debug_ch_name () = global_prefix
@@ -2276,27 +2275,26 @@ let debug_flushing ?debug_ch:d_ch ?table_of_contents_ch ?filename
             | _ -> None
 
           let snapshot_ch () =
-            match d_ch with
+            (match d_ch with
             | None -> ()
             | Some _ ->
                 flush ch;
-                current_snapshot := pos_out ch;
-                (match table_of_contents_ch with
-                | None -> ()
-                | Some toc_ch when toc_ch == ch -> ()
-                | Some toc_ch ->
-                    flush toc_ch;
-                    toc_snapshot := pos_out toc_ch)
+                current_snapshot := pos_out ch);
+            match table_of_contents_ch with
+            | None -> ()
+            | Some toc_ch when toc_ch == ch -> ()
+            | Some toc_ch ->
+                flush toc_ch;
+                toc_snapshot := pos_out toc_ch
 
           let reset_to_snapshot () =
-            match d_ch with
+            (match d_ch with
             | None -> Printf.fprintf ch "\027[2J\027[1;1H%!"
-            | Some _ ->
-                seek_out ch !current_snapshot;
-                (match table_of_contents_ch with
-                | None -> ()
-                | Some toc_ch when toc_ch == ch -> ()
-                | Some toc_ch -> seek_out toc_ch !toc_snapshot)
+            | Some _ -> seek_out ch !current_snapshot);
+            match table_of_contents_ch with
+            | None -> ()
+            | Some toc_ch when toc_ch == ch -> ()
+            | Some toc_ch -> seek_out toc_ch !toc_snapshot
 
           let debug_ch () = ch
           let debug_ch_name () = global_prefix
