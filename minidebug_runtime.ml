@@ -1225,6 +1225,27 @@ module PrintBox (Log_to : Shared_config) = struct
           else None)
 
   let get_toc_ch () = Lazy.force toc_ch_lazy
+  let lazy_toc_snapshot = ref 0
+
+  let snapshot_ch () =
+    snapshot_ch ();
+    match get_toc_ch () with
+    | None -> ()
+    | Some _ when table_of_contents_ch <> None ->
+        (* Already handled by Log_to.snapshot_ch *)
+        ()
+    | Some toc_ch ->
+        flush toc_ch;
+        lazy_toc_snapshot := pos_out toc_ch
+
+  let reset_to_snapshot () =
+    reset_to_snapshot ();
+    match get_toc_ch () with
+    | None -> ()
+    | Some _ when table_of_contents_ch <> None ->
+        (* Already handled by Log_to.reset_to_snapshot *)
+        ()
+    | Some toc_ch -> seek_out toc_ch !lazy_toc_snapshot
 
   let should_log_path fname message =
     match config.path_filter with
