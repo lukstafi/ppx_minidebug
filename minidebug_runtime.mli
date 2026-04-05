@@ -284,6 +284,10 @@ type printbox_config = {
       (** If provided, filters logs based on source file paths and entry names at runtime.
           The filter is applied to ["fname/message"]. [`Whitelist re] only outputs logs
           matching the regex; [`Blacklist re] suppresses logs matching the regex. *)
+  mutable for_append : bool;
+      (** If true, the lazily created Table of Contents file is opened in append mode.
+          If false, the file is truncated on creation. Defaults to [true]; {!debug_file}
+          sets this to its own [~for_append] parameter (which defaults to [false]). *)
 }
 
 module type PrintBox_runtime = sig

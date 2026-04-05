@@ -283,6 +283,22 @@
   (pps ppx_minidebug ppx_deriving.show)))
 
 (executable
+ (name test_toc_no_file_at_level0)
+ (modules test_toc_no_file_at_level0)
+ (libraries minidebug_runtime)
+ (modes exe))
+
+(rule
+ (alias runtest-toc-no-file-at-level0)
+ (action
+  (run %{dep:test_toc_no_file_at_level0.exe})))
+
+(rule
+ (alias runtest)
+ (action
+  (run %{dep:test_toc_no_file_at_level0.exe})))
+
+(executable
  (name test_debug_log_prefixed)
  (modules test_debug_log_prefixed)
  (libraries minidebug_db)
