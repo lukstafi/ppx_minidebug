@@ -146,7 +146,7 @@ let shared_config ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
     let debug_ch_name () = !current_ch_name
 
     let table_of_contents_ch =
-      if with_table_of_contents then (
+      if with_table_of_contents && log_level > 0 then (
         let suffix = Filename.extension filename in
         let filename = Filename.remove_extension filename ^ "-toc" ^ suffix in
         let ch =
@@ -1159,6 +1159,7 @@ type printbox_config = {
   mutable flame_graph_separation : int;
   mutable prev_run_file : string option;
   mutable path_filter : [ `Whitelist of Re.re | `Blacklist of Re.re ] option;
+  mutable for_append : bool;
 }
 
 module type PrintBox_runtime = sig
@@ -1197,7 +1198,33 @@ module PrintBox (Log_to : Shared_config) = struct
       flame_graph_separation = 40;
       prev_run_file = None;
       path_filter = Log_to.path_filter;
+      for_append = true;
     }
+
+  let toc_ch_lazy =
+    lazy
+      (match table_of_contents_ch with
+      | Some _ -> table_of_contents_ch
+      | None ->
+          if
+            (config.with_toc_listing || config.toc_flame_graph)
+            && Filename.extension (debug_ch_name ()) <> ""
+          then (
+            let name = debug_ch_name () in
+            let suffix = Filename.extension name in
+            let toc_name =
+              Filename.remove_extension name ^ "-toc" ^ suffix
+            in
+            let ch =
+              if config.for_append then
+                open_out_gen [ Open_creat; Open_append ] 0o640 toc_name
+              else open_out toc_name
+            in
+            Gc.finalise (fun _ -> close_out ch) ch;
+            Some ch)
+          else None)
+
+  let get_toc_ch () = Lazy.force toc_ch_lazy
 
   let should_log_path fname message =
     match config.path_filter with
@@ -1469,7 +1496,7 @@ module PrintBox (Log_to : Shared_config) = struct
       { scope_id; depth; toc_depth = result_toc_depth; size; elapsed; body; time_tag; _ }
       =
     let span = Mtime.Span.abs_diff elapsed_on_close elapsed in
-    match table_of_contents_ch with
+    match get_toc_ch () with
     | None -> (toc_depth, B.empty, B.empty)
     | _ when not @@ toc_entry_passes ~depth ~size ~span toc_entry ->
         (toc_depth, B.empty, B.empty)
@@ -1635,7 +1662,7 @@ module PrintBox (Log_to : Shared_config) = struct
       pop_snapshot ();
       output_box ~for_toc:false ch box;
       PrevRun.signal_chunk_end !prev_run_state;
-      (match table_of_contents_ch with
+      (match get_toc_ch () with
       | None -> ()
       | Some toc_ch ->
           let toc_depth, toc_header, toc_box =
@@ -2165,6 +2192,7 @@ let debug_file ?(time_tagged = Not_tagged) ?(elapsed_times = elapsed_default)
               ~verbose_scope_ids ~global_prefix ~for_append ?split_files_after
               ~with_table_of_contents ~toc_entry ~log_level ?path_filter filename)) in
   Debug.config.backend <- backend;
+  Debug.config.for_append <- for_append;
   Debug.config.boxify_sexp_from_size <- boxify_sexp_from_size;
   Debug.config.max_inline_sexp_length <- max_inline_sexp_length;
   Debug.config.highlight_terms <- Option.map Re.compile highlight_terms;
