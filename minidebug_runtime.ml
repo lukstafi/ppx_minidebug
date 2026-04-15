@@ -1630,6 +1630,12 @@ module PrintBox (Log_to : Shared_config) = struct
       reset_to_snapshot ();
       needs_snapshot_reset := false)
 
+  let with_snapshot_bookkeeping ~from_snapshot f =
+    pop_snapshot ();
+    let result = f () in
+    if not from_snapshot then snapshot_ch ();
+    result
+
   let output_box ~for_toc ch box =
     match B.view box with
     | Empty -> ()
@@ -1679,28 +1685,27 @@ module PrintBox (Log_to : Shared_config) = struct
   and close_log_impl ~from_snapshot ~elapsed_on_close ~fname ~start_lnum ~scope_id =
     let close_tree ~entry ~toc_depth =
       let header, box = stack_to_tree ~elapsed_on_close entry in
-      let ch = debug_ch () in
-      pop_snapshot ();
-      output_box ~for_toc:false ch box;
-      PrevRun.signal_chunk_end !prev_run_state;
-      (match get_toc_ch () with
-      | None -> ()
-      | Some toc_ch ->
-          let toc_depth, toc_header, toc_box =
-            stack_to_toc ~toc_depth ~elapsed_on_close header entry
-          in
-          if config.with_toc_listing then output_box ~for_toc:true toc_ch toc_box;
-          if config.toc_flame_graph && not (is_empty toc_header) then (
-            output_string toc_ch
-              {|
+      with_snapshot_bookkeeping ~from_snapshot (fun () ->
+          let ch = debug_ch () in
+          output_box ~for_toc:false ch box;
+          PrevRun.signal_chunk_end !prev_run_state;
+          match get_toc_ch () with
+          | None -> ()
+          | Some toc_ch ->
+              let toc_depth, toc_header, toc_box =
+                stack_to_toc ~toc_depth ~elapsed_on_close header entry
+              in
+              if config.with_toc_listing then output_box ~for_toc:true toc_ch toc_box;
+              if config.toc_flame_graph && not (is_empty toc_header) then (
+                output_string toc_ch
+                  {|
                 <div style="position: relative; height: 0px;">|};
-            Buffer.output_buffer toc_ch
-            @@ stack_to_flame ~elapsed_on_close toc_header entry;
-            output_string toc_ch @@ {|</div><div style="height: |}
-            ^ Int.to_string (toc_depth * config.flame_graph_separation)
-            ^ {|px;"></div>|};
-            flush toc_ch));
-      if not from_snapshot then snapshot_ch ()
+                Buffer.output_buffer toc_ch
+                @@ stack_to_flame ~elapsed_on_close toc_header entry;
+                output_string toc_ch @@ {|</div><div style="height: |}
+                ^ Int.to_string (toc_depth * config.flame_graph_separation)
+                ^ {|px;"></div>|};
+                flush toc_ch))
     in
     (match !stack with
     | { scope_id = open_scope_id; _ } :: _tl when open_scope_id <> scope_id ->

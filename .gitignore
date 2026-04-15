@@ -36,5 +36,9 @@ _opam/
 # IDE configuration files
 .vscode/
 
+# Generated test debug output files
+debugger_*_debug*
+*.raw
+
 # AI interaction files
 .specstory/
