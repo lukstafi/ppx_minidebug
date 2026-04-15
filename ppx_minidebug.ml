@@ -801,18 +801,21 @@ let is_already_instrumented vb =
   in
   check_body vb.pvb_expr
 
+(* Check if a binding is eligible for auto-instrumentation:
+   non-unit, not a runtime setup binding, a function expression,
+   and not already instrumented by context-free rules. *)
+let is_auto_eligible vb =
+  (not (is_unit_pattern vb.pvb_pat))
+  && (not (is_runtime_setup_binding vb))
+  && is_function_expr vb.pvb_expr
+  && not (is_already_instrumented vb)
+
 (* Check if Debug_runtime is defined before the first eligible function.
    Returns true if we need to inject a Debug_runtime module.
    This is called from the impl hook, so already-instrumented bindings
    (from context-free rules) must be excluded.
    Returns false if there are no eligible functions at all. *)
 let needs_runtime_injection str =
-  let is_eligible_binding vb =
-    (not (is_unit_pattern vb.pvb_pat))
-    && (not (is_runtime_setup_binding vb))
-    && is_function_expr vb.pvb_expr
-    && not (is_already_instrumented vb)
-  in
   let rec scan = function
     | [] -> false (* no eligible functions found *)
     | si :: rest -> (
@@ -820,7 +823,7 @@ let needs_runtime_injection str =
         | Pstr_module { pmb_name = { txt = Some "Debug_runtime"; _ }; _ } ->
             false (* found user's Debug_runtime before any eligible function *)
         | Pstr_value (_, bindings)
-          when List.exists is_eligible_binding bindings ->
+          when List.exists is_auto_eligible bindings ->
             true (* found eligible function before Debug_runtime *)
         | _ -> scan rest)
   in
@@ -2128,23 +2131,13 @@ let auto_instrument_impl str =
       match si.pstr_desc with
       | Pstr_value (rec_flag, bindings) ->
           let any_eligible =
-            List.exists
-              (fun vb ->
-                (not (is_unit_pattern vb.pvb_pat))
-                && (not (is_runtime_setup_binding vb))
-                && is_function_expr vb.pvb_expr
-                && not (is_already_instrumented vb))
-              bindings
+            List.exists is_auto_eligible bindings
           in
           if any_eligible then
             let bindings =
               List.map
                 (fun vb ->
-                  if
-                    (not (is_unit_pattern vb.pvb_pat))
-                    && (not (is_runtime_setup_binding vb))
-                    && is_function_expr vb.pvb_expr
-                    && not (is_already_instrumented vb)
+                  if is_auto_eligible vb
                   then
                     let original_constraint = vb.pvb_constraint in
                     let result =

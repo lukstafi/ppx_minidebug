@@ -432,6 +432,33 @@ See the `test/` directory for extensive examples:
 - [test_expect_test.ml](test/test_expect_test.ml) — Comprehensive test suite with 60+ examples
 - [test_path_filter.ml](test/test_path_filter.ml) — Path filtering examples
 
+## Dune Instrumentation Backend
+
+ppx_minidebug supports dune's [instrumentation](https://dune.readthedocs.io/en/stable/instrumentation.html) mechanism. With `--auto` mode, all eligible top-level function bindings are automatically instrumented without requiring `let%debug_*` annotations.
+
+Enable it in your `dune-project`:
+
+```
+(lang dune 3.0)
+(instrumentation.backend (ppx ppx_minidebug))
+```
+
+Then pass `--auto` on the **consumer side** in each library or executable `dune` file:
+
+```
+(library
+ (name my_lib)
+ (instrumentation (backend ppx_minidebug --auto)))
+```
+
+> **Important:** Dune's `(instrumentation.backend ...)` stanza in `dune-project` does **not** support a `flags` field. You cannot pass `--auto` there — it must be specified in the per-library/executable `(instrumentation (backend ppx_minidebug --auto))` stanza.
+
+Additional auto-mode flags:
+
+- `--auto-mode {sexp|pp|show}` — Choose the logging serializer (default: `sexp`)
+- `--auto-log-value {args-and-result|result-only}` — What to log (default: `args-and-result`)
+- `--auto-db-base-name <name>` — Override the database file base name (default: `debugger_<source-file>`)
+
 ## Related Tools
 
 - [`ppx_debug`](https://github.com/dariusf/ppx_debug) — Complementary PPX with different design trade-offs
