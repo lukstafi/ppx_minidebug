@@ -293,7 +293,7 @@ let rec find_positive_ancestor_id (module Q : Query.S) scope_id =
   else
     (* Negative scope_id - walk up to parent *)
     match Q.get_parent_id ~scope_id with
-    | Some parent_id -> find_positive_ancestor_id (module Q) parent_id
+    | Some parent_id -> find_positive_ancestor_id (module Q : Query.S) parent_id
     | None -> None (* No parent found *)
 
 (** Check if an entry is highlighted in any search slot *)
